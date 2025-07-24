@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.member.dto;
 
+import com.c203.autobiography.domain.member.entity.Member;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -32,7 +33,6 @@ public class MemberCreateRequest {
     private String nickname;
 
     @Schema(description = "프로필 이미지 URL", example = "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/uuid.jpg")
-    @NotBlank(message = "프로필 이미지 URL은 필수입니다.")
     @URL(message = "유효한 URL 형식이어야 합니다.")
     private String profileImageUrl;
 
@@ -48,4 +48,19 @@ public class MemberCreateRequest {
     @Schema(description = "자기소개", example = "안녕하세요. 만나서 반가워요")
     @Size(max = 255, message = "자기소개는 최대 255자까지 가능합니다.")
     private String intro;
+
+    public Member toEntity(String encodedPassword) {
+        return Member.builder()
+                .email(email)
+                .password(encodedPassword)
+                .name(name)
+                .nickname(nickname)
+                .profileImageUrl(profileImageUrl)
+                .phoneNumber(phoneNumber)
+                .birthdate(birthdate)
+                .intro(intro)
+                .coin(0)
+                .role(Role.MEMBER)
+                .build();
+    }
 }
