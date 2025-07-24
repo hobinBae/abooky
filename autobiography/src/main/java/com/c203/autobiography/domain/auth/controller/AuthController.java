@@ -1,0 +1,59 @@
+package com.c203.autobiography.domain.auth.controller;
+
+import com.c203.autobiography.domain.auth.dto.LoginRequest;
+import com.c203.autobiography.domain.auth.service.AuthService;
+import com.c203.autobiography.domain.member.dto.TokenResponse;
+import com.c203.autobiography.global.common.ApiResponse;
+import com.c203.autobiography.global.security.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+@RestController
+@RequestMapping("/api/v1/auth")
+@RequiredArgsConstructor
+public class AuthController {
+
+    private final AuthService authService;
+
+    @Operation(summary = "로그인", description = "이메일/비밀번호로 로그인 후 AccessToken 및 RefreshToken 발급")
+    @PostMapping("/login")
+    public ResponseEntity<ApiResponse<TokenResponse>> login(
+            @RequestBody @Valid LoginRequest loginRequest, HttpServletRequest httpRequest){
+        TokenResponse tokenResponse = authService.login(loginRequest);
+        return ResponseEntity.ok(
+                ApiResponse.of(HttpStatus.OK, "로그인 성공", tokenResponse, httpRequest.getRequestURI())
+        );
+    }
+
+    @Operation(summary = "로그아웃", description = "RefreshToken 삭제 (서버에서 무효화)")
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal CustomUserDetails user,
+            HttpServletRequest httpRequest
+    ) {
+        authService.logout(user.getMemberId());
+        return ResponseEntity.ok(
+                ApiResponse.of(HttpStatus.OK, "로그아웃 성공", null, httpRequest.getRequestURI())
+        );
+    }
+
+    @Operation(summary = "토큰 재발급", description = "RefreshToken으로 새 AccessToken, RefreshToken 발급")
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiResponse<TokenResponse>> refresh(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @RequestParam String refreshToken,
+            HttpServletRequest httpRequest
+    ) {
+        TokenResponse token = authService.reissueToken(user.getMemberId(), refreshToken);
+        return ResponseEntity.ok(
+                ApiResponse.of(HttpStatus.OK, "토큰 재발급 성공", token, httpRequest.getRequestURI())
+        );
+    }
+
+}
