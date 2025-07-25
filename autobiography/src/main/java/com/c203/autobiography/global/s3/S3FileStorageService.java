@@ -4,6 +4,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.UUID;
 import java.util.concurrent.Executors;
+
+import com.c203.autobiography.global.exception.ApiException;
+import com.c203.autobiography.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,19 +37,22 @@ public class S3FileStorageService implements FileStorageService {
     public String store(MultipartFile file, String folder) {
         // 1) 파일명 유효성 검사
         String original = file.getOriginalFilename();
-//        if (!StringUtils.hasText(original) || !original.contains(".")) {
-////            throw new CustomException(ErrorCode.INVALID_FILE_FORMAT);
-//        }
+        if (!StringUtils.hasText(original) || !original.contains(".")) {
+            throw new ApiException(ErrorCode.INVALID_FILE_FORMAT);
+        }
+
 //        // 2) 확장자 체크
         String ext = original.substring(original.lastIndexOf('.') + 1).toLowerCase();
-//        if (!props.getAllowedExtensions().contains(ext)) {
-//            throw new CustomException(ErrorCode.INVALID_FILE_FORMAT);
-//        }
+        if (!props.getAllowedExtensions().contains(ext)) {
+            throw new ApiException(ErrorCode.INVALID_FILE_FORMAT);
+        }
+
 //
 //        // 3) 크기 체크
-//        if (file.getSize() > props.getMaxFileSize()) {
-//            throw new CustomException(ErrorCode.FILE_SIZE_EXCEEDED);
-//        }
+        if (file.getSize() > props.getMaxFileSize()) {
+            throw new ApiException(ErrorCode.FILE_SIZE_EXCEEDED);
+        }
+
         // 4) 키 생성
         String filename = UUID.randomUUID() + "." + ext;
         String key = folder.endsWith("/")
@@ -59,6 +65,7 @@ public class S3FileStorageService implements FileStorageService {
                 .key(key)
                 .contentType(file.getContentType())
                 .build();
+
         try (InputStream is = file.getInputStream()) {
             if (file.getSize() > props.getMultipartThreshold()) {
                 // 대용량 multipart 업로드: AsyncRequestBody.fromInputStream(is, length, executor)
@@ -77,7 +84,7 @@ public class S3FileStorageService implements FileStorageService {
             }
         } catch (IOException | SdkException e) {
             log.error("S3 업로드 실패 (key={}): {}", key, e.getMessage());
-//            throw new CustomException(ErrorCode.S3_UPLOAD_ERROR);
+            throw new ApiException(ErrorCode.S3_UPLOAD_ERROR);
         }
 
         // 6) URL 생성 및 반환
@@ -96,7 +103,7 @@ public class S3FileStorageService implements FileStorageService {
         String prefix = String.format("https://%s.s3.%s.amazonaws.com/",
                 props.getBucket(), props.getRegion());
         if (!objectUrl.startsWith(prefix)) {
-//            throw new CustomException(ErrorCode.INVALID_IMAGE_URL);
+            throw new ApiException(ErrorCode.INVALID_IMAGE_URL);
         }
         String key = objectUrl.substring(prefix.length());
 
@@ -108,7 +115,7 @@ public class S3FileStorageService implements FileStorageService {
             log.info("S3 객체 삭제 성공: key={}", key);
         } catch (SdkException e) {
             log.error("S3 삭제 실패 (key={}): {}", key, e.getMessage());
-//            throw new CustomException(ErrorCode.S3_DELETE_ERROR);
+              throw new ApiException(ErrorCode.S3_DELETE_ERROR);
         }
     }
 }
