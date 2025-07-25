@@ -1,4 +1,4 @@
-package com.c203.autobiography.domain.member.Service;
+package com.c203.autobiography.domain.member.service;
 
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
 import com.c203.autobiography.domain.member.dto.MemberResponse;

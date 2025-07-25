@@ -1,9 +1,10 @@
-package com.c203.autobiography.domain.member.Service;
+package com.c203.autobiography.domain.member.service;
 
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
 import com.c203.autobiography.domain.member.dto.MemberResponse;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
+import com.c203.autobiography.domain.member.service.MemberService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

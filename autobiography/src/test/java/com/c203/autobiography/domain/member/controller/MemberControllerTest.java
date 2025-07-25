@@ -5,7 +5,7 @@ import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-import com.c203.autobiography.domain.member.Service.MemberService;
+import com.c203.autobiography.domain.member.service.MemberService;
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
 import com.c203.autobiography.domain.member.dto.MemberResponse;
 import com.c203.autobiography.global.s3.FileStorageService;

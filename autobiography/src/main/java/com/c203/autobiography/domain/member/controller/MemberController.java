@@ -1,6 +1,6 @@
 package com.c203.autobiography.domain.member.controller;
 
-import com.c203.autobiography.domain.member.Service.MemberService;
+import com.c203.autobiography.domain.member.service.MemberService;
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
 import com.c203.autobiography.domain.member.dto.MemberResponse;
 import com.c203.autobiography.global.dto.ApiResponse;
