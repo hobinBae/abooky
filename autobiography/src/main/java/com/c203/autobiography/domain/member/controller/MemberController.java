@@ -12,11 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestPart;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "회원 API", description = "회원가입 관련 API")
@@ -31,7 +27,7 @@ public class MemberController {
     @Operation(summary = "회원가입", description = "회원가입 + 프로필 사진 등록")
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<MemberResponse>> register(
-            @RequestPart(value = "member") @Valid MemberCreateRequest request,
+            @ModelAttribute @Valid MemberCreateRequest request,
             @RequestPart(value = "file", required = false)
             MultipartFile file, HttpServletRequest httpRequest
     ) {
