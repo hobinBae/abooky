@@ -3,7 +3,7 @@ package com.c203.autobiography.domain.auth.controller;
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
 import com.c203.autobiography.domain.auth.service.AuthService;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
-import com.c203.autobiography.global.common.ApiResponse;
+import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
