@@ -1,18 +1,33 @@
 services:
   mysql:
-    image: 'mysql:latest'
-    environment:
-      - 'MYSQL_DATABASE=mydatabase'
-      - 'MYSQL_PASSWORD=secret'
-      - 'MYSQL_ROOT_PASSWORD=verysecret'
-      - 'MYSQL_USER=myuser'
+    image: mysql:8.0.37
+    container_name: mysql-db
+    restart: always
     ports:
-      - '3306'
-  sqlserver:
-    image: 'mcr.microsoft.com/mssql/server:latest'
+      - "3307:3306"
     environment:
-      - 'ACCEPT_EULA=yes'
-      - 'MSSQL_PID=express'
-      - 'MSSQL_SA_PASSWORD=verYs3cret'
+      MYSQL_ROOT_PASSWORD: 959697989900
+      MYSQL_DATABASE: autobiography_db
+      MYSQL_USER: ssafy
+      MYSQL_PASSWORD: 959697989900
+    volumes:
+      - mysql-data:/var/lib/mysql
+    command: --default-authentication-plugin=mysql_native_password
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-server
+    restart: always
     ports:
-      - '1433'
+      - "6379:6379"
+    networks:
+      - app-network
+
+volumes:
+  mysql-data:
+
+networks:
+  app-network:
+    driver: bridge

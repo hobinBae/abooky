@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.member.dto;
 
+import com.c203.autobiography.domain.member.entity.Member;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,6 +18,9 @@ public class MemberResponse {
 
     @Schema(description = "회원 고유 ID", example = "1")
     private Long memberId;
+
+    @Schema(description = "회원 이메일", example = "user@example.com")
+    private String email;
 
     @Schema(description = "이름", example = "배싸피")
     private String name;
@@ -48,4 +52,20 @@ public class MemberResponse {
     @Schema(description = "회원 정보 마지막 수정일", example = "2025-07-23T10:30:00")
     private LocalDateTime updatedAt;
 
+    public static MemberResponse from(Member m) {
+        return MemberResponse.builder()
+                .memberId(m.getMemberId())
+                .name(m.getName())
+                .email(m.getEmail())
+                .nickname(m.getNickname())
+                .profileImageUrl(m.getProfileImageUrl())
+                .phoneNumber(m.getPhoneNumber())
+                .birthdate(m.getBirthdate())
+                .coin(m.getCoin())
+                .intro(m.getIntro())
+                .representBookId(m.getRepresentBookId())
+                .createdAt(m.getCreatedAt())
+                .updatedAt(m.getUpdatedAt())
+                .build();
+    }
 }
