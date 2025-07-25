@@ -1,19 +1,33 @@
 package com.c203.autobiography.global.security;
 
+import com.c203.autobiography.global.exception.ApiException;
+import com.c203.autobiography.global.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.Date;
 
 @Component
 public class JwtTokenProvider {
 
-    private final String secretKey = "변경하기!!!!";
+    @Value("${jwt.secret}")
+    private String secretKey;
+    private Key key;
+
     private final long accessTokenValidity = 1000L * 60 * 30; // 30분
     private final long refreshTokenValidity = 1000L * 60 * 60 * 24 * 7; // 7일
+
+    @PostConstruct
+    public void init() {
+        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+    }
 
     public String createAccessToken(Long memberId, String email) {
         Date now = new Date();
@@ -22,7 +36,7 @@ public class JwtTokenProvider {
                 .claim("memberId", memberId)
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + accessTokenValidity))
-                .signWith(Keys.hmacShaKeyFor(secretKey.getBytes()), SignatureAlgorithm.HS256)
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
@@ -32,14 +46,18 @@ public class JwtTokenProvider {
                 .setSubject(String.valueOf(memberId))
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + refreshTokenValidity))
-                .signWith(Keys.hmacShaKeyFor(secretKey.getBytes()), SignatureAlgorithm.HS256)
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
     public Claims parseToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(Keys.hmacShaKeyFor(secretKey.getBytes()))
-                .build()
-                .parseClaimsJws(token).getBody();
+        try {
+            return Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token).getBody();
+        } catch (Exception e) {
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
     }
 }
