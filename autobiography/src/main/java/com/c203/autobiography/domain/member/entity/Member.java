@@ -1,6 +1,5 @@
 package com.c203.autobiography.domain.member.entity;
 
-import com.c203.autobiography.domain.member.dto.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
