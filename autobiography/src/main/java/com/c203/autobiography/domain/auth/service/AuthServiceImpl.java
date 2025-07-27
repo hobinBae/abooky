@@ -1,5 +1,7 @@
 package com.c203.autobiography.domain.auth.service;
 
+import com.c203.autobiography.domain.auth.dto.FindEmailRequest;
+import com.c203.autobiography.domain.auth.dto.FindEmailResponse;
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
 import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
@@ -91,6 +93,13 @@ public class AuthServiceImpl implements  AuthService {
         redisTemplate.delete(tokenKey);
     }
 
+    @Override
+    public FindEmailResponse findEmail(FindEmailRequest request) {
+        Member member = memberRepository.findByNameAndPhoneNumber(request.getName(), request.getPhoneNumber())
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        return FindEmailResponse.builder().email(member.getEmail())
+                .build();
+    }
 
 
 }

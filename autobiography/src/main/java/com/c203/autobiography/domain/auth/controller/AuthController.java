@@ -1,5 +1,7 @@
 package com.c203.autobiography.domain.auth.controller;
 
+import com.c203.autobiography.domain.auth.dto.FindEmailRequest;
+import com.c203.autobiography.domain.auth.dto.FindEmailResponse;
 import com.c203.autobiography.domain.auth.dto.ForgotPasswordRequest;
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
 import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
@@ -71,10 +73,18 @@ public class AuthController {
     }
 
     @PostMapping("/reset-password")
-    public ResponseEntity<ApiResponse<Void>> resetPaassword(@RequestBody @Valid ResetPasswordRequest request,
-                                                            HttpServletRequest httpRequest) {
+    public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody @Valid ResetPasswordRequest request,
+                                                           HttpServletRequest httpRequest) {
         authService.resetPassword(request);
-        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK, "비밀번호가 성공적으로 변경되었습니다.", null, httpRequest.getRequestURI()));
+        return ResponseEntity.ok(
+                ApiResponse.of(HttpStatus.OK, "비밀번호가 성공적으로 변경되었습니다.", null, httpRequest.getRequestURI()));
+    }
+
+    @PostMapping("/find-email")
+    public ResponseEntity<ApiResponse<FindEmailResponse>> findEmail(@RequestBody @Valid FindEmailRequest request,
+                                                                    HttpServletRequest httpRequest) {
+        FindEmailResponse response = authService.findEmail(request);
+        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK, "이메일 조회 성공", response, httpRequest.getRequestURI()));
     }
 
 }
