@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.auth.service;
 
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
+import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
@@ -73,4 +74,23 @@ public class AuthServiceImpl implements  AuthService {
                 .refreshToken(newRefreshToken)
                 .build();
     }
+
+    /** 비밀번호 재발급 */
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        String tokenKey = "reset:" + request.getResetToken();
+        String memberId = redisTemplate.opsForValue().get(tokenKey);
+
+        if (memberId == null) {
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
+        Member member = memberRepository.findById(Long.parseLong(memberId))
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        member.changePassword(passwordEncoder.encode(request.getNewPassword()));
+        memberRepository.save(member);
+        redisTemplate.delete(tokenKey);
+    }
+
+
+
 }

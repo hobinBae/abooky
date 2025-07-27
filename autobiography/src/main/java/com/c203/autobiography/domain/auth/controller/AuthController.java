@@ -1,8 +1,13 @@
 package com.c203.autobiography.domain.auth.controller;
 
+import com.c203.autobiography.domain.auth.dto.ForgotPasswordRequest;
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
+import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.auth.service.AuthService;
+import com.c203.autobiography.domain.auth.service.EmailService;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
+import com.c203.autobiography.domain.member.entity.Member;
+import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,11 +25,12 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailService emailService;
 
     @Operation(summary = "로그인", description = "이메일/비밀번호로 로그인 후 AccessToken 및 RefreshToken 발급")
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<TokenResponse>> login(
-            @RequestBody @Valid LoginRequest loginRequest, HttpServletRequest httpRequest){
+            @RequestBody @Valid LoginRequest loginRequest, HttpServletRequest httpRequest) {
         TokenResponse tokenResponse = authService.login(loginRequest);
         return ResponseEntity.ok(
                 ApiResponse.of(HttpStatus.OK, "로그인 성공", tokenResponse, httpRequest.getRequestURI())
@@ -54,6 +60,21 @@ public class AuthController {
         return ResponseEntity.ok(
                 ApiResponse.of(HttpStatus.OK, "토큰 재발급 성공", token, httpRequest.getRequestURI())
         );
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request,
+                                                            HttpServletRequest httpRequest) {
+        emailService.sendPasswordResetEmail(request);
+        return ResponseEntity.ok(
+                ApiResponse.of(HttpStatus.OK, "비밀번호 재설정 이메일이 전송되었습니다.", null, httpRequest.getRequestURI()));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<Void>> resetPaassword(@RequestBody @Valid ResetPasswordRequest request,
+                                                            HttpServletRequest httpRequest) {
+        authService.resetPassword(request);
+        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK, "비밀번호가 성공적으로 변경되었습니다.", null, httpRequest.getRequestURI()));
     }
 
 }
