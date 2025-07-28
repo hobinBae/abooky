@@ -64,6 +64,7 @@ public class AuthController {
         );
     }
 
+    @Operation(summary = "비밀번호 재설정 토큰 발급", description = "비밀번호 재설정을 위한 토큰 발급 및 이메일 발송")
     @PostMapping("/forgot-password")
     public ResponseEntity<ApiResponse<Void>> forgotPassword(@RequestBody @Valid ForgotPasswordRequest request,
                                                             HttpServletRequest httpRequest) {
@@ -72,6 +73,7 @@ public class AuthController {
                 ApiResponse.of(HttpStatus.OK, "비밀번호 재설정 이메일이 전송되었습니다.", null, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "비밀번호 재설정", description = "비밀번호 재설정 토큰으로 비밀번호 재설정")
     @PostMapping("/reset-password")
     public ResponseEntity<ApiResponse<Void>> resetPassword(@RequestBody @Valid ResetPasswordRequest request,
                                                            HttpServletRequest httpRequest) {
@@ -80,6 +82,7 @@ public class AuthController {
                 ApiResponse.of(HttpStatus.OK, "비밀번호가 성공적으로 변경되었습니다.", null, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "이메일 찾기", description = "사용자 이름과 전화번호로 이메일 찾기")
     @PostMapping("/find-email")
     public ResponseEntity<ApiResponse<FindEmailResponse>> findEmail(@RequestBody @Valid FindEmailRequest request,
                                                                     HttpServletRequest httpRequest) {
