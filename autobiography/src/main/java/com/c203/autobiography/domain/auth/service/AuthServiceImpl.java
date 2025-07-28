@@ -7,9 +7,11 @@ import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.security.JwtTokenProvider;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.antlr.v4.runtime.Token;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -34,7 +36,7 @@ public class AuthServiceImpl implements  AuthService {
             throw new ApiException(ErrorCode.INVALID_PASSWORD);
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(member.getMemberId(), member.getEmail());
+        String accessToken = jwtTokenProvider.createAccessToken(member.getMemberId(), member.getEmail(), String.valueOf(member.getRole()));
         String refreshToken =  jwtTokenProvider.createRefreshToken(member.getMemberId());
 
         redisTemplate.opsForValue().set("RT:" + member.getMemberId(), refreshToken, 7, TimeUnit.DAYS);
@@ -54,19 +56,32 @@ public class AuthServiceImpl implements  AuthService {
 
     /** 토큰 재발급 */
     @Override
-    public TokenResponse reissueToken(Long memberId, String refreshToken) {
-        String storedToken = redisTemplate.opsForValue().get("RT:" + memberId);
-        if(storedToken == null || !storedToken.equals(refreshToken)) {
-            throw new RuntimeException("유효하지 않은 RefreshToken 입니다.");
+    public TokenResponse reissueToken(String refreshToken) {
+        // RefreshToken -> 파싱해서 memberId 추출하기
+        Claims claims = jwtTokenProvider.parseToken(refreshToken);
+        Long memberId;
+        try {
+            memberId = Long.valueOf(claims.getSubject());
+        } catch (NumberFormatException e) {
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
         }
 
-        Member member = memberRepository.findById(memberId)
-                .orElseThrow(() -> new RuntimeException("회원 정보를 찾을 수 없습니다."));
+        // Redis에서 저장된 refreshToken 비교하기
+        String storedToken = redisTemplate.opsForValue().get("RT:" + memberId);
+        if(storedToken == null || !storedToken.equals(refreshToken)) {
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
 
-        String newAccessToken = jwtTokenProvider.createAccessToken(member.getMemberId(), member.getEmail());
+        // 회원 정보 조회
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 새 토큰 발급
+        String newAccessToken = jwtTokenProvider.createAccessToken(member.getMemberId(), member.getEmail(), String.valueOf(member.getRole()));
         String newRefreshToken = jwtTokenProvider.createRefreshToken(member.getMemberId());
 
-        redisTemplate.opsForValue().set("RT:" + member.getMemberId(), newAccessToken, 7, TimeUnit.DAYS);
+        // Redis에 Refresh 토큰 갱신
+        redisTemplate.opsForValue().set("RT:" + member.getMemberId(), newRefreshToken, 7, TimeUnit.DAYS);
 
         return TokenResponse.builder()
                 .accessToken(newAccessToken)

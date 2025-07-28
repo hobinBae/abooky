@@ -1,9 +1,10 @@
 package com.c203.autobiography.domain.auth.controller;
 
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
+import com.c203.autobiography.domain.auth.dto.RefreshTokenRequest;
 import com.c203.autobiography.domain.auth.service.AuthService;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
-import com.c203.autobiography.global.common.ApiResponse;
+import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
@@ -46,11 +47,10 @@ public class AuthController {
     @Operation(summary = "토큰 재발급", description = "RefreshToken으로 새 AccessToken, RefreshToken 발급")
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponse<TokenResponse>> refresh(
-            @AuthenticationPrincipal CustomUserDetails user,
-            @RequestParam String refreshToken,
+            @RequestBody @Valid RefreshTokenRequest refreshTokenRequest,
             HttpServletRequest httpRequest
     ) {
-        TokenResponse token = authService.reissueToken(user.getMemberId(), refreshToken);
+        TokenResponse token = authService.reissueToken(refreshTokenRequest.getRefreshToken());
         return ResponseEntity.ok(
                 ApiResponse.of(HttpStatus.OK, "토큰 재발급 성공", token, httpRequest.getRequestURI())
         );

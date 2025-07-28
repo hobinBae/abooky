@@ -29,11 +29,12 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String createAccessToken(Long memberId, String email) {
+    public String createAccessToken(Long memberId, String email, String role) {
         Date now = new Date();
         return Jwts.builder()
-                .setSubject(email)
-                .claim("memberId", memberId)
+                .setSubject(String.valueOf(memberId))
+                .claim("email", email)
+                .claim("role", role)
                 .setIssuedAt(now)
                 .setExpiration(new Date(now.getTime() + accessTokenValidity))
                 .signWith(key, SignatureAlgorithm.HS256)

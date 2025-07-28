@@ -12,5 +12,5 @@ public interface AuthService {
     void logout(Long memberId);
 
     /** 토큰 재발급 */
-    TokenResponse reissueToken(Long memberId, String refreshToken);
+    TokenResponse reissueToken(String refreshToken);
 }

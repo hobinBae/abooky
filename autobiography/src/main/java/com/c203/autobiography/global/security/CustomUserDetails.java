@@ -26,6 +26,13 @@ public class CustomUserDetails implements UserDetails {
 
     }
 
+    public CustomUserDetails(Long memberId, String email, Role role) {
+        this.memberId = memberId;
+        this.email = email;
+        this.password = null; // JWT에서는 필요 없음
+        this.role = role;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return Collections.singletonList((GrantedAuthority) () -> "ROLE_" + role.getKey());

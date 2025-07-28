@@ -1,5 +1,6 @@
 package com.c203.autobiography.global.security;
 
+import com.c203.autobiography.domain.member.dto.Role;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
@@ -35,12 +36,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = header.substring(7);
             try {
                 Claims claims = jwtTokenProvider.parseToken(token);
-                Long memberId = claims.get("memberId", Long.class);
+                Long memberId = Long.valueOf(claims.getSubject());
+                String email = claims.get("email").toString();
+                Role role = Role.valueOf(claims.get("role", String.class));
 
                 Member member = memberRepository.findById(memberId)
                         .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-                CustomUserDetails customUserDetails = new CustomUserDetails(member);
+                CustomUserDetails customUserDetails = new CustomUserDetails(memberId, email, role);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(customUserDetails,null, customUserDetails.getAuthorities());
