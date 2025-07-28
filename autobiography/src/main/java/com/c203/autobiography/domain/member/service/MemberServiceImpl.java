@@ -54,7 +54,7 @@ public class MemberServiceImpl implements MemberService {
 
     @Override
     public MemberResponse getMyInfo(Long memberId) {
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         return MemberResponse.from(member);
     }
@@ -62,7 +62,7 @@ public class MemberServiceImpl implements MemberService {
     @Transactional
     @Override
     public MemberResponse updateMyInfo(Long memberId, MemberUpdateRequest request, MultipartFile file) {
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         if (!member.getNickname().equals(request.getNickname())
                 && memberRepository.existsByNickname(request.getNickname())) {
@@ -93,14 +93,14 @@ public class MemberServiceImpl implements MemberService {
     @Transactional
     @Override
     public void deleteMyAccount(Long memberId) {
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         member.softDelete();
     }
 
     @Override
     public MemberResponse getMemberById(Long memberId) {
-        Member member = memberRepository.findByIdAndDeletedAtIsNull(memberId)
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         return MemberResponse.from(member);
     }
