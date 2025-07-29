@@ -54,9 +54,11 @@ public class Member {
     private Role role;
 
     /** 소셜 로그인 관련 필드 **/
+    @Builder.Default
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private AuthProvider provider;
+    @Column(nullable = false, length = 20,
+            columnDefinition = "ENUM('LOCAL','GOOGLE','KAKAO') DEFAULT 'LOCAL'")
+    private AuthProvider provider = AuthProvider.LOCAL;
 
     @Column(length = 100)
     private String providerId;
