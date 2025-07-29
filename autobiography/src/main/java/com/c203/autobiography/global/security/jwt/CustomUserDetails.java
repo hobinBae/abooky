@@ -1,4 +1,4 @@
-package com.c203.autobiography.global.security;
+package com.c203.autobiography.global.security.jwt;
 
 import com.c203.autobiography.domain.member.dto.Role;
 import com.c203.autobiography.domain.member.entity.Member;
@@ -8,7 +8,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 @Getter
 public class CustomUserDetails implements UserDetails {

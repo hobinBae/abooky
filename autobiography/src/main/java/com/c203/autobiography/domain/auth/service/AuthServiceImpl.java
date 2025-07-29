@@ -1,17 +1,18 @@
 package com.c203.autobiography.domain.auth.service;
 
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
+import com.c203.autobiography.domain.member.dto.AuthProvider;
+import com.c203.autobiography.domain.member.dto.Role;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
-import com.c203.autobiography.global.security.JwtTokenProvider;
+import com.c203.autobiography.global.security.jwt.JwtTokenProvider;
+import com.c203.autobiography.global.security.oauth2.GoogleOAuth2Service;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
-import org.antlr.v4.runtime.Token;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.core.parameters.P;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,7 +20,7 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
-public class AuthServiceImpl implements  AuthService {
+public class AuthServiceImpl implements AuthService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
@@ -87,5 +88,50 @@ public class AuthServiceImpl implements  AuthService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
+    }
+
+    @Override
+    public TokenResponse processOAuth2Login(String email, String name, AuthProvider provider, String providerId) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseGet(()-> memberRepository.save(Member.builder()
+                        .email(email)
+                        .name(name)
+                        .provider(provider)
+                        .providerId(providerId)
+                        .role(Role.MEMBER)
+                        .build()
+                ));
+
+        // JWT 발급
+        String accessToken = jwtTokenProvider.createAccessToken(member.getMemberId(), member.getEmail(), String.valueOf(member.getRole()));
+        String refreshToken =  jwtTokenProvider.createRefreshToken(member.getMemberId());
+
+        // Redis 저장
+        redisTemplate.opsForValue().set("RT:" + member.getMemberId(), refreshToken, 7, TimeUnit.DAYS);
+
+        // TokenResponse 생성
+        return TokenResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .build();
+
+    }
+
+    private final GoogleOAuth2Service googleService;
+
+    @Override
+    public TokenResponse socialLogin(AuthProvider provider, String code) {
+        return switch (provider){
+            case GOOGLE -> {
+                GoogleOAuth2Service.GoogleUserInfo googleUser = null;
+                try {
+                    googleUser = googleService.getUserInfoFromCode(code);
+                } catch (Exception e) {
+                    throw new RuntimeException(e);
+                }
+                yield processOAuth2Login(googleUser.getEmail(), googleUser.getName(), AuthProvider.GOOGLE, googleUser.getProviderId());
+            }
+            default -> throw new IllegalArgumentException("지원하지 않는 소셜 로그인");
+        };
     }
 }

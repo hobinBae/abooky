@@ -12,4 +12,13 @@ public enum AuthProvider {
     NAVER("NAVER");
 
     private final String name;
+
+    public static AuthProvider from(String registrationId) {
+        return switch (registrationId.toLowerCase()) {
+            case "google" -> GOOGLE;
+            case "kakao" -> KAKAO;
+            case "naver" -> NAVER;
+            default -> LOCAL;
+        };
+    }
 }

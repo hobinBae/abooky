@@ -1,4 +1,4 @@
-package com.c203.autobiography.global.security;
+package com.c203.autobiography.global.security.jwt;
 
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;

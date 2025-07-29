@@ -1,4 +1,4 @@
-package com.c203.autobiography.global.security;
+package com.c203.autobiography.global.security.jwt;
 
 import com.c203.autobiography.domain.member.dto.Role;
 import com.c203.autobiography.domain.member.entity.Member;
@@ -19,6 +19,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import javax.security.sasl.AuthenticationException;
 import java.io.IOException;
+import java.util.Arrays;
 
 @Component
 @RequiredArgsConstructor
@@ -30,7 +31,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
 
+        // OAuth2 로그인 관련 경로는 JWT 필터에서 제외
+        String uri = request.getRequestURI();
+        System.out.println(">> JWTFilter 실행 URI: " + uri);
+
+        if (uri.startsWith("/login/oauth2/") ||
+                uri.startsWith("/login/oauth2/code") ||
+                uri.startsWith("/oauth2/authorization/") ||
+                uri.startsWith("/oauth2/callback/")) {
+            System.out.println(">> OAuth 경로 - JWT 필터 통과");
+            filterChain.doFilter(request, response);
+            return;
+        }
+        
+        // JWT 검증
         String header = request.getHeader("Authorization");
+        System.out.println(">> Authorization 헤더: " + header);
         if(header!=null && header.startsWith("Bearer "))
         {
             String token = header.substring(7);
