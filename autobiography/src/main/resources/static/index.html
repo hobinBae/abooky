@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8" />
-    <title>Clova STT 최소 PoC</title>
+    <title>Whisper STT 테스트</title>
     <style>
         body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
         #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; }
@@ -14,13 +14,13 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
-<h2>Clova STT 최소 PoC</h2>
+<h2>Whisper STT 테스트</h2>
 <div id="messages"></div>
 <button id="recordBtn">🎙️ 녹음 시작</button>
 <button id="stopBtn" disabled>⏹️ 녹음 중지</button>
 
 <script>
-    const baseUrl = 'http://localhost:8080/api/stt?lang=Kor';
+    const baseUrl = 'http://localhost:8080/api/stt/whisper';
     const msgsEl = document.getElementById('messages');
     const recordBtn = document.getElementById('recordBtn');
     const stopBtn   = document.getElementById('stopBtn');
@@ -47,7 +47,7 @@
 
             mediaRecorder.onstop = async () => {
                 const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-                appendMessage('🔊 음성 전송 중...', 'user');
+                appendMessage('🔊 Whisper로 음성 전송 중...', 'user');
 
                 try {
                     const form = new FormData();
@@ -59,7 +59,7 @@
                     const text = res.data.text || res.data;
                     appendMessage(text, 'stt');
                 } catch (e) {
-                    appendMessage('❌ STT 오류: ' + (e.response?.data?.message || e.message), 'error');
+                    appendMessage('❌ Whisper STT 오류: ' + (e.response?.data?.message || e.message), 'error');
                 }
 
                 stream.getTracks().forEach(t => t.stop());

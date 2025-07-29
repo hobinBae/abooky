@@ -2,6 +2,7 @@ package com.c203.autobiography.domain.stt.controller;
 
 import com.c203.autobiography.domain.stt.client.SttClient;
 import com.c203.autobiography.domain.stt.dto.SttResponse;
+import com.c203.autobiography.domain.stt.service.SttServiceImpl;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -13,15 +14,10 @@ import org.springframework.web.multipart.MultipartFile;
 @CrossOrigin(origins="*")
 public class SttController {
     private final SttClient sttClient;
+    private final SttServiceImpl sttServiceImpl;
 
-    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public SttResponse recognize(@RequestPart("audio") MultipartFile audio,
-                                 @RequestParam String lang,
-                                 @RequestParam(defaultValue = "false") boolean assessment,
-                                 @RequestParam(required = false) String utterance,
-                                 @RequestParam(required = false) String boostings,
-                                 @RequestParam(defaultValue = "false") boolean graph) {
-        return sttClient.recognize(audio, lang, assessment, utterance, boostings, graph);
-
+    @PostMapping(value = "/whisper", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public SttResponse recognizeWithWhisper(@RequestPart("audio") MultipartFile audio) {
+        return sttServiceImpl.recognize(audio);
     }
 }
