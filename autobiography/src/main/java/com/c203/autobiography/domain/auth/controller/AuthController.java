@@ -4,18 +4,24 @@ import com.c203.autobiography.domain.auth.dto.FindEmailRequest;
 import com.c203.autobiography.domain.auth.dto.FindEmailResponse;
 import com.c203.autobiography.domain.auth.dto.ForgotPasswordRequest;
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
+<<<<<<< autobiography/src/main/java/com/c203/autobiography/domain/auth/controller/AuthController.java
 import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.auth.service.AuthService;
 import com.c203.autobiography.domain.auth.service.EmailService;
+import com.c203.autobiography.domain.auth.dto.RefreshTokenRequest;
+import com.c203.autobiography.domain.auth.dto.SocialLoginRequest;
+import com.c203.autobiography.domain.auth.service.AuthService;
+import com.c203.autobiography.domain.member.dto.AuthProvider;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.dto.ApiResponse;
-import com.c203.autobiography.global.security.CustomUserDetails;
+import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -54,11 +60,10 @@ public class AuthController {
     @Operation(summary = "토큰 재발급", description = "RefreshToken으로 새 AccessToken, RefreshToken 발급")
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponse<TokenResponse>> refresh(
-            @AuthenticationPrincipal CustomUserDetails user,
-            @RequestParam String refreshToken,
+            @RequestBody @Valid RefreshTokenRequest refreshTokenRequest,
             HttpServletRequest httpRequest
     ) {
-        TokenResponse token = authService.reissueToken(user.getMemberId(), refreshToken);
+        TokenResponse token = authService.reissueToken(refreshTokenRequest.getRefreshToken());
         return ResponseEntity.ok(
                 ApiResponse.of(HttpStatus.OK, "토큰 재발급 성공", token, httpRequest.getRequestURI())
         );
@@ -89,5 +94,13 @@ public class AuthController {
         FindEmailResponse response = authService.findEmail(request);
         return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK, "이메일 조회 성공", response, httpRequest.getRequestURI()));
     }
+
+    @PostMapping("/oauth2")
+    public ResponseEntity<ApiResponse<TokenResponse>> socialLogin(
+            @RequestBody @Valid SocialLoginRequest socialLoginRequest, HttpServletRequest httpRequest) throws Exception {
+        TokenResponse tokenResponse = authService.socialLogin(socialLoginRequest.getProvider(),  socialLoginRequest.getCode());
+        return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK, socialLoginRequest.getProvider() + " 로그인 성공", tokenResponse, httpRequest.getRequestURI()));
+    }
+
 
 }

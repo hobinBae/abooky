@@ -1,11 +1,13 @@
 package com.c203.autobiography.domain.member.entity;
 
+import com.c203.autobiography.domain.member.dto.AuthProvider;
 import com.c203.autobiography.domain.member.dto.Role;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.security.Provider;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -50,6 +52,14 @@ public class Member {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, columnDefinition = "ENUM('ADMIN','MEMBER') DEFAULT 'MEMBER'")
     private Role role;
+
+    /** 소셜 로그인 관련 필드 **/
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AuthProvider provider;
+
+    @Column(length = 100)
+    private String providerId;
 
     @Column(name = "represent_book_id")
     private Long representBookId;
