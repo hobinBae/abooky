@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>Clova STT 최소 PoC</title>
+    <style>
+        body { font-family: sans-serif; max-width: 600px; margin: 2rem auto; }
+        #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; }
+        .user { text-align: right; color: #006; }
+        .stt  { text-align: left;  color: #090; }
+        .error{ text-align: left; color: #f66; }
+        button { padding: .5rem 1rem; margin: .5rem .25rem; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<h2>Clova STT 최소 PoC</h2>
+<div id="messages"></div>
+<button id="recordBtn">🎙️ 녹음 시작</button>
+<button id="stopBtn" disabled>⏹️ 녹음 중지</button>
+
+<script>
+    const baseUrl = 'http://localhost:8080/api/stt?lang=Kor';
+    const msgsEl = document.getElementById('messages');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn   = document.getElementById('stopBtn');
+
+    let mediaRecorder, chunks, stream;
+
+    function appendMessage(txt, cls) {
+        const d = document.createElement('div');
+        d.className = cls;
+        d.textContent = txt;
+        msgsEl.appendChild(d);
+        msgsEl.scrollTop = msgsEl.scrollHeight;
+    }
+
+    recordBtn.onclick = async () => {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            chunks = [];
+
+            mediaRecorder.ondataavailable = e => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+
+            mediaRecorder.onstop = async () => {
+                const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+                appendMessage('🔊 음성 전송 중...', 'user');
+
+                try {
+                    const form = new FormData();
+                    form.append('audio', blob, 'audio.webm');
+                    const res = await axios.post(baseUrl, form, {
+                        headers: { 'Content-Type': 'multipart/form-data' },
+                        timeout: 30000
+                    });
+                    const text = res.data.text || res.data;
+                    appendMessage(text, 'stt');
+                } catch (e) {
+                    appendMessage('❌ STT 오류: ' + (e.response?.data?.message || e.message), 'error');
+                }
+
+                stream.getTracks().forEach(t => t.stop());
+            };
+
+            mediaRecorder.start();
+            recordBtn.disabled = true;
+            stopBtn.disabled = false;
+            appendMessage('🎙️ 녹음 시작!', 'user');
+        } catch (e) {
+            appendMessage('❌ 녹음 오류: ' + e.message, 'error');
+        }
+    };
+
+    stopBtn.onclick = () => {
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+            recordBtn.disabled = false;
+            stopBtn.disabled = true;
+        }
+    };
+</script>
+</body>
+</html>
