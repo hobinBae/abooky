@@ -1,6 +1,9 @@
 package com.c203.autobiography.domain.auth.service;
 
+import com.c203.autobiography.domain.auth.dto.FindEmailRequest;
+import com.c203.autobiography.domain.auth.dto.FindEmailResponse;
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
+import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.member.dto.AuthProvider;
 import com.c203.autobiography.domain.member.dto.Role;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
@@ -89,6 +92,31 @@ public class AuthServiceImpl implements AuthService {
                 .refreshToken(newRefreshToken)
                 .build();
     }
+
+    /** 비밀번호 재발급 */
+    @Override
+    public void resetPassword(ResetPasswordRequest request) {
+        String tokenKey = "reset:" + request.getResetToken();
+        String memberId = redisTemplate.opsForValue().get(tokenKey);
+
+        if (memberId == null) {
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
+        Member member = memberRepository.findById(Long.parseLong(memberId))
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        member.changePassword(passwordEncoder.encode(request.getNewPassword()));
+        memberRepository.save(member);
+        redisTemplate.delete(tokenKey);
+    }
+
+    @Override
+    public FindEmailResponse findEmail(FindEmailRequest request) {
+        Member member = memberRepository.findByNameAndPhoneNumber(request.getName(), request.getPhoneNumber())
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        return FindEmailResponse.builder().email(member.getEmail())
+                .build();
+    }
+
 
     @Override
     public TokenResponse processOAuth2Login(String email, String name, AuthProvider provider, String providerId) {

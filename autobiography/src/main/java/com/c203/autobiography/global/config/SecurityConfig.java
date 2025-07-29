@@ -58,9 +58,14 @@ public class SecurityConfig {
                                 "/api/v1/auth/forgot-password",
                                 "/api/v1/auth/oauth2/**",
                                 "/oauth2/**",
-                                "/login/oauth2/**"
+                                "/login/oauth2/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-resources/**",
+                                "/swagger-ui.html",
+                                "/webjars/**"
                                 ).permitAll()
-//                        .requestMatchers("/api/v1/members/**").hasAnyAuthority("MEMBER", "ADMIN")
+                        .requestMatchers("/api/v1/members/**").hasAnyAuthority("MEMBER", "ADMIN")
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
 //                        .authorizationEndpoint(endpoint ->

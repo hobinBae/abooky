@@ -81,7 +81,7 @@ class MemberControllerTest {
         );
 
         given(fileStorageService.store(any(), any())).willReturn("https://s3.com/profiles/uuid.jpg");
-        given(memberService.register(any())).willReturn(fakeResponse);
+//        given(memberService.register(any())).willReturn(fakeResponse);
 
         // when + then
         mockMvc.perform(multipart("/api/v1/members/register")

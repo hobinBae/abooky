@@ -1,10 +1,12 @@
 package com.c203.autobiography.domain.member.controller;
 
+import com.c203.autobiography.domain.member.dto.MemberUpdateRequest;
 import com.c203.autobiography.domain.member.service.MemberService;
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
 import com.c203.autobiography.domain.member.dto.MemberResponse;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.s3.FileStorageService;
+import com.c203.autobiography.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,6 +14,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,15 +34,46 @@ public class MemberController {
             @RequestPart(value = "file", required = false)
             MultipartFile file, HttpServletRequest httpRequest
     ) {
-        if (file != null && !file.isEmpty()) {
-            String imageUrl = fileStorageService.store(file, "profiles");
-            request.setProfileImageUrl(imageUrl);
-        }
-        MemberResponse response = memberService.register(request);
+
+        MemberResponse response = memberService.register(request, file);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "회원가입 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 회원 정보를 조회합니다.")
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<MemberResponse>> getMyInfo(@AuthenticationPrincipal CustomUserDetails userDetails, HttpServletRequest httpRequest) {
+        MemberResponse response = memberService.getMyInfo(userDetails.getMemberId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "회원 정보 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "내 정보 수정", description = "현재 로그인한 사용자의 회원 정보를 수정합니다.")
+    @PatchMapping("/me")
+    public ResponseEntity<ApiResponse<MemberResponse>> updateMyInfo(@AuthenticationPrincipal CustomUserDetails userDetails, @ModelAttribute @Valid MemberUpdateRequest request,@RequestPart(value = "file", required = false)
+    MultipartFile file, HttpServletRequest httpRequest) {
+
+        MemberResponse response = memberService.updateMyInfo(userDetails.getMemberId(), request, file);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "회원 정보 수정 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "회원 탈퇴", description = "현재 로그인한 사용자가 회원 탈퇴(soft delete)합니다.")
+    @DeleteMapping("/me")
+    public ResponseEntity<ApiResponse<Void>> deleteMyAccount(@AuthenticationPrincipal CustomUserDetails userDetails, HttpServletRequest httpRequest){
+        memberService.deleteMyAccount(userDetails.getMemberId());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "회원 탈퇴가 완료되었습니다.", null, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "회원 상세 조회", description = " 회원의 상세 정보를 조회합니다.")
+    @GetMapping("/{memberId}")
+    public ResponseEntity<ApiResponse<MemberResponse>> getMemberById(@PathVariable Long memberId, HttpServletRequest httpRequest) {
+        MemberResponse response = memberService.getMemberById(memberId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "회원 상세 조회 성공", response, httpRequest.getRequestURI()));
+
+    }
 
 }

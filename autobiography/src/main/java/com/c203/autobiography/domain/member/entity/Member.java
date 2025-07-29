@@ -20,6 +20,7 @@ import java.time.LocalDateTime;
 public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "member_id")
     private Long memberId;
 
     @Column(length = 100, nullable = false, unique = true)
@@ -42,13 +43,14 @@ public class Member {
 
     private LocalDate birthdate;
 
+    @Column(columnDefinition = "INT DEFAULT 0")
     private Integer coin; // int로 하면 null 허용이 안 되므로 Integer 사용
 
     @Column(length = 255)
     private String intro;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "ENUM('ADMIN','MEMBER') DEFAULT 'MEMBER'")
     private Role role;
 
     /** 소셜 로그인 관련 필드 **/
@@ -59,14 +61,18 @@ public class Member {
     @Column(length = 100)
     private String providerId;
 
+    @Column(name = "represent_book_id")
     private Long representBookId;
 
     @CreationTimestamp
+    @Column(name = "created_at", columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
+    @Column(name = "updated_at", columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
     private LocalDateTime updatedAt;
 
+    @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
     /**
