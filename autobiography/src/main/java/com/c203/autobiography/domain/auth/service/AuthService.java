@@ -15,15 +15,13 @@ public interface AuthService {
     /** 로그아웃 */
     void logout(Long memberId);
 
-    /** 토큰 재발급 */
-    TokenResponse reissueToken(Long memberId, String refreshToken);
-
     /** 비밀번호 재설정 */
     void resetPassword(ResetPasswordRequest request);
 
     /** 이메일 찾기 */
     FindEmailResponse findEmail(FindEmailRequest request);
 
+    /** 토큰 재발급 */
     TokenResponse reissueToken(String refreshToken);
 
     /** OAuth2 로그인 공통 처리 */

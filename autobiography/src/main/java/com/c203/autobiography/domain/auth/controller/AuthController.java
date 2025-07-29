@@ -4,7 +4,6 @@ import com.c203.autobiography.domain.auth.dto.FindEmailRequest;
 import com.c203.autobiography.domain.auth.dto.FindEmailResponse;
 import com.c203.autobiography.domain.auth.dto.ForgotPasswordRequest;
 import com.c203.autobiography.domain.auth.dto.LoginRequest;
-<<<<<<< autobiography/src/main/java/com/c203/autobiography/domain/auth/controller/AuthController.java
 import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.auth.service.AuthService;
 import com.c203.autobiography.domain.auth.service.EmailService;
