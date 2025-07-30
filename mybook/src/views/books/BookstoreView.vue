@@ -1,76 +1,75 @@
 <template>
   <div class="bookstore-page">
-    <!-- Search and Sort Section -->
-    <section class="search-sort-section">
-      <div class="search-sort-container">
-        <div class="search-input-wrapper">
-          <input v-model="searchTerm" type="text" placeholder="검색어를 입력하세요..." class="form-control search-input">
-          <i class="fas fa-search search-icon"></i>
-        </div>
-        <div class="sort-options-wrapper">
-          <label class="form-check form-check-inline" v-for="option in sortOptions" :key="option.value">
-            <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption" class="form-check-input">
-            <span class="form-check-label">{{ option.text }}</span>
-          </label>
+    <!-- 베스트 10 캐러셀 섹션 -->
+    <section class="carousel-section">
+      <h2 class="section-title">지금 가장 인기있는 책 TOP 10</h2>
+      <div class="perspective-carousel-container">
+        <div class="perspective-carousel" :style="carouselStyle" @mousedown.prevent="onMouseDown" @touchstart.prevent="onTouchStart">
+          <div v-for="(book, index) in topBooks" :key="book.id" class="carousel-item-3d" :style="get3DStyle(index)" @click="goToBookDetail(book.id)">
+            <div class="book-cover-3d">
+              {{ book.title }}
+            </div>
+          </div>
         </div>
       </div>
+      <button @click="prevBook" class="carousel-control-btn prev-btn"><i class="fas fa-chevron-left"></i></button>
+      <button @click="nextBook" class="carousel-control-btn next-btn"><i class="fas fa-chevron-right"></i></button>
+    </section>
+
+    <!-- 검색 및 필터 섹션 -->
+    <section class="filter-section">
+      <div class="search-input-wrapper">
+        <input type="text" v-model="searchTerm" class="form-control search-input" placeholder="책 제목, 작가, 내용으로 검색...">
+        <i class="fas fa-search search-icon"></i>
+      </div>
+      <div class="sort-options-wrapper">
+        <label class="form-check form-check-inline" v-for="option in sortOptions" :key="option.value">
+          <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption" class="form-check-input">
+          <span class="form-check-label">{{ option.text }}</span>
+        </label>
+      </div>
       <div class="keyword-buttons-container">
-        <button v-for="keyword in keywords" :key="keyword" @click="toggleKeyword(keyword)" :class="{ active: activeKeywords.has(keyword) }" class="keyword-button">
-          {{ keyword }}
+        <button v-for="keyword in keywords" :key="keyword" @click="toggleKeyword(keyword)" :class="['keyword-button', { active: activeKeywords.has(keyword) }]">
+          #{{ keyword }}
         </button>
       </div>
     </section>
 
-    <!-- Book List Section -->
+    <!-- 책 리스트 섹션 -->
     <section class="book-list-section">
-      <h2 class="book-list-title">책 목록</h2>
-      <div v-if="filteredBooks.length > 0" class="book-grid">
-        <router-link v-for="book in filteredBooks" :key="book.id" :to="`/book-detail/${book.id}`" class="book-card-link">
-          <div class="book-card">
-            <div class="book-cover-placeholder">책 표지</div>
-            <div class="book-details-right">
-              <div class="book-main-info">
-                <div class="book-title">{{ book.title }}</div>
-                <div class="book-author">
-                  <router-link :to="`/author/${book.authorId}`">{{ book.authorName || '작자 미상' }}</router-link>
-                </div>
-                <div class="book-summary">{{ book.summary }}</div>
+      <div class="row g-4">
+        <div v-if="filteredBooks.length === 0" class="col-12">
+          <div class="no-books-message">
+            해당하는 책이 없습니다.
+          </div>
+        </div>
+        <div v-for="book in filteredBooks" :key="book.id" class="col-12">
+          <div class="book-card" @click="goToBookDetail(book.id)">
+            <div class="book-cover-placeholder">표지</div>
+            <div class="book-details">
+              <h5 class="book-title">{{ book.title }}</h5>
+              <h6 class="book-author">{{ book.authorName }}</h6>
+              <p class="book-summary">{{ book.summary }}</p>
+              <div class="book-stats">
+                <span><i class="fas fa-eye"></i> {{ book.views }}</span>
+                <span><i class="fas fa-heart"></i> {{ book.likes }}</span>
               </div>
-              <div class="book-stats-and-actions">
-                <div class="book-stats-full">
-                  <span>조회수 {{ book.views || 0 }}</span> |
-                  <span>좋아요 {{ book.likes || 0 }}</span>
-                </div>
-                <button @click.prevent="toggleLike(book)" :class="{ liked: isLiked(book.id) }" class="like-button">
-                  <i :class="isLiked(book.id) ? 'fas' : 'far'" class="fa-heart"></i> 좋아요
-                </button>
-              </div>
+              <button class="btn btn-sm like-button" @click.stop="toggleLike(book)" :class="{ liked: isLiked(book.id) }">
+                <i class="fas fa-heart"></i> 좋아요
+              </button>
             </div>
           </div>
-        </router-link>
-      </div>
-      <div v-else class="no-books-message">
-        <p>해당하는 책이 없습니다.</p>
+        </div>
       </div>
     </section>
-
-    <!-- Custom Message Box -->
-    <div v-if="isMessageBoxVisible" class="modal" style="display: flex;">
-      <div class="modal-content modal-sm">
-        <span @click="isMessageBoxVisible = false" class="close-button">&times;</span>
-        <h2 class="modal-title">{{ messageBoxTitle }}</h2>
-        <p class="modal-body">{{ messageBoxContent }}</p>
-        <button @click="isMessageBoxVisible = false" class="btn btn-primary modal-confirm-btn">확인</button>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
-import { RouterLink } from 'vue-router';
+import { ref, computed, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 
-// --- Interfaces ---
+// --- Interfaces & Types ---
 interface Book {
   id: string;
   title: string;
@@ -82,6 +81,11 @@ interface Book {
   likes?: number;
   createdAt: Date;
 }
+
+type SortOption = 'latest' | 'popular' | 'views';
+
+// --- Router ---
+const router = useRouter();
 
 // --- Dummy Data ---
 const DUMMY_BOOKS: Book[] = [
@@ -99,11 +103,10 @@ const DUMMY_BOOKS: Book[] = [
 
 // --- Reactive State ---
 const allBooks = ref<Book[]>(DUMMY_BOOKS);
-const likedBookIds = ref<Set<string>>(new Set(['b1', 'b3'])); // Some dummy liked books
 const searchTerm = ref('');
-const currentSortOption = ref('latest');
+const currentSortOption = ref<SortOption>('latest');
 const activeKeywords = ref<Set<string>>(new Set());
-
+const likedBookIds = ref<Set<string>>(new Set(['b1', 'b3']));
 const keywords = ['자서전', '여행', '가족', '취미', '연애', '스포츠', '판타지', '공상과학', '역사', '자기계발'];
 const sortOptions = [
   { value: 'latest', text: '최신순' },
@@ -111,12 +114,11 @@ const sortOptions = [
   { value: 'views', text: '조회순' },
 ];
 
-// Message Box
-const isMessageBoxVisible = ref(false);
-const messageBoxTitle = ref('');
-const messageBoxContent = ref('');
-
 // --- Computed Properties ---
+const topBooks = computed(() => {
+  return [...allBooks.value].sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 10);
+});
+
 const filteredBooks = computed(() => {
   const books = allBooks.value.filter(book => {
     const search = searchTerm.value.toLowerCase();
@@ -125,17 +127,15 @@ const filteredBooks = computed(() => {
                           (book.summary || '').toLowerCase().includes(search);
 
     const matchesKeywords = activeKeywords.value.size === 0 ||
-                            (book.keywords && Array.from(activeKeywords.value).every(kw => book.keywords!.includes(kw)));
+      (book.keywords && Array.from(activeKeywords.value).every(kw => book.keywords!.includes(kw)));
 
     return matchesSearch && matchesKeywords;
   });
 
   return books.sort((a, b) => {
     switch (currentSortOption.value) {
-      case 'popular':
-        return (b.likes || 0) - (a.likes || 0);
-      case 'views':
-        return (b.views || 0) - (a.views || 0);
+      case 'popular': return (b.likes || 0) - (a.likes || 0);
+      case 'views': return (b.views || 0) - (a.views || 0);
       case 'latest':
       default:
         return b.createdAt.getTime() - a.createdAt.getTime();
@@ -143,13 +143,105 @@ const filteredBooks = computed(() => {
   });
 });
 
-// --- Functions ---
-function showMessageBox(message: string, title = '알림') {
-  messageBoxTitle.value = title;
-  messageBoxContent.value = message;
-  isMessageBoxVisible.value = true;
-}
+// --- Navigation ---
+const goToBookDetail = (bookId: string) => {
+  router.push({ name: 'book-detail', params: { id: bookId } });
+};
 
+// --- Carousel Logic ---
+const carouselRotation = ref(0);
+const isDragging = ref(false);
+const startX = ref(0);
+const dragStartRotation = ref(0);
+
+const carouselStyle = computed(() => ({
+  transition: isDragging.value ? 'none' : 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)',
+  transform: `rotateY(${carouselRotation.value}deg)`,
+}));
+
+const get3DStyle = (index: number) => {
+  const itemAngle = index * 36;
+  const totalRotation = carouselRotation.value + itemAngle;
+  const normalizedAngle = Math.abs(totalRotation % 360);
+  const angleToFront = Math.min(normalizedAngle, 360 - normalizedAngle);
+
+  const angleFactor = angleToFront / 180;
+  const effectFactor = Math.pow(angleFactor, 1.5);
+
+  const opacity = Math.max(0.2, 1 - effectFactor * 0.8);
+  const blur = effectFactor * 5;
+
+  return {
+    transform: `rotateY(${itemAngle}deg) translateZ(400px)`,
+    opacity: opacity,
+    filter: `blur(${blur}px)`,
+  };
+};
+
+const changeBook = (direction: number) => {
+  const anglePerItem = 36;
+  carouselRotation.value += direction * anglePerItem;
+};
+
+const prevBook = () => changeBook(1);
+const nextBook = () => changeBook(-1);
+
+const onMouseDown = (event: MouseEvent) => {
+  isDragging.value = true;
+  startX.value = event.clientX;
+  dragStartRotation.value = carouselRotation.value;
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+};
+
+const onMouseMove = (event: MouseEvent) => {
+  if (!isDragging.value) return;
+  const deltaX = event.clientX - startX.value;
+  carouselRotation.value = dragStartRotation.value + (deltaX * 0.3);
+};
+
+const onMouseUp = () => {
+  isDragging.value = false;
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', onMouseUp);
+  snapToNearestBook();
+};
+
+const onTouchStart = (event: TouchEvent) => {
+  if (event.touches.length !== 1) return;
+  isDragging.value = true;
+  startX.value = event.touches[0].clientX;
+  dragStartRotation.value = carouselRotation.value;
+  window.addEventListener('touchmove', onTouchMove);
+  window.addEventListener('touchend', onTouchEnd);
+};
+
+const onTouchMove = (event: TouchEvent) => {
+  if (!isDragging.value || event.touches.length !== 1) return;
+  const deltaX = event.touches[0].clientX - startX.value;
+  carouselRotation.value = dragStartRotation.value + (deltaX * 0.3);
+};
+
+const onTouchEnd = () => {
+  isDragging.value = false;
+  window.removeEventListener('touchmove', onTouchMove);
+  window.removeEventListener('touchend', onTouchEnd);
+  snapToNearestBook();
+};
+
+const snapToNearestBook = () => {
+  const anglePerItem = 36;
+  carouselRotation.value = Math.round(carouselRotation.value / anglePerItem) * anglePerItem;
+};
+
+onUnmounted(() => {
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', onMouseUp);
+  window.removeEventListener('touchmove', onTouchMove);
+  window.removeEventListener('touchend', onTouchEnd);
+});
+
+// --- General Functions ---
 function toggleKeyword(keyword: string) {
   if (activeKeywords.value.has(keyword)) {
     activeKeywords.value.delete(keyword);
@@ -159,89 +251,136 @@ function toggleKeyword(keyword: string) {
 }
 
 function isLiked(bookId: string) {
-    return likedBookIds.value.has(bookId);
+  return likedBookIds.value.has(bookId);
 }
 
 function toggleLike(book: Book) {
-    // Simulate like/unlike locally
-    if (isLiked(book.id)) {
-        likedBookIds.value.delete(book.id);
-        book.likes = (book.likes || 1) - 1;
-        showMessageBox('좋아요를 취소했습니다.');
-    } else {
-        likedBookIds.value.add(book.id);
-        book.likes = (book.likes || 0) + 1;
-        showMessageBox('좋아요를 눌렀습니다!');
-    }
+  if (isLiked(book.id)) {
+    likedBookIds.value.delete(book.id);
+    book.likes = (book.likes || 1) - 1;
+  } else {
+    likedBookIds.value.add(book.id);
+    book.likes = (book.likes || 0) + 1;
+  }
 }
-
-// --- Initialization ---
-onMounted(() => {
-  // No Firebase initialization needed for dummy data
-});
 </script>
 
 <style scoped>
 .bookstore-page {
-  padding-top: 80px;
-  padding-bottom: 80px;
+  padding: 2rem 1rem;
   background-color: #F5F5DC;
   color: #3D2C20;
-  min-height: calc(100vh - 136px);
-  padding-left: 1rem;
-  padding-right: 1rem;
+  min-height: 100vh;
 }
 
-.search-sort-section {
-  background-color: #FFFFFF;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  padding: 2rem;
-  margin: 0 auto 2rem auto;
-  max-width: 1200px;
+.section-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #3D2C20;
+  margin-bottom: 2rem;
+  text-align: left;
+  width: 100%;
+  padding-left: 15rem;
 }
 
-.search-sort-container {
+/* Carousel Section */
+.carousel-section {
+  position: relative;
+  height: 480px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  justify-content: center;
+  margin-bottom: 3rem;
 }
 
-@media (min-width: 768px) {
-  .search-sort-container {
-    flex-direction: row;
-    justify-content: space-between;
-  }
+.perspective-carousel-container {
+  perspective: 2500px;
+  width: 300px;
+  height: 400px;
+  position: relative;
+}
+
+.perspective-carousel {
+  transform-style: preserve-3d;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  transform-origin: center center;
+  cursor: grab;
+}
+
+.perspective-carousel:active { cursor: grabbing; }
+
+.carousel-item-3d {
+  position: absolute;
+  left: 50px;
+  top: 50px;
+  width: 200px;
+  height: 300px;
+  transform-style: preserve-3d;
+  transform-origin: center center;
+  cursor: pointer;
+  transition: transform 0.6s, opacity 0.6s, filter 0.6s;
+}
+
+.book-cover-3d {
+  width: 100%;
+  height: 100%;
+  background-color: #5C4033;
+  color: #F5F5DC;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  border: 2px solid #8B4513;
+  border-radius: 8px; /* Re-added border-radius */
+}
+
+.carousel-control-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  background-color: rgba(184, 134, 11, 0.7);
+  border: none;
+  color: white;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.5rem;
+  transition: background-color 0.2s;
+}
+.carousel-control-btn:hover { background-color: #B8860B; }
+.prev-btn { left: 10%; }
+.next-btn { right: 10%; }
+
+/* Filter Section */
+.filter-section {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 3rem;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
 .search-input-wrapper {
   position: relative;
-  flex-grow: 1;
-  width: 100%;
+  margin-bottom: 1.5rem;
 }
 
 .search-input {
   width: 100%;
-  padding-left: 2.5rem;
-  padding-right: 1rem;
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
+  padding: 0.75rem 1.5rem 0.75rem 3rem;
   border: 1px solid #B8860B;
   border-radius: 9999px;
   background-color: #F5F5DC;
-  color: #3D2C20;
-  font-size: 1rem;
 }
-
-.search-input::placeholder {
-  color: #8B4513;
-}
-
-.search-input:focus {
-  outline: none;
-  box-shadow: 0 0 0 0.25rem rgba(184, 134, 11, 0.25);
-}
+.search-input:focus { box-shadow: 0 0 0 0.25rem rgba(184, 134, 11, 0.25); }
 
 .search-icon {
   position: absolute;
@@ -249,248 +388,100 @@ onMounted(() => {
   top: 50%;
   transform: translateY(-50%);
   color: #B8860B;
-  font-size: 1.2rem;
 }
 
 .sort-options-wrapper {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap;
   justify-content: center;
+  margin-bottom: 1.5rem;
 }
 
-.form-check-label {
-  color: #3D2C20;
-  font-weight: 500;
-}
-
-.form-check-input:checked {
-  background-color: #B8860B;
-  border-color: #B8860B;
-}
+.form-check-input:checked { background-color: #B8860B; border-color: #B8860B; }
 
 .keyword-buttons-container {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
   justify-content: center;
-  margin-top: 1.5rem;
 }
 
 .keyword-button {
   padding: 0.5rem 1rem;
   border-radius: 9999px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
-  white-space: nowrap;
   border: 1px solid #B8860B;
   background-color: transparent;
   color: #B8860B;
+  transition: all 0.2s;
 }
-
-.keyword-button.active {
+.keyword-button.active, .keyword-button:hover {
   background-color: #B8860B;
   color: #FFFFFF;
 }
 
-.keyword-button:not(.active):hover {
-  background-color: rgba(184, 134, 11, 0.1);
-}
-
-.book-list-section {
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.book-list-title {
-  font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 1.5rem;
-  color: #3D2C20;
-  text-align: center;
-}
-
+/* Book List Section */
 .book-grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 1.5rem;
-}
-
-.book-card-link {
-    text-decoration: none;
-    color: inherit;
 }
 
 .book-card {
   background-color: #FFFFFF;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
   display: flex;
-  flex-direction: row;
-  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
-  transition: transform 0.3s, box-shadow 0.3s;
-  padding: 1.5rem;
-  gap: 1.5rem;
-  color: #3D2C20;
 }
-
-.book-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-}
+.book-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
 
 .book-cover-placeholder {
   flex-shrink: 0;
-  width: 120px;
-  height: 180px;
-  background-color: #EAE0D5;
+  width: 100px;
+  height: 140px;
+  background-color: #8B4513;
+  color: #F5F5DC;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.9rem;
-  color: #5C4033;
   border-radius: 8px;
 }
 
-.book-details-right {
+.book-details {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  min-width: 0;
-  height: 180px; /* Match cover height */
 }
 
-.book-main-info {
-    flex-grow: 1;
-}
+.book-title { font-weight: 700; margin-bottom: 0.25rem; }
+.book-author { color: #5C4033; margin-bottom: 0.5rem; }
+.book-summary { font-size: 0.9rem; flex-grow: 1; margin-bottom: 0.75rem; }
 
-.book-title {
-    font-size: 1.25rem;
-    font-weight: 600;
-    margin-bottom: 0.5rem;
-}
-
-.book-author {
-    font-size: 0.9rem;
-    color: #8B4513;
-    margin-bottom: 0.75rem;
-}
-
-.book-summary {
-  font-size: 0.9rem;
-  color: #5C4033;
-  max-height: 60px; /* Approx 3 lines */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.6;
-}
-
-.book-stats-and-actions {
+.book-stats {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 1rem;
-  gap: 0.5rem;
-}
-
-.book-stats-full {
-    font-size: 0.8rem;
-    color: #8B4513;
+  gap: 1rem;
+  font-size: 0.85rem;
+  color: #8B4513;
+  margin-bottom: 0.75rem;
 }
 
 .like-button {
-    background-color: transparent;
-    border: 1px solid #CD5C5C; /* IndianRed */
-    color: #CD5C5C;
-    padding: 0.4rem 0.8rem;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: background-color 0.2s, color 0.2s;
+  background-color: transparent;
+  border: 1px solid #CD5C5C;
+  color: #CD5C5C;
+  align-self: flex-start;
 }
-
 .like-button.liked, .like-button:hover {
-    background-color: #CD5C5C;
-    color: #FFFFFF;
-}
-
-.like-button i {
-    margin-right: 0.4rem;
+  background-color: #CD5C5C;
+  color: #FFFFFF;
 }
 
 .no-books-message {
-    text-align: center;
-    padding: 3rem;
-    font-size: 1.2rem;
-    color: #8B4513;
-}
-
-/* Modal Styles */
-.modal {
-  display: none; /* Hidden by default, shown by v-if */
-  position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background-color: rgba(0,0,0,0.6);
-  justify-content: center;
-  align-items: center;
-}
-
-.modal-content {
-  background-color: #5C4033;
-  margin: auto;
-  padding: 2rem;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 400px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
-  position: relative;
-  color: #F5F5DC;
-}
-
-.close-button {
-  color: #F5F5DC;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
-  position: absolute;
-  top: 10px;
-  right: 20px;
-  cursor: pointer;
-}
-
-.modal-title {
-  font-size: 1.8rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-  color: #B8860B;
-}
-
-.modal-body {
-    margin-bottom: 1.5rem;
-}
-
-.modal-confirm-btn {
-  background-color: #B8860B;
-  color: #3D2C20;
-  font-weight: bold;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  transition: background-color 0.2s ease-in-out;
-  border: none;
-  width: 100%;
-}
-
-.modal-confirm-btn:hover {
-  background-color: #DAA520;
+  text-align: center;
+  padding: 3rem;
+  font-size: 1.2rem;
 }
 </style>
