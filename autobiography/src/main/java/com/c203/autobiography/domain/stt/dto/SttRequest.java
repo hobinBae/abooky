@@ -11,10 +11,13 @@ import org.springframework.web.multipart.MultipartFile;
 @NoArgsConstructor
 @Builder
 public class SttRequest {
-    private MultipartFile audio;       // 오디오 바이트
-    private String lang;               // Kor, Eng, Jpn, Chn
-    private Boolean assessment = false;// 발음평가 여부
-    private String utterance;          // 평가対象 텍스트 (optional)
-    private String boostings;          // 탭(\t) 구분 키워드 (optional)
-    private Boolean graph = false;     // 파형 그래프 반환 여부
+    /**
+     * 업로드된 오디오 파일(PCM WAV, WebM 등)
+     */
+    private MultipartFile audio;
+
+    /**
+     * Whisper용 고유명사 프롬프트 문자열
+     */
+    private String customProperNouns;
 }

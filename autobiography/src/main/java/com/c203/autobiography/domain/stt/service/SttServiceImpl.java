@@ -16,4 +16,9 @@ public class SttServiceImpl implements SttService {
     public SttResponse recognize(MultipartFile audio) {
         return sttClient.recognize(audio);
     }
+
+    @Override
+    public SttResponse recognize(MultipartFile audio, String customProperNouns) {
+        return sttClient.recognize(audio, customProperNouns);
+    }
 }

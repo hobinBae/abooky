@@ -9,21 +9,27 @@
         .user { text-align: right; color: #006; }
         .stt  { text-align: left;  color: #090; }
         .error{ text-align: left; color: #f66; }
-        button { padding: .5rem 1rem; margin: .5rem .25rem; }
+        button, input { padding: .5rem; margin: .5rem 0; width: 100%; box-sizing: border-box; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
 <h2>Whisper STT 테스트</h2>
 <div id="messages"></div>
+
+<!-- ① customProperNouns 입력 필드 추가 -->
+<input type="text" id="properInput" placeholder="고유명사를 쉼표로 구분해 입력하세요" />
+
 <button id="recordBtn">🎙️ 녹음 시작</button>
 <button id="stopBtn" disabled>⏹️ 녹음 중지</button>
 
 <script>
-    const baseUrl = 'http://localhost:8080/api/stt/whisper';
-    const msgsEl = document.getElementById('messages');
-    const recordBtn = document.getElementById('recordBtn');
-    const stopBtn   = document.getElementById('stopBtn');
+    const baseUrl    = 'http://localhost:8080/api/stt/whisper';
+    const msgsEl     = document.getElementById('messages');
+    const recordBtn  = document.getElementById('recordBtn');
+    const stopBtn    = document.getElementById('stopBtn');
+    // ② properInput 요소를 여기서 가져와야 합니다
+    const properInput = document.getElementById('properInput');
 
     let mediaRecorder, chunks, stream;
 
@@ -40,31 +46,9 @@
             stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
             chunks = [];
-
             mediaRecorder.ondataavailable = e => {
                 if (e.data.size > 0) chunks.push(e.data);
             };
-
-            mediaRecorder.onstop = async () => {
-                const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
-                appendMessage('🔊 Whisper로 음성 전송 중...', 'user');
-
-                try {
-                    const form = new FormData();
-                    form.append('audio', blob, 'audio.webm');
-                    const res = await axios.post(baseUrl, form, {
-                        headers: { 'Content-Type': 'multipart/form-data' },
-                        timeout: 30000
-                    });
-                    const text = res.data.text || res.data;
-                    appendMessage(text, 'stt');
-                } catch (e) {
-                    appendMessage('❌ Whisper STT 오류: ' + (e.response?.data?.message || e.message), 'error');
-                }
-
-                stream.getTracks().forEach(t => t.stop());
-            };
-
             mediaRecorder.start();
             recordBtn.disabled = true;
             stopBtn.disabled = false;
@@ -75,11 +59,32 @@
     };
 
     stopBtn.onclick = () => {
-        if (mediaRecorder && mediaRecorder.state === 'recording') {
-            mediaRecorder.stop();
-            recordBtn.disabled = false;
-            stopBtn.disabled = true;
-        }
+        if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+        mediaRecorder.stop();
+        stream.getTracks().forEach(t => t.stop());
+        recordBtn.disabled = false;
+        stopBtn.disabled = true;
+        appendMessage('🔊 Whisper로 음성 전송 중...', 'user');
+
+        mediaRecorder.onstop = async () => {
+            const blob = new Blob(chunks, { type: mediaRecorder.mimeType });
+            try {
+                const form = new FormData();
+                form.append('audio', blob, 'audio.webm');
+
+                // ③ customProperNouns 값 읽어서 폼에 추가
+                const customProperNouns = properInput.value.trim();
+                if (customProperNouns) {
+                    form.append('customProperNouns', customProperNouns);
+                }
+
+                const res = await axios.post(baseUrl, form, { timeout: 30000 });
+                appendMessage(res.data.text, 'stt');
+            } catch (e) {
+                appendMessage('❌ Whisper STT 오류: ' +
+                    (e.response?.data?.message || e.message), 'error');
+            }
+        };
     };
 </script>
 </body>
