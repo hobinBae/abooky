@@ -31,7 +31,7 @@ const router = createRouter({
       name: 'bookstore',
       component: BookstoreView
     },
-    
+
     {
       path: '/create-book/:bookId?',
       name: 'CreateBookView',
