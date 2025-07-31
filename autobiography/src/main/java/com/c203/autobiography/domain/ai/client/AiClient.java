@@ -10,7 +10,7 @@ public interface AiClient {
      * @param history
      * @return
      */
-    String generateNextQuestion(String sessionId, String userAnswer, List<String> history);
+//    String generateNextQuestion(String sessionId, String userAnswer, List<String> history);
 
     /**
      * 사용자의 마지막 답변을 받아서

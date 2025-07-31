@@ -31,4 +31,10 @@ public class ChatMessage {
     public static ChatMessage assistant(String content){
         return new ChatMessage("assistant", content);
     }
+    public static ChatMessage of(String role, String content) {
+        return ChatMessage.builder()
+                .role(role)
+                .content(content)
+                .build();
+    }
 }

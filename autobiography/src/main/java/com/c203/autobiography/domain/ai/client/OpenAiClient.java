@@ -1,5 +1,8 @@
 package com.c203.autobiography.domain.ai.client;
 
+import com.c203.autobiography.domain.ai.dto.ChatCompletionRequest;
+import com.c203.autobiography.domain.ai.dto.ChatMessage;
+import com.c203.autobiography.domain.ai.service.OpenAiService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springdoc.core.service.OpenAPIService;
@@ -23,7 +26,32 @@ public class OpenAiClient implements AiClient{
     @Override
     public String generateFollowUp(String lastAnswer){
         // 시스템 프롬프트: 후속 질문을 만들어 달라고 지시
-        Cha
+        ChatMessage system = ChatMessage.of("system",
+                "당신은 자서전을 작성하는 친절한 인터뷰어입니다. " +
+                        "사용자의 답변을 듣고, 추가 질문을 통해 더 깊이 있는 에피소드를 이끌어낼 수 있다고 판단되면, " +
+                        "자연스럽고 문맥에 맞는 한 문장의 후속 질문을 생성해주세요. " +
+                        "만약 없다면 질문을 하지 않아도 괜찮습니다.");
+
+        ChatMessage user = ChatMessage.of("user",
+                "사용자가 이렇게 답했습니다:\n\"" + lastAnswer + "\"\n" +
+                        "이 답변에 대한 후속 질문을 한 문장으로 만들어 주세요."
+        );
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model(model)
+                .messages(List.of(system, user))
+                .maxTokens(50)
+                .temperature(0.7)
+                .build();
+
+        String followUp = openAiService.createChatCompletion(request)
+                .getChoices()
+                .get(0)
+                .getMessage()
+                .getContent()
+                .trim();
+
+        return followUp;
+
     }
 
 //    @Override
