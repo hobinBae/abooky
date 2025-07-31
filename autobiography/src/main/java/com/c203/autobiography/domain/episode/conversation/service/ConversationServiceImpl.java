@@ -1,12 +1,7 @@
 package com.c203.autobiography.domain.episode.conversation.service;
 
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationMessageRequest;
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationMessageResponse;
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationMessageUpdateRequest;
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationSessionRequest;
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationSessionResponse;
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationSessionUpdateRequest;
-import com.c203.autobiography.domain.episode.conversation.dto.SessionStatus;
+import com.c203.autobiography.domain.ai.client.AiClient;
+import com.c203.autobiography.domain.episode.conversation.dto.*;
 import com.c203.autobiography.domain.episode.conversation.entity.ConversationMessage;
 import com.c203.autobiography.domain.episode.conversation.entity.ConversationSession;
 import com.c203.autobiography.domain.episode.conversation.repository.ConversationMessageRepository;
@@ -29,6 +24,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConversationSessionRepository sessionRepo;
     private final ConversationMessageRepository messageRepo;
     private final QuestionTemplateService templateService;
+    private final AiClient aiClient;
     // 세션별 다음 질문 인덱스 관리 (0부터 시작)
     private final ConcurrentHashMap<String, AtomicInteger> indexMap = new ConcurrentHashMap<>();
 
@@ -73,13 +69,25 @@ public class ConversationServiceImpl implements ConversationService {
 
     @Override
     public String getNextQuestion(String sessionId) {
-        AtomicInteger idx = indexMap.get(sessionId);
-        if (idx == null) {
-            throw new IllegalStateException("세션을 찾을 수 없습니다: " + sessionId);
-        }
-        // 1번 질문부터는 인덱스를 증가시켜서 가져옴
-        int nextIndex = idx.incrementAndGet();
-        return templateService.getByOrder(nextIndex);
+        List<ConversationMessageResponse> history = getHistory(sessionId);
+        List<String> texts = history.stream()
+                .map(ConversationMessageResponse::getContent)
+                .collect(Collectors.toList());
+
+        // 2) 마지막 답변
+        String lastAnswer = texts.get(texts.size() - 1);
+
+        // 3) AI에게 위임
+        String nextQ = aiClient.generateNextQuestion(sessionId, lastAnswer, texts);
+
+        // 4) DB에 질문 메시지로도 저장해 두기
+        createMessage(ConversationMessageRequest.builder()
+                .sessionId(sessionId)
+                .messageType(MessageType.QUESTION)
+                .content(nextQ)
+                .build());
+
+        return nextQ;
     }
 
     @Override

@@ -114,7 +114,12 @@ public class WhisperSttClient implements SttClient {
             log.info("✅ Whisper 응답: text='{}', usage={}s",
                     sttResponse.getText(),
                     sttResponse.getUsage() != null ? sttResponse.getUsage().getSeconds() : null);
-
+            String output = sttResponse.getText();
+            if(output.matches(".*(시청|구독|감사|좋아요|안녕히).*")){
+                log.warn("할루미네이션 제거", output);
+                sttResponse.setText(" ");
+                return sttResponse;
+            }
             return sttResponse;
 
         } catch (IOException e) {
