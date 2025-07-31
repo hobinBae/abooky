@@ -11,4 +11,10 @@ public interface AiClient {
      * @return
      */
     String generateNextQuestion(String sessionId, String userAnswer, List<String> history);
+
+    /**
+     * 사용자의 마지막 답변을 받아서
+     * 자연스럽고 문맥에 맞는 후속 질문을 생성하여 반환합니다.
+     */
+    String generateFollowUp(String lastAnswer);
 }

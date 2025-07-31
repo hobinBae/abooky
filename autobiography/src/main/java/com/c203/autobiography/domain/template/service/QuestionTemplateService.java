@@ -1,6 +1,8 @@
 package com.c203.autobiography.domain.template.service;
 
-public interface QuestionTemplateService {
+import java.util.List;
 
+public interface QuestionTemplateService {
+    public List<String> getAllInorder();
     public String getByOrder(int idx);
 }

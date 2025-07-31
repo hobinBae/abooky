@@ -7,6 +7,8 @@ import com.c203.autobiography.domain.episode.conversation.entity.ConversationSes
 import com.c203.autobiography.domain.episode.conversation.repository.ConversationMessageRepository;
 import com.c203.autobiography.domain.episode.conversation.repository.ConversationSessionRepository;
 import com.c203.autobiography.domain.template.service.QuestionTemplateService;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -26,21 +28,22 @@ public class ConversationServiceImpl implements ConversationService {
     private final QuestionTemplateService templateService;
     private final AiClient aiClient;
     // 세션별 다음 질문 인덱스 관리 (0부터 시작)
-    private final ConcurrentHashMap<String, AtomicInteger> indexMap = new ConcurrentHashMap<>();
-
+//    private final ConcurrentHashMap<String, AtomicInteger> indexMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Deque<String>> questionQueueMap = new ConcurrentHashMap<>();
     @Override
     public ConversationSessionResponse createSession(ConversationSessionRequest request) {
         ConversationSession session = ConversationSession.builder()
                 .sessionId(request.getSessionId())
                 .bookId(null)
                 .episodeId(request.getEpisodeId())
-                .templateIndex(0)
                 .status(SessionStatus.OPEN)
                 .tokenCount(0L)
                 .build();
         sessionRepo.save(session);
-        // 첫 질문은 템플릿 순서 0
-        indexMap.put(request.getSessionId(), new AtomicInteger(0));
+        // 템플릿 전체를 순서대로 가져와 큐에 담기
+        List<String> allTemplates = templateService.getAllInorder();
+        Deque<String> queue = new ArrayDeque<>(allTemplates);
+        questionQueueMap.put(session.getSessionId(), queue);
         return ConversationSessionResponse.from(session);
     }
 
@@ -52,11 +55,13 @@ public class ConversationServiceImpl implements ConversationService {
                 .sessionId(session.getSessionId())
                 .bookId(session.getBookId())
                 .episodeId(session.getEpisodeId())
-                .templateIndex(request.getTemplateIndex())
                 .status(request.getStatus())
                 .tokenCount(session.getTokenCount())
                 .build();
         sessionRepo.save(session);
+        List<String> allTemplates = templateService.getAllInorder();
+        Deque<String> queue = new ArrayDeque<>(allTemplates);
+        questionQueueMap.put(session.getSessionId(), queue);
         return ConversationSessionResponse.from(session);
     }
 
@@ -69,25 +74,31 @@ public class ConversationServiceImpl implements ConversationService {
 
     @Override
     public String getNextQuestion(String sessionId) {
-        List<ConversationMessageResponse> history = getHistory(sessionId);
-        List<String> texts = history.stream()
-                .map(ConversationMessageResponse::getContent)
-                .collect(Collectors.toList());
 
-        // 2) 마지막 답변
-        String lastAnswer = texts.get(texts.size() - 1);
+        Deque<String> queue = questionQueueMap.get(sessionId);
+        if (queue == null || queue.isEmpty()) {
+            return null;
+        }
+        String lastAnswer = getLastAnswer(sessionId);
 
-        // 3) AI에게 위임
-        String nextQ = aiClient.generateNextQuestion(sessionId, lastAnswer, texts);
+        String followUp = aiClient.generateFollowUp(lastAnswer);
 
-        // 4) DB에 질문 메시지로도 저장해 두기
+        if (shouldInjectFollowUp(lastAnswer, followUp)) {
+            queue.addFirst(followUp);
+        }
+        String next = queue.poll();
+        if (next == null) {
+            // 더 이상 질문이 없으면 null 혹은 기본 행동
+            return null;
+        }
+
         createMessage(ConversationMessageRequest.builder()
                 .sessionId(sessionId)
                 .messageType(MessageType.QUESTION)
-                .content(nextQ)
+                .content(next)
                 .build());
+        return next;
 
-        return nextQ;
     }
 
     @Override
@@ -126,4 +137,25 @@ public class ConversationServiceImpl implements ConversationService {
                 .map(ConversationMessageResponse::from)
                 .collect(Collectors.toList());
     }
+
+    /**
+     * 세션의 마지막 FINAL(사용자 최종 답변) 메시지 내용을 가져옵니다.
+     */
+    private String getLastAnswer(String sessionId) {
+        return messageRepo
+                .findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.FINAL)
+                .map(ConversationMessage::getContent)
+                .orElse("");
+    }
+
+    /**
+     * AI가 생성한 후속 질문을 주입할지 결정합니다.
+     * (예: 후속 질문이 널이 아니고, 기존 질문/답변과 중복이 아닐 때만)
+     */
+    private boolean shouldInjectFollowUp(String lastAnswer, String followUp) {
+        if (followUp == null || followUp.isBlank()) return false;
+        // 답변과 동일한 질문을 주입할 필요는 없으므로 필터링
+        return !followUp.trim().equalsIgnoreCase(lastAnswer.trim());
+    }
+
 }

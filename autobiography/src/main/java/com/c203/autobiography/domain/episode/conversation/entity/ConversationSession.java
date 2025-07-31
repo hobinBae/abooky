@@ -9,7 +9,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
+import java.util.Deque;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -33,8 +35,8 @@ public class ConversationSession {
     @Column(name = "episode_id")
     private Long episodeId;
 
-    @Column(name = "template_index", nullable = false)
-    private Integer templateIndex;
+    @Transient
+    private Deque<String> questionQueue;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false)
