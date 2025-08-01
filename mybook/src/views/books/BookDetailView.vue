@@ -4,7 +4,8 @@
       <!-- Book Header (상세 정보 모드일 때만 표시) -->
       <header class="book-header" v-if="!isReadingMode">
         <div class="book-cover">
-          <img :src="book.coverUrl || 'https://via.placeholder.com/150x220/5C4033/FFFFFF?text=Book+Cover'" alt="Book Cover">
+          <img :src="book.coverUrl || 'https://via.placeholder.com/150x220/5C4033/FFFFFF?text=Book+Cover'"
+            alt="Book Cover">
         </div>
         <div class="book-meta">
           <h1 class="book-title">{{ book.title }}</h1>
@@ -21,9 +22,7 @@
             <button @click="toggleLike" class="btn btn-like" :class="{ liked: isLiked }">
               <i class="bi" :class="isLiked ? 'bi-heart-fill' : 'bi-heart'"></i> 좋아요 ({{ likeCount }})
             </button>
-            <button @click="addToMyLibrary" class="btn btn-add-library">
-              <i class="bi bi-bookmark-plus"></i> 내 책방에 추가
-            </button>
+            
             <button v-if="isAuthor" @click="editBook" class="btn btn-edit-book">
               <i class="bi bi-pencil-square"></i> 책 편집하기
             </button>
@@ -40,17 +39,26 @@
           <button @click="endReading" class="btn btn-secondary">책 상세 정보로 돌아가기</button>
           <h2 class="reading-mode-title">{{ book.title }}</h2>
         </div>
-        <!-- Episode Viewer -->
-        <main class="episode-viewer">
-          <div class="episode-navigation">
-            <button @click="prevEpisode" :disabled="currentEpisodeIndex === 0" class="btn btn-nav">이전</button>
-            <h3 class="episode-title">에피소드 {{ currentEpisodeIndex + 1 }}</h3>
-            <button @click="nextEpisode" :disabled="currentEpisodeIndex >= book.episodes.length - 1" class="btn btn-nav">다음</button>
+        <div class="book-pages-wrapper">
+          <div class="page-content">
+            <main class="episode-viewer">
+              <div class="episode-navigation">
+                <button @click="prevEpisode" :disabled="currentEpisodeIndex === 0 && currentPage === 0"
+                  class="btn btn-nav">이전</button>
+                <h3 class="episode-title">에피소드 {{ currentEpisodeIndex + 1 }}</h3>
+                <button @click="nextEpisode" :disabled="currentEpisodeIndex >= book.episodes.length - 1"
+                  class="btn btn-nav">다음</button>
+              </div>
+              <div class="episode-content">
+                <p>{{ currentEpisodeContent }}</p>
+              </div>
+              <div class="page-number-container">
+                <span class="page-number">{{ totalCurrentPage }} p</span>
+              </div>
+
+            </main>
           </div>
-          <div class="episode-content">
-            <p>{{ currentEpisodeContent }}</p>
-          </div>
-        </main>
+        </div>
       </div>
 
       <!-- Comments Section (항상 표시) -->
@@ -81,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useRouter } from 'vue-router';
 
@@ -113,6 +121,18 @@ interface Comment {
   createdAt: Date;
 }
 
+const totalCurrentPage = computed(() => {
+  if (!book.value) return 0;
+
+  let totalPagesBefore = 0;
+  for (let i = 0; i < currentEpisodeIndex.value; i++) {
+    const episodeContent = book.value.episodes[i].content;
+    totalPagesBefore += Math.ceil(episodeContent.length / charsPerPage);
+  }
+
+  return totalPagesBefore + currentPage.value + 1;
+});
+
 // --- Dummy Data ---
 const DUMMY_BOOKS: Book[] = [
   {
@@ -120,13 +140,15 @@ const DUMMY_BOOKS: Book[] = [
     title: '나의 어린 시절 이야기',
     authorId: 'dummyUser1',
     authorName: '김작가',
-    summary: '어린 시절의 소중한 추억들을 담은 자서전입니다.',
+    summary: '어린 시절의 소중한 추억들을 담은 자서전입니다. 골목길에서의 모험, 할머니의 따뜻한 손길, 그리고 친구들과의 우정까지, 순수했던 그 시절의 이야기들이 펼쳐집니다.',
     coverUrl: 'https://via.placeholder.com/150x220/5C4033/FFFFFF?text=MyBook1',
-    keywords: ['자서전', '어린시절', '추억'],
+    keywords: ['자서전', '어린시절', '추억', '성장', '가족', '친구'],
     episodes: [
-      { content: '어릴 적 살던 동네의 골목길은 언제나 모험의 시작이었다.' },
-      { content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다.' },
-      { content: '친구들과 함께 뛰어놀던 운동장은 우리만의 작은 세상이었다.' },
+      { content: '어릴 적 살던 동네의 골목길은 언제나 모험의 시작이었다. 낡은 담벼락을 따라 이어진 좁은 길은 우리에게 미지의 세계로 통하는 문과 같았다. 해 질 녘까지 술래잡기를 하고, 숨바꼭질을 하며 뛰어놀던 그곳은 단순한 길이 아니라, 우리의 꿈과 상상력이 자라나던 놀이터였다. 골목길 모퉁이를 돌 때마다 새로운 친구를 만나고, 새로운 비밀을 발견하곤 했다. 여름날 소나기가 내린 뒤 흙냄새가 진동하던 골목길, 겨울날 눈이 소복이 쌓여 발자국을 남기던 골목길의 풍경은 아직도 내 기억 속에 선명하게 남아있다. 그 시절의 골목길은 우리에게 자유와 행복을 선물해준 소중한 공간이었다. 우리는 그곳에서 넘어지고, 울고, 웃으며 함께 성장했다. 골목길의 작은 돌멩이 하나하나에도 우리의 추억이 깃들어 있었다. 지금은 사라지고 없는 그 골목길이 가끔씩 그리워지는 것은, 아마도 그 시절의 순수했던 나 자신을 다시 만나고 싶어서일 것이다. 그 골목길은 내 어린 시절의 가장 아름다운 배경이었다. 어릴 적 살던 동네의 골목길은 언제나 모험의 시작이었다. 낡은 담벼락을 따라 이어진 좁은 길은 우리에게 미지의 세계로 통하는 문과 같았다. 해 질 녘까지 술래잡기를 하고, 숨바꼭질을 하며 뛰어놀던 그곳은 단순한 길이 아니라, 우리의 꿈과 상상력이 자라나던 놀이터였다. 골목길 모퉁이를 돌 때마다 새로운 친구를 만나고, 새로운 비밀을 발견하곤 했다. 여름날 소나기가 내린 뒤 흙냄새가 진동하던 골목길, 겨울날 눈이 소복이 쌓여 발자국을 남기던 골목길의 풍경은 아직도 내 기억 속에 선명하게 남아있다. 그 시절의 골목길은 우리에게 자유와 행복을 선물해준 소중한 공간이었다. 우리는 그곳에서 넘어지고, 울고, 웃으며 함께 성장했다. 골목길의 작은 돌멩이 하나하나에도 우리의 추억이 깃들어 있었다. 지금은 사라지고 없는 그 골목길이 가끔씩 그리워지는 것은, 아마도 그 시절의 순수했던 나 자신을 다시 만나고 싶어서일 것이다. 그 골목길은 내 어린 시절의 가장 아름다운 배경이었다.' },
+      { content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다. 할머니 댁에 가면 언제나 구수한 된장찌개 냄새가 나를 반겼다. 할머니는 내가 좋아하는 반찬들을 한가득 차려주셨고, 나는 할머니의 사랑이 담긴 밥상을 마주할 때마다 세상에서 가장 행복한 아이가 되었다. 특히 할머니가 직접 만들어주시던 쑥떡과 식혜는 그 어떤 고급 디저트보다도 맛있었다. 할머니는 음식을 만들 때마다 정성을 다하셨고, 그 정성이 음식 맛에 그대로 배어 있었다. 할머니의 손은 언제나 따뜻하고 부드러웠다. 내가 아플 때면 할머니는 내 이마에 손을 얹고 열을 재셨고, 밤새도록 내 옆을 지켜주셨다. 할머니의 품은 세상에서 가장 안전하고 포근한 안식처였다. 할머니는 나에게 삶의 지혜와 사랑을 가르쳐주셨다. 할머니의 잔잔한 목소리로 들려주시던 옛날이야기는 나를 꿈의 세계로 이끌었고, 할머니의 따뜻한 미소는 나에게 용기를 주었다. 할머니는 내 어린 시절의 가장 큰 버팀목이자, 영원한 사랑이었다. 지금도 할머니의 손맛과 따뜻한 품이 그리워진다.' },
+      { content: '친구들과 함께 뛰어놀던 운동장은 우리만의 작은 세상이었다. 학교가 끝나면 우리는 약속이라도 한 듯 운동장으로 달려갔다. 축구공 하나만 있으면 시간 가는 줄 모르고 뛰어놀았고, 해가 져서 어두워질 때까지 운동장을 떠나지 않았다. 운동장 한쪽에는 낡은 철봉과 미끄럼틀이 있었는데, 우리는 그곳에서 온갖 기상천외한 놀이를 만들어냈다. 때로는 싸우기도 하고, 때로는 화해하기도 하면서 우리는 서로를 알아갔다. 운동장에서 흘린 땀방울만큼 우리의 우정은 더욱 단단해졌다. 운동장 구석에 피어있던 들꽃, 운동장 한가운데 서 있던 커다란 나무는 우리의 비밀을 지켜주는 친구였다. 우리는 그곳에서 꿈을 키웠고, 미래를 상상했다. 운동장은 우리에게 단순한 놀이 공간이 아니라, 함께 성장하고 추억을 쌓아가던 소중한 공간이었다. 지금도 가끔씩 그 운동장을 떠올리면, 함께 웃고 떠들던 친구들의 얼굴이 아른거린다. 그 시절의 운동장은 우리에게 영원히 잊을 수 없는 행복한 기억으로 남아있다.' },
+      { content: '여름방학은 나에게 최고의 선물이었다. 매일 아침 늦잠을 자고, 점심에는 엄마가 해주신 맛있는 음식을 먹었다. 오후에는 친구들과 동네 개울가로 달려가 물장구를 치고, 물고기를 잡았다. 시원한 물속에서 첨벙거리며 놀다 보면 더위는 금세 사라졌다. 저녁에는 평상에 앉아 수박을 먹으며 할머니가 들려주시는 옛날이야기를 들었다. 밤하늘에는 수많은 별들이 쏟아질 듯 반짝였고, 우리는 별똥별을 보며 소원을 빌었다. 여름방학은 나에게 자유와 행복을 안겨주었고, 잊지 못할 추억들을 선물해주었다. 그 시절의 여름방학은 마치 꿈처럼 아름다웠다. 매일매일이 새로운 모험의 연속이었고, 모든 순간이 소중했다. 여름방학이 끝나가는 것이 아쉬워 잠 못 이루던 밤도 있었다. 그만큼 여름방학은 나에게 특별한 시간이었다. 지금도 여름이 되면 그 시절의 여름방학이 떠오르곤 한다. 그 순수하고 행복했던 시간들이 나를 미소 짓게 한다.' },
+      { content: '겨울은 나에게 또 다른 즐거움을 선사했다. 눈이 내리면 우리는 운동장으로 달려가 눈싸움을 하고, 눈사람을 만들었다. 손이 시리고 발이 꽁꽁 얼어도 우리는 아랑곳하지 않고 눈밭을 뛰어다녔다. 언덕에서는 썰매를 타고 내려오며 스릴을 만끽했다. 집으로 돌아오면 엄마가 끓여주신 따뜻한 어묵탕이 우리를 기다리고 있었다. 김이 모락모락 나는 어묵탕을 먹으며 우리는 추위에 얼었던 몸을 녹였다. 겨울밤에는 이불 속에 들어가 만화책을 읽거나, 가족들과 함께 보드게임을 했다. 따뜻한 방 안에서 가족들과 함께 보내는 시간은 그 어떤 것과도 바꿀 수 없는 소중한 시간이었다. 겨울은 나에게 포근함과 따뜻함을 안겨주었고, 가족의 소중함을 일깨워주었다. 그 시절의 겨울은 차가운 계절이 아니라, 따뜻한 추억으로 가득한 계절이었다. 지금도 겨울이 되면 그 시절의 따뜻한 기억들이 나를 감싸 안는 듯하다.' }
     ],
     likes: 20,
     views: 150,
@@ -447,12 +469,26 @@ const likeCount = ref(0);
 const currentUserId = ref('dummyUser1'); // Dummy current user ID for testing author check
 const isReadingMode = ref(false); // New state for reading mode
 
+// Pagination state
+const charsPerPage = 1000; // 한 페이지당 글자 수 (조정 가능)
+const currentPage = ref(0);
+const totalPages = ref(1);
+
 // --- Computed Properties ---
-const currentEpisodeContent = computed(() => {
+const paginatedEpisodeContent = computed<string[]>(() => {
   if (book.value && book.value.episodes && book.value.episodes[currentEpisodeIndex.value]) {
-    return book.value.episodes[currentEpisodeIndex.value].content;
+    const content = book.value.episodes[currentEpisodeIndex.value].content;
+    const pages: string[] = [];
+    for (let i = 0; i < content.length; i += charsPerPage) {
+      pages.push(content.substring(i, i + charsPerPage));
+    }
+    return pages.length > 0 ? pages : ['']; // 최소 한 페이지는 있도록
   }
-  return '에피소드 내용이 없습니다.';
+  return ['에피소드 내용이 없습니다.'];
+});
+
+const currentEpisodeContent = computed(() => {
+  return paginatedEpisodeContent.value[currentPage.value] || '에피소드 내용이 없습니다.';
 });
 
 const isAuthor = computed(() => {
@@ -521,21 +557,30 @@ function toggleLike() {
   }
 }
 
-function addToMyLibrary() {
-  alert('내 책방에 추가 기능은 개발 중입니다.');
+
+
+function updatePagination() {
+  currentPage.value = 0; // 에피소드 변경 시 첫 페이지로 초기화
+  totalPages.value = paginatedEpisodeContent.value.length;
 }
 
 function prevEpisode() {
-  if (currentEpisodeIndex.value > 0) {
-    currentEpisodeIndex.value--;
-    fetchComments(); // Re-fetch comments for the new episode
+  if (currentPage.value > 0) {
+    currentPage.value--; // 현재 에피소드 내에서 이전 페이지로 이동
+  } else if (currentEpisodeIndex.value > 0) {
+    currentEpisodeIndex.value--; // 이전 에피소드로 이동
+    updatePagination(); // 새 에피소드의 페이지 정보 업데이트
+    fetchComments(); // 새 에피소드의 댓글 불러오기
   }
 }
 
 function nextEpisode() {
-  if (book.value && currentEpisodeIndex.value < book.value.episodes.length - 1) {
-    currentEpisodeIndex.value++;
-    fetchComments(); // Re-fetch comments for the new episode
+  if (currentPage.value < totalPages.value - 1) {
+    currentPage.value++; // 현재 에피소드 내에서 다음 페이지로 이동
+  } else if (book.value && currentEpisodeIndex.value < book.value.episodes.length - 1) {
+    currentEpisodeIndex.value++; // 다음 에피소드로 이동
+    updatePagination(); // 새 에피소드의 페이지 정보 업데이트
+    fetchComments(); // 새 에피소드의 댓글 불러오기
   }
 }
 
@@ -548,6 +593,7 @@ function editBook() {
 function startReading() {
   isReadingMode.value = true;
   currentEpisodeIndex.value = 0; // Start from the first episode
+  updatePagination(); // 페이지네이션 정보 초기화
   fetchComments(); // Load comments for the first episode
 }
 
@@ -560,14 +606,23 @@ onMounted(() => {
   fetchBookData();
   fetchComments();
 });
+
+// Watch for changes in currentEpisodeIndex to update pagination
+watch(currentEpisodeIndex, () => {
+  updatePagination();
+});
 </script>
 
 <style scoped>
 .book-detail-page {
   padding: 80px 2rem 4rem;
-  background-color: #F5F5DC;
+  background-color: #EAE0D5;
+  /* 은은한 배경색 */
   color: #3D2C20;
-  min-height: calc(100vh - 56px); /* 내비게이션 바 높이만 제외하여 최소 높이 설정 */
+  min-height: calc(100vh - 56px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .book-container {
@@ -575,7 +630,7 @@ onMounted(() => {
   margin: 0 auto;
   background-color: #FFFFFF;
   border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   padding: 2rem;
 }
 
@@ -593,7 +648,7 @@ onMounted(() => {
   height: 220px;
   object-fit: cover;
   border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .book-meta {
@@ -634,9 +689,12 @@ onMounted(() => {
 
 .book-actions {
   display: flex;
-  flex-wrap: wrap; /* 버튼이 많아지면 줄바꿈되도록 */
-  gap: 0.8rem; /* 버튼 간 간격 조정 */
-  margin-top: 1rem; /* 버튼 위 여백 추가 */
+  flex-wrap: wrap;
+  /* 버튼이 많아지면 줄바꿈되도록 */
+  gap: 0.8rem;
+  /* 버튼 간 간격 조정 */
+  margin-top: 1rem;
+  /* 버튼 위 여백 추가 */
 }
 
 .btn-like.liked {
@@ -646,7 +704,8 @@ onMounted(() => {
 }
 
 .btn-read-book {
-  background-color: #4CAF50; /* Green color for read button */
+  background-color: #4CAF50;
+  /* Green color for read button */
   color: white;
 }
 
@@ -656,14 +715,26 @@ onMounted(() => {
 
 /* Reading Mode Specific Styles */
 .reading-mode-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   padding-top: 1rem;
+  width: 100%;
+  /* 전체 너비 사용 */
 }
 
 .reading-mode-header {
+  width: 100%;
+  max-width: 900px;
+  /* book-container와 동일하게 설정 */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem;
+  padding: 0 2rem;
+  /* 좌우 패딩 추가 */
+  box-sizing: border-box;
+  /* 패딩이 너비에 포함되도록 */
 }
 
 .reading-mode-title {
@@ -672,9 +743,52 @@ onMounted(() => {
   color: #3D2C20;
 }
 
-/* Episode Viewer */
+.book-pages-wrapper {
+  width: 700px;
+  /* 단일 페이지 너비 */
+  height: 800px;
+  /* 책의 높이 */
+  background-color: #FDF8E7;
+  /* 종이 색상 */
+  border-radius: 4px;
+  /* 페이지 모서리 둥글게 */
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2),
+    /* 큰 그림자 */
+    0 0 0 1px rgba(0, 0, 0, 0.05);
+  /* 얇은 테두리 그림자 */
+  position: relative;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+  display: flex;
+  /* 내부 콘텐츠 정렬을 위해 */
+  flex-direction: column;
+  /* 세로 정렬 */
+}
+
+.page-content {
+  flex: 1;
+  /* 남은 공간을 모두 차지 */
+  padding: 2rem 3rem;
+  /* 페이지 내부 여백 */
+  line-height: 1.8;
+  /* 줄 간격 */
+  font-family: 'serif';
+  /* 가독성 좋은 폰트 */
+  color: #3D2C20;
+  text-align: justify;
+  /* 양쪽 정렬 */
+  position: relative;
+  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+  /* 페이지 내부 그림자 */
+}
+
+/* Episode Viewer adjustments */
 .episode-viewer {
-  margin-bottom: 2rem;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  /* 부모 요소의 높이를 채우도록 */
 }
 
 .episode-navigation {
@@ -685,17 +799,38 @@ onMounted(() => {
 }
 
 .episode-title {
-  font-size: 1.8rem;
+  font-size: 1.5rem;
   font-weight: 600;
+  text-align: center;
+  flex-grow: 1;
 }
 
 .episode-content {
-  background-color: #F5F5DC;
-  padding: 2rem;
-  border-radius: 8px;
-  min-height: 300px;
-  line-height: 1.7;
-  white-space: pre-wrap; /* Preserves whitespace and newlines */
+  background-color: transparent;
+  /* 페이지 배경색과 동일하게 */
+  padding: 0;
+  border-radius: 0;
+  min-height: auto;
+  line-height: inherit;
+  white-space: pre-wrap;
+}
+
+.episode-content p {
+  margin-bottom: 1em;
+  /* 단락 간격 */
+}
+
+.page-number-container {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+.page-number {
+  font-size: 1rem; /* 크기 줄임 */
+  font-weight: normal; /* 볼드체 제거 */
 }
 
 /* Comments Section */
