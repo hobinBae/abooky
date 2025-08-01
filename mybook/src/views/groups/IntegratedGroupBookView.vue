@@ -26,7 +26,9 @@
       <main class="episode-viewer">
         <div class="episode-navigation">
           <button @click="prevEpisode" :disabled="currentEpisodeIndex === 0" class="btn btn-nav">이전</button>
-          <h2 class="episode-title">에피소드 {{ currentEpisodeIndex + 1 }}</h2>
+          <div class="page-number-container">
+            <span class="page-number">{{ totalCurrentPage }}p</span>
+          </div>
           <button @click="nextEpisode" :disabled="currentEpisodeIndex >= book.episodes.length - 1" class="btn btn-nav">다음</button>
         </div>
         <div class="episode-content">
@@ -85,6 +87,18 @@ interface Comment {
   text: string;
   createdAt: Date;
 }
+
+const totalCurrentPage = computed(() => {
+  if (!book.value) return 0;
+
+  let totalPagesBefore = 0;
+  for (let i = 0; i < currentEpisodeIndex.value; i++) {
+    const episodeContent = book.value.episodes[i].content;
+    totalPagesBefore += Math.ceil(episodeContent.length / 800);
+  }
+
+  return totalPagesBefore + 1;
+});
 
 // --- Dummy Data ---
 const DUMMY_INTEGRATED_BOOKS: Book[] = [
@@ -321,11 +335,24 @@ onMounted(() => {
   font-weight: 600;
 }
 
+.page-number-container {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+.page-number {
+  font-size: 1rem;
+  font-weight: normal;
+}
+
 .episode-content {
   background-color: #F5F5DC;
   padding: 2rem;
   border-radius: 8px;
-  min-height: 300px;
+  min-height: 500px;
   line-height: 1.7;
   white-space: pre-wrap;
 }

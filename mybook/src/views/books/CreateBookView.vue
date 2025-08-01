@@ -62,7 +62,9 @@
         <!-- Editor/Interaction Area -->
         <div class="editor-area">
           <div v-if="currentEpisode">
-            <h4 class="episode-title">에피소드 {{ currentEpisodeIndex + 1 }}</h4>
+            <div class="page-number-container">
+              <span class="page-number">{{ totalCurrentPage }}p</span>
+            </div>
             <textarea v-model="currentEpisode.content" class="form-control episode-content-editor" placeholder="이곳에 내용을 입력하거나 AI와 대화하세요..."></textarea>
             <div class="ai-interaction-panel">
               <button @click="startAiInterview" class="btn btn-info">AI 인터뷰 시작</button>
@@ -101,7 +103,21 @@ interface Book {
   episodes: Episode[];
   createdAt: Date;
   updatedAt: Date;
+  likes?: number;
+  views?: number;
 }
+
+const totalCurrentPage = computed(() => {
+  if (!currentBook.value.episodes) return 0;
+
+  let totalPagesBefore = 0;
+  for (let i = 0; i < currentEpisodeIndex.value; i++) {
+    const episodeContent = currentBook.value.episodes[i].content;
+    totalPagesBefore += Math.ceil(episodeContent.length / 800);
+  }
+
+  return totalPagesBefore + 1;
+});
 
 // --- Dummy Data ---
 const DUMMY_IN_PROGRESS_BOOKS: Book[] = [
@@ -154,6 +170,8 @@ const DUMMY_IN_PROGRESS_BOOKS: Book[] = [
     ],
     likes: 30,
     views: 200,
+    createdAt: new Date('2023-01-01T10:00:00Z'),
+    updatedAt: new Date('2023-01-01T10:00:00Z'),
   },
   {
     id: 'mybook3',
@@ -167,6 +185,8 @@ const DUMMY_IN_PROGRESS_BOOKS: Book[] = [
     ],
     likes: 25,
     views: 180,
+    createdAt: new Date('2023-01-01T10:00:00Z'),
+    updatedAt: new Date('2023-01-01T10:00:00Z'),
   },
   {
     id: 'mybook4',
@@ -180,6 +200,8 @@ const DUMMY_IN_PROGRESS_BOOKS: Book[] = [
     ],
     likes: 10,
     views: 50,
+    createdAt: new Date('2023-01-01T10:00:00Z'),
+    updatedAt: new Date('2023-01-01T10:00:00Z'),
   },
 ];
 
@@ -516,10 +538,23 @@ watch(() => props.bookId, (newBookId) => {
   margin-bottom: 1rem;
 }
 
+.page-number-container {
+  position: absolute;
+  bottom: 2rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+.page-number {
+  font-size: 1rem;
+  font-weight: normal;
+}
+
 .episode-content-editor {
   flex-grow: 1;
   width: 100%;
-  min-height: 300px;
+  min-height: 500px;
   resize: none;
   border: none;
   box-shadow: none;
