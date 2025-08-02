@@ -1,0 +1,316 @@
+<template>
+  <div ref="container" style="width: 100vw; height: 100vh"></div>
+</template>
+
+<script setup lang="ts">
+import * as THREE from 'three'
+import { ref, onMounted, defineEmits, onUnmounted, defineExpose } from 'vue'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
+
+
+import { gsap } from 'gsap'
+
+const emit = defineEmits(['loaded', 'hotspot'])
+
+defineExpose({ moveToYard, moveCameraTo });
+
+const container = ref<HTMLDivElement | null>(null)
+let camera: THREE.PerspectiveCamera
+let controls: OrbitControls
+let scene: THREE.Scene
+let renderer: THREE.WebGLRenderer
+const hotspots: THREE.Object3D[] = []
+
+let animationFrameId: number;
+
+onMounted(() => {
+  initScene()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', onWindowResize)
+  container.value?.removeEventListener('click', onCanvasClick);
+  cancelAnimationFrame(animationFrameId);
+})
+
+function initScene() {
+  scene = new THREE.Scene()
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
+  camera.position.set(6, 10.5, 38)
+
+  renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer.setPixelRatio(window.devicePixelRatio)
+  renderer.setSize(window.innerWidth, window.innerHeight)
+  renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.shadowMap.enabled = true
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.2
+
+
+
+  container.value?.appendChild(renderer.domElement)
+  container.value?.addEventListener('click', onCanvasClick);
+
+  controls = new OrbitControls(camera, renderer.domElement)
+  controls.target.set(6, 15, 0)
+  controls.update()
+
+  window.addEventListener('resize', onWindowResize)
+
+  RectAreaLightUniformsLib.init()
+  setupLights()
+  loadHDR()
+  loadModel()
+  animate()
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(window.innerWidth, window.innerHeight)
+}
+
+function setupLights() {
+  // 디렉셔널 라이트 설정
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight.position.set(30, 30, 10);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.camera.near = 1;
+  dirLight.shadow.camera.far = 100;
+  dirLight.shadow.camera.left = -100;
+  dirLight.shadow.camera.right = 100;
+  dirLight.shadow.camera.top = 100;
+  dirLight.shadow.camera.bottom = -100;
+  scene.add(dirLight);
+
+  // RectAreaLight
+  const areaLight = new THREE.RectAreaLight(0xeba64d, 12, 2.28, 2.28);
+  areaLight.position.set(7.3, 5, 25);
+  areaLight.rotation.set(
+    THREE.MathUtils.degToRad(91.174),
+    THREE.MathUtils.degToRad(180.48163),
+    THREE.MathUtils.degToRad(-0.75941)
+  );
+  scene.add(areaLight);
+
+  // PointLight 1
+  const point1 = new THREE.PointLight(0xf0ab43, 20, 15);
+  point1.position.set(-12, 3, -6.6);
+  scene.add(point1);
+  // scene.add(new THREE.PointLightHelper(point1));
+
+  // PointLight 1a
+  const point1a = new THREE.PointLight(0xf0ab43, 20, 15);
+  point1a.position.set(-12, 3, 2);
+  scene.add(point1a);
+  // scene.add(new THREE.PointLightHelper(point1a));
+
+  // 방 안에서 나오는 불빛을 위한 RectAreaLight 4개 추가
+  const windowLight1 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
+  windowLight1.position.set(-8, 2.5, -4);
+  windowLight1.lookAt(-8, 2.5, -5);
+  scene.add(windowLight1);
+  // scene.add(new RectAreaLightHelper(windowLight1));
+
+  const windowLight2 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
+  windowLight2.position.set(-5, 2.5, -4.2);
+  windowLight2.lookAt(-5, 2.5, -5);
+  scene.add(windowLight2);
+  // scene.add(new RectAreaLightHelper(windowLight2));
+
+  const windowLight3 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
+  windowLight3.position.set(1.55, 2.25, -4.3);
+  windowLight3.lookAt(1.55, 2.25, -5);
+  scene.add(windowLight3);
+  // scene.add(new RectAreaLightHelper(windowLight3));
+
+  const windowLight4 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
+  windowLight4.position.set(4.8, 2.25, -4.3);
+  windowLight4.lookAt(4.8, 2.25, -5);
+  scene.add(windowLight4);
+  // scene.add(new RectAreaLightHelper(windowLight4));
+
+  // PointLight 4
+  const point4 = new THREE.PointLight(0xf0ab43, 15, 15);
+  point4.position.set(8.5, 3, -0.33191);
+  scene.add(point4);
+  // scene.add(new THREE.PointLightHelper(point4));
+}
+
+function loadHDR() {
+  new RGBELoader().load('/3D/background.hdr', (texture: THREE.Texture) => {
+    texture.mapping = THREE.EquirectangularReflectionMapping
+    scene.background = texture
+    scene.environment = texture
+  })
+}
+
+function loadModel() {
+  const loader = new GLTFLoader()
+  loader.load('/3D/hanok_0729_1755.glb', (gltf: GLTF) => {
+    const hanok = gltf.scene
+    hanok.scale.set(1.5, 1.5, 1.5) // 모델 크기 조절
+
+    hanok.traverse((child: THREE.Object3D) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+        const material = mesh.material as THREE.MeshStandardMaterial
+        if (material instanceof THREE.MeshStandardMaterial) {
+          material.envMap = scene.environment;
+          material.envMapIntensity = 0.4;
+        }
+
+        if (mesh.name.includes("Ground")) {
+          material.color.multiplyScalar(0.4);
+          mesh.castShadow = false;
+        }
+        if (mesh.name.includes("Bench")) {
+          mesh.receiveShadow = false;
+        }
+      }
+    })
+
+    scene.add(hanok)
+    emit('loaded') // 로딩 완료 알림
+    createHotspots()
+  })
+}
+
+function createHotspots() {
+  const texture = new THREE.TextureLoader().load('/3D/star.png')
+
+  // 첫번째 핫스팟 - 내서재
+  hotspots.push(createHotspot(new THREE.Vector3(-9.5, 2, 1), texture, () => {
+    console.log("내서재 핫스팟 클릭됨! 카메라 이동 시작.");
+    moveCameraTo(-9.5, 3, 0, -11, 3, 0, () => {
+      emit('hotspot', 'library')
+    })
+  }))
+
+  // 두번째 핫스팟 - 서점
+  hotspots.push(createHotspot(new THREE.Vector3(-2.5, 2, -6), texture, () => {
+    console.log("서점 핫스팟 클릭됨! 카메라 이동 시작.");
+    moveCameraTo(-2, 2, -6.5, -2, 2, -10.5, () => {
+      emit('hotspot', 'store')
+    })
+  }))
+
+  // 세번째 핫스팟 - 책만들기
+  hotspots.push(createHotspot(new THREE.Vector3(8.5, 2, 3), texture, () => {
+    console.log("책 만들기 핫스팟 클릭됨! 카메라 이동 시작.");
+    controls.enabled = false;
+    const tl = gsap.timeline({
+      onUpdate: () => controls.update(),
+      onComplete: () => {
+        controls.enabled = true;
+        emit('hotspot', 'create');
+        console.log("책 만들기 핫스팟: 카메라 이동 완료.");
+      }
+    })
+    tl.to(camera.position, { x: 2, y: 3, z: 1, duration: 1 })
+    tl.to(controls.target, { x: 10, y: 3, z: 1, duration: 1 }, '<')
+    tl.to(camera.position, { x: 8.5, y: 2, z: 1, duration: 3 })
+    tl.to(controls.target, { x: 8.5, y: 2, z: -3, duration: 3 }, '<')
+  }))
+
+  hotspots.forEach(h => scene.add(h))
+}
+
+function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, onClick: () => void) {
+  const material = new THREE.SpriteMaterial({ map: texture })
+  const sprite = new THREE.Sprite(material)
+  sprite.scale.set(1, 1, 1)
+  sprite.position.copy(pos)
+  sprite.userData.onClick = onClick; // userData에 onClick 함수 저장
+  return sprite
+}
+
+function moveCameraTo(px: number, py: number, pz: number, tx: number, ty: number, tz: number, onCompleteCallback?: () => void) {
+  controls.enabled = false;
+  const tl = gsap.timeline({
+    onUpdate: () => controls.update(),
+    onComplete: () => {
+      controls.enabled = true;
+      if (onCompleteCallback) {
+        onCompleteCallback();
+      }
+      console.log("moveCameraTo: 카메라 이동 완료.");
+    }
+  })
+  tl.to(camera.position, { x: px, y: py, z: pz, duration: 2 })
+  tl.to(controls.target, { x: tx, y: ty, z: tz, duration: 2 }, '<')
+}
+
+function moveToYard() {
+    console.log("moveToYard: 마당으로 카메라 이동 시작.");
+    controls.enabled = false;
+    const tl = gsap.timeline({
+        onUpdate: () => controls.update(),
+        onComplete: () => {
+            controls.enabled = true;
+            console.log("moveToYard: 마당으로 카메라 이동 완료.");
+        }
+    });
+    tl.to(camera.position, { x: 7.3, y: 2.5, z: 30, duration: 2 });
+    tl.to(controls.target, { x: 7.3, y: 2.5, z: 0, duration: 2 }, "<");
+    tl.to(camera.position, { x: 5.5, y: 2.5, z: 14, duration: 2 });
+    tl.to(controls.target, { x: 1, y: 3, z: 3.579, duration: 2 }, "<");
+}
+
+function animate() {
+  animationFrameId = requestAnimationFrame(animate)
+  renderer.render(scene, camera)
+}
+
+function onCanvasClick(event: MouseEvent) {
+  console.log("--- 캔버스 클릭 감지 ---");
+
+  if (!container.value) return;
+
+  // 캔버스의 경계 정보를 가져옵니다.
+  const rect = container.value.getBoundingClientRect();
+
+  // 캔버스 기준의 정확한 마우스 좌표를 계산합니다.
+  const mouse = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+
+  console.log(`계산된 마우스 좌표: x=${mouse.x.toFixed(2)}, y=${mouse.y.toFixed(2)}`);
+
+  const raycaster = new THREE.Raycaster()
+  raycaster.setFromCamera(mouse, camera)
+
+  const intersects = raycaster.intersectObjects(hotspots, true)
+  console.log(`Raycaster가 ${intersects.length}개의 객체와 교차함.`);
+
+  if (intersects.length > 0) {
+    const firstIntersect = intersects[0].object;
+    console.log("교차된 객체:", firstIntersect);
+    if (firstIntersect.userData && typeof firstIntersect.userData.onClick === 'function') {
+      console.log("객체의 userData에서 onClick 함수를 발견하여 실행합니다.");
+      firstIntersect.userData.onClick();
+    } else {
+      console.log("오류: 교차된 객체의 userData에 onClick 함수가 없습니다.");
+    }
+  } else {
+    console.log("교차된 객체가 없습니다.");
+  }
+}
+</script>
+
+<style scoped>
+canvas {
+  display: block;
+}
+</style>
