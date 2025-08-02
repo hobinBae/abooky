@@ -1,11 +1,14 @@
 <template>
   <div class="bookstore-page">
+    <h2 class="section-title">지금 가장 인기있는 책 TOP 10</h2>
+    <p class="section-subtitle">독자들이 가장 많이 찾고 사랑하는 책들을 만나보세요.</p>
     <!-- 베스트 10 캐러셀 섹션 -->
     <section class="carousel-section">
-      <h2 class="section-title">지금 가장 인기있는 책 TOP 10</h2>
       <div class="perspective-carousel-container">
-        <div class="perspective-carousel" :style="carouselStyle" @mousedown.prevent="onMouseDown" @touchstart.prevent="onTouchStart">
-          <div v-for="(book, index) in topBooks" :key="book.id" class="carousel-item-3d" :style="get3DStyle(index)" @click="goToBookDetail(book.id)">
+        <div class="perspective-carousel" :style="carouselStyle" @mousedown.prevent="onMouseDown"
+          @touchstart.prevent="onTouchStart">
+          <div v-for="(book, index) in topBooks" :key="book.id" class="carousel-item-3d" :style="get3DStyle(index)"
+            @click="goToBookDetail(book.id)">
             <div class="book-cover-3d">
               {{ book.title }}
             </div>
@@ -24,12 +27,14 @@
       </div>
       <div class="sort-options-wrapper">
         <label class="form-check form-check-inline" v-for="option in sortOptions" :key="option.value">
-          <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption" class="form-check-input">
+          <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption"
+            class="form-check-input">
           <span class="form-check-label">{{ option.text }}</span>
         </label>
       </div>
       <div class="keyword-buttons-container">
-        <button v-for="keyword in keywords" :key="keyword" @click="toggleKeyword(keyword)" :class="['keyword-button', { active: activeKeywords.has(keyword) }]">
+        <button v-for="keyword in keywords" :key="keyword" @click="toggleKeyword(keyword)"
+          :class="['keyword-button', { active: activeKeywords.has(keyword) }]">
           #{{ keyword }}
         </button>
       </div>
@@ -54,7 +59,8 @@
                 <span><i class="fas fa-eye"></i> {{ book.views }}</span>
                 <span><i class="fas fa-heart"></i> {{ book.likes }}</span>
               </div>
-              <button class="btn btn-sm like-button" @click.stop="toggleLike(book)" :class="{ liked: isLiked(book.id) }">
+              <button class="btn btn-sm like-button" @click.stop="toggleLike(book)"
+                :class="{ liked: isLiked(book.id) }">
                 <i class="fas fa-heart"></i> 좋아요
               </button>
             </div>
@@ -123,8 +129,8 @@ const filteredBooks = computed(() => {
   const books = allBooks.value.filter(book => {
     const search = searchTerm.value.toLowerCase();
     const matchesSearch = book.title.toLowerCase().includes(search) ||
-                          (book.authorName || '').toLowerCase().includes(search) ||
-                          (book.summary || '').toLowerCase().includes(search);
+      (book.authorName || '').toLowerCase().includes(search) ||
+      (book.summary || '').toLowerCase().includes(search);
 
     const matchesKeywords = activeKeywords.value.size === 0 ||
       (book.keywords && Array.from(activeKeywords.value).every(kw => book.keywords!.includes(kw)));
@@ -266,38 +272,70 @@ function toggleLike(book: Book) {
 </script>
 
 <style scoped>
+/* CSS 변수를 사용해 색상 관리 용이성 증대 */
+:root {
+  --background-color: #f8f9fa;
+  --surface-color: #ffffff;
+  --primary-text-color: #212529;
+  --secondary-text-color: #6c757d;
+  --accent-color: #0d6efd;
+  /* Bootstrap primary blue */
+  --border-color: #dee2e6;
+  --shadow-color: rgba(0, 0, 0, 0.05);
+}
+
 .bookstore-page {
-  padding: 2rem 1rem;
-  background-color: #F5F5DC;
-  color: #3D2C20;
-  min-height: 100vh;
+  padding: 80px 2rem 2rem;
+  /* Adjusted padding to match CreateBookView */
+  background-color: var(--background-color, #f8f9fa);
+  color: var(--primary-text-color, #212529);
+  min-height: calc(100vh - 56px);
+  /* Adjust for Navbar height */
+  font-family: 'Pretendard', sans-serif;
+  /* Apply consistent font */
 }
 
 .section-title {
-  font-size: 2.2rem;
-  font-weight: 700;
-  color: #3D2C20;
-  margin-bottom: 2rem;
-  text-align: left;
+  font-size: 2.8rem;
+  /* Larger title */
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+  text-align: center;
+  /* Center align titles */
   width: 100%;
-  padding-left: 15rem;
+  padding-left: 0;
+  /* Remove specific padding */
+}
+
+.section-subtitle {
+  font-size: 1.25rem;
+  color: var(--secondary-text-color, #6c757d);
+  margin-bottom: 1rem; /* Adjusted margin-bottom */
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
 }
 
 /* Carousel Section */
 .carousel-section {
   position: relative;
-  height: 480px;
+  height: 500px;
+  /* Increased height to accommodate larger carousel */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: 3rem;
+  margin-bottom: 1rem;
+  /* Removed background, border-radius, padding, border, box-shadow */
 }
 
 .perspective-carousel-container {
   perspective: 2500px;
-  width: 300px;
-  height: 400px;
+  width: 400px;
+  /* Increased width */
+  height: 500px;
+  /* Increased height */
   position: relative;
 }
 
@@ -310,14 +348,18 @@ function toggleLike(book: Book) {
   cursor: grab;
 }
 
-.perspective-carousel:active { cursor: grabbing; }
+.perspective-carousel:active {
+  cursor: grabbing;
+}
 
 .carousel-item-3d {
   position: absolute;
-  left: 50px;
-  top: 50px;
-  width: 200px;
-  height: 300px;
+  left: 100px;
+  /* Adjusted to center within new container width */
+  top: 100px;
+  /* Adjusted to center within new container height */
+  width: 170px;
+  height: 250px;
   transform-style: preserve-3d;
   transform-origin: center center;
   cursor: pointer;
@@ -327,8 +369,10 @@ function toggleLike(book: Book) {
 .book-cover-3d {
   width: 100%;
   height: 100%;
-  background-color: #5C4033;
-  color: #F5F5DC;
+  background-color: var(--accent-color, #0d6efd);
+  /* Use accent color for book cover */
+  color: #fff;
+  /* White text for contrast */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -336,9 +380,10 @@ function toggleLike(book: Book) {
   padding: 1rem;
   font-size: 1.2rem;
   font-weight: 600;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-  border: 2px solid #8B4513;
-  border-radius: 8px; /* Re-added border-radius */
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  border: 2px solid var(--accent-color, #0d6efd);
+  /* Use accent color for border */
+  border-radius: 8px;
 }
 
 .carousel-control-btn {
@@ -346,7 +391,8 @@ function toggleLike(book: Book) {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  background-color: rgba(184, 134, 11, 0.7);
+  background-color: var(--accent-color, #0d6efd);
+  /* Use accent color */
   border: none;
   color: white;
   width: 50px;
@@ -354,18 +400,33 @@ function toggleLike(book: Book) {
   border-radius: 50%;
   font-size: 1.5rem;
   transition: background-color 0.2s;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  /* Add subtle shadow */
 }
-.carousel-control-btn:hover { background-color: #B8860B; }
-.prev-btn { left: 10%; }
-.next-btn { right: 10%; }
+
+.carousel-control-btn:hover {
+  background-color: #0a58ca;
+}
+
+/* Darken on hover */
+.prev-btn {
+  left: 10%;
+}
+
+.next-btn {
+  right: 10%;
+}
 
 /* Filter Section */
 .filter-section {
-  background-color: #FFFFFF;
-  border-radius: 12px;
-  padding: 2rem;
+  background: var(--surface-color, #fff);
+  border-radius: 16px;
+  /* Match choice-card */
+  padding: 2.5rem;
+  /* Match choice-card */
   margin-bottom: 3rem;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 15px var(--shadow-color, rgba(0, 0, 0, 0.05));
+  border: 1px solid var(--border-color, #dee2e6);
 }
 
 .search-input-wrapper {
@@ -376,18 +437,27 @@ function toggleLike(book: Book) {
 .search-input {
   width: 100%;
   padding: 0.75rem 1.5rem 0.75rem 3rem;
-  border: 1px solid #B8860B;
+  border: 1px solid var(--border-color, #dee2e6);
+  /* Use border color */
   border-radius: 9999px;
-  background-color: #F5F5DC;
+  background-color: var(--background-color, #f8f9fa);
+  /* Use background color */
+  color: var(--primary-text-color);
 }
-.search-input:focus { box-shadow: 0 0 0 0.25rem rgba(184, 134, 11, 0.25); }
+
+.search-input:focus {
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+  /* Use accent color for focus */
+  border-color: var(--accent-color, #0d6efd);
+}
 
 .search-icon {
   position: absolute;
   left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #B8860B;
+  color: var(--secondary-text-color, #6c757d);
+  /* Use secondary text color */
 }
 
 .sort-options-wrapper {
@@ -397,7 +467,10 @@ function toggleLike(book: Book) {
   margin-bottom: 1.5rem;
 }
 
-.form-check-input:checked { background-color: #B8860B; border-color: #B8860B; }
+.form-check-input:checked {
+  background-color: var(--accent-color, #0d6efd);
+  border-color: var(--accent-color, #0d6efd);
+}
 
 .keyword-buttons-container {
   display: flex;
@@ -409,45 +482,80 @@ function toggleLike(book: Book) {
 .keyword-button {
   padding: 0.5rem 1rem;
   border-radius: 9999px;
-  border: 1px solid #B8860B;
+  border: 1px solid var(--border-color, #dee2e6);
+  /* Use border color */
   background-color: transparent;
-  color: #B8860B;
+  color: var(--secondary-text-color, #6c757d);
+  /* Use secondary text color */
   transition: all 0.2s;
 }
-.keyword-button.active, .keyword-button:hover {
-  background-color: #B8860B;
+
+.keyword-button.active,
+.keyword-button:hover {
+  background-color: var(--accent-color, #0d6efd);
   color: #FFFFFF;
+  border-color: var(--accent-color, #0d6efd);
 }
 
 /* Book List Section */
-.book-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
+.book-list-section {
+  max-width: 1200px;
+  /* Constrain width for better readability */
+  margin: 0 auto 3rem auto;
+  /* Center the section and add bottom margin */
+  background: var(--surface-color, #fff);
+  /* Apply card background */
+  border-radius: 16px;
+  /* Apply card border-radius */
+  padding: 2.5rem;
+  /* Apply card padding */
+  border: 1px solid var(--border-color, #dee2e6);
+  /* Apply card border */
+  box-shadow: 0 4px 15px var(--shadow-color, rgba(0, 0, 0, 0.05));
+  /* Apply card shadow */
 }
 
 .book-card {
-  background-color: #FFFFFF;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  background: var(--surface-color, #fff);
+  border-radius: 16px;
+  /* Match choice-card */
+  box-shadow: 0 4px 15px var(--shadow-color, rgba(0, 0, 0, 0.05));
   display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  transition: transform 0.2s, box-shadow 0.2s;
+  gap: 1.5rem;
+  /* Increased gap */
+  padding: 1.5rem;
+  /* Increased padding */
+  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+  /* Match choice-card transition */
   cursor: pointer;
+  border: 1px solid var(--border-color, #dee2e6);
+  /* Apply card border */
 }
-.book-card:hover { transform: translateY(-5px); box-shadow: 0 8px 20px rgba(0,0,0,0.1); }
+
+.book-card:hover {
+  transform: translateY(-8px);
+  /* Slightly less lift than choice-card */
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent-color, #0d6efd);
+  /* Accent border on hover */
+}
 
 .book-cover-placeholder {
   flex-shrink: 0;
-  width: 100px;
-  height: 140px;
-  background-color: #8B4513;
-  color: #F5F5DC;
+  width: 120px;
+  /* Slightly larger cover */
+  height: 170px;
+  /* Maintain aspect ratio */
+  background-color: var(--border-color, #dee2e6);
+  /* Use border color for placeholder */
+  color: var(--secondary-text-color, #6c757d);
+  /* Use secondary text color */
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .book-details {
@@ -456,26 +564,53 @@ function toggleLike(book: Book) {
   flex-direction: column;
 }
 
-.book-title { font-weight: 700; margin-bottom: 0.25rem; }
-.book-author { color: #5C4033; margin-bottom: 0.5rem; }
-.book-summary { font-size: 0.9rem; flex-grow: 1; margin-bottom: 0.75rem; }
+.book-title {
+  font-weight: 700;
+  font-size: 1.3rem;
+  /* Slightly larger title */
+  margin-bottom: 0.5rem;
+  color: var(--primary-text-color);
+}
+
+.book-author {
+  color: var(--secondary-text-color, #6c757d);
+  margin-bottom: 0.75rem;
+  font-size: 1rem;
+}
+
+.book-summary {
+  font-size: 0.95rem;
+  /* Slightly larger summary */
+  flex-grow: 1;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+  color: var(--primary-text-color);
+}
 
 .book-stats {
   display: flex;
   gap: 1rem;
   font-size: 0.85rem;
-  color: #8B4513;
-  margin-bottom: 0.75rem;
+  color: var(--secondary-text-color, #6c757d);
+  /* Use secondary text color */
+  margin-bottom: 1rem;
 }
 
 .like-button {
   background-color: transparent;
-  border: 1px solid #CD5C5C;
-  color: #CD5C5C;
+  border: 1px solid #dc3545;
+  /* Bootstrap danger color for heart */
+  color: #dc3545;
   align-self: flex-start;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.2s;
 }
-.like-button.liked, .like-button:hover {
-  background-color: #CD5C5C;
+
+.like-button.liked,
+.like-button:hover {
+  background-color: #dc3545;
   color: #FFFFFF;
 }
 
@@ -483,5 +618,71 @@ function toggleLike(book: Book) {
   text-align: center;
   padding: 3rem;
   font-size: 1.2rem;
+  color: var(--secondary-text-color, #6c757d);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .bookstore-page {
+    padding: 60px 1rem 1rem;
+  }
+
+  .section-title {
+    font-size: 2rem;
+  }
+
+  .carousel-section {
+    height: 400px;
+    padding: 1.5rem;
+  }
+
+  .perspective-carousel-container {
+    width: 250px;
+    height: 350px;
+  }
+
+  .carousel-item-3d {
+    left: 25px;
+    top: 25px;
+    width: 200px;
+    height: 300px;
+  }
+
+  .carousel-control-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1.2rem;
+  }
+
+  .prev-btn {
+    left: 5%;
+  }
+
+  .next-btn {
+    right: 5%;
+  }
+
+  .filter-section {
+    padding: 1.5rem;
+  }
+
+  .book-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 1rem;
+  }
+
+  .book-cover-placeholder {
+    margin-bottom: 1rem;
+  }
+
+  .book-details {
+    align-items: center;
+  }
+
+  .like-button {
+    align-self: center;
+  }
 }
 </style>
