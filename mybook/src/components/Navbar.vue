@@ -1,8 +1,9 @@
 <template>
-  <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background-color: #3D2C20; z-index: 1030;">
+  <nav class="navbar navbar-expand-lg navbar-dark fixed-top" 
+       :class="{ 'navbar-bg-transparent': isHome, 'navbar-content-hidden': isIntroActive }">
     <div class="container-fluid">
       <router-link class="navbar-brand" to="/">
-        <span class="navbar-brand" style="color: white; font-size: 1.5rem; font-weight: bold;">MyBook</span>
+        <span style="color: white; font-size: 1.5rem; font-weight: bold;">MyBook</span>
       </router-link>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -18,7 +19,7 @@
           <li class="nav-item">
             <router-link class="nav-link" to="/my-library">내서재</router-link>
           </li>
-          <li class="nav-item" v-if="isLoggedIn"> <!-- Add v-if="isLoggedIn" here -->
+          <li class="nav-item" v-if="isLoggedIn">
             <router-link class="nav-link" to="/my-page">마이페이지</router-link>
           </li>
         </ul>
@@ -48,21 +49,48 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 
+defineProps({
+  isIntroActive: Boolean,
+  isHome: Boolean
+});
+
 const isLoggedIn = ref(false); // Dummy login state
 
 const logout = () => {
   isLoggedIn.value = false;
   alert('로그아웃 되었습니다.');
-  // In a real app, you would clear user session/token here
 };
 </script>
 
 <style scoped>
+.navbar {
+  background-color: #3D2C20;
+  z-index: 1030;
+  transition: background-color 0.5s ease;
+}
+
+/* 홈 화면일 때 배경 투명 */
+.navbar-bg-transparent {
+  background-color: transparent !important;
+}
+
+/* 인트로 활성 상태일 때 내용 숨김 */
+.navbar-content-hidden .navbar-brand,
+.navbar-content-hidden .navbar-toggler,
+.navbar-content-hidden .nav-link {
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+}
+
+/* 기본 상태 (내용 보임) */
+.navbar-brand,
+.navbar-toggler,
 .nav-link {
-  color: rgb(255, 255, 255) !important;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease, visibility 0.5s ease;
+  color: white !important;
   font-size: 20px !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  z-index: 9999 !important;
 }
 </style>
