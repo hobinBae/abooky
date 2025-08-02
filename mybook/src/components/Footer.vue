@@ -11,8 +11,6 @@
 
 <style scoped>
 .footer {
-  position: fixed;
-  bottom: 0;
   width: 100%;
   z-index: 1000; /* 다른 요소들 위에 오도록 z-index 설정 */
 }
