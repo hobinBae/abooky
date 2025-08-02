@@ -1,22 +1,35 @@
 <template>
-  <!-- 인트로 페이지가 아닐 때만 Navbar와 Footer 보여줌 -->
-  <Navbar v-if="showLayout" />
-  <RouterView />
-  <Footer v-if="showLayout" />
+  <Navbar v-if="isNavbarVisible" />
+  <RouterView @update-navbar="updateNavbarVisibility" />
+  <Footer v-if="isNavbarVisible" />
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
-import { RouterView } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRoute, RouterView } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
 
-// 현재 라우트 가져오기
 const route = useRoute()
+const isNavbarVisible = ref(false)
 
-// 인트로 페이지('/')일 경우 레이아웃 요소 숨김
-const showLayout = computed(() => route.path !== '/')
+const updateNavbarVisibility = (isVisible: boolean) => {
+  isNavbarVisible.value = isVisible
+}
+
+// 경로가 변경될 때마다 네비게이션 바 상태를 재설정
+watch(
+  () => route.path,
+  (newPath) => {
+    // 인트로 페이지('/')가 아니면 항상 네비게이션 바를 표시
+    if (newPath !== '/') {
+      isNavbarVisible.value = true
+    } else {
+      // 인트로 페이지로 돌아오면 네비게이션 바를 숨김 (초기 상태)
+      isNavbarVisible.value = false
+    }
+  }
+)
 </script>
 
 <style>

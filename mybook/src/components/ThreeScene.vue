@@ -5,22 +5,25 @@
 <script setup lang="ts">
 import * as THREE from 'three'
 import { ref, onMounted, defineEmits, onUnmounted, defineExpose } from 'vue'
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader'
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader'
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
+import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
+import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
+
+
 import { gsap } from 'gsap'
 
 const emit = defineEmits(['loaded', 'hotspot'])
 
-defineExpose({ moveToYard });
+defineExpose({ moveToYard, moveCameraTo });
 
 const container = ref<HTMLDivElement | null>(null)
 let camera: THREE.PerspectiveCamera
 let controls: OrbitControls
 let scene: THREE.Scene
 let renderer: THREE.WebGLRenderer
-let hotspots: THREE.Object3D[] = []
+const hotspots: THREE.Object3D[] = []
 
 let animationFrameId: number;
 
@@ -41,12 +44,15 @@ function initScene() {
   camera.position.set(6, 10.5, 38)
 
   renderer = new THREE.WebGLRenderer({ antialias: true })
+  renderer.setPixelRatio(window.devicePixelRatio)
   renderer.setSize(window.innerWidth, window.innerHeight)
-  renderer.outputEncoding = THREE.sRGBEncoding
+  renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
   renderer.toneMapping = THREE.ACESFilmicToneMapping
-  renderer.toneMappingExposure = 0.8
+  renderer.toneMappingExposure = 1.2
+
+
 
   container.value?.appendChild(renderer.domElement)
   container.value?.addEventListener('click', onCanvasClick);
@@ -71,27 +77,76 @@ function onWindowResize() {
 }
 
 function setupLights() {
-  // 마당 조명을 위한 사각광원
-  const rectLight = new THREE.RectAreaLight(0xffffff, 5, 4, 4)
-  rectLight.position.set(0, 5, 10)
-  rectLight.lookAt(0, 0, 0)
-  scene.add(rectLight)
+  // 디렉셔널 라이트 설정
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight.position.set(30, 30, 10);
+  dirLight.castShadow = true;
+  dirLight.shadow.mapSize.width = 2048;
+  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.camera.near = 1;
+  dirLight.shadow.camera.far = 100;
+  dirLight.shadow.camera.left = -100;
+  dirLight.shadow.camera.right = 100;
+  dirLight.shadow.camera.top = 100;
+  dirLight.shadow.camera.bottom = -100;
+  scene.add(dirLight);
 
-  // 포인트 라이트 4개 배치 (빛 강조용)
-  const pointLight1 = new THREE.PointLight(0xffff66, 400, 5)
-  pointLight1.position.set(-8.02, 2.13, -1.24)
-  const pointLight2 = new THREE.PointLight(0x66ffff, 400, 5)
-  pointLight2.position.set(-3.78, 2.14, -7.52)
-  const pointLight3 = new THREE.PointLight(0xff99cc, 400, 5)
-  pointLight3.position.set(9.64, 2.09, 3.28)
-  const pointLight4 = new THREE.PointLight(0xffffff, 600, 20)
-  pointLight4.position.set(5, 15, 10)
+  // RectAreaLight
+  const areaLight = new THREE.RectAreaLight(0xeba64d, 12, 2.28, 2.28);
+  areaLight.position.set(7.3, 5, 25);
+  areaLight.rotation.set(
+    THREE.MathUtils.degToRad(91.174),
+    THREE.MathUtils.degToRad(180.48163),
+    THREE.MathUtils.degToRad(-0.75941)
+  );
+  scene.add(areaLight);
 
-  scene.add(pointLight1, pointLight2, pointLight3, pointLight4)
+  // PointLight 1
+  const point1 = new THREE.PointLight(0xf0ab43, 20, 15);
+  point1.position.set(-12, 3, -6.6);
+  scene.add(point1);
+  // scene.add(new THREE.PointLightHelper(point1));
+
+  // PointLight 1a
+  const point1a = new THREE.PointLight(0xf0ab43, 20, 15);
+  point1a.position.set(-12, 3, 2);
+  scene.add(point1a);
+  // scene.add(new THREE.PointLightHelper(point1a));
+
+  // 방 안에서 나오는 불빛을 위한 RectAreaLight 4개 추가
+  const windowLight1 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
+  windowLight1.position.set(-8, 2.5, -4);
+  windowLight1.lookAt(-8, 2.5, -5);
+  scene.add(windowLight1);
+  // scene.add(new RectAreaLightHelper(windowLight1));
+
+  const windowLight2 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
+  windowLight2.position.set(-5, 2.5, -4.2);
+  windowLight2.lookAt(-5, 2.5, -5);
+  scene.add(windowLight2);
+  // scene.add(new RectAreaLightHelper(windowLight2));
+
+  const windowLight3 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
+  windowLight3.position.set(1.55, 2.25, -4.3);
+  windowLight3.lookAt(1.55, 2.25, -5);
+  scene.add(windowLight3);
+  // scene.add(new RectAreaLightHelper(windowLight3));
+
+  const windowLight4 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
+  windowLight4.position.set(4.8, 2.25, -4.3);
+  windowLight4.lookAt(4.8, 2.25, -5);
+  scene.add(windowLight4);
+  // scene.add(new RectAreaLightHelper(windowLight4));
+
+  // PointLight 4
+  const point4 = new THREE.PointLight(0xf0ab43, 15, 15);
+  point4.position.set(8.5, 3, -0.33191);
+  scene.add(point4);
+  // scene.add(new THREE.PointLightHelper(point4));
 }
 
 function loadHDR() {
-  new RGBELoader().load('/3D/background.hdr', (texture) => {
+  new RGBELoader().load('/3D/background.hdr', (texture: THREE.Texture) => {
     texture.mapping = THREE.EquirectangularReflectionMapping
     scene.background = texture
     scene.environment = texture
@@ -100,24 +155,27 @@ function loadHDR() {
 
 function loadModel() {
   const loader = new GLTFLoader()
-  loader.load('/3D/hanok_0729_1755.glb', (gltf) => {
+  loader.load('/3D/hanok_0729_1755.glb', (gltf: GLTF) => {
     const hanok = gltf.scene
     hanok.scale.set(1.5, 1.5, 1.5) // 모델 크기 조절
 
-    hanok.traverse((child) => {
+    hanok.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh
         mesh.castShadow = true
         mesh.receiveShadow = true
         const material = mesh.material as THREE.MeshStandardMaterial
-        if (material) {
-          material.envMapIntensity = 1
+        if (material instanceof THREE.MeshStandardMaterial) {
+          material.envMap = scene.environment;
+          material.envMapIntensity = 0.4;
         }
 
-        // 특정 오브젝트의 그림자 설정 끄기
-        if (mesh.name.includes('Ground') || mesh.name.includes('Bench')) {
-          mesh.receiveShadow = false
-          mesh.castShadow = false
+        if (mesh.name.includes("Ground")) {
+          material.color.multiplyScalar(0.4);
+          mesh.castShadow = false;
+        }
+        if (mesh.name.includes("Bench")) {
+          mesh.receiveShadow = false;
         }
       }
     })
@@ -134,13 +192,17 @@ function createHotspots() {
   // 첫번째 핫스팟 - 내서재
   hotspots.push(createHotspot(new THREE.Vector3(-9.5, 2, 1), texture, () => {
     console.log("내서재 핫스팟 클릭됨! 카메라 이동 시작.");
-    moveCameraTo(-9.5, 3, 0, -11, 3, 0, () => emit('hotspot', 'library'))
+    moveCameraTo(-9.5, 3, 0, -11, 3, 0, () => {
+      emit('hotspot', 'library')
+    })
   }))
 
   // 두번째 핫스팟 - 서점
   hotspots.push(createHotspot(new THREE.Vector3(-2.5, 2, -6), texture, () => {
     console.log("서점 핫스팟 클릭됨! 카메라 이동 시작.");
-    moveCameraTo(-2, 2, -6.5, -2, 2, -10.5, () => emit('hotspot', 'store'))
+    moveCameraTo(-2, 2, -6.5, -2, 2, -10.5, () => {
+      emit('hotspot', 'store')
+    })
   }))
 
   // 세번째 핫스팟 - 책만들기

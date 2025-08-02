@@ -49,7 +49,7 @@ function init() {
       scene.environment = texture;   // PBR 머티리얼에 반사/빛 반응 적용
       scene.background = texture;    // 배경에도 적용
     });
-    
+
   // 디렉셔널 라이트 설정
   const dirLight = new THREE.DirectionalLight(0xffffff, 1);
   dirLight.position.set(30, 30, 10);
@@ -139,7 +139,7 @@ function init() {
           child.material.color.multiplyScalar(0.4); // 오브젝트 밝기 설정
           child.castShadow = false; // 바닥 그림자
           // child.receiveShadow = false; // 바닥 그림자
-        } 
+        }
         if (child.name.includes("Bench")) {
           // child.material.color.multiplyScalar(1.1);
           // child.castShadow = false; // 바닥 그림자
