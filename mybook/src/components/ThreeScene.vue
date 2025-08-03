@@ -14,7 +14,7 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 
 import { gsap } from 'gsap'
 
-const emit = defineEmits(['loaded', 'hotspot'])
+const emit = defineEmits(['loaded', 'hotspot', 'background-loaded'])
 
 defineExpose({ moveToYard, moveCameraTo });
 
@@ -41,7 +41,7 @@ function initScene() {
   scene = new THREE.Scene()
 
   camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
-  camera.position.set(6, 10.5, 38)
+  camera.position.set(7.3, 25, 30)
 
   renderer = new THREE.WebGLRenderer({ antialias: true })
   renderer.setPixelRatio(window.devicePixelRatio)
@@ -58,7 +58,7 @@ function initScene() {
   container.value?.addEventListener('click', onCanvasClick);
 
   controls = new OrbitControls(camera, renderer.domElement)
-  controls.target.set(6, 15, 0)
+  controls.target.set(0.3, 35, 25)
   controls.update()
 
   window.addEventListener('resize', onWindowResize)
@@ -150,6 +150,7 @@ function loadHDR() {
     texture.mapping = THREE.EquirectangularReflectionMapping
     scene.background = texture
     scene.environment = texture
+    emit('background-loaded') // 배경 로딩 완료 이벤트 발생
   })
 }
 
@@ -181,9 +182,34 @@ function loadModel() {
     })
 
     scene.add(hanok)
-    emit('loaded') // 로딩 완료 알림
+
+    // 셰이더 예열을 통해 카메라 이동 시 버벅임 현상 방지
+    prewarmShaders(hanok);
+
+    emit('loaded') // 로딩 및 예열 완료 알림
     createHotspots()
   })
+}
+
+function prewarmShaders(model: THREE.Object3D) {
+  console.log("셰이더 예열 시작...");
+  model.traverse((child: THREE.Object3D) => {
+    if ((child as THREE.Mesh).isMesh) {
+      // Frustum culling을 일시적으로 비활성화하여 모든 객체가 렌더링되도록 강제
+      child.frustumCulled = false;
+    }
+  });
+
+  // 한 프레임을 렌더링하여 모든 셰이더를 컴파일
+  renderer.render(scene, camera);
+
+  // Frustum culling을 다시 활성화하여 성능 최적화
+  model.traverse((child: THREE.Object3D) => {
+    if ((child as THREE.Mesh).isMesh) {
+      child.frustumCulled = true;
+    }
+  });
+  console.log("셰이더 예열 완료.");
 }
 
 function createHotspots() {
@@ -261,8 +287,8 @@ function moveToYard() {
             console.log("moveToYard: 마당으로 카메라 이동 완료.");
         }
     });
-    tl.to(camera.position, { x: 7.3, y: 2.5, z: 30, duration: 2 });
-    tl.to(controls.target, { x: 7.3, y: 2.5, z: 0, duration: 2 }, "<");
+    tl.to(camera.position, { x: 7.3, y: 2.5, z: 30, duration: 4 });
+    tl.to(controls.target, { x: 7.3, y: 2.5, z: 0, duration: 4 }, "<");
     tl.to(camera.position, { x: 5.5, y: 2.5, z: 14, duration: 2 });
     tl.to(controls.target, { x: 1, y: 3, z: 3.579, duration: 2 }, "<");
 }

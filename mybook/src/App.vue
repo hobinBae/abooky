@@ -1,7 +1,11 @@
 <template>
   <Navbar :is-intro-active="isIntroActive" :is-home="isIntro" />
   <main class="main-content">
-    <RouterView @intro-finished="onIntroFinished" />
+    <router-view v-slot="{ Component }">
+      <keep-alive include="IntroView">
+        <component :is="Component" @intro-finished="onIntroFinished" />
+      </keep-alive>
+    </router-view>
   </main>
   <Footer v-if="!isIntro" />
 </template>
@@ -17,22 +21,20 @@ const route = useRoute()
 // 현재 경로가 인트로('/')인지 여부
 const isIntro = computed(() => route.path === '/')
 
-// 인트로 애니메이션이 활성 상태인지 (들어가기 전)
-const isIntroActive = ref(isIntro.value)
+// '들어가기'를 눌렀는지 여부를 저장하는 상태
+const hasIntroBeenFinished = ref(false)
+
+// 인트로 애니메이션이 활성 상태인지 여부를 계산
+const isIntroActive = computed(() => {
+  // isIntro는 현재 경로가 '/'인지 여부
+  // hasIntroBeenFinished는 '들어가기'를 눌렀는지 여부
+  return isIntro.value && !hasIntroBeenFinished.value
+})
 
 // IntroView에서 '들어가기'를 클릭하면 호출될 함수
 const onIntroFinished = () => {
-  isIntroActive.value = false
+  hasIntroBeenFinished.value = true
 }
-
-// 경로가 변경될 때마다 상태를 다시 동기화
-watch(
-  () => route.path,
-  (newPath) => {
-    isIntroActive.value = newPath === '/'
-  },
-  { immediate: true }
-)
 </script>
 
 <style>

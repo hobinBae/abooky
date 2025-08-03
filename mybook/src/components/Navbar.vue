@@ -1,8 +1,8 @@
 <template>
-  <nav class="navbar navbar-expand-lg fixed-top" 
+  <nav class="navbar navbar-expand-lg fixed-top"
        :class="{ 'navbar-content-hidden': isIntroActive, 'navbar-dark': isHome, 'navbar-light': !isHome }">
     <div class="container-fluid">
-      <router-link class="navbar-brand" to="/">
+      <router-link class="navbar-brand" to="/?from=home">
         <span style="font-size: 1.5rem; font-weight: bold;">MyBook</span>
       </router-link>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
