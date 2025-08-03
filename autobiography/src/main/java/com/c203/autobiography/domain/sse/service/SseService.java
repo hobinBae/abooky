@@ -2,8 +2,7 @@ package com.c203.autobiography.domain.sse.service;
 
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.stt.dto.TranscriptResponse;
-import com.c203.autobiography.domain.template.dto.QuestionResponse;
-import java.io.IOException;
+import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**

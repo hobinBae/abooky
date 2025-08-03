@@ -2,7 +2,7 @@ package com.c203.autobiography.domain.sse.service;
 
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.stt.dto.TranscriptResponse;
-import com.c203.autobiography.domain.template.dto.QuestionResponse;
+import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
