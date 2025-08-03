@@ -1,42 +1,35 @@
 package com.c203.autobiography.domain.ai.service;
 
 ;
+import com.c203.autobiography.domain.ai.client.OpenAiProperties;
 import com.c203.autobiography.domain.ai.dto.ChatCompletionRequest;
 import com.c203.autobiography.domain.ai.dto.ChatCompletionResponse;
+import java.time.Duration;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 @Service
 @RequiredArgsConstructor
 public class OpenAiServiceImpl implements OpenAiService {
 
-    private final RestTemplate restTemplate = new RestTemplate();
-
-    @Value("${openai.api.key}")
-    private String apiKey;
-
-    @Value("${openai.api.url:https://api.openai.com/v1/chat/completions}")
-    private String apiUrl = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions";
+    private final WebClient webClient;         // Spring Boot 에서 커넥터 풀, 타임아웃 자동 관리
+    private final OpenAiProperties props;
 
     @Override
     public ChatCompletionResponse createChatCompletion(ChatCompletionRequest request) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setBearerAuth(apiKey);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<ChatCompletionRequest> entity =
-                new HttpEntity<>(request, headers);
-
-        ResponseEntity<ChatCompletionResponse> resp =
-                restTemplate.exchange(apiUrl, HttpMethod.POST, entity,
-                        ChatCompletionResponse.class);
-
-        if (!resp.getStatusCode().is2xxSuccessful() || resp.getBody() == null) {
-            throw new RuntimeException("OpenAI API 호출 실패: " + resp.getStatusCode());
-        }
-        return resp.getBody();
+        return webClient.post()
+                .bodyValue(request)
+                .retrieve()
+                .onStatus(HttpStatusCode::isError, resp ->
+                        Mono.error(new RuntimeException("OpenAI error: " + resp.statusCode()))
+                )
+                .bodyToMono(ChatCompletionResponse.class)
+                .block(Duration.ofSeconds(props.getRequestTimeoutSec()));
     }
+
 }
