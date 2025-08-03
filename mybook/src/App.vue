@@ -30,8 +30,6 @@ watch(
   () => route.path,
   (newPath) => {
     isIntroActive.value = newPath === '/'
-    // 인트로 페이지에서는 body의 padding-top을 제거하고, 다른 페이지에서는 추가
-    document.body.style.paddingTop = newPath === '/' ? '0' : '56px'
   },
   { immediate: true }
 )

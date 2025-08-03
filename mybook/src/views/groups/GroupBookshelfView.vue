@@ -1,56 +1,74 @@
 <template>
-  <div class="group-bookshelf-page">
-    <div v-if="group" class="group-header">
-      <h1 class="group-title">{{ group.groupName }}</h1>
-      <p class="group-description">{{ group.description || '그룹 설명이 없습니다.' }}</p>
-      <div class="group-actions">
-        <button @click="showInviteModal = true" class="btn btn-outline-primary">멤버 초대</button>
-        <router-link :to="`/group-timeline/${groupId}`" class="btn btn-outline-secondary">그룹 타임라인 보기</router-link>
+  <div class="page-container group-bookshelf-page">
+    <div v-if="group" class="content-wrapper">
+      <!-- Group Header -->
+      <div class="group-header card">
+        <h1 class="group-title">{{ group.groupName }}</h1>
+        <p class="group-description">{{ group.description || '그룹 설명이 없습니다.' }}</p>
+        <div class="group-actions">
+          <button @click="showInviteModal = true" class="btn btn-primary">멤버 초대</button>
+          <router-link :to="`/group-timeline/${groupId}`" class="btn btn-secondary">그룹 타임라인</router-link>
+        </div>
+      </div>
+
+      <!-- Bookshelf Container -->
+      <div class="bookshelf-container">
+        <!-- Group Integrated Book -->
+        <section class="bookshelf-section card">
+          <h2 class="card-header">그룹 통합 책</h2>
+          <div class="card-body">
+            <div v-if="integratedBook" class="integrated-book-wrapper">
+              <router-link :to="`/integrated-group-book/${integratedBook.id}`" class="book-item integrated-book">
+                <div class="book-cover"></div>
+                <div class="book-title">{{ integratedBook.title }}</div>
+              </router-link>
+            </div>
+            <div v-else class="no-books-message">
+              <p>아직 그룹 통합 책이 없습니다.</p>
+              <router-link :to="`/group-book-creation?groupId=${groupId}`" class="btn btn-primary mt-2">통합 책 만들기</router-link>
+            </div>
+          </div>
+        </section>
+
+        <!-- Member Books -->
+        <section class="bookshelf-section card">
+          <h2 class="card-header">그룹 멤버들의 책</h2>
+          <div class="card-body">
+            <div v-if="memberBooks.length > 0" class="book-shelf">
+              <router-link v-for="book in memberBooks" :key="book.id" :to="`/book-detail/${book.id}`" class="book-item member-book">
+                <div class="book-cover"></div>
+                <div class="book-title">{{ book.title }}</div>
+                <div class="book-author">{{ book.authorName }}</div>
+              </router-link>
+            </div>
+            <p v-else class="no-books-message">그룹 멤버들이 아직 발행한 책이 없습니다.</p>
+          </div>
+        </section>
       </div>
     </div>
 
-    <div v-if="group" class="bookshelf-container">
-      <!-- Group Integrated Book -->
-      <section class="bookshelf-section">
-        <h2 class="section-title">그룹 통합 책</h2>
-        <div v-if="integratedBook" class="integrated-book-wrapper">
-          <router-link :to="`/integrated-group-book/${integratedBook.id}`" class="book-item integrated-book">
-            {{ integratedBook.title }}
-          </router-link>
-        </div>
-        <div v-else class="no-books-message">
-          <p>아직 그룹 통합 책이 없습니다.</p>
-          <router-link :to="`/group-book-creation?groupId=${groupId}`" class="btn btn-primary mt-2">통합 책 만들기</router-link>
-        </div>
-      </section>
-
-      <!-- Member Books -->
-      <section class="bookshelf-section">
-        <h2 class="section-title">그룹 멤버들의 책</h2>
-        <div v-if="memberBooks.length > 0" class="book-shelf">
-          <router-link v-for="book in memberBooks" :key="book.id" :to="`/book-detail/${book.id}`" class="book-item member-book">
-            <div class="book-title">{{ book.title }}</div>
-            <div class="book-author">{{ book.authorName }}</div>
-          </router-link>
-        </div>
-        <p v-else class="no-books-message">그룹 멤버들이 아직 발행한 책이 없습니다.</p>
-      </section>
-    </div>
-
+    <!-- Loading Message -->
     <div v-else class="loading-message">
       <p>그룹 정보를 불러오는 중입니다...</p>
     </div>
 
     <!-- Invite Modal -->
-    <div v-if="showInviteModal" class="modal" style="display: flex;">
-      <div class="modal-content">
-        <span @click="showInviteModal = false" class="close-button">&times;</span>
-        <h2 class="modal-title">그룹에 멤버 초대하기</h2>
-        <div class="mb-3">
-          <label for="invite-input" class="form-label">초대할 멤버의 아이디 또는 닉네임:</label>
-          <input v-model="inviteQuery" type="text" class="form-control" placeholder="아이디 또는 닉네임 입력">
+    <div v-if="showInviteModal" class="modal-backdrop">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h2 class="modal-title">그룹에 멤버 초대하기</h2>
+            <button @click="showInviteModal = false" class="btn-close"></button>
+          </div>
+          <div class="modal-body">
+            <label for="invite-input" class="form-label">초대할 멤버의 아이디 또는 닉네임:</label>
+            <input v-model="inviteQuery" type="text" class="form-control" placeholder="아이디 또는 닉네임 입력">
+          </div>
+          <div class="modal-footer">
+            <button @click="showInviteModal = false" class="btn btn-secondary">취소</button>
+            <button @click="inviteMember" class="btn btn-primary">초대 보내기</button>
+          </div>
         </div>
-        <button @click="inviteMember" class="btn btn-primary">초대 보내기</button>
       </div>
     </div>
   </div>
@@ -161,25 +179,49 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.group-bookshelf-page {
-  padding: 80px 2rem 2rem;
+/* General Page Styles */
+.page-container {
+  padding: 80px 2rem 2rem; /* Add top padding for navbar */
   background-color: #F5F5DC;
+  min-height: 100vh;
   color: #3D2C20;
-  min-height: calc(100vh - 56px);
 }
 
-.group-header {
-  text-align: center;
-  margin-bottom: 3rem;
-  padding: 2rem;
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.card {
   background-color: #FFFFFF;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  box-shadow: 0 5px 20px rgba(0,0,0,0.07);
+  border: 1px solid #EFEBE9;
+  margin-bottom: 2rem;
+}
+
+.card-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #EFEBE9;
+  margin-bottom: 0;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+/* Group Header */
+.group-header {
+  text-align: center;
+  padding: 2rem;
 }
 
 .group-title {
-  font-size: 2.8rem;
-  font-weight: 700;
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #3D2C20;
 }
 
 .group-description {
@@ -193,21 +235,11 @@ onMounted(() => {
   margin: 0 0.5rem;
 }
 
-.bookshelf-container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.bookshelf-section {
-  margin-bottom: 3rem;
-}
-
-.section-title {
-  font-size: 1.8rem;
-  font-weight: 600;
-  padding-bottom: 0.5rem;
-  border-bottom: 2px solid #B8860B;
-  margin-bottom: 1.5rem;
+/* Bookshelf */
+.book-shelf {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 1.5rem;
 }
 
 .integrated-book-wrapper {
@@ -215,25 +247,11 @@ onMounted(() => {
   justify-content: center;
 }
 
-.book-shelf {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 1.5rem;
-}
-
 .book-item {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-  text-align: center;
-  padding: 1rem;
-  transition: transform 0.3s, box-shadow 0.3s;
   text-decoration: none;
   color: inherit;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
+  text-align: center;
+  transition: transform 0.3s, box-shadow 0.3s;
 }
 
 .book-item:hover {
@@ -241,77 +259,102 @@ onMounted(() => {
   box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
 
-.integrated-book {
-  background-color: #B8860B;
-  color: #FFFFFF;
-  font-weight: bold;
-  font-size: 1.2rem;
-  width: 200px;
-  height: 280px;
+.book-cover {
+  width: 100%;
+  padding-top: 140%; /* Aspect ratio for book cover */
+  background-color: #EFEBE9;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
 }
 
-.member-book {
+.integrated-book .book-cover {
+  background-color: #B8860B;
+}
+
+.member-book .book-cover {
   background-color: #8B4513;
-  color: #F5F5DC;
-  height: 200px;
 }
 
 .book-title {
   font-weight: 600;
-  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
 }
 
 .book-author {
   font-size: 0.9rem;
-  color: #D2B48C;
-}
-
-.no-books-message, .loading-message {
-  text-align: center;
-  padding: 2rem;
-  background-color: #fff;
-  border-radius: 8px;
   color: #5C4033;
 }
 
-/* Modal Styles */
-.modal {
+.no-books-message {
+  text-align: center;
+  padding: 2rem;
+  color: #5C4033;
+}
+
+.loading-message {
+  text-align: center;
+  padding-top: 5rem;
+  font-size: 1.2rem;
+}
+
+/* Modal Styles (Bootstrap-like) */
+.modal-backdrop {
   position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0,0,0,0.6);
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 1050;
+}
+
+.modal-dialog {
+  width: 100%;
+  max-width: 500px;
+  margin: 1.75rem auto;
 }
 
 .modal-content {
-  background-color: #5C4033;
-  padding: 2rem;
-  border-radius: 12px;
-  width: 90%;
-  max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
   position: relative;
-  color: #F5F5DC;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  pointer-events: auto;
+  background-color: #fff;
+  background-clip: padding-box;
+  border: 1px solid rgba(0,0,0,.2);
+  border-radius: 0.5rem;
+  outline: 0;
 }
 
-.close-button {
-  color: #F5F5DC;
-  font-size: 28px;
-  font-weight: bold;
-  position: absolute;
-  top: 10px;
-  right: 20px;
-  cursor: pointer;
+.modal-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1rem;
+  border-bottom: 1px solid #dee2e6;
+  border-top-left-radius: calc(0.5rem - 1px);
+  border-top-right-radius: calc(0.5rem - 1px);
 }
 
-.modal-title {
-  font-size: 1.8rem;
-  font-weight: bold;
-  margin-bottom: 1.5rem;
-  color: #B8860B;
+.modal-title { font-size: 1.25rem; font-weight: 500; }
+.modal-body { position: relative; flex: 1 1 auto; padding: 1rem; }
+.modal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0.75rem;
+  border-top: 1px solid #dee2e6;
+}
+.modal-footer > .btn { margin: 0.25rem; }
+
+.btn-close {
+  padding: 0.5rem;
+  margin: -0.5rem -0.5rem -0.5rem auto;
 }
 </style>

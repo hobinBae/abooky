@@ -1,40 +1,46 @@
 <template>
-  <div class="group-book-creation-page">
+  <div class="page-container group-book-creation-page">
     <!-- Step 1: Lobby / Pre-join screen -->
     <div v-if="!hasJoined" class="lobby-container">
-      <h1 class="lobby-title">화상 채팅 준비</h1>
-      <div class="video-preview-container">
-        <video ref="localVideo" autoplay muted playsinline class="video-preview"></video>
-        <div class="media-controls">
-          <button @click="toggleAudio" class="btn btn-media" :class="{ active: isAudioEnabled }">
-            <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-          </button>
-          <button @click="toggleVideo" class="btn btn-media" :class="{ active: isVideoEnabled }">
-            <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
-          </button>
+      <div class="auth-container">
+        <h1 class="auth-title">그룹 책 만들기 준비</h1>
+        <p class="auth-subtitle">참여하기 전에 카메라와 마이크를 확인하세요.</p>
+        
+        <div class="video-preview-container">
+          <video ref="localVideo" autoplay muted playsinline class="video-preview"></video>
+          <div class="media-controls">
+            <button @click="toggleAudio" class="btn btn-media" :class="{ active: isAudioEnabled }">
+              <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+            </button>
+            <button @click="toggleVideo" class="btn btn-media" :class="{ active: isVideoEnabled }">
+              <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
+            </button>
+          </div>
         </div>
+        <button @click="joinSession" class="btn btn-primary w-100 btn-auth">참여하기</button>
       </div>
-      <button @click="joinSession" class="btn btn-primary btn-lg join-btn">참여하기</button>
     </div>
 
     <!-- Step 2: Main collaborative workspace -->
     <div v-else class="workspace-container">
       <!-- Main Content: Video + AI Helper -->
       <div class="main-content">
-        <div class="video-grid">
-          <div class="video-participant">
-            <video :srcObject="localStream" autoplay muted playsinline class="participant-video"></video>
-            <div class="participant-name">나</div>
-          </div>
-          <!-- Remote participants would be added here -->
-          <div v-for="(p, index) in remoteParticipants" :key="index" class="video-participant">
-            <div class="participant-video-placeholder">{{ p.name }}</div>
-            <div class="participant-name">{{ p.name }}</div>
+        <div class="card video-grid-card">
+          <h3 class="card-header">참여자 영상</h3>
+          <div class="video-grid">
+            <div class="video-participant">
+              <video :srcObject="localStream" autoplay muted playsinline class="participant-video"></video>
+              <div class="participant-name">나</div>
+            </div>
+            <div v-for="p in remoteParticipants" :key="p.id" class="video-participant">
+              <div class="participant-video-placeholder">{{ p.name }}</div>
+              <div class="participant-name">{{ p.name }}</div>
+            </div>
           </div>
         </div>
 
-        <div class="ai-helper-panel">
-          <h3 class="ai-helper-title">AI 작성 도우미 (한석봉)</h3>
+        <div class="card ai-helper-card">
+           <h3 class="card-header">AI 작성 도우미 (한석봉)</h3>
           <div class="ai-transcript">
             <p v-for="(line, index) in transcript" :key="index" :class="`speaker-${line.speaker}`"><strong>{{ line.speaker }}:</strong> {{ line.text }}</p>
           </div>
@@ -47,14 +53,16 @@
 
       <!-- Sidebar: Shared Editor + Controls -->
       <div class="sidebar">
-        <div class="shared-editor-container">
-          <h3 class="sidebar-title">통합 책 내용</h3>
+        <div class="card editor-card">
+          <h3 class="card-header">통합 책 내용</h3>
           <textarea v-model="sharedContent" @input="onEditorChange" class="shared-editor"></textarea>
         </div>
-        <div class="session-controls">
-          <h3 class="sidebar-title">세션 관리</h3>
-          <button @click="saveAndExit" class="btn btn-secondary">임시 저장 및 종료</button>
-          <button @click="publishAndExit" class="btn btn-primary">발행 및 종료</button>
+        <div class="card controls-card">
+          <h3 class="card-header">세션 관리</h3>
+          <div class="session-controls">
+            <button @click="saveAndExit" class="btn btn-secondary w-100">임시 저장 및 종료</button>
+            <button @click="publishAndExit" class="btn btn-primary w-100 mt-2">발행 및 종료</button>
+          </div>
         </div>
       </div>
     </div>
@@ -98,60 +106,40 @@ const sharedContent = ref('그룹 통합 책의 내용이 여기에 실시간으
 // --- WebRTC & Media Functions (Simplified/Mocked) ---
 async function setupLocalMedia() {
   try {
-    // Mock media stream for demonstration without actual camera/mic access
-    // In a real app, this would be: await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localStream.value = new MediaStream(); // Create a dummy MediaStream
+    localStream.value = new MediaStream();
     if (localVideo.value) {
-      // localVideo.value.srcObject = localStream.value; // Would assign real stream
-      // For dummy, we can just show a placeholder or static image
+      // In a real app: localVideo.value.srcObject = await navigator.mediaDevices.getUserMedia(...)
     }
   } catch (error) {
     console.error('Error accessing media devices (mocked):', error);
-    // alert('카메라와 마이크에 접근할 수 없습니다. 권한을 확인해주세요.');
   }
 }
 
 function toggleAudio() {
   isAudioEnabled.value = !isAudioEnabled.value;
-  alert(`마이크 ${isAudioEnabled.value ? '켜짐' : '꺼짐'}`);
 }
 
 function toggleVideo() {
   isVideoEnabled.value = !isVideoEnabled.value;
-  alert(`카메라 ${isVideoEnabled.value ? '켜짐' : '꺼짐'}`);
 }
 
 function joinSession() {
-  // In a real app, this is where you'd initiate WebRTC connections
-  // For dummy, just switch to workspace view
   hasJoined.value = true;
-  alert('화상 채팅에 참여했습니다. (더미 기능)');
 }
 
-// --- Shared Editor Functions (Local State) ---
+// --- Editor & Session Functions ---
 function onEditorChange() {
-  // In a real app, this would send updates to Firestore/backend
-  console.log('Shared content updated locally:', sharedContent.value);
+  console.log('Shared content updated:', sharedContent.value);
 }
 
-// --- Session Control Functions ---
 function saveAndExit() {
   alert('내용이 임시 저장되었습니다. (더미 기능)');
-  router.push(`/group-bookshelf/${groupId}`);
+  router.push(`/group-bookshelf/${groupId || 'default'}`);
 }
 
 function publishAndExit() {
   alert('책이 발행되었습니다. (더미 기능)');
-  router.push(`/group-bookshelf/${groupId}`);
-}
-
-// --- AI Helper Functions (Dummy) ---
-function summarizeContent() {
-  alert('내용 요약 기능은 개발 중입니다.');
-}
-
-function generateImage() {
-  alert('이미지 생성 기능은 개발 중입니다.');
+  router.push(`/group-bookshelf/${groupId || 'default'}`);
 }
 
 // --- Lifecycle Hooks ---
@@ -167,43 +155,78 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.group-book-creation-page {
-  width: 100%;
-  height: 100vh;
-  background-color: #3D2C20;
-  color: #F5F5DC;
+/* General Page Styles */
+.page-container {
+  padding: 80px 2rem 2rem;
+  background-color: #F5F5DC;
+  min-height: 100vh;
+  color: #3D2C20;
+}
+
+.card {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.07);
+  border: 1px solid #EFEBE9;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header {
+  font-size: 1.25rem;
+  font-weight: 700;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #EFEBE9;
+  margin-bottom: 0;
+}
+
+/* Lobby Styles (similar to LoginView) */
+.lobby-container {
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  padding-top: 2rem;
 }
 
-/* Lobby */
-.lobby-container {
-  text-align: center;
-  background-color: #5C4033;
-  padding: 3rem;
+.auth-container {
+  width: 100%;
+  max-width: 500px;
+  background-color: #FFFFFF;
+  padding: 2.5rem;
   border-radius: 12px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
 
-.lobby-title {
-  font-size: 2.5rem;
+.auth-title {
+  font-size: 2.2rem;
   font-weight: 700;
+  text-align: center;
+  color: #3D2C20;
+  margin-bottom: 0.5rem;
+}
+
+.auth-subtitle {
+  text-align: center;
+  color: #5C4033;
   margin-bottom: 2rem;
 }
 
 .video-preview-container {
   position: relative;
-  width: 480px;
-  height: 360px;
+  width: 100%;
+  padding-top: 75%; /* 4:3 Aspect Ratio */
   margin: 0 auto 2rem auto;
-  background: #2c1e12;
+  background: #EFEBE9;
   border-radius: 8px;
+  overflow: hidden;
 }
 
 .video-preview {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  border-radius: 8px;
   object-fit: cover;
 }
 
@@ -225,9 +248,7 @@ onUnmounted(() => {
   border-radius: 50%;
   width: 40px;
   height: 40px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  border: none;
   font-size: 1.2rem;
 }
 
@@ -236,52 +257,68 @@ onUnmounted(() => {
   color: #fff;
 }
 
-.join-btn {
+.btn-auth {
   background-color: #B8860B;
   border-color: #B8860B;
+  font-weight: 600;
 }
 
-/* Workspace */
+/* Workspace Styles */
 .workspace-container {
   display: flex;
-  width: 100%;
-  height: 100%;
-  padding: 1rem;
-  gap: 1rem;
+  gap: 1.5rem;
+  height: calc(100vh - 80px - 4rem); /* Full height minus padding */
 }
 
 .main-content {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.5rem;
+}
+
+.sidebar {
+  width: 380px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.video-grid-card {
+  flex-grow: 1;
 }
 
 .video-grid {
-  flex-grow: 1;
-  background: #2c1e12;
-  border-radius: 8px;
-  padding: 1rem;
+  padding: 1.5rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1rem;
   overflow-y: auto;
+  flex-grow: 1;
 }
 
 .video-participant {
   position: relative;
+  width: 100%;
+  padding-top: 75%; /* 4:3 aspect ratio */
+  background: #EFEBE9;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
 .participant-video, .participant-video-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  background: #5C4033;
-  border-radius: 6px;
+  height: 100%;
   object-fit: cover;
   display: flex;
   justify-content: center;
   align-items: center;
   font-weight: bold;
+  color: #5C4033;
 }
 
 .participant-name {
@@ -289,82 +326,73 @@ onUnmounted(() => {
   bottom: 0.5rem;
   left: 0.5rem;
   background: rgba(0,0,0,0.6);
+  color: #fff;
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
 }
 
-.ai-helper-panel {
-  height: 250px;
-  background: #5C4033;
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.ai-helper-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+.ai-helper-card {
+  height: 280px;
 }
 
 .ai-transcript {
   flex-grow: 1;
   overflow-y: auto;
   font-size: 0.9rem;
-  padding-right: 0.5rem;
+  padding: 1rem 1.5rem;
 }
 
 .ai-actions {
-  margin-top: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #EFEBE9;
   display: flex;
   gap: 0.5rem;
 }
 
-.sidebar {
-  width: 350px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.shared-editor-container {
+.editor-card {
   flex-grow: 1;
-  background: #fff;
-  border-radius: 8px;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar-title {
-  font-size: 1.2rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #3D2C20;
 }
 
 .shared-editor {
   width: 100%;
   flex-grow: 1;
   resize: none;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 0.5rem;
+  border: none;
+  padding: 1.5rem;
+  font-family: 'Montserrat', sans-serif;
   color: #3D2C20;
-  background-color: #F5F5DC;
+  background-color: transparent;
+  outline: none;
 }
 
-.session-controls {
-  background: #5C4033;
-  border-radius: 8px;
-  padding: 1rem;
+.controls-card .session-controls {
+  padding: 1.5rem;
 }
 
-.session-controls .btn {
-  width: 100%;
-  margin-top: 0.5rem;
+@media (max-width: 992px) {
+  .workspace-container {
+    flex-direction: column;
+    height: auto;
+  }
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+  }
+  .editor-card, .controls-card {
+    width: 50%;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-container {
+    padding: 70px 1rem 1rem;
+  }
+  .sidebar {
+    flex-direction: column;
+  }
+  .editor-card, .controls-card {
+    width: 100%;
+  }
 }
 </style>

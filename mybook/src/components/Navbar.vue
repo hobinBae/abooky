@@ -1,9 +1,9 @@
 <template>
-  <nav class="navbar navbar-expand-lg navbar-dark fixed-top" 
-       :class="{ 'navbar-bg-transparent': isHome, 'navbar-content-hidden': isIntroActive }">
+  <nav class="navbar navbar-expand-lg fixed-top" 
+       :class="{ 'navbar-content-hidden': isIntroActive, 'navbar-dark': isHome, 'navbar-light': !isHome }">
     <div class="container-fluid">
       <router-link class="navbar-brand" to="/">
-        <span style="color: white; font-size: 1.5rem; font-weight: bold;">MyBook</span>
+        <span style="font-size: 1.5rem; font-weight: bold;">MyBook</span>
       </router-link>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
@@ -64,14 +64,9 @@ const logout = () => {
 
 <style scoped>
 .navbar {
-  background-color: #3D2C20;
+  background-color: transparent !important;
   z-index: 1030;
   transition: background-color 0.5s ease;
-}
-
-/* 홈 화면일 때 배경 투명 */
-.navbar-bg-transparent {
-  background-color: transparent !important;
 }
 
 /* 인트로 활성 상태일 때 내용 숨김 */
@@ -89,8 +84,7 @@ const logout = () => {
 .nav-link {
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.5s ease, visibility 0.5s ease;
-  color: white !important;
+  transition: opacity 0.5s ease, visibility 0.5s ease, color 0.5s ease;
   font-size: 20px !important;
 }
 </style>
