@@ -6,14 +6,14 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
 
-@Configuration
-public class OpenAiConfig {
-    @Value("${openai.api.key}")
-    private String apiKey;
-
-    @Bean
-    public OpenAiService openAiService(){
-        return new OpenAiService(apiKey, Duration.ofSeconds(60));
-    }
-
-}
+//@Configuration
+//public class OpenAiConfig {
+//    @Value("${openai.api.key}")
+//    private String apiKey;
+//
+//    @Bean
+//    public OpenAiService openAiService(){
+//        return new OpenAiService(apiKey, Duration.ofSeconds(60));
+//    }
+//
+//}
