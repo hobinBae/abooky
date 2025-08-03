@@ -614,10 +614,14 @@ watch(currentEpisodeIndex, () => {
 </script>
 
 <style scoped>
+/* --- Google Fonts Import --- */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;600&display=swap');
+
+/* --- 전역 스타일 --- */
 .book-detail-page {
   padding: 80px 2rem 4rem;
-  background-color: #EAE0D5;
-  /* 은은한 배경색 */
+  background-color: #F5F5DC; /* 베이지 색으로 조금 더 부드럽게 */
+  font-family: 'Pretendard', sans-serif; /* 기본 폰트 */
   color: #3D2C20;
   min-height: calc(100vh - 56px);
   display: flex;
@@ -627,28 +631,29 @@ watch(currentEpisodeIndex, () => {
 
 .book-container {
   max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   background-color: #FFFFFF;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
+  border-radius: 8px; /* 조금 더 부드러운 곡선 */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08); /* 그림자를 더 은은하게 */
+  padding: 3rem; /* 내부 여백을 더 넉넉하게 */
 }
 
-/* Header */
+/* --- 책 상세 정보 헤더 --- */
 .book-header {
   display: flex;
-  gap: 2rem;
+  gap: 2.5rem; /* 책 커버와 정보 사이 간격 확대 */
   border-bottom: 1px solid #EAE0D5;
-  padding-bottom: 2rem;
-  margin-bottom: 2rem;
+  padding-bottom: 3rem;
+  margin-bottom: 3rem;
 }
 
 .book-cover img {
-  width: 150px;
-  height: 220px;
+  width: 180px; /* 커버 이미지 크기 소폭 증가 */
+  height: auto;
   object-fit: cover;
-  border-radius: 8px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 4px; /* 책 표지 느낌을 살리기 위해 각을 조금 더 살림 */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .book-meta {
@@ -656,226 +661,272 @@ watch(currentEpisodeIndex, () => {
 }
 
 .book-title {
+  font-family: 'Noto Serif KR', serif; /* 제목에 명조체 적용 */
   font-size: 2.5rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
+  line-height: 1.4; /* 줄 간격 확보 */
+  margin-bottom: 0.75rem;
 }
 
 .book-author {
   font-size: 1.1rem;
-  color: #8B4513;
-  margin-bottom: 1rem;
+  color: #5C4033; /* 저자 이름 색상 조정 */
+  margin-bottom: 1.5rem;
+}
+
+.book-author a {
+  color: inherit;
+  text-decoration: none;
+  border-bottom: 1px solid #C8AD7F; /* 저자 링크에 얇은 밑줄 */
+}
+.book-author a:hover {
+  border-bottom-color: #8B4513;
 }
 
 .book-summary {
   font-size: 1rem;
-  line-height: 1.6;
-  margin-bottom: 1rem;
+  line-height: 1.7; /* 요약글 가독성 향상 */
+  margin-bottom: 1.5rem;
+  color: #555; /* 본문 텍스트 색상 */
 }
 
 .book-tags {
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
 }
 
 .tag {
   display: inline-block;
-  background-color: #EAE0D5;
-  color: #5C4033;
-  padding: 0.3rem 0.8rem;
-  border-radius: 15px;
+  background-color: transparent; /* 배경색 제거 */
+  border: 1px solid #EAE0D5; /* 얇은 테두리 */
+  color: #8B4513; /* 태그 텍스트 색상 */
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
   font-size: 0.9rem;
   margin-right: 0.5rem;
+  margin-bottom: 0.5rem; /* 태그가 여러 줄일 때를 대비 */
 }
 
 .book-actions {
   display: flex;
   flex-wrap: wrap;
-  /* 버튼이 많아지면 줄바꿈되도록 */
-  gap: 0.8rem;
-  /* 버튼 간 간격 조정 */
-  margin-top: 1rem;
-  /* 버튼 위 여백 추가 */
+  gap: 1rem;
+  margin-top: 1.5rem;
 }
 
-.btn-like.liked {
-  background-color: #CD5C5C;
-  color: #fff;
-  border-color: #CD5C5C;
+/* --- 버튼 스타일 통일 --- */
+.btn {
+  border: 1px solid #C8AD7F;
+  background-color: transparent;
+  color: #5C4033;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.95rem;
+}
+.btn:hover {
+  background-color: #FDF8E7; /* 호버 시 옅은 배경색 */
+  border-color: #8B4513;
+  color: #3D2C20;
+}
+.btn i {
+  margin-right: 0.5rem;
 }
 
+/* 주요 액션 버튼 (책 읽기) */
 .btn-read-book {
-  background-color: #4CAF50;
-  /* Green color for read button */
-  color: white;
+  background-color: #5C4033;
+  color: #FFFFFF;
+  border-color: #5C4033;
 }
-
 .btn-read-book:hover {
-  background-color: #45a049;
+  background-color: #3D2C20;
+  border-color: #3D2C20;
 }
 
-/* Reading Mode Specific Styles */
+/* 좋아요 버튼 */
+.btn-like.liked {
+  background-color: #D2691E; /* 톤 다운된 오렌지-브라운 */
+  border-color: #D2691E;
+  color: #fff;
+}
+
+/* --- 책 읽기 모드 --- */
 .reading-mode-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 1rem;
   width: 100%;
-  /* 전체 너비 사용 */
 }
 
 .reading-mode-header {
   width: 100%;
   max-width: 900px;
-  /* book-container와 동일하게 설정 */
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
-  padding: 0 2rem;
-  /* 좌우 패딩 추가 */
-  box-sizing: border-box;
-  /* 패딩이 너비에 포함되도록 */
+  margin-bottom: 2rem;
+  padding: 0;
 }
 
 .reading-mode-title {
-  font-size: 2rem;
-  font-weight: 700;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.8rem;
+  font-weight: 600;
   color: #3D2C20;
 }
 
 .book-pages-wrapper {
-  width: 700px;
-  /* 단일 페이지 너비 */
-  height: 800px;
-  /* 책의 높이 */
-  background-color: #FDF8E7;
-  /* 종이 색상 */
+  width: 100%;
+  max-width: 740px; /* 브런치와 유사한 가독성 좋은 너비 */
+  margin: 0 auto;
+  height: auto;
+  background-color: #FDFDF5; /* 더 부드러운 종이 색상 */
   border-radius: 4px;
-  /* 페이지 모서리 둥글게 */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2),
-    /* 큰 그림자 */
-    0 0 0 1px rgba(0, 0, 0, 0.05);
-  /* 얇은 테두리 그림자 */
-  position: relative;
-  transform-style: preserve-3d;
-  perspective: 1000px;
-  display: flex;
-  /* 내부 콘텐츠 정렬을 위해 */
-  flex-direction: column;
-  /* 세로 정렬 */
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.1);
+  padding: 4rem 5rem; /* 페이지 내부 여백 대폭 확대 */
+  box-sizing: border-box;
 }
 
 .page-content {
-  flex: 1;
-  /* 남은 공간을 모두 차지 */
-  padding: 2rem 3rem;
-  /* 페이지 내부 여백 */
-  line-height: 1.8;
-  /* 줄 간격 */
-  font-family: 'serif';
-  /* 가독성 좋은 폰트 */
-  color: #3D2C20;
-  text-align: justify;
-  /* 양쪽 정렬 */
-  position: relative;
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
-  /* 페이지 내부 그림자 */
+  padding: 0;
+  box-shadow: none; /* 내부 그림자 제거 */
 }
 
-/* Episode Viewer adjustments */
 .episode-viewer {
   margin-bottom: 0;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  /* 부모 요소의 높이를 채우도록 */
 }
 
 .episode-navigation {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid #EAE0D5;
 }
 
 .episode-title {
-  font-size: 1.5rem;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 1.2rem;
   font-weight: 600;
+  color: #5C4033;
   text-align: center;
   flex-grow: 1;
 }
 
+.btn-nav {
+  border: none;
+  background: none;
+  color: #8B4513;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.btn-nav:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+}
+
 .episode-content {
   background-color: transparent;
-  /* 페이지 배경색과 동일하게 */
   padding: 0;
-  border-radius: 0;
-  min-height: auto;
-  line-height: inherit;
-  white-space: pre-wrap;
+  white-space: pre-wrap; /* 자동 줄바꿈 */
+  word-break: keep-all; /* 단어 단위로 줄바꿈 (한글 가독성 향상) */
 }
 
 .episode-content p {
-  margin-bottom: 1em;
-  /* 단락 간격 */
+  font-family: 'Noto Serif KR', serif; /* 본문 명조체 */
+  font-size: 1.1rem; /* 폰트 크기 살짝 키움 */
+  line-height: 1.9; /* 줄 간격, 가장 중요! */
+  color: #3D2C20;
+  text-align: justify; /* 양쪽 정렬로 단정한 느낌 */
+  margin-bottom: 1.5em; /* 단락 간격 */
 }
 
 .page-number-container {
-  position: absolute;
-  bottom: 2rem;
-  left: 0;
-  right: 0;
+  position: static; /* 페이지 하단 고정 해제 */
   text-align: center;
+  margin-top: 3rem; /* 본문과 간격 확보 */
 }
 
 .page-number {
-  font-size: 1rem; /* 크기 줄임 */
-  font-weight: normal; /* 볼드체 제거 */
+  font-size: 1rem;
+  font-weight: normal;
+  color: #888;
 }
 
-/* Comments Section */
+/* --- 댓글 섹션 --- */
 .comments-section {
   border-top: 1px solid #EAE0D5;
-  padding-top: 2rem;
+  padding-top: 3rem;
+  margin-top: 3rem; /* 읽기 모드 컨테이너와 간격 확보 */
 }
 
 .comments-title {
+  font-family: 'Noto Serif KR', serif;
   font-size: 1.5rem;
   font-weight: 600;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #EAE0D5;
 }
 
 .comment-input-area {
   display: flex;
   gap: 1rem;
-  margin-bottom: 2rem;
+  margin-bottom: 2.5rem;
 }
 
 .comment-input-area textarea {
   flex-grow: 1;
+  border: 1px solid #EAE0D5;
+  border-radius: 6px;
+  padding: 1rem;
+  font-size: 1rem;
+}
+.comment-input-area textarea:focus {
+  outline: none;
+  border-color: #C8AD7F;
+  box-shadow: 0 0 0 2px rgba(140, 110, 72, 0.1);
+}
+.comment-input-area .btn {
+  align-self: flex-start; /* 버튼 높이를 textarea에 맞추지 않음 */
+  background-color: #5C4033;
+  color: #fff;
+  border-color: #5C4033;
 }
 
 .comment-list {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .comment-item {
-  background-color: #F5F5DC;
-  padding: 1rem;
-  border-radius: 8px;
+  background-color: transparent;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #EAE0D5; /* 배경색 대신 라인으로 구분 */
+}
+.comment-item:last-child {
+  border-bottom: none;
 }
 
 .comment-author {
   font-size: 1rem;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
 }
-
+.comment-author strong a {
+  font-weight: 600;
+  text-decoration: none;
+  color: #3D2C20;
+}
 .comment-author .comment-date {
   font-size: 0.85rem;
-  color: #8B4513;
-  margin-left: 0.5rem;
+  color: #888;
+  margin-left: 0.75rem;
+}
+
+.comment-text {
+  line-height: 1.7;
 }
 
 .loading-message {
@@ -883,4 +934,5 @@ watch(currentEpisodeIndex, () => {
   padding: 4rem;
   font-size: 1.2rem;
 }
+
 </style>

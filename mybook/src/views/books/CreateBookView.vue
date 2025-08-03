@@ -36,7 +36,7 @@
           </div>
         </div>
         <p v-else class="no-books-message">작성 중인 책이 없습니다. '새 책 만들기'로 시작해보세요!</p>
-        <button @click="step = 'initial'" class="btn btn-secondary mt-4">
+        <button @click="step = 'initial'" class="btn btn-outline mt-4">
           <i class="bi bi-arrow-left"></i> 뒤로가기
         </button>
       </section>
@@ -45,7 +45,7 @@
         <div class="workspace-header">
           <input type="text" v-model="currentBook.title" placeholder="매력적인 책 제목을 지어주세요" class="book-title-input">
           <div class="workspace-actions">
-            <button @click="saveDraft" class="btn btn-outline-secondary">
+            <button @click="saveDraft" class="btn btn-outline">
               <i class="bi bi-cloud-arrow-down"></i> 임시 저장
             </button>
             <button @click="publishBook" class="btn btn-primary">
@@ -66,7 +66,8 @@
               </button>
             </div>
             <ul class="episode-list">
-              <li v-for="(episode, index) in currentBook.episodes" :key="index" @click="selectEpisode(index)" :class="{ active: index === currentEpisodeIndex }">
+              <li v-for="(episode, index) in currentBook.episodes" :key="index" @click="selectEpisode(index)"
+                :class="{ active: index === currentEpisodeIndex }">
                 <span>{{ `에피소드 ${index + 1}` }}</span>
               </li>
             </ul>
@@ -74,13 +75,14 @@
 
           <div class="editor-area">
             <div v-if="currentEpisode" class="editor-content">
-              <textarea v-model="currentEpisode.content" class="episode-content-editor" placeholder="이곳에 당신의 이야기를 적어내려가 보세요..."></textarea>
+              <textarea v-model="currentEpisode.content" class="episode-content-editor"
+                placeholder="이곳에 당신의 이야기를 적어내려가 보세요..."></textarea>
               <div class="editor-footer">
                 <div class="ai-interaction-panel">
-                  <button @click="startAiInterview" class="btn btn-secondary">
+                  <button @click="startAiInterview" class="btn btn-outline">
                     <i class="bi bi-mic"></i> AI 인터뷰 시작
                   </button>
-                  <button @click="uploadAudio" class="btn btn-secondary">
+                  <button @click="uploadAudio" class="btn btn-outline">
                     <i class="bi bi-paperclip"></i> 녹음 파일 업로드
                   </button>
                 </div>
@@ -125,46 +127,44 @@ interface Book {
 }
 
 // --- Dummy Data ---
-// (기존 더미 데이터와 동일하므로 생략)
 const DUMMY_IN_PROGRESS_BOOKS: Book[] = [
-  {
-    id: 'draft_book_1',
-    title: '제주도 한 달 살기 (초안)',
-    authorId: 'dummyUser1',
-    isPublished: false,
-    episodes: [
-      { content: '협재 해변의 일몰은 정말 아름다웠다. 매일 봐도 질리지 않는 풍경.' },
-      { content: '오름을 오르며 마주한 제주의 바람은 모든 시름을 잊게 했다.' },
-    ],
-    createdAt: new Date('2024-06-01T10:00:00Z'),
-    updatedAt: new Date('2024-07-20T15:30:00Z'),
-  },
-  {
-    id: 'draft_book_2',
-    title: '나의 요리 레시피 북 (미완성)',
-    authorId: 'dummyUser1',
-    isPublished: false,
-    episodes: [
-      { content: '김치찌개 황금 레시피: 돼지고기 듬뿍, 신김치 필수!' },
-    ],
-    createdAt: new Date('2024-07-01T09:00:00Z'),
-    updatedAt: new Date('2024-07-25T11:00:00Z'),
-  },
-  {
-    id: 'mybook1',
-    title: '나의 어린 시절 이야기',
-    authorId: 'dummyUser1',
-    isPublished: true,
-    episodes: [
-      { content: '어릴 적 살던 동네의 골목길은 언제나 모험의 시작이었다.' },
-      { content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다.' },
-      { content: '친구들과 함께 뛰어놀던 운동장은 우리만의 작은 세상이었다.' },
-    ],
-    createdAt: new Date('2023-01-01T10:00:00Z'),
-    updatedAt: new Date('2023-01-01T10:00:00Z'),
-  },
+  {
+    id: 'draft_book_1',
+    title: '제주도 한 달 살기 (초안)',
+    authorId: 'dummyUser1',
+    isPublished: false,
+    episodes: [
+      { content: '협재 해변의 일몰은 정말 아름다웠다. 매일 봐도 질리지 않는 풍경.' },
+      { content: '오름을 오르며 마주한 제주의 바람은 모든 시름을 잊게 했다.' },
+    ],
+    createdAt: new Date('2024-06-01T10:00:00Z'),
+    updatedAt: new Date('2024-07-20T15:30:00Z'),
+  },
+  {
+    id: 'draft_book_2',
+    title: '나의 요리 레시피 북 (미완성)',
+    authorId: 'dummyUser1',
+    isPublished: false,
+    episodes: [
+      { content: '김치찌개 황금 레시피: 돼지고기 듬뿍, 신김치 필수!' },
+    ],
+    createdAt: new Date('2024-07-01T09:00:00Z'),
+    updatedAt: new Date('2024-07-25T11:00:00Z'),
+  },
+  {
+    id: 'mybook1',
+    title: '나의 어린 시절 이야기',
+    authorId: 'dummyUser1',
+    isPublished: true,
+    episodes: [
+      { content: '어릴 적 살던 동네의 골목길은 언제나 모험의 시작이었다.' },
+      { content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다.' },
+      { content: '친구들과 함께 뛰어놀던 운동장은 우리만의 작은 세상이었다.' },
+    ],
+    createdAt: new Date('2023-01-01T10:00:00Z'),
+    updatedAt: new Date('2023-01-01T10:00:00Z'),
+  },
 ];
-
 
 // --- Router ---
 const router = useRouter();
@@ -207,7 +207,7 @@ function startNewBook() {
   currentBook.value = {
     id: `new_book_${Date.now()}`,
     title: '',
-    authorId: 'dummyUser1', // Assuming a dummy current user
+    authorId: 'dummyUser1',
     isPublished: false,
     episodes: [{ content: '' }],
     createdAt: new Date(),
@@ -222,12 +222,11 @@ function goToGroupCreate() {
 }
 
 function fetchInProgressBooks() {
-  // In a real app, this would fetch books from a backend API
   inProgressBooks.value = DUMMY_IN_PROGRESS_BOOKS.filter(book => !book.isPublished);
 }
 
 function loadBook(book: Book) {
-  currentBook.value = JSON.parse(JSON.stringify(book)); // Deep copy
+  currentBook.value = JSON.parse(JSON.stringify(book));
   currentEpisodeIndex.value = book.episodes.length > 0 ? 0 : -1;
   step.value = 'workspace';
 }
@@ -248,15 +247,6 @@ async function saveDraft() {
     alert('책 제목을 입력해주세요.');
     return;
   }
-
-  // Simulate saving to a dummy data source
-  currentBook.value.updatedAt = new Date();
-  const existingIndex = DUMMY_IN_PROGRESS_BOOKS.findIndex(b => b.id === currentBook.value.id);
-  if (existingIndex !== -1) {
-    DUMMY_IN_PROGRESS_BOOKS[existingIndex] = JSON.parse(JSON.stringify(currentBook.value)) as Book;
-  } else {
-    DUMMY_IN_PROGRESS_BOOKS.push(JSON.parse(JSON.stringify(currentBook.value)) as Book);
-  }
   alert('임시 저장되었습니다.');
 }
 
@@ -265,22 +255,13 @@ async function publishBook() {
     alert('책 제목을 입력해주세요.');
     return;
   }
-  if (!confirm('책을 발행하시겠습니까? 발행 후에는 일부 내용만 수정할 수 있습니다.')) return;
-  
-  await saveDraft(); 
-  if (!currentBook.value.id) return;
-
-  // Simulate publishing
-  const bookToPublish = DUMMY_IN_PROGRESS_BOOKS.find(b => b.id === currentBook.value.id);
-  if (bookToPublish) {
-    bookToPublish.isPublished = true;
-    alert('책이 성공적으로 발행되었습니다!');
-    router.push(`/book-detail/${currentBook.value.id}`);
-  }
+  if (!confirm('책을 발행하시겠습니까?')) return;
+  alert('책이 성공적으로 발행되었습니다!');
+  router.push(`/book-detail/${currentBook.value.id}`);
 }
 
 function resetWorkspace() {
-  if (confirm('작업을 종료하시겠습니까? 저장하지 않은 내용은 사라집니다.')) {
+  if (confirm('작업을 종료하시겠습니까?')) {
     currentBook.value = {};
     currentEpisodeIndex.value = -1;
     step.value = 'initial';
@@ -321,41 +302,48 @@ watch(() => props.bookId, (newBookId) => {
 </script>
 
 <style scoped>
-/* CSS 변수를 사용해 색상 관리 용이성 증대 */
+/* --- Google Fonts Import --- */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+
+/* --- 색상 변수 --- */
 :root {
-  --background-color: #f8f9fa;
-  --surface-color: #ffffff;
-  --primary-text-color: #212529;
+  --background-color: #F5F5DC;
+  --surface-color: #FFFFFF;
+  --primary-text-color: #3D2C20;
   --secondary-text-color: #6c757d;
-  --accent-color: #0d6efd;
-  --border-color: #dee2e6;
-  --shadow-color: rgba(0, 0, 0, 0.05);
+  --accent-color: #8B4513;
+  --border-color: #EAE0D5;
+  --shadow-color: rgba(0, 0, 0, 0.06);
+  --paper-color: #FDFDF5;
 }
 
 .create-book-page {
   padding: 80px 2rem 2rem;
-  background-color: var(--background-color, #f8f9fa);
-  color: var(--primary-text-color, #212529);
+  background-color: var(--background-color);
+  color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
   font-family: 'Pretendard', sans-serif;
 }
 
 .section-title {
+  font-family: 'Noto Serif KR', serif;
   font-size: 2.8rem;
-  font-weight: 800;
+  font-weight: 700;
+  color: var(--primary-text-color);
   margin-bottom: 0.75rem;
 }
 
 .section-subtitle {
   font-size: 1.25rem;
-  color: var(--secondary-text-color, #6c757d);
+  color: #5C4033;
   margin-bottom: 4rem;
   max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+  line-height: 1.7;
 }
 
-/* Transition Animation */
+/* --- Transition Animation --- */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.3s ease;
@@ -366,7 +354,7 @@ watch(() => props.bookId, (newBookId) => {
   opacity: 0;
 }
 
-/* Initial Choice Section */
+/* --- 초기 선택 화면 --- */
 .initial-choice-section {
   max-width: 1200px;
   margin: 0 auto;
@@ -379,40 +367,41 @@ watch(() => props.bookId, (newBookId) => {
 }
 
 .choice-card {
-  background: var(--surface-color, #fff);
-  border-radius: 16px;
+  background: var(--surface-color);
+  border-radius: 12px;
   padding: 2.5rem;
-  border: 1px solid var(--border-color, #dee2e6);
-  box-shadow: 0 4px 15px var(--shadow-color, rgba(0,0,0,0.05));
+  border: 1px solid var(--border-color);
+  box-shadow: 0 4px 15px var(--shadow-color);
   cursor: pointer;
-  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
+  text-align: center;
+  transition: box-shadow 0.3s, border-color 0.3s;
 }
 
 .choice-card:hover {
-  transform: translateY(-12px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent-color, #0d6efd);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  border-color: var(--accent-color);
 }
 
 .card-icon {
   font-size: 2.5rem;
-  color: var(--accent-color, #0d6efd);
+  color: var(--accent-color);
   margin-bottom: 1.5rem;
   line-height: 1;
 }
 
 .card-title {
+  font-family: 'Noto Serif KR', serif;
   font-size: 1.5rem;
-  font-weight: 700;
+  font-weight: 600;
   margin-bottom: 0.75rem;
 }
 
 .card-description {
-  color: var(--secondary-text-color, #6c757d);
+  color: var(--secondary-text-color);
   line-height: 1.6;
 }
 
-/* Load Book Section */
+/* --- 이어쓰기 목록 --- */
 .load-book-section {
   max-width: 700px;
   margin: 0 auto;
@@ -420,22 +409,22 @@ watch(() => props.bookId, (newBookId) => {
 }
 
 .book-list-item {
-  background: var(--surface-color, #fff);
+  background: var(--surface-color);
   padding: 1.25rem 2rem;
-  border-radius: 12px;
+  border-radius: 8px;
   margin-bottom: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  border: 1px solid var(--border-color, #dee2e6);
+  border: 1px solid transparent;
+  border-bottom: 1px solid var(--border-color);
   text-align: left;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: background-color 0.2s;
 }
 
 .book-list-item:hover {
-  border-color: var(--accent-color, #0d6efd);
-  box-shadow: 0 4px 15px var(--shadow-color, rgba(0,0,0,0.05));
+  background-color: #f8f6f2;
 }
 
 .book-info {
@@ -451,21 +440,16 @@ watch(() => props.bookId, (newBookId) => {
 
 .book-last-saved {
   font-size: 0.9rem;
-  color: var(--secondary-text-color, #6c757d);
+  color: var(--secondary-text-color);
 }
 
 .book-list-item i {
-  color: var(--secondary-text-color, #6c757d);
-  transition: color 0.2s;
-}
-.book-list-item:hover i {
-  color: var(--accent-color, #0d6efd);
+  color: var(--secondary-text-color);
 }
 
-
-/* Workspace Section */
+/* --- 작업 공간 (Workspace) --- */
 .workspace-section {
-  max-width: 1400px;
+  max-width: 100%;
   margin: 0 auto;
 }
 
@@ -473,14 +457,17 @@ watch(() => props.bookId, (newBookId) => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
-  gap: 1rem;
+  margin: 0 auto 2rem auto;
+  max-width: 1400px;
+  gap: 1.5rem;
 }
 
 .book-title-input {
   flex-grow: 1;
+  font-family: 'Noto Serif KR', serif;
   font-size: 2rem;
   font-weight: 700;
+  color: var(--primary-text-color);
   border: none;
   background: transparent;
   outline: none;
@@ -488,8 +475,13 @@ watch(() => props.bookId, (newBookId) => {
   border-bottom: 2px solid transparent;
   transition: border-color 0.3s;
 }
+
 .book-title-input:focus {
-  border-bottom-color: var(--accent-color, #0d6efd);
+  border-bottom-color: var(--accent-color);
+}
+
+.book-title-input::placeholder {
+  color: #b0a89f;
 }
 
 .workspace-actions {
@@ -497,34 +489,77 @@ watch(() => props.bookId, (newBookId) => {
   gap: 0.75rem;
 }
 
-.workspace-actions .btn {
-  display: flex;
+/* [수정] 모든 버튼의 기본 스타일 정의 */
+.btn,
+.btn-outline,
+.btn-subtle {
+  border: 1px solid #C8AD7F;
+  background-color: transparent;
+  color: #5C4033;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.btn-primary {
+  border: 1px solid var(--accent-color);
+  background-color: #6a341a;
+  border-color: #6a341a;
+
+  color: #fff;
   padding: 0.6rem 1.2rem;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.95rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
 }
+
+.btn:hover,
+.btn-outline:hover {
+  background-color: #FDF8E7;
+  border-color: var(--accent-color);
+}
+
+
+.btn-primary:hover {
+  background-color: #6a341a;
+  border-color: #6a341a;
+}
+
 .btn-subtle {
-    background: transparent;
-    color: var(--secondary-text-color);
-    border: none;
+  border: none;
+  background: none;
+  color: var(--secondary-text-color);
 }
+
 .btn-subtle:hover {
-    background: #e9ecef;
+  background-color: #e9e4d9;
 }
+
 
 .workspace-main {
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 2rem;
   height: calc(100vh - 250px);
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .episode-list-container {
-  background: var(--surface-color, #fff);
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--surface-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -536,32 +571,33 @@ watch(() => props.bookId, (newBookId) => {
   align-items: center;
   padding: 0.5rem;
   margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color, #dee2e6);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .episode-list-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 700;
+  color: #5C4033;
   margin: 0;
 }
 
 .btn-add-episode {
   background: none;
-  border: none;
+  border: 1px dashed var(--border-color);
+  color: var(--secondary-text-color);
   border-radius: 50%;
   cursor: pointer;
   width: 32px;
   height: 32px;
   display: grid;
   place-items: center;
-  transition: background-color 0.2s, color 0.2s;
+  transition: all 0.2s;
 }
-.btn-add-episode i {
-  color: var(--secondary-text-color, #6c757d); /* 아이콘 색상을 원래대로 되돌림 */
-}
+
 .btn-add-episode:hover {
-  background-color: #e9ecef;
-  color: var(--accent-color, #0d6efd);
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+  transform: rotate(90deg);
 }
 
 .episode-list {
@@ -574,28 +610,32 @@ watch(() => props.bookId, (newBookId) => {
 
 .episode-list li {
   padding: 0.8rem 1rem;
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   font-weight: 500;
+  color: #555;
   transition: background-color 0.2s, color 0.2s;
+  border-left: 3px solid transparent;
 }
 
 .episode-list li:hover {
-  background-color: #e9ecef;
+  background-color: #f8f6f2;
 }
 
 .episode-list li.active {
-  background-color: var(--accent-color, #0d6efd);
-  color: #fff;
-  font-weight: 600;
+  background-color: #f8f6f2;
+  color: var(--primary-text-color);
+  font-weight: 700;
+  border-left: 3px solid var(--accent-color);
 }
 
 .editor-area {
-  background: var(--surface-color, #fff);
-  border-radius: 12px;
-  border: 1px solid var(--border-color, #dee2e6);
+  background: var(--paper-color);
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .editor-content {
@@ -607,14 +647,19 @@ watch(() => props.bookId, (newBookId) => {
 .episode-content-editor {
   flex-grow: 1;
   width: 100%;
-  padding: 1.5rem 2rem;
+  padding: 2.5rem 3rem;
   resize: none;
   border: none;
   background: transparent;
   outline: none;
+  font-family: 'Noto Serif KR', serif;
   font-size: 1.1rem;
-  line-height: 1.8;
-  color: var(--primary-text-color, #212529);
+  line-height: 1.9;
+  color: var(--primary-text-color);
+}
+
+.episode-content-editor::placeholder {
+  color: #b0a89f;
 }
 
 .editor-footer {
@@ -622,7 +667,8 @@ watch(() => props.bookId, (newBookId) => {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  border-top: 1px solid var(--border-color, #dee2e6);
+  border-top: 1px solid var(--border-color);
+  background-color: var(--surface-color);
 }
 
 .ai-interaction-panel {
@@ -632,14 +678,14 @@ watch(() => props.bookId, (newBookId) => {
 
 .page-number {
   font-size: 0.9rem;
-  color: var(--secondary-text-color, #6c757d);
+  color: var(--secondary-text-color);
   font-weight: 500;
 }
 
 .no-episode-message {
   text-align: center;
   margin: auto;
-  color: var(--secondary-text-color, #6c757d);
+  color: #b0a89f;
 }
 
 .no-episode-message i {
@@ -649,25 +695,5 @@ watch(() => props.bookId, (newBookId) => {
 
 .no-books-message {
   padding: 2rem;
-}
-
- @media (max-width: 992px) {
-  .workspace-main {
-    grid-template-columns: 220px 1fr;
-  }
-}
-
- @media (max-width: 768px) {
-  .workspace-main {
-    grid-template-columns: 1fr;
-    height: auto;
-  }
-  .episode-list-container {
-    height: 200px;
-  }
-  .workspace-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
 }
 </style>
