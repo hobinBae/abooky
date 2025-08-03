@@ -24,7 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class WhisperSttClient implements SttClient {
 
-    @Value("${openai.api.key}")
+    @Value("${openai.api-key}")
     private String apiKey;
 
     private RestTemplate restTemplate;

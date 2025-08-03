@@ -1,18 +1,14 @@
 package com.c203.autobiography.domain.stt.controller;
 
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationMessageRequest;
-import com.c203.autobiography.domain.episode.conversation.dto.ConversationMessageResponse;
-import com.c203.autobiography.domain.episode.conversation.dto.MessageType;
-import com.c203.autobiography.domain.episode.conversation.service.ConversationService;
+import com.c203.autobiography.domain.episode.dto.ConversationMessageRequest;
+import com.c203.autobiography.domain.episode.dto.ConversationMessageResponse;
+import com.c203.autobiography.domain.episode.dto.MessageType;
+import com.c203.autobiography.domain.episode.service.ConversationService;
 import com.c203.autobiography.domain.sse.service.SseService;
-import com.c203.autobiography.domain.stt.client.SttClient;
-import com.c203.autobiography.domain.stt.dto.SttRequest;
 import com.c203.autobiography.domain.stt.dto.SttResponse;
-import com.c203.autobiography.domain.stt.dto.TranscriptRequest;
 import com.c203.autobiography.domain.stt.dto.TranscriptResponse;
 import com.c203.autobiography.domain.stt.service.SttService;
-import com.c203.autobiography.domain.stt.service.SttServiceImpl;
-import com.c203.autobiography.domain.template.dto.QuestionResponse;
+import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import com.c203.autobiography.global.dto.ApiResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Min;
@@ -34,16 +30,6 @@ public class SttController {
     private final SseService sseService;
     private final ConversationService conversationService;
 
-//    @PostMapping(value = "/whisper", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-//    public SttResponse recognizeWithWhisper(@RequestPart("audio") MultipartFile audio,
-//                                            @RequestParam(required = false) String customProperNouns) {
-//        SttRequest req = SttRequest.builder()
-//                .audio(audio)
-//                // customProperNouns는 optional, null 허용
-//                .build();
-//        // 서비스 메서드 호출: customProperNouns 전달
-//        return sttService.recognize(audio, customProperNouns);
-//    }
 
     @PostMapping(value = "/chunk", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Void>> processChunk(
@@ -91,20 +77,19 @@ public class SttController {
             String fullText = history.stream()
                     .map(ConversationMessageResponse::getContent)
                     .collect(Collectors.joining(" "));
-
-            // SSE로 최종 인식 결과 푸시
             TranscriptResponse finalDto = TranscriptResponse.builder()
                     .chunkIndex(chunkIndex)
                     .text(fullText)
                     .build();
             sseService.pushFinalTranscript(sessionId, finalDto);
 
-            // 다음 질문 생성 및 푸시
-            String next = conversationService.getNextQuestion(sessionId);
-            QuestionResponse question = QuestionResponse.builder()
-                    .text(next)
-                    .build();
-            sseService.pushQuestion(sessionId, question);
+            // 3) 다음 질문 준비 완료 알림만
+            sseService.pushQuestion(
+                    sessionId,
+                    QuestionResponse.builder()
+                            .text("🔔 다음 질문이 준비되었습니다. 버튼을 눌러주세요.")
+                            .build()
+            );
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
