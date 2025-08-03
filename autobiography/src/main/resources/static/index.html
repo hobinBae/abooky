@@ -28,17 +28,8 @@
             transition: width 0.1s ease;
         }
 
-        .settings {
-            background: #f9f9f9;
-            padding: 1rem;
-            border-radius: 5px;
-            margin: 1rem 0;
-        }
-
-        .settings label {
-            display: block;
-            margin: 0.5rem 0;
-        }
+        .settings { background: #f9f9f9; padding: 1rem; border-radius: 5px; margin: 1rem 0; }
+        .settings label { display: block; margin: .5rem 0; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
@@ -47,15 +38,11 @@
 <div id="messages"></div>
 
 <div class="settings">
-    <label>
-        <input type="checkbox" id="enableVAD" checked /> VAD (음성 활동 감지) 사용
-    </label>
-    <label>
-        음성 감지 임계값: <span id="thresholdValue">0.01</span>
+    <label><input type="checkbox" id="enableVAD" checked /> VAD (음성 활동 감지) 사용</label>
+    <label>음성 감지 임계값: <span id="thresholdValue">0.01</span>
         <input type="range" id="threshold" min="0.001" max="0.1" step="0.001" value="0.01" />
     </label>
-    <label>
-        무음 허용 시간 (초): <span id="silenceTimeValue">10</span>
+    <label>무음 허용 시간 (초): <span id="silenceTimeValue">10</span>
         <input type="range" id="silenceTime" min="1" max="30" step="1" value="10" />
     </label>
 </div>
@@ -68,37 +55,33 @@
 <button id="startBtn">▶ 에피소드 시작</button>
 <button id="recordBtn" disabled>🎙️ 녹음 시작</button>
 <button id="stopBtn" disabled>⏹️ 녹음 중지</button>
+<button id="nextQuestionBtn" disabled>▶ 다음 질문 받기</button>
 
 <script>
-    const msgs        = document.getElementById('messages');
+    const msgs = document.getElementById('messages');
     const properInput = document.getElementById('properInput');
-    const startBtn    = document.getElementById('startBtn');
-    const recordBtn   = document.getElementById('recordBtn');
-    const stopBtn     = document.getElementById('stopBtn');
-    const enableVAD   = document.getElementById('enableVAD');
-    const threshold   = document.getElementById('threshold');
+    const startBtn = document.getElementById('startBtn');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+    const enableVAD = document.getElementById('enableVAD');
+    const threshold = document.getElementById('threshold');
     const thresholdValue = document.getElementById('thresholdValue');
     const silenceTime = document.getElementById('silenceTime');
     const silenceTimeValue = document.getElementById('silenceTimeValue');
     const audioLevelBar = document.getElementById('audioLevelBar');
 
-    let sessionId   = crypto.randomUUID();
-    let episodeId   = 1;
-    let chunkIndex  = 0;
+    let sessionId = crypto.randomUUID();
+    let episodeId = 1;
+    let chunkIndex = 0;
     let source, mediaRecorder, stream, chunkTimer, audioContext, analyser;
     let isRecording = false;
     let currentAudioLevel = 0;
     let lastSpeechTime = 0;
     let voiceDetected = false;
 
-    // 설정값 업데이트
-    threshold.oninput = () => {
-        thresholdValue.textContent = threshold.value;
-    };
-
-    silenceTime.oninput = () => {
-        silenceTimeValue.textContent = silenceTime.value;
-    };
+    threshold.oninput = () => thresholdValue.textContent = threshold.value;
+    silenceTime.oninput = () => silenceTimeValue.textContent = silenceTime.value;
 
     function append(txt, cls='ai') {
         const d = document.createElement('div');
@@ -108,177 +91,101 @@
         msgs.scrollTop = msgs.scrollHeight;
     }
 
-    // 오디오 레벨 분석 함수
     function analyzeAudio() {
         if (!analyser) return;
-
-        const bufferLength = analyser.frequencyBinCount;
-        const dataArray = new Uint8Array(bufferLength);
+        const dataArray = new Uint8Array(analyser.frequencyBinCount);
         analyser.getByteFrequencyData(dataArray);
-
-        // RMS (Root Mean Square) 계산
-        let sum = 0;
-        for (let i = 0; i < bufferLength; i++) {
-            sum += dataArray[i] * dataArray[i];
-        }
-        const rms = Math.sqrt(sum / bufferLength);
-        currentAudioLevel = rms / 255; // 0-1 범위로 정규화
-
-        // 오디오 레벨 바 업데이트
-        audioLevelBar.style.width = (currentAudioLevel * 100) + '%';
-
-        // 음성 감지 로직
+        let sum = dataArray.reduce((acc,v) => acc + v*v, 0);
+        const rms = Math.sqrt(sum / dataArray.length);
+        currentAudioLevel = rms / 255;
+        audioLevelBar.style.width = (currentAudioLevel*100) + '%';
         const currentThreshold = parseFloat(threshold.value);
-        const currentSilenceTime = parseFloat(silenceTime.value) * 1000; // ms로 변환
-
+        const currentSilenceTime = parseFloat(silenceTime.value)*1000;
         if (currentAudioLevel > currentThreshold) {
             lastSpeechTime = Date.now();
-            if (!voiceDetected) {
-                voiceDetected = true;
-                append('🎤 음성 감지됨', 'system');
-            }
+            if (!voiceDetected) { voiceDetected = true; append('🎤 음성 감지됨','system'); }
         } else if (voiceDetected && Date.now() - lastSpeechTime > currentSilenceTime) {
-            voiceDetected = false;
-            append('🔇 음성 중단 감지', 'system');
+            voiceDetected = false; append('🔇 음성 중단 감지','system');
         }
-
-        if (isRecording) {
-            requestAnimationFrame(analyzeAudio);
-        }
+        if (isRecording) requestAnimationFrame(analyzeAudio);
     }
 
     startBtn.onclick = () => {
         source = new EventSource(
-            `http://localhost:8080/api/stream/questions?sessionId=${sessionId}&episodeId=${episodeId}`
+            `http://localhost:8080/api/conversation/stream?sessionId=${sessionId}`
         );
-        // 1) AI 질문
         source.addEventListener('question', e => {
             const { text } = JSON.parse(e.data);
-            append(`AI: ${text}`, 'ai');
+            append(`AI: ${text}`,'ai');
             recordBtn.disabled = false;
+            nextQuestionBtn.disabled = true;
         });
-        // 2) 중간 STT
         source.addEventListener('partialTranscript', e => {
             const { chunkIndex, text } = JSON.parse(e.data);
-            append(`(${chunkIndex}) 음성 인식 중… ${text}`, 'user');
+            append(`(${chunkIndex}) 음성 인식 중… ${text}`,'user');
         });
-        // 3) 최종 STT
         source.addEventListener('finalTranscript', e => {
             const { chunkIndex, text } = JSON.parse(e.data);
-            append(`✅ 최종 인식 (#${chunkIndex}): ${text}`, 'user');
+            append(`✅ 최종 인식 (#${chunkIndex}): ${text}`,'user');
+            // STT 검토 후 확정
+            nextQuestionBtn.disabled = false;
         });
-        source.addEventListener('error', () => {
-            append('❌ SSE 에러', 'error');
-            source.close();
-        });
-
-        append(`세션 열림: ${sessionId}`, 'user');
+        source.addEventListener('error', () => { append('❌ SSE 에러','error'); source.close(); });
+        append(`세션 열림: ${sessionId}`,'system');
         startBtn.disabled = true;
     };
 
     recordBtn.onclick = async () => {
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-            // 오디오 컨텍스트 설정
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const source = audioContext.createMediaStreamSource(stream);
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 2048;
-            source.connect(analyser);
-
-            isRecording = true;
-            voiceDetected = false;
-            lastSpeechTime = Date.now();
-
-            startChunkRecorder();
-            analyzeAudio(); // 오디오 분석 시작
-
-            append('🎙️ 녹음 시작 (음성 활동 감지 모드)', 'user');
-            recordBtn.disabled = true;
-            stopBtn.disabled   = false;
-        } catch (err) {
-            append('❌ 마이크 접근 오류: ' + err.message, 'error');
-        }
+            stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+            audioContext = new (window.AudioContext||window.webkitAudioContext)();
+            const mic = audioContext.createMediaStreamSource(stream);
+            analyser = audioContext.createAnalyser(); mic.connect(analyser);
+            isRecording = true; voiceDetected = false; lastSpeechTime = Date.now();
+            startChunkRecorder(); analyzeAudio();
+            append('🎙️ 녹음 시작 (음성 활동 감지)','system');
+            recordBtn.disabled = true; stopBtn.disabled = false;
+        } catch(err){ append('❌ 마이크 오류: '+err.message,'error'); }
     };
 
     stopBtn.onclick = () => {
-        isRecording = false;
-        voiceDetected = false;
-        clearTimeout(chunkTimer);
-
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-            mediaRecorder.stop();
-        }
-
-        if (stream) {
-            stream.getTracks().forEach(t => t.stop());
-        }
-
-        if (audioContext) {
-            audioContext.close();
-            audioContext = null;
-            analyser = null;
-        }
-
-        // 오디오 레벨 바 초기화
+        isRecording = false; voiceDetected = false; clearTimeout(chunkTimer);
+        if(mediaRecorder?.state==='recording') mediaRecorder.stop();
+        stream?.getTracks().forEach(t=>t.stop());
+        audioContext?.close(); audioContext = analyser = null;
         audioLevelBar.style.width = '0%';
-
-        append('🔊 녹음 완전 종료', 'user');
-        stopBtn.disabled   = true;
-        recordBtn.disabled = false;
+        append('🔊 녹음 중지','user');
+        stopBtn.disabled = true; recordBtn.disabled = false;
     };
 
-    // 개선된 청크 레코더 (VAD 적용)
     function startChunkRecorder() {
-        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' });
-
+        mediaRecorder = new MediaRecorder(stream,{ mimeType:'audio/webm;codecs=opus' });
         mediaRecorder.ondataavailable = async e => {
-            if (!e.data || e.data.size === 0) return;
-
-            // VAD가 활성화된 경우에만 음성 체크
-            if (e.data.size < 1000) {
-                append(`🧹 무음 청크 무시됨 (size=${e.data.size})`, 'system');
-                chunkIndex++;
-                return;
-            }
+            if(!e.data||e.data.size<1000){ chunkIndex++; append(`🧹 무음 청크 무시 (size=${e.data.size})`,'system'); return; }
             const form = new FormData();
-            form.append('sessionId', sessionId);
-            form.append('chunkIndex', chunkIndex++);
-            form.append('audio', e.data, 'audio.webm');
-            form.append('finalTranscript', 'false');
-            form.append('audioLevel', currentAudioLevel.toFixed(3)); // 오디오 레벨 정보 추가
-
-            const cpns = properInput.value.trim();
-            if (cpns) form.append('customProperNouns', cpns);
-
+            form.append('sessionId',sessionId);
+            form.append('chunkIndex',chunkIndex);
+            form.append('audio',e.data,'audio.webm');
+            form.append('finalTranscript','false');
+            form.append('audioLevel',currentAudioLevel.toFixed(3));
+            if(properInput.value.trim()) form.append('customProperNouns',properInput.value.trim());
+            append(`📤 청크 #${chunkIndex} 전송중...`,'system');
+            chunkIndex++;
             try {
-                const statusMsg = enableVAD.checked ?
-                    `📤 청크 #${chunkIndex-1} 전송 중... (레벨: ${(currentAudioLevel*100).toFixed(1)}%)` :
-                    `📤 청크 #${chunkIndex-1} 전송 중... (VAD 비활성화)`;
-                append(statusMsg, 'system');
-                await axios.post('http://localhost:8080/api/stt/chunk', form, { timeout: 60000 });
-            } catch (err) {
-                append('❌ STT 오류: ' + (err.response?.data?.message || err.message), 'error');
-            }
+                await axios.post('http://localhost:8080/api/stt/chunk',form,{ timeout:60000 });
+            } catch(err){ append('❌ STT 오류: '+err.message,'error'); }
         };
-
-        mediaRecorder.onstop = () => {
-            if (isRecording) {
-                // 다음 청크 녹음을 바로 시작
-                startChunkRecorder();
-            }
-        };
-
+        mediaRecorder.onstop = () => { if(isRecording) startChunkRecorder(); };
         mediaRecorder.start();
-
-        // 3초 뒤에 stop() 호출
-        chunkTimer = setTimeout(() => {
-            if (mediaRecorder.state === 'recording') {
-                mediaRecorder.stop();
-            }
-        }, 6000);
+        chunkTimer = setTimeout(()=>{ if(mediaRecorder.state==='recording') mediaRecorder.stop(); },6000);
     }
+
+    nextQuestionBtn.onclick = async () => {
+        nextQuestionBtn.disabled = true;
+        try {
+            await axios.post('http://localhost:8080/api/conversation/next', null, { params:{ sessionId } });
+        } catch(err){ append('❌ 다음 질문 요청 오류: '+err.message,'error'); nextQuestionBtn.disabled = false; }
+    };
 </script>
 </body>
 </html>
