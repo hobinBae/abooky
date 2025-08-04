@@ -13,7 +13,7 @@ public class OpenAiProperties {
     private String model = "gpt-4o-mini";
 
     // 타임아웃, 토큰수, 온도 등 설정
-    private int requestTimeoutSec = 10;
+    private int requestTimeoutSec = 30;
     private int maxTokensFollowup  = 50;
     private int maxTokensNext      = 100;
     private double temperature     = 0.7;

@@ -1,5 +1,7 @@
 package com.c203.autobiography.domain.episode.entity;
 
+import com.c203.autobiography.domain.book.Entity.Book;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -10,9 +12,12 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Lob;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -47,8 +52,10 @@ public class Episode {
     )
     private Book book;
 
+    //테스트 코드
+    @Builder.Default
     @Column(nullable = false, length = 100)
-    private String title;
+    private String title = "테스트";
 
     @Column(name = "episode_date")
     private LocalDate episodeDate;
@@ -73,6 +80,16 @@ public class Episode {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    /**
+     * 태그 추가
+     *
+     */
+    @OneToMany(
+            mappedBy = "episode",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<EpisodeTag> tags = new ArrayList<>();
 
     // — 도메인 메서드 추가 —
     /**
@@ -97,5 +114,19 @@ public class Episode {
      */
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
+    }
+
+    /**
+     * 태그를 추가합니다.
+     */
+    public void addTag(Tag tag) {
+        EpisodeTag link = EpisodeTag.of(this, tag);
+        tags.add(link);
+    }
+    /**
+     * 태그를 제거합니다.
+     */
+    public void removeTag(Tag tag) {
+        tags.removeIf(link -> link.getTag().equals(tag));
     }
 }

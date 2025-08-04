@@ -23,8 +23,11 @@ public enum ErrorCode {
     INVALID_IMAGE_URL("INVALID_IMAGE_URL", HttpStatus.BAD_REQUEST, "잘못된 이미지 URL입니다."),
 
     EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
-    NICKNAME_ALREADY_EXISTS("NICKNAME_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다.");
+    NICKNAME_ALREADY_EXISTS("NICKNAME_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
 
+    // book 관련 에러
+    BOOK_CATEGORY_NOT_FOUND("BOOK_CATEGORY_NOT_FOUND", HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
+    BOOK_NOT_FOUND("BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다.");
     //
     // 필요한 에러 코드 계속 추가
 
