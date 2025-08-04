@@ -43,8 +43,8 @@ function initScene() {
   camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
   camera.position.set(7.3, 25, 30)
 
-  renderer = new THREE.WebGLRenderer({ antialias: true })
-  renderer.setPixelRatio(window.devicePixelRatio)
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
@@ -81,8 +81,8 @@ function setupLights() {
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
   dirLight.position.set(30, 30, 10);
   dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 2048;
-  dirLight.shadow.mapSize.height = 2048;
+  dirLight.shadow.mapSize.width = 1024;
+  dirLight.shadow.mapSize.height = 1024;
   dirLight.shadow.camera.near = 1;
   dirLight.shadow.camera.far = 100;
   dirLight.shadow.camera.left = -100;
@@ -236,7 +236,7 @@ function createHotspots() {
     console.log("책 만들기 핫스팟 클릭됨! 카메라 이동 시작.");
     controls.enabled = false;
     const tl = gsap.timeline({
-      onUpdate: () => controls.update(),
+      onUpdate: () => { controls.update() },
       onComplete: () => {
         controls.enabled = true;
         emit('hotspot', 'create');
@@ -246,7 +246,7 @@ function createHotspots() {
     tl.to(camera.position, { x: 2, y: 3, z: 1, duration: 1 })
     tl.to(controls.target, { x: 10, y: 3, z: 1, duration: 1 }, '<')
     tl.to(camera.position, { x: 8.5, y: 2, z: 1, duration: 3 })
-    tl.to(controls.target, { x: 8.5, y: 2, z: -3, duration: 3 }, '<')
+    tl.to(controls.target, { x: 8.5, y: 2, z: -3, duration: 3 }, '<');
   }))
 
   hotspots.forEach(h => scene.add(h))
@@ -264,7 +264,7 @@ function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, onClick: () =
 function moveCameraTo(px: number, py: number, pz: number, tx: number, ty: number, tz: number, onCompleteCallback?: () => void) {
   controls.enabled = false;
   const tl = gsap.timeline({
-    onUpdate: () => controls.update(),
+    onUpdate: () => { controls.update() },
     onComplete: () => {
       controls.enabled = true;
       if (onCompleteCallback) {
@@ -281,7 +281,7 @@ function moveToYard() {
     console.log("moveToYard: 마당으로 카메라 이동 시작.");
     controls.enabled = false;
     const tl = gsap.timeline({
-        onUpdate: () => controls.update(),
+        onUpdate: () => { controls.update() },
         onComplete: () => {
             controls.enabled = true;
             console.log("moveToYard: 마당으로 카메라 이동 완료.");
