@@ -50,6 +50,8 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/", "/index.html", "/js/**", "/css/**", "/img/**")
+                        .permitAll()
                         .requestMatchers(
                                 "/api/v1/members/register",
                                 "/api/v1/auth/login",
@@ -63,7 +65,10 @@ public class SecurityConfig {
                                 "/swagger-ui/**",
                                 "/swagger-resources/**",
                                 "/swagger-ui.html",
-                                "/webjars/**"
+                                "/webjars/**",
+                                "/api/stt/**",
+                                "/api/stream/**",
+                                "/api/conversation/**"
                                 ).permitAll()
                         .requestMatchers("/api/v1/members/**").hasAnyAuthority("MEMBER", "ADMIN")
                         .anyRequest().authenticated())
