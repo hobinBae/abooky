@@ -30,11 +30,17 @@
           <div class="video-grid">
             <div class="video-participant">
               <video :srcObject="localStream" autoplay muted playsinline class="participant-video"></video>
-              <div class="participant-name">나</div>
+              <div class="participant-name local-participant-name" @click="toggleAudio">
+                <i class="bi me-2" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                나
+              </div>
             </div>
             <div v-for="p in remoteParticipants" :key="p.id" class="video-participant">
               <div class="participant-video-placeholder">{{ p.name }}</div>
-              <div class="participant-name">{{ p.name }}</div>
+              <div class="participant-name">
+                <i class="bi me-2" :class="p.isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                {{ p.name }}
+              </div>
             </div>
           </div>
         </div>
@@ -82,6 +88,7 @@ interface RemoteParticipant {
   id: string;
   name: string;
   stream?: MediaStream;
+  isAudioEnabled: boolean;
 }
 
 // --- Router ---
@@ -96,7 +103,7 @@ const localStream = ref<MediaStream | null>(null);
 const isAudioEnabled = ref(true);
 const isVideoEnabled = ref(true);
 
-const remoteParticipants = ref<RemoteParticipant[]>([{ id: 'user2', name: '김철수' }, { id: 'user3', name: '이영희' }]);
+const remoteParticipants = ref<RemoteParticipant[]>([{ id: 'user2', name: '김철수', isAudioEnabled: true }, { id: 'user3', name: '이영희', isAudioEnabled: false }]);
 const transcript = ref<TranscriptLine[]>([
   { speaker: '나', text: '안녕하세요, 오늘 회의를 시작하겠습니다.' },
   { speaker: '김철수', text: '네, 안녕하세요. 첫 번째 에피소드부터 이야기해볼까요?' },
@@ -330,6 +337,12 @@ onUnmounted(() => {
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
   font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+}
+
+.local-participant-name {
+  cursor: pointer;
 }
 
 .ai-helper-card {
