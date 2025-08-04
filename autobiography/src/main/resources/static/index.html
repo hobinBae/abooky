@@ -118,7 +118,7 @@
             const { text } = JSON.parse(e.data);
             append(`AI: ${text}`,'ai');
             recordBtn.disabled = false;
-            nextQuestionBtn.disabled = true;
+            nextQuestionBtn.disabled = false;
         });
         source.addEventListener('partialTranscript', e => {
             const { chunkIndex, text } = JSON.parse(e.data);
@@ -166,7 +166,7 @@
             form.append('sessionId',sessionId);
             form.append('chunkIndex',chunkIndex);
             form.append('audio',e.data,'audio.webm');
-            form.append('finalTranscript','false');
+            form.append('finalTranscript','true');
             form.append('audioLevel',currentAudioLevel.toFixed(3));
             if(properInput.value.trim()) form.append('customProperNouns',properInput.value.trim());
             append(`📤 청크 #${chunkIndex} 전송중...`,'system');
