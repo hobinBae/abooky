@@ -6,6 +6,8 @@ import com.c203.autobiography.domain.ai.service.OpenAiService;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springdoc.core.service.OpenAPIService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -18,13 +20,12 @@ import java.util.stream.Collectors;
 @Component
 @RequiredArgsConstructor
 public class OpenAiClient implements AiClient{
-
+    private static final Logger log = LoggerFactory.getLogger(OpenAiClient.class);
     private final OpenAiService openAiService;
     private final OpenAiProperties props;
 
     @Override
     public String generateFollowUp(String lastAnswer){
-
         // 시스템 프롬프트: 후속 질문을 만들어 달라고 지시
         ChatMessage system = ChatMessage.of("system", props.getFollowupSystem());
 
