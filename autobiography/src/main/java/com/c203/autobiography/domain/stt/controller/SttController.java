@@ -70,10 +70,7 @@ public class SttController {
                             .chunkIndex(chunkIndex)
                             .content(sttResp.getText())
                             .build()
-
             );
-            // 마지막 질문 다시 저장 로직 제거 - 중복 방지
-
 
             // SSE로 최종 인식 결과 푸시
             List<ConversationMessageResponse> history = conversationService.getHistory(sessionId);
@@ -96,7 +93,7 @@ public class SttController {
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                        .body(ApiResponse.of(HttpStatus.CREATED, "성공", null, httpRequest.getRequestURI()));
+                .body(ApiResponse.of(HttpStatus.CREATED, "성공", null, httpRequest.getRequestURI()));
     }
 
 }
