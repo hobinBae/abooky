@@ -113,4 +113,25 @@ public class ConversationController {
             @PathVariable String sessionId) {
         return ResponseEntity.ok(convService.getHistory(sessionId));
     }
+    @PostMapping("/next")
+    public ResponseEntity<Void> nextQuestion(@RequestParam String sessionId) {
+        // 1) 서비스에서 다음 질문 꺼내기
+        String next = convService.getNextQuestion(sessionId);
+        if (next != null) {
+            // 2) DB에 QUESTION 메시지 저장
+            convService.createMessage(
+                    ConversationMessageRequest.builder()
+                            .sessionId(sessionId)
+                            .messageType(MessageType.QUESTION)
+                            .content(next)
+                            .build()
+            );
+            // 3) SSE로 클라이언트에 푸시
+            sseService.pushQuestion(
+                    sessionId,
+                    QuestionResponse.builder().text(next).build()
+            );
+        }
+        return ResponseEntity.ok().build();
+    }
 }
