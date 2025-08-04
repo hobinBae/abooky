@@ -52,25 +52,7 @@
       <p>그룹 정보를 불러오는 중입니다...</p>
     </div>
 
-    <!-- Invite Modal -->
-    <div v-if="showInviteModal" class="modal-backdrop">
-      <div class="modal-dialog">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h2 class="modal-title">그룹에 멤버 초대하기</h2>
-            <button @click="showInviteModal = false" class="btn-close"></button>
-          </div>
-          <div class="modal-body">
-            <label for="invite-input" class="form-label">초대할 멤버의 아이디 또는 닉네임:</label>
-            <input v-model="inviteQuery" type="text" class="form-control" placeholder="아이디 또는 닉네임 입력">
-          </div>
-          <div class="modal-footer">
-            <button @click="showInviteModal = false" class="btn btn-secondary">취소</button>
-            <button @click="inviteMember" class="btn btn-primary">초대 보내기</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    
   </div>
 </template>
 
@@ -135,18 +117,28 @@ const groupId = ref(route.params.id as string);
 const group = ref<Group | null>(null);
 const integratedBook = ref<Book | null>(null);
 const memberBooks = ref<Book[]>([]);
-const showInviteModal = ref(false);
-const inviteQuery = ref('');
+
 
 // --- Functions ---
 function fetchGroupData() {
-  const foundGroup = DUMMY_GROUPS.find(g => g.id === groupId.value);
+  let currentGroupId = groupId.value;
+  if (!currentGroupId) {
+    // 임시로 첫 번째 더미 그룹 ID 사용
+    currentGroupId = DUMMY_GROUPS[0]?.id; 
+    if (!currentGroupId) {
+      console.error('No dummy groups available.');
+      router.push('/my-library');
+      return;
+    }
+  }
+
+  const foundGroup = DUMMY_GROUPS.find(g => g.id === currentGroupId);
   if (foundGroup) {
     group.value = foundGroup;
     fetchBooks(foundGroup);
   } else {
-    console.error('Group not found');
-    router.push('/my-library'); // Redirect if group not found
+    console.error('Group not found for ID:', currentGroupId);
+    router.push('/my-library'); // Still redirect if a specific ID is given but not found
   }
 }
 
@@ -162,15 +154,7 @@ function fetchBooks(currentGroup: Group) {
   );
 }
 
-function inviteMember() {
-  if (!inviteQuery.value.trim()) {
-    alert('초대할 멤버의 정보를 입력하세요.');
-    return;
-  }
-  alert(`'${inviteQuery.value}'님을 초대했습니다. (더미 기능)`);
-  showInviteModal.value = false;
-  inviteQuery.value = '';
-}
+
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
