@@ -15,21 +15,20 @@
           </div>
         </div>
       </div>
-      <button @click="prevBook" class="carousel-control-btn prev-btn"><i class="fas fa-chevron-left"></i></button>
-      <button @click="nextBook" class="carousel-control-btn next-btn"><i class="fas fa-chevron-right"></i></button>
+      <button @click="prevBook" class="carousel-control-btn prev-btn"><i class="bi bi-chevron-left"></i></button>
+      <button @click="nextBook" class="carousel-control-btn next-btn"><i class="bi bi-chevron-right"></i></button>
     </section>
 
     <!-- 검색 및 필터 섹션 -->
     <section class="filter-section">
       <div class="search-input-wrapper">
         <input type="text" v-model="searchTerm" class="form-control search-input" placeholder="책 제목, 작가, 내용으로 검색...">
-        <i class="fas fa-search search-icon"></i>
+        <i class="bi bi-search search-icon"></i>
       </div>
       <div class="sort-options-wrapper">
-        <label class="form-check form-check-inline" v-for="option in sortOptions" :key="option.value">
-          <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption"
-            class="form-check-input">
-          <span class="form-check-label">{{ option.text }}</span>
+        <label class="radio-button" v-for="option in sortOptions" :key="option.value">
+          <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption">
+          <span>{{ option.text }}</span>
         </label>
       </div>
       <div class="keyword-buttons-container">
@@ -56,12 +55,12 @@
               <h6 class="book-author">{{ book.authorName }}</h6>
               <p class="book-summary">{{ book.summary }}</p>
               <div class="book-stats">
-                <span><i class="fas fa-eye"></i> {{ book.views }}</span>
-                <span><i class="fas fa-heart"></i> {{ book.likes }}</span>
+                <span><i class="bi bi-eye"></i> {{ book.views }}</span>
+                <span><i class="bi bi-heart-fill"></i> {{ book.likes }}</span>
               </div>
               <button class="btn btn-sm like-button" @click.stop="toggleLike(book)"
                 :class="{ liked: isLiked(book.id) }">
-                <i class="fas fa-heart"></i> 좋아요
+                <i class="bi bi-heart"></i> 좋아요
               </button>
             </div>
           </div>
@@ -172,10 +171,10 @@ const get3DStyle = (index: number) => {
   const angleToFront = Math.min(normalizedAngle, 360 - normalizedAngle);
 
   const angleFactor = angleToFront / 180;
-  const effectFactor = Math.pow(angleFactor, 1.5);
+  const effectFactor = Math.pow(angleFactor, 1.2);
 
-  const opacity = Math.max(0.2, 1 - effectFactor * 0.8);
-  const blur = effectFactor * 5;
+  const opacity = Math.max(0.8, 1 - effectFactor * 0.2); // 최소 투명도 대폭 증가
+  const blur = effectFactor * 2; // 블러 효과 감소
 
   return {
     transform: `rotateY(${itemAngle}deg) translateZ(400px)`,
@@ -272,70 +271,52 @@ function toggleLike(book: Book) {
 </script>
 
 <style scoped>
-/* CSS 변수를 사용해 색상 관리 용이성 증대 */
-:root {
-  --background-color: #f8f9fa;
-  --surface-color: #ffffff;
-  --primary-text-color: #212529;
-  --secondary-text-color: #6c757d;
-  --accent-color: #0d6efd;
-  /* Bootstrap primary blue */
-  --border-color: #dee2e6;
-  --shadow-color: rgba(0, 0, 0, 0.05);
-}
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
+/* 전역 변수 대신 이 파일에서만 쓸 색상 변수 제거, 직접 색상 사용 */
 .bookstore-page {
   padding: 80px 2rem 2rem;
-  /* Adjusted padding to match CreateBookView */
-  background-color: var(--background-color, #f8f9fa);
-  color: var(--primary-text-color, #212529);
+  background-color: #F5F5DC; /* 연한 베이지 */
+  color: #3D2C20;            /* 진한 브라운 */
   min-height: calc(100vh - 56px);
-  /* Adjust for Navbar height */
   font-family: 'Pretendard', sans-serif;
-  /* Apply consistent font */
 }
 
 .section-title {
+  font-family: 'Noto Serif KR', serif;
   font-size: 2.8rem;
-  /* Larger title */
-  font-weight: 800;
+  font-weight: 700;
+  color: #3D2C20;
   margin-bottom: 0.75rem;
   text-align: center;
-  /* Center align titles */
-  width: 100%;
-  padding-left: 0;
-  /* Remove specific padding */
 }
 
 .section-subtitle {
   font-size: 1.25rem;
-  color: var(--secondary-text-color, #6c757d);
-  margin-bottom: 1rem; /* Adjusted margin-bottom */
-  max-width: 500px;
+  color: #5C4033;
+  margin-bottom: 3rem;
+  max-width: 600px;
   margin-left: auto;
   margin-right: auto;
+  line-height: 1.7;
   text-align: center;
 }
 
 /* Carousel Section */
 .carousel-section {
   position: relative;
-  height: 500px;
-  /* Increased height to accommodate larger carousel */
+  height: 450px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
-  /* Removed background, border-radius, padding, border, box-shadow */
+  margin-bottom: 3rem;
 }
 
 .perspective-carousel-container {
-  perspective: 2500px;
-  width: 400px;
-  /* Increased width */
-  height: 500px;
-  /* Increased height */
+  perspective: 2000px;
+  width: 300px;
+  height: 400px;
   position: relative;
 }
 
@@ -344,7 +325,6 @@ function toggleLike(book: Book) {
   width: 100%;
   height: 100%;
   position: absolute;
-  transform-origin: center center;
   cursor: grab;
 }
 
@@ -354,14 +334,11 @@ function toggleLike(book: Book) {
 
 .carousel-item-3d {
   position: absolute;
-  left: 100px;
-  /* Adjusted to center within new container width */
-  top: 100px;
-  /* Adjusted to center within new container height */
-  width: 170px;
-  height: 250px;
+  left: 50px;
+  top: 50px;
+  width: 200px;
+  height: 300px;
   transform-style: preserve-3d;
-  transform-origin: center center;
   cursor: pointer;
   transition: transform 0.6s, opacity 0.6s, filter 0.6s;
 }
@@ -369,20 +346,18 @@ function toggleLike(book: Book) {
 .book-cover-3d {
   width: 100%;
   height: 100%;
-  background-color: var(--accent-color, #0d6efd);
-  /* Use accent color for book cover */
+  background-color: #8B4513; /* 진한 브라운 */
   color: #fff;
-  /* White text for contrast */
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 1rem;
-  font-size: 1.2rem;
+  padding: 1.5rem;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.4rem;
   font-weight: 600;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  border: 2px solid var(--accent-color, #0d6efd);
-  /* Use accent color for border */
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 8px;
 }
 
@@ -391,85 +366,104 @@ function toggleLike(book: Book) {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  background-color: var(--accent-color, #0d6efd);
-  /* Use accent color */
-  border: none;
-  color: white;
+  background-color: #FDFDF5;
+  border: 1px solid #EAE0D5;
+  color: #3D2C20;
   width: 50px;
   height: 50px;
   border-radius: 50%;
   font-size: 1.5rem;
-  transition: background-color 0.2s;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-  /* Add subtle shadow */
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .carousel-control-btn:hover {
-  background-color: #0a58ca;
+  background-color: #8B4513;
+  border-color: #8B4513;
+  color: #fff;
 }
 
-/* Darken on hover */
 .prev-btn {
-  left: 10%;
+  left: 15%;
 }
 
 .next-btn {
-  right: 10%;
+  right: 15%;
 }
 
 /* Filter Section */
 .filter-section {
-  background: var(--surface-color, #fff);
-  border-radius: 16px;
-  /* Match choice-card */
-  padding: 2.5rem;
-  /* Match choice-card */
-  margin-bottom: 3rem;
-  box-shadow: 0 4px 15px var(--shadow-color, rgba(0, 0, 0, 0.05));
-  border: 1px solid var(--border-color, #dee2e6);
+  background: #FDFDF5;
+  border-radius: 12px;
+  padding: 2rem;
+  margin: 0 auto 3rem auto;
+  max-width: 1000px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+  border: 1px solid #EAE0D5;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .search-input-wrapper {
   position: relative;
-  margin-bottom: 1.5rem;
 }
 
 .search-input {
   width: 100%;
   padding: 0.75rem 1.5rem 0.75rem 3rem;
-  border: 1px solid var(--border-color, #dee2e6);
-  /* Use border color */
+  border: 1px solid #EAE0D5;
   border-radius: 9999px;
-  background-color: var(--background-color, #f8f9fa);
-  /* Use background color */
-  color: var(--primary-text-color);
+  background-color: #F5F5DC;
+  color: #3D2C20;
+  font-size: 1rem;
 }
 
 .search-input:focus {
-  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-  /* Use accent color for focus */
-  border-color: var(--accent-color, #0d6efd);
+  box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.25);
+  border-color: #8B4513;
+  outline: none;
 }
 
 .search-icon {
   position: absolute;
-  left: 1rem;
+  left: 1.2rem;
   top: 50%;
   transform: translateY(-50%);
-  color: var(--secondary-text-color, #6c757d);
-  /* Use secondary text color */
+  color: #6c757d;
 }
 
 .sort-options-wrapper {
   display: flex;
   gap: 1rem;
   justify-content: center;
-  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.form-check-input:checked {
-  background-color: var(--accent-color, #0d6efd);
-  border-color: var(--accent-color, #0d6efd);
+.radio-button {
+  display: inline-block;
+  position: relative;
+  cursor: pointer;
+}
+
+.radio-button input[type="radio"] {
+  display: none;
+}
+
+.radio-button span {
+  display: block;
+  padding: 0.5rem 1.2rem;
+  border: 1px solid #EAE0D5;
+  border-radius: 20px;
+  background-color: #FDFDF5;
+  color: #6c757d;
+  transition: all 0.2s;
+}
+
+.radio-button input[type="radio"]:checked+span {
+  background-color: #8B4513;
+  color: #fff;
+  border-color: #8B4513;
 }
 
 .keyword-buttons-container {
@@ -482,80 +476,58 @@ function toggleLike(book: Book) {
 .keyword-button {
   padding: 0.5rem 1rem;
   border-radius: 9999px;
-  border: 1px solid var(--border-color, #dee2e6);
-  /* Use border color */
+  border: 1px solid #EAE0D5;
   background-color: transparent;
-  color: var(--secondary-text-color, #6c757d);
-  /* Use secondary text color */
+  color: #6c757d;
   transition: all 0.2s;
 }
 
 .keyword-button.active,
 .keyword-button:hover {
-  background-color: var(--accent-color, #0d6efd);
+  background-color: #8B4513;
   color: #FFFFFF;
-  border-color: var(--accent-color, #0d6efd);
+  border-color: #8B4513;
 }
 
 /* Book List Section */
 .book-list-section {
-  max-width: 1200px;
-  /* Constrain width for better readability */
-  margin: 0 auto 3rem auto;
-  /* Center the section and add bottom margin */
-  background: var(--surface-color, #fff);
-  /* Apply card background */
-  border-radius: 16px;
-  /* Apply card border-radius */
-  padding: 2.5rem;
-  /* Apply card padding */
-  border: 1px solid var(--border-color, #dee2e6);
-  /* Apply card border */
-  box-shadow: 0 4px 15px var(--shadow-color, rgba(0, 0, 0, 0.05));
-  /* Apply card shadow */
+  max-width: 1000px;
+  margin: 0 auto;
 }
 
 .book-card {
-  background: var(--surface-color, #fff);
-  border-radius: 16px;
-  /* Match choice-card */
-  box-shadow: 0 4px 15px var(--shadow-color, rgba(0, 0, 0, 0.05));
+  background: #FDFDF5;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.06);
   display: flex;
   gap: 1.5rem;
-  /* Increased gap */
   padding: 1.5rem;
-  /* Increased padding */
   transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
-  /* Match choice-card transition */
   cursor: pointer;
-  border: 1px solid var(--border-color, #dee2e6);
-  /* Apply card border */
+  border: 1px solid #EAE0D5;
+  margin-bottom: 1.5rem;
 }
 
 .book-card:hover {
-  transform: translateY(-8px);
-  /* Slightly less lift than choice-card */
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent-color, #0d6efd);
-  /* Accent border on hover */
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+  border-color: #8B4513;
 }
 
 .book-cover-placeholder {
   flex-shrink: 0;
   width: 120px;
-  /* Slightly larger cover */
   height: 170px;
-  /* Maintain aspect ratio */
-  background-color: var(--border-color, #dee2e6);
-  /* Use border color for placeholder */
-  color: var(--secondary-text-color, #6c757d);
-  /* Use secondary text color */
+  background-color: #D2B48C;
+  color: #3D2C20;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
   font-size: 1rem;
   font-weight: 600;
+  text-align: center;
+  padding: 0.5rem;
 }
 
 .book-details {
@@ -565,42 +537,43 @@ function toggleLike(book: Book) {
 }
 
 .book-title {
+  font-family: 'Noto Serif KR', serif;
   font-weight: 700;
   font-size: 1.3rem;
-  /* Slightly larger title */
   margin-bottom: 0.5rem;
-  color: var(--primary-text-color);
+  color: #3D2C20;
 }
 
 .book-author {
-  color: var(--secondary-text-color, #6c757d);
+  color: #6c757d;
   margin-bottom: 0.75rem;
   font-size: 1rem;
 }
 
 .book-summary {
   font-size: 0.95rem;
-  /* Slightly larger summary */
   flex-grow: 1;
   margin-bottom: 1rem;
   line-height: 1.6;
-  color: var(--primary-text-color);
+  color: #3D2C20;
 }
 
 .book-stats {
   display: flex;
   gap: 1rem;
-  font-size: 0.85rem;
-  color: var(--secondary-text-color, #6c757d);
-  /* Use secondary text color */
+  font-size: 0.9rem;
+  color: #6c757d;
   margin-bottom: 1rem;
+}
+
+.book-stats i {
+  margin-right: 0.3rem;
 }
 
 .like-button {
   background-color: transparent;
-  border: 1px solid #dc3545;
-  /* Bootstrap danger color for heart */
-  color: #dc3545;
+  border: 1px solid #D9BFB3;
+  color: #8B4513;
   align-self: flex-start;
   padding: 0.5rem 1rem;
   border-radius: 8px;
@@ -610,15 +583,19 @@ function toggleLike(book: Book) {
 
 .like-button.liked,
 .like-button:hover {
-  background-color: #dc3545;
+  background-color: #8B4513;
   color: #FFFFFF;
+  border-color: #8B4513;
 }
 
 .no-books-message {
   text-align: center;
   padding: 3rem;
   font-size: 1.2rem;
-  color: var(--secondary-text-color, #6c757d);
+  color: #6c757d;
+  background: #FDFDF5;
+  border-radius: 12px;
+  border: 1px solid #EAE0D5;
 }
 
 /* Responsive adjustments */
@@ -628,30 +605,11 @@ function toggleLike(book: Book) {
   }
 
   .section-title {
-    font-size: 2rem;
+    font-size: 2.2rem;
   }
 
   .carousel-section {
     height: 400px;
-    padding: 1.5rem;
-  }
-
-  .perspective-carousel-container {
-    width: 250px;
-    height: 350px;
-  }
-
-  .carousel-item-3d {
-    left: 25px;
-    top: 25px;
-    width: 200px;
-    height: 300px;
-  }
-
-  .carousel-control-btn {
-    width: 40px;
-    height: 40px;
-    font-size: 1.2rem;
   }
 
   .prev-btn {
@@ -662,7 +620,7 @@ function toggleLike(book: Book) {
     right: 5%;
   }
 
-  .filter-section {
+  .filter-section, .book-list-section {
     padding: 1.5rem;
   }
 
@@ -670,7 +628,6 @@ function toggleLike(book: Book) {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    padding: 1rem;
   }
 
   .book-cover-placeholder {

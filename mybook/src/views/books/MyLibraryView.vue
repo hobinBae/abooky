@@ -1,131 +1,145 @@
 <template>
   <div class="my-library-page">
-    <!-- Representative Life Book Section -->
-    <section class="representative-book-section">
+    <section class="content-section representative-book-section">
       <h2 class="section-title">나의 대표 인생책</h2>
+      <p class="section-subtitle">당신의 삶에 가장 큰 영감을 준 책을 설정해보세요.</p>
       <div class="representative-book-carousel">
         <button @click="prevRepBook" :disabled="representativeBooks.length <= 1" class="carousel-btn">
-          <i class="fas fa-chevron-left"></i>
+          <i class="bi bi-chevron-left"></i>
         </button>
-        <div class="representative-book" :style="{ backgroundColor: representativeBooks.length > 0 ? '#5a2e2e' : '#777' }">
-          {{ representativeBooks.length > 0 ? representativeBooks[currentRepBookIndex] : '대표책이 없습니다' }}
+        <div class="representative-book-wrapper">
+          <div class="representative-book">
+            {{ representativeBooks.length > 0 ? representativeBooks[currentRepBookIndex] : '대표책이 없습니다' }}
+          </div>
         </div>
         <button @click="nextRepBook" :disabled="representativeBooks.length <= 1" class="carousel-btn">
-          <i class="fas fa-chevron-right"></i>
+          <i class="bi bi-chevron-right"></i>
         </button>
       </div>
       <button @click="openRepBookModal" class="btn btn-primary select-rep-btn">
-        대표책 선택
+        <i class="bi bi-pencil-square"></i> 대표책 선택
       </button>
     </section>
 
-    <!-- My Books Shelf (Draggable) -->
-    <div class="my-books-shelf-wrapper">
-      <h3 class="shelf-subtitle">내가 쓴 책들 (책을 드래그하여 아래 그룹에 추가하세요)</h3>
-      <draggable v-model="myBooks" item-key="id" :group="{ name: 'myBooksSource', pull: 'clone' }" class="book-shelf" tag="div" @start="isDraggingBook = true" @end="isDraggingBook = false">
-        <template #item="{element: book}">
-          <router-link :to="`/book-detail/${book.id}`" class="book-item my-book" :title="book.title">
-            {{ book.title }}
-            <i v-if="isBookInAnyGroup(book.id)" class="fas fa-link group-link-icon"></i>
-          </router-link>
-        </template>
-      </draggable>
-    </div>
+    <section class="content-section book-shelves-section">
+      <div class="group-shelf-header">
+        <h2 class="section-title">나의 책장</h2>
+        <button @click="isGroupModalVisible = true" class="btn btn-primary add-group-btn">
+          <i class="bi bi-plus-lg"></i> 그룹 추가
+        </button>
+      </div>
+      <p class="section-subtitle">그룹 책장을 만들어 친구들과 함께 책을 완성하고 공유해보세요.</p>
 
-    <!-- Book Shelves Section -->
-    <section class="book-shelves-section">
-      <h2 class="section-title">나의 책장</h2>
-
-      
-
-      <!-- Group Books Section (Droppable) -->
-      <div class="group-books-wrapper">
-        <h3 class="shelf-subtitle group-shelf-header">
-          그룹 책장
-          <button @click="isGroupModalVisible = true" class="btn btn-success add-group-btn">
-            <i class="fas fa-plus me-2"></i>그룹 추가
-          </button>
+      <div class="my-books-shelf-wrapper">
+        <h3 class="shelf-title">내가 쓴 책들
+          <small>책을 드래그하여 아래 그룹에 추가하세요</small>
         </h3>
-        <div class="group-shelves-container">
-            <div v-for="group in allGroups" :key="group.id" class="group-shelf-wrapper">
-                <!-- This div will act as the single horizontal bookshelf for group name, members, and added books -->
-                <div class="book-shelf group-shelf-horizontal">
-                    <!-- Group Name as the first, non-draggable book -->
-                    <router-link :to="`/group-timeline/${group.id}`" class="book-item group-name-book" :title="group.groupName">
-                        {{ group.groupName }}
-                    </router-link>
+        <div class="book-shelf-container my-books-container">
+          <draggable v-model="myBooks" item-key="id" :group="{ name: 'myBooksSource', pull: 'clone' }"
+            class="book-shelf" tag="div" @start="isDraggingBook = true" @end="isDraggingBook = false">
+            <template #item="{ element: book, index }">
+              <router-link :to="`/book-detail/${book.id}`" class="book-item my-book"
+                :class="`book-color-${(index % 4) + 1}`" :title="book.title">
+                {{ book.title }}
+                <i v-if="isBookInAnyGroup(book.id)" class="bi bi-link-45deg group-link-icon"></i>
+              </router-link>
+            </template>
+          </draggable>
+        </div>
+      </div>
 
-                    <!-- Group Members as non-draggable books -->
-                    <div v-for="member in group.members" :key="member" 
-                         class="book-item member-book"
-                         :class="{'member-book-registered': isMemberRegistered(group, member), 'member-book-unregistered': !isMemberRegistered(group, member)}"
-                         :title="member">
-                        {{ member }}
-                    </div>
+      <div v-if="allGroups.length === 0" class="no-groups-message">
+        <p>아직 생성된 그룹이 없습니다.</p>
+        <span>'그룹 추가' 버튼을 눌러 새로운 그룹을 만들어보세요.</span>
+      </div>
 
-                    <!-- Draggable area for books in this group -->
-                    <draggable v-model="group.books" item-key="id" :group="{ name: 'groupBooksTarget', pull: true, put: ['myBooksSource'] }" class="group-books-draggable-area" tag="div" @add="handleBookDrop($event, group.id)" @change="handleGroupBookChange($event, group.id)" @start="isDraggingBook = true" @end="isDraggingBook = false">
-                        <template #item="{element: book}">
-                            <div class="book-item my-book" :title="book.title">
-                                {{ book.title }}
-                                <button @click.stop="removeBookFromGroup(group.id, book.id)" class="remove-book-btn">x</button>
-                            </div>
-                        </template>
-                    </draggable>
+      <div v-else class="group-shelves-container">
+        <div v-for="group in allGroups" :key="group.id" class="group-shelf-wrapper">
+          <div class="group-shelf-title-bar">
+            <router-link :to="`/group-timeline/${group.id}`" class="group-shelf-title"
+              :title="`${group.groupName} 타임라인으로 이동`">
+              {{ group.groupName }}
+            </router-link>
+          </div>
+          <div class="group-bookshelf-inner">
+            <div class="book-shelf-container">
+              <div class="book-shelf group-shelf-horizontal">
+                <div v-for="member in group.members" :key="member" class="book-item member-book"
+                  :class="{ 'member-book-registered': isMemberRegistered(group, member), 'member-book-unregistered': !isMemberRegistered(group, member) }"
+                  :title="member">
+                  {{ member }}
                 </div>
+
+                <draggable v-model="group.books" item-key="id"
+                  :group="{ name: 'groupBooksTarget', pull: true, put: ['myBooksSource'] }"
+                  class="group-books-draggable-area" tag="div" @add="handleBookDrop($event, group.id)"
+                  @change="handleGroupBookChange($event, group.id)" @start="isDraggingBook = true"
+                  @end="isDraggingBook = false">
+                  <template #item="{ element: book, index }">
+                    <div class="book-item my-book" :class="`book-color-${(index % 4) + 1}`" :title="book.title">
+                      {{ book.title }}
+                      <button @click.stop="removeBookFromGroup(group.id, book.id)" class="remove-book-btn"
+                        title="그룹에서 책 제거">
+                        <i class="bi bi-x"></i>
+                      </button>
+                    </div>
+                  </template>
+                </draggable>
+              </div>
             </div>
+          </div>
         </div>
-        </div>
+      </div>
     </section>
 
-    <!-- Modals -->
-    <div v-if="isRepBookModalVisible" class="modal" style="display: flex;">
-      <div class="modal-content">
-        <span @click="isRepBookModalVisible = false" class="close-button">&times;</span>
-        <h2 class="modal-title">대표 인생책 선택</h2>
-        <p class="modal-description">Ctrl/Cmd 키를 누른 채 여러 책을 선택하세요:</p>
-        <select v-model="selectedRepBooks" multiple class="form-select modal-select">
-          <option v-for="book in myBooks" :key="book.id" :value="book.title">{{ book.title }}</option>
-        </select>
-        <button @click="saveRepresentativeBooksHandler" class="btn btn-primary modal-save-btn">
-          저장
+    <div v-if="isRepBookModalVisible || isGroupModalVisible || isMessageBoxVisible" class="modal-backdrop">
+      <div class="modal-content" :class="{ 'modal-sm': isMessageBoxVisible }">
+        <button @click="closeAllModals" class="close-button" title="닫기">
+          <i class="bi bi-x-lg"></i>
         </button>
-      </div>
-    </div>
 
-    <div v-if="isGroupModalVisible" class="modal" style="display: flex;">
-      <div class="modal-content">
-        <span @click="isGroupModalVisible = false" class="close-button">&times;</span>
-        <h2 class="modal-title">새 그룹 만들기</h2>
-        <div class="mb-3">
-          <label for="group-name-input" class="form-label">그룹 이름:</label>
-          <input v-model="newGroupName" type="text" class="form-control" placeholder="예: 독서 모임 A">
+        <div v-if="isRepBookModalVisible">
+          <h2 class="modal-title">대표 인생책 선택</h2>
+          <p class="modal-description">Ctrl/Cmd 키를 누른 채 여러 책을 선택할 수 있습니다.</p>
+          <select v-model="selectedRepBooks" multiple class="form-select modal-select">
+            <option v-for="book in myBooks" :key="book.id" :value="book.title">{{ book.title }}</option>
+          </select>
+          <button @click="saveRepresentativeBooksHandler" class="btn btn-primary modal-action-btn">
+            저장하기
+          </button>
         </div>
-        <div class="mb-3">
-          <label for="group-members-input" class="form-label">그룹 멤버 (쉼표로 구분):</label>
-          <input v-model="newGroupMembers" type="text" class="form-control" placeholder="예: 김철수, 이영희, 박지민">
-        </div>
-        <button @click="createGroupHandler" class="btn btn-success modal-save-btn">
-          그룹 생성
-        </button>
-      </div>
-    </div>
 
-    <div v-if="isMessageBoxVisible" class="modal" style="display: flex;">
-      <div class="modal-content modal-sm">
-        <span @click="isMessageBoxVisible = false" class="close-button">&times;</span>
-        <h2 class="modal-title">{{ messageBoxTitle }}</h2>
-        <p class="modal-body">{{ messageBoxContent }}</p>
-        <button @click="isMessageBoxVisible = false" class="btn btn-primary modal-confirm-btn">
-          확인
-        </button>
+        <div v-if="isGroupModalVisible">
+          <h2 class="modal-title">새 그룹 만들기</h2>
+          <div class="form-group">
+            <label for="group-name-input" class="form-label">그룹 이름</label>
+            <input v-model="newGroupName" id="group-name-input" type="text" class="form-control"
+              placeholder="예: 독서 모임 A">
+          </div>
+          <div class="form-group">
+            <label for="group-members-input" class="form-label">그룹 멤버 (쉼표로 구분)</label>
+            <input v-model="newGroupMembers" id="group-members-input" type="text" class="form-control"
+              placeholder="예: 김철수, 이영희, 박지민">
+          </div>
+          <button @click="createGroupHandler" class="btn btn-primary modal-action-btn">
+            그룹 생성
+          </button>
+        </div>
+
+        <div v-if="isMessageBoxVisible">
+          <h2 class="modal-title">{{ messageBoxTitle }}</h2>
+          <p class="modal-body">{{ messageBoxContent }}</p>
+          <button @click="isMessageBoxVisible = false" class="btn btn-primary modal-action-btn">
+            확인
+          </button>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, computed } from 'vue';
 import { RouterLink } from 'vue-router';
 import draggable from 'vuedraggable';
 
@@ -136,15 +150,15 @@ interface Book {
   authorId: string;
   authorName?: string;
 }
-
 interface Group {
   id: string;
   groupName: string;
+  ownerId: string;
+  managers: string[];
   members: string[];
-  books: Book[]; // Added to hold books for the group
+  books: Book[];
   createdAt: Date;
 }
-
 interface DraggableEvent {
   added?: { element: Book; newIndex: number };
   removed?: { element: Book; oldIndex: number };
@@ -152,18 +166,17 @@ interface DraggableEvent {
 }
 
 // --- Dummy Data ---
+const currentUserNickname = ref('김작가');
 const DUMMY_MY_BOOKS: Book[] = [
   { id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가' },
   { id: 'mybook2', title: '꿈을 향한 도전', authorId: 'dummyUser1', authorName: '김작가' },
   { id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가' },
   { id: 'mybook4', title: '개발자의 삶', authorId: 'dummyUser1', authorName: '김작가' },
 ];
-
 const DUMMY_GROUPS: Group[] = [
-  { id: 'group1', groupName: '독서 토론 모임', members: ['김작가', '이영희', '박철수'], books: [{ id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가' }], createdAt: new Date() },
-  { id: 'group2', groupName: '글쓰기 동호회', members: ['김작가', '최수진'], books: [], createdAt: new Date() },
-  { id: 'group3', groupName: '여행 에세이 클럽', members: ['김작가', '정민준', '하은지'], books: [{ id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가' }], createdAt: new Date() },
-  { id: 'group4', groupName: '코딩 스터디', members: ['김작가', '강현우'], books: [], createdAt: new Date() },
+  { id: 'group1', groupName: '독서 토론 모임', ownerId: '김작가', managers: ['이영희'], members: ['김작가', '이영희', '박철수'], books: [{ id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가' }], createdAt: new Date() },
+  { id: 'group2', groupName: '글쓰기 동호회', ownerId: '김작가', managers: [], members: ['김작가', '최수진'], books: [], createdAt: new Date() },
+  { id: 'group3', groupName: '여행 에세이 클럽', ownerId: '정민준', managers: [], members: ['정민준', '김작가', '하은지'], books: [{ id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가' }], createdAt: new Date() },
 ];
 
 // --- Reactive State ---
@@ -171,20 +184,12 @@ const representativeBooks = ref<string[]>(['나의 어린 시절 이야기']);
 const currentRepBookIndex = ref(0);
 const myBooks = ref<Book[]>(DUMMY_MY_BOOKS);
 const allGroups = ref<Group[]>(DUMMY_GROUPS);
-
-// Modals
+const isDraggingBook = ref(false);
 const isRepBookModalVisible = ref(false);
 const selectedRepBooks = ref<string[]>([]);
 const isGroupModalVisible = ref(false);
 const newGroupName = ref('');
 const newGroupMembers = ref('');
-
-// New state for drag-and-drop logic
-const bookBeingDraggedFromGroup = ref<string | null>(null);
-let removalTimeout: ReturnType<typeof setTimeout> | null = null;
-const isDraggingBook = ref(false);
-
-// Message Box
 const isMessageBoxVisible = ref(false);
 const messageBoxTitle = ref('');
 const messageBoxContent = ref('');
@@ -195,513 +200,533 @@ const isBookInAnyGroup = computed(() => (bookId: string) => {
 });
 
 // --- Functions ---
+function closeAllModals() {
+  isRepBookModalVisible.value = false;
+  isGroupModalVisible.value = false;
+  isMessageBoxVisible.value = false;
+}
 function showMessageBox(message: string, title = '알림') {
   messageBoxTitle.value = title;
   messageBoxContent.value = message;
   isMessageBoxVisible.value = true;
 }
-
 function handleBookDrop(event: DraggableEvent, groupId: string) {
-  // event.added가 없으면 함수 종료
   if (!event.added) return;
-
   const bookTitle = event.added.element.title;
   const group = allGroups.value.find(g => g.id === groupId);
-
   if (group) {
-    // If a book was just dragged from another group, clear the timeout
-    if (bookBeingDraggedFromGroup.value === event.added.element.id) {
-      if (removalTimeout) {
-        clearTimeout(removalTimeout);
-        removalTimeout = null;
-      }
-      bookBeingDraggedFromGroup.value = null; // Reset
-    }
-
-    showMessageBox(`'${bookTitle}'을(를) '${group.groupName}' 그룹에 추가했습니다.`);
-    // In a real application, you would make an API call here
-    // to persist this change on the backend.
-    console.log(`Book ${event.added.element.id} moved to Group ${groupId}`);
-  }
-}
-
-function handleGroupBookChange(event: DraggableEvent, groupId: string) {
-  if (event.removed) {
-    const removedBook = event.removed.element;
-    const group = allGroups.value.find(g => g.id === groupId);
-
-    if (!group || !removedBook) {
-      console.error("Could not find group or removed book for confirmation.");
-      return;
-    }
-
-    // If cancelled, re-add the book to the original group
-    // This part is for when a book is dragged out and then the user cancels the removal.
-    // The actual removal logic is now handled by the removeBookFromGroup function.
-    // This ensures that if a book is dragged out and not dropped into another valid target,
-    // it remains in its original group until explicitly removed by the button.
-    if (!confirm(`'${removedBook.title}' 책을 '${group.groupName}' 그룹에서 제거하시겠습니까?`)) {
-      group.books.splice(event.removed.oldIndex, 0, removedBook);
-      showMessageBox(`'${removedBook.title}' 책 제거를 취소했습니다.`);
-    } else {
-      // If confirmed, the book is removed from this group.
-      // No need to explicitly remove from all groups here, as the button handles it.
-      showMessageBox(`'${removedBook.title}' 책을 '${group.groupName}' 그룹에서 제거했습니다.`);
+    const isAlreadyInGroup = group.books.filter(b => b.id === event.added!.element.id).length > 1;
+    if (!isAlreadyInGroup) {
+      showMessageBox(`'${bookTitle}'을(를) '${group.groupName}' 그룹에 추가했습니다.`);
     }
   }
 }
-
+function handleGroupBookChange(event: DraggableEvent, groupId: string) {}
 function removeBookFromGroup(groupId: string, bookId: string) {
   const group = allGroups.value.find(g => g.id === groupId);
   if (group) {
-    if (confirm(`'${group.groupName}' 그룹에서 이 책을 제거하시겠습니까?`)) {
-      group.books = group.books.filter(book => book.id !== bookId);
+    const book = group.books.find(b => b.id === bookId);
+    if (book && confirm(`'${book.title}' 책을 '${group.groupName}' 그룹에서 제거하시겠습니까?`)) {
+      group.books = group.books.filter(b => b.id !== bookId);
       showMessageBox(`책이 '${group.groupName}' 그룹에서 제거되었습니다.`);
     }
   }
 }
-
 function isMemberRegistered(group: Group, memberName: string): boolean {
-  // This is a dummy check. In a real app, you'd check if a book by this member
-  // is actually associated with this group in your backend data.
-  return group.books.some(book => book.authorName === memberName);
+  return group.members.includes(memberName);
 }
-
 function prevRepBook() {
   if (representativeBooks.value.length > 0) {
     currentRepBookIndex.value = (currentRepBookIndex.value - 1 + representativeBooks.value.length) % representativeBooks.value.length;
   }
 }
-
 function nextRepBook() {
   if (representativeBooks.value.length > 0) {
     currentRepBookIndex.value = (currentRepBookIndex.value + 1) % representativeBooks.value.length;
   }
 }
-
 function openRepBookModal() {
   selectedRepBooks.value = [...representativeBooks.value];
   isRepBookModalVisible.value = true;
 }
-
 function saveRepresentativeBooksHandler() {
   representativeBooks.value = [...selectedRepBooks.value];
   currentRepBookIndex.value = 0;
   isRepBookModalVisible.value = false;
   showMessageBox('대표책이 저장되었습니다.');
 }
-
 function createGroupHandler() {
   const groupName = newGroupName.value.trim();
   const members = newGroupMembers.value.split(',').map(m => m.trim()).filter(m => m);
-
+  if (!members.includes(currentUserNickname.value)) {
+    members.unshift(currentUserNickname.value);
+  }
   if (!groupName) {
     showMessageBox('그룹 이름을 입력해주세요.', '경고');
     return;
   }
-
+  if (members.length === 0) {
+    members.push(currentUserNickname.value);
+  }
   const newGroup: Group = {
-    id: `group${allGroups.value.length + 1}`,
+    id: `group${Date.now()}`,
     groupName: groupName,
+    ownerId: currentUserNickname.value,
+    managers: [],
     members: members,
-    books: [], // Initialize with empty books array
+    books: [],
     createdAt: new Date(),
   };
-  allGroups.value.push(newGroup);
+  allGroups.value.unshift(newGroup);
   isGroupModalVisible.value = false;
   newGroupName.value = '';
   newGroupMembers.value = '';
-  showMessageBox('그룹이 생성되었습니다.');
+  showMessageBox('그룹이 성공적으로 생성되었습니다.');
 }
-
-onMounted(() => {
-  // Dummy data is used, no fetch needed.
-});
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
+
+/* --- Base Page Layout --- */
 .my-library-page {
-  padding-top: 56px; /* Navbar 높이와 동일하게 조정 */
-  padding-bottom: 80px;
-  background-color: #F5F5DC;
-  color: #3D2C20;
-  min-height: 100vh; /* Set min-height to 100vh for overall page scrolling */
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding: 80px 2rem 2rem;
+  background-color: #F5F5F3;
+  color: #261E17;
+  min-height: calc(100vh - 56px);
+  font-family: 'Pretendard', sans-serif;
 }
-
-.representative-book-section,
-.book-shelves-section {
-  background-color: #F5F5DC;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
-  margin-bottom: 2rem;
-  overflow: visible; /* Ensure sticky works within this section */
+.content-section {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 2.5rem;
+  margin: 0 auto 3rem auto;
+  max-width: 1200px;
+  box-shadow: 0 8px 25px rgba(38, 30, 23, 0.08);
+  border: 1px solid #E0E0E0;
 }
-
 .section-title {
+  font-family: 'Noto Serif KR', serif;
   font-size: 2rem;
-  font-weight: bold;
-  margin-bottom: 1.5rem;
-  color: #3D2C20;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+.section-subtitle {
+  font-size: 1.1rem;
+  opacity: 0.8;
+  margin-bottom: 3rem;
+  max-width: 600px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.7;
   text-align: center;
 }
 
+/* --- Section Title Colors --- */
+.representative-book-section .section-title {
+  color: #594C40;
+}
+.book-shelves-section .section-title {
+  color: #F5F5F3;
+}
+
+/* --- General Button Styles --- */
+.btn {
+  border: 1px solid #E0E0E0;
+  background-color: #fff;
+  color: #594C40;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 4px rgba(38, 30, 23, 0.08);
+}
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(38, 30, 23, 0.08);
+  border-color: #594C40;
+}
+.btn-primary {
+  background-color: #D4A373;
+  border-color: #D4A373;
+  color: #FFFFFF;
+}
+.btn-primary:hover {
+  background-color: #c79561;
+  border-color: #c79561;
+}
+
+/* --- Representative Book Section --- */
 .representative-book-carousel {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
 }
-
 .carousel-btn {
-  background-color: #B8860B;
-  color: #3D2C20;
-  font-weight: bold;
-  padding: 0.75rem 1rem;
-  border-radius: 9999px;
-  border: none;
+  background-color: #FFFFFF;
+  border: 1px solid #E0E0E0;
+  color: #261E17;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  font-size: 1.5rem;
 }
-
 .carousel-btn:hover:not(:disabled) {
-  background-color: #DAA520;
+  background-color: #D4A373;
+  color: #FFFFFF;
 }
-
 .carousel-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-
+.representative-book-wrapper {
+  perspective: 1000px;
+}
 .representative-book {
   width: 180px;
   height: 250px;
-  border-radius: 12px;
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-  background-color: #5C4033;
-  color: #F5F5DC;
-  font-size: 1.3rem;
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  background-color: #594C40;
+  color: #D4A373;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   padding: 1.5rem;
-  cursor: pointer;
   writing-mode: vertical-rl;
   text-orientation: upright;
   word-break: break-word;
+  transition: transform 0.4s ease;
+  border: 2px solid rgba(0, 0, 0, 0.2);
 }
-
+.representative-book-wrapper:hover .representative-book {
+  transform: rotateY(10deg);
+}
 .select-rep-btn {
-  background-color: #B8860B;
-  color: #3D2C20;
-  font-weight: bold;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
   display: block;
   margin: 0 auto;
 }
 
-.select-rep-btn:hover {
-  background-color: #DAA520;
+/* --- Centered Bookshelves Section --- */
+.book-shelves-section {
+  background-color: #8C6A56;
+  border: 4px solid #594C40; /* 👈 양옆 테두리 추가 */
+  padding-bottom: 2.5rem; /* 아래쪽 패딩 추가 */
+}
+.book-shelves-section .section-subtitle,
+.book-shelves-section .shelf-title,
+.book-shelves-section .shelf-title small {
+  color: #F5F5F3;
+}
+.book-shelves-section .btn-primary {
+  background-color: #D4A373;
+  border-color: #D4A373;
+  color: #261E17;
 }
 
-.shelf-subtitle {
-  font-size: 1.5rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-  color: #3D2C20;
-}
-
+/* --- Sticky "My Books" Shelf --- */
 .my-books-shelf-wrapper {
-  margin-bottom: 2rem;
-  position: sticky; /* Changed back to sticky positioning */
-  top: 56px; /* Adjust based on your navbar's height */
-  z-index: 100; /* Ensure it stays above other content */
-  background-color: #F5F5DC; /* Add background to prevent content from showing through */
-  padding-top: 1rem; /* Add some padding to separate from navbar */
-  padding-bottom: 1rem; /* Add some padding below the sticky element */
-}
-
-.liked-books-shelf-wrapper, .group-books-wrapper {
-    margin-bottom: 2rem;
-}
-
-.group-shelf-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.add-group-btn {
-  background-color: #B8860B;
-  color: #3D2C20;
-  font-weight: bold;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  position: sticky;
+  top: 56px;
+  z-index: 100;
+  background-color: #8C6A56;
+  padding: 2.5rem 0 1.5rem 0;
+  margin: 0;
   border: none;
+  box-shadow: none;
+}
+.shelf-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+.shelf-title small {
+  font-family: 'Pretendard', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 400;
+  opacity: 0.7;
+  margin-left: 0.75rem;
 }
 
-.add-group-btn:hover {
-  background-color: #DAA520;
+/* --- Book Shelves & Items --- */
+.book-shelf-container {
+  padding: 1rem;
 }
-
+.my-books-container {
+  background-color: #594C40;
+  border-radius: 8px;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
+  border: 2px solid #4a3f35;
+}
 .book-shelf {
   display: flex;
-  gap: 1rem;
-  padding: 1rem;
+  gap: 1.25rem;
   overflow-x: auto;
-  background-color: #5C4033;
-  border-radius: 8px;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
-  min-height: 170px;
+  min-height: 180px;
+  align-items: flex-end;
+  padding-bottom: 10px;
 }
-
-.book-shelf::-webkit-scrollbar {
-  display: none;
+.book-shelf::-webkit-scrollbar { height: 10px; }
+.book-shelf::-webkit-scrollbar-track { background: transparent; }
+.book-shelf::-webkit-scrollbar-thumb {
+  background: #D4A373;
+  border-radius: 5px;
+  border: 2px solid #594C40;
 }
-
 .book-item {
   flex-shrink: 0;
-  width: 100px;
-  height: 150px;
-  border-radius: 8px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 45px;
+  height: 160px;
+  padding-top: 15px;
+  border-radius: 4px 4px 2px 2px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   text-align: center;
-  font-size: 0.8rem;
-  font-weight: bold;
-  color: #3D2C20;
-  padding: 0.5rem;
-  word-break: break-word;
-  line-height: 1.3;
+  font-size: 1rem;
+  font-weight: 600;
   cursor: grab;
-  transition: transform 0.2s ease-in-out;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
   writing-mode: vertical-rl;
-  text-orientation: upright;
+  text-orientation: mixed;
   text-decoration: none;
-  position: relative; /* For positioning the icon */
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+  border: 1px solid rgba(0, 0, 0, 0.4);
 }
-
 .book-item:hover {
-  transform: translateY(-5px);
+  transform: translateY(-8px) scale(1.05);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
 }
+.sortable-ghost { opacity: 0.4; }
 
-.my-book {
-  background-color: #8B4513;
-  color: #F5F5DC;
-}
+.book-color-1 { background-color: #8E6E53; color: #fff; }
+.book-color-2 { background-color: #E4C5AF; color: #261E17; }
+.book-color-3 { background-color: #6D7275; color: #fff; }
+.book-color-4 { background-color: #B0A295; color: #261E17; }
 
-.liked-book {
-  background-color: #CD5C5C;
-  color: #F5F5DC;
-  cursor: pointer;
-}
-
-.group-shelves-container {
-  margin-top: 1rem;
-  margin-bottom: 1rem;
-}
-
-.group-shelf-wrapper {
-  background-color: #D2B48C;
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.group-shelf-horizontal {
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  overflow-x: auto;
-  background-color: #5C4033;
-  border-radius: 8px;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
-  min-height: 170px;
-}
-
-.group-books-draggable-area {
-  display: flex;
-  gap: 1rem;
-  flex-grow: 1; /* Allow it to take remaining space */
-  min-width: 100px; /* Ensure it's visible even if empty */
-}
-
-.member-book {
-  cursor: default; /* Members are not draggable */
-}
-
-.member-book-registered {
-  background-color: #DAA520; /* Darker gold for registered members */
-  color: #3D2C20;
-}
-
-.member-book-unregistered {
-  background-color: rgba(218, 165, 32, 0.5); /* Transparent darker gold for unregistered members */
-  color: rgba(61, 44, 32, 0.7); /* Slightly transparent text */
-}
-
-.group-name-book {
-  background-color: #B8860B; /* Gold for group name book */
-  color: #3D2C20; /* Dark brown text */
-  cursor: pointer; /* Make it clickable */
-}
-
-.group-shelf {
-  background-color: #5C4033;
-  border-radius: 8px;
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
-}
-
-.pagination-controls {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1.5rem;
-}
-
-.pagination-btn {
-  background-color: #B8860B;
-  color: #3D2C20;
-  font-weight: bold;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  border: none;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  background-color: #DAA520;
-}
-
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
+.member-book { cursor: default; height: 150px; }
+.member-book-registered { background-color: #D4A373; color: #FFFFFF; }
+.member-book-unregistered { background-color: #ccc; color: #555; opacity: 0.8; }
 .group-link-icon {
   position: absolute;
-  top: 5px;
+  bottom: 5px;
   right: 5px;
-  color: #F5F5DC; /* Light color for visibility */
-  font-size: 0.9rem;
+  font-size: 1.2rem;
+  writing-mode: horizontal-tb;
+  transform: rotate(45deg);
 }
-
 .remove-book-btn {
   position: absolute;
   top: 2px;
   right: 2px;
-  background-color: rgba(255, 0, 0, 0.7); /* Semi-transparent red */
+  background-color: rgba(0, 0, 0, 0.4);
   color: white;
   border: none;
   border-radius: 50%;
   width: 20px;
   height: 20px;
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  opacity: 0; /* Hidden by default */
-  transition: opacity 0.2s ease-in-out;
+  opacity: 0;
+  transition: all 0.2s;
+  writing-mode: horizontal-tb;
+}
+.book-item:hover .remove-book-btn { opacity: 1; }
+.remove-book-btn:hover { background-color: rgba(239, 68, 68, 1); transform: scale(1.1); }
+
+/* --- Group Shelves Section --- */
+.group-shelf-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.group-shelves-container {
+  margin-top: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+.group-shelf-wrapper {
+  background: none;
+  border: none;
+  position: relative;
+  padding: 0;
+}
+.group-shelf-title-bar {
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.7rem;
+  gap: 1rem;
+}
+.group-shelf-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #F5F5F3;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.group-shelf-title:hover {
+  color: #D4A373;
+  text-decoration: underline;
+}
+.group-bookshelf-inner {
+  background-color: #594C40;
+  border-radius: 8px;
+  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.18);
+  padding: 1rem 0.5rem;
+  border: 2px solid #4a3f35;
+}
+.group-shelf-wrapper .book-shelf-container {
+  background-color: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.group-shelf-horizontal {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.25rem;
+  overflow-x: auto;
+  min-height: 180px;
+  padding-bottom: 1px;
+}
+.group-shelf-horizontal::-webkit-scrollbar { height: 10px; }
+.group-shelf-horizontal::-webkit-scrollbar-track { background: transparent; }
+.group-shelf-horizontal::-webkit-scrollbar-thumb {
+  background: #D4A373;
+  border-radius: 5px;
+  border: 2px solid #594C40;
+}
+.group-books-draggable-area {
+  display: flex;
+  gap: 1.25rem;
+  flex-grow: 1;
+  min-width: 120px;
+  min-height: 170px;
+  border-radius: 6px;
+  align-items: flex-end;
+}
+.no-groups-message {
+  text-align: center;
+  color: #F5F5F3;
+  padding: 2rem;
+  border: 2px dashed #F5F5F3;
+  border-radius: 8px;
+  margin-top: 2rem;
 }
 
-.book-item:hover .remove-book-btn {
-  opacity: 1; /* Show on hover */
-}
 
-/* Modal Styles */
-.modal {
+/* --- Modal Styles --- */
+.modal-backdrop {
   position: fixed;
   z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-  background-color: rgba(0,0,0,0.6);
+  inset: 0;
+  background-color: rgba(38, 30, 23, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
   justify-content: center;
   align-items: center;
 }
-
 .modal-content {
-  background-color: #5C4033;
-  margin: auto;
-  padding: 2rem;
+  background-color: #FFFFFF;
+  margin: 1rem;
+  padding: 2rem 2.5rem;
   border-radius: 12px;
   width: 90%;
   max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
   position: relative;
-  color: #F5F5DC;
+  border: 1px solid #E0E0E0;
 }
-
-.modal-sm {
-  max-width: 400px;
-}
-
+.modal-content.modal-sm { max-width: 400px; }
 .close-button {
-  color: #F5F5DC;
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
+  color: #594C40;
   position: absolute;
-  top: 10px;
-  right: 20px;
+  top: 1rem;
+  right: 1rem;
   cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.5rem;
 }
-
+.close-button:hover { color: #261E17; }
 .modal-title {
+  font-family: 'Noto Serif KR', serif;
   font-size: 1.8rem;
-  font-weight: bold;
-  margin-bottom: 1rem;
-  color: #B8860B;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  text-align: center;
 }
-
-.modal-description, .modal-body {
-  margin-bottom: 1rem;
-  color: #F5F5DC;
+.modal-description,
+.modal-body {
+  margin-bottom: 1.5rem;
+  opacity: 0.8;
+  text-align: center;
+  line-height: 1.6;
 }
-
 .modal-select {
-  background-color: #F5F5DC;
-  color: #3D2C20;
-  border: 1px solid #B8860B;
+  background-color: #F5F5F3;
+  border: 1px solid #E0E0E0;
   border-radius: 8px;
   padding: 0.5rem;
   width: 100%;
-  height: 160px;
+  height: 180px;
   margin-bottom: 1.5rem;
 }
-
-.modal-save-btn,
-.modal-confirm-btn {
-  background-color: #B8860B;
-  color: #3D2C20;
-  font-weight: bold;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  border: none;
-  width: 100%;
+.modal-select:focus,
+.form-control:focus {
+  outline: none;
+  border-color: #D4A373;
+  box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.4);
 }
-
+.form-group {
+  margin-bottom: 1.25rem;
+  text-align: left;
+}
 .form-label {
-  color: #F5F5DC;
-  font-weight: bold;
+  display: block;
+  font-weight: 600;
   margin-bottom: 0.5rem;
+  font-size: 1rem;
 }
-
 .form-control {
-  background-color: #F5F5DC;
-  color: #3D2C20;
-  border: 1px solid #B8860B;
+  background-color: #F5F5F3;
+  border: 1px solid #E0E0E0;
   border-radius: 8px;
   padding: 0.75rem 1rem;
   width: 100%;
+  box-sizing: border-box;
+  font-size: 1rem;
+}
+.modal-action-btn {
+  width: 100%;
+  padding: 0.8rem;
+  font-size: 1.05rem;
+  margin-top: 0.5rem;
 }
 </style>
