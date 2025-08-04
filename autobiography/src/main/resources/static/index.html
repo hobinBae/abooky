@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8" />
-    <title>Autobiography STT + SSE 테스트 (VAD 적용)</title>
+    <title>자서전 챕터 기반 인터뷰 시스템 (VAD 적용)</title>
     <style>
         body { font-family: sans-serif; max-width: 700px; margin: 2rem auto; }
         #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; }
@@ -34,7 +34,14 @@
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
 <body>
-<h2>Autobiography STT + SSE 테스트 (VAD 적용)</h2>
+<h2>🔸 자서전 챕터 기반 인터뷰 시스템</h2>
+<div id="progressInfo" style="background:#e7f3ff; padding:10px; border-radius:5px; margin:10px 0; display:none;">
+    <div id="chapterInfo" style="font-weight:bold; color:#0066cc;"></div>
+    <div id="stageInfo" style="color:#666; font-size:0.9em;"></div>
+    <div style="background:#fff; border-radius:10px; height:8px; margin:5px 0; overflow:hidden;">
+        <div id="progressBar" style="background:#4CAF50; height:100%; width:0%; transition:width 0.3s;"></div>
+    </div>
+</div>
 <div id="messages"></div>
 
 <div class="settings">
@@ -57,6 +64,20 @@
 <button id="stopBtn" disabled>⏹️ 녹음 중지</button>
 <button id="nextQuestionBtn" disabled>▶ 다음 질문 받기</button>
 
+<div style="margin:10px 0; padding:10px; background:#f0f8ff; border-radius:5px;">
+    <h4>🔧 개발자 도구</h4>
+    <div>세션 ID: <span id="sessionInfo"></span></div>
+    <div>현재 상태: <span id="statusInfo">대기 중</span></div>
+    <div style="margin:5px 0;">
+        <button id="clearBtn" style="width:auto; padding:5px 10px; margin-right:5px;">메시지 지우기</button>
+        <button id="initDataBtn" style="width:auto; padding:5px 10px; background:#ff6b6b; color:white; margin-right:5px;">템플릿 새로고침</button>
+        <button id="testBtn" style="width:auto; padding:5px 10px; background:#4CAF50; color:white;">한국어 이름 테스트</button>
+    </div>
+    <div style="margin:10px 0; padding:8px; background:#ffeeee; border-radius:3px; font-size:0.9em;">
+        <strong>🐛 버그 픽스:</strong> "배우빈" 같은 한국어 이름을 AI가 직업으로 오해하는 문제 해결
+    </div>
+</div>
+
 <script>
     const msgs = document.getElementById('messages');
     const properInput = document.getElementById('properInput');
@@ -70,6 +91,14 @@
     const silenceTime = document.getElementById('silenceTime');
     const silenceTimeValue = document.getElementById('silenceTimeValue');
     const audioLevelBar = document.getElementById('audioLevelBar');
+    const progressInfo = document.getElementById('progressInfo');
+    const chapterInfo = document.getElementById('chapterInfo');
+    const stageInfo = document.getElementById('stageInfo');
+    const progressBar = document.getElementById('progressBar');
+    const sessionInfo = document.getElementById('sessionInfo');
+    const statusInfo = document.getElementById('statusInfo');
+    const clearBtn = document.getElementById('clearBtn');
+    const initDataBtn = document.getElementById('initDataBtn');
 
     let sessionId = crypto.randomUUID();
     let episodeId = 1;
@@ -79,6 +108,31 @@
     let currentAudioLevel = 0;
     let lastSpeechTime = 0;
     let voiceDetected = false;
+
+    // 초기 정보 표시
+    sessionInfo.textContent = sessionId;
+
+    // 메시지 지우기 기능
+    clearBtn.onclick = () => {
+        msgs.innerHTML = '';
+        statusInfo.textContent = '메시지 지워짐';
+    };
+
+    // 고품질 템플릿 새로고침
+    initDataBtn.onclick = async () => {
+        initDataBtn.disabled = true;
+        statusInfo.textContent = '고품질 템플릿 업데이트 중...';
+        try {
+            await axios.post('http://localhost:8080/api/chapter/init');
+            append('✅ 고품질 질문 템플릿으로 업데이트 완료!', 'system');
+            statusInfo.textContent = '템플릿 업데이트 완료';
+        } catch(err) {
+            append('❌ 템플릿 업데이트 실패: ' + err.message, 'error');
+            statusInfo.textContent = '업데이트 실패';
+        } finally {
+            initDataBtn.disabled = false;
+        }
+    };
 
     threshold.oninput = () => thresholdValue.textContent = threshold.value;
     silenceTime.oninput = () => silenceTimeValue.textContent = silenceTime.value;
@@ -112,13 +166,34 @@
 
     startBtn.onclick = () => {
         source = new EventSource(
-            `http://localhost:8080/api/conversation/stream?sessionId=${sessionId}`
+            `http://localhost:8080/api/conversation/stream?sessionId=${sessionId}&useChapterMode=true`
         );
         source.addEventListener('question', e => {
-            const { text } = JSON.parse(e.data);
+            const data = JSON.parse(e.data);
+            const { text, currentChapter, currentStage, questionType, overallProgress, chapterProgress, isLastQuestion } = data;
+
+            // 질문 표시
             append(`AI: ${text}`,'ai');
+
+            // 진행 상황 업데이트
+            if (currentChapter && currentStage) {
+                progressInfo.style.display = 'block';
+                chapterInfo.textContent = `📖 ${currentChapter}`;
+                stageInfo.textContent = `📍 ${currentStage} (${questionType || '질문'})`;
+
+                if (overallProgress !== undefined) {
+                    progressBar.style.width = overallProgress + '%';
+                }
+
+                // 마지막 질문인지 확인
+                if (isLastQuestion) {
+                    append('🎉 모든 인터뷰가 완료되었습니다!', 'system');
+                }
+            }
+
             recordBtn.disabled = false;
             nextQuestionBtn.disabled = false;
+            statusInfo.textContent = '질문 수신됨 - 답변 대기 중';
         });
         source.addEventListener('partialTranscript', e => {
             const { chunkIndex, text } = JSON.parse(e.data);
@@ -129,6 +204,7 @@
             append(`✅ 최종 인식 (#${chunkIndex}): ${text}`,'user');
             // STT 검토 후 확정
             nextQuestionBtn.disabled = false;
+            statusInfo.textContent = '답변 완료 - 다음 질문 대기 중';
         });
         source.addEventListener('error', () => { append('❌ SSE 에러','error'); source.close(); });
         append(`세션 열림: ${sessionId}`,'system');
@@ -177,14 +253,20 @@
         };
         mediaRecorder.onstop = () => { if(isRecording) startChunkRecorder(); };
         mediaRecorder.start();
-        chunkTimer = setTimeout(()=>{ if(mediaRecorder.state==='recording') mediaRecorder.stop(); },6000);
+        chunkTimer = setTimeout(()=>{ if(mediaRecorder.state==='recording') mediaRecorder.stop(); },60000);
     }
 
     nextQuestionBtn.onclick = async () => {
         nextQuestionBtn.disabled = true;
+        statusInfo.textContent = '다음 질문 요청 중...';
         try {
             await axios.post('http://localhost:8080/api/conversation/next', null, { params:{ sessionId } });
-        } catch(err){ append('❌ 다음 질문 요청 오류: '+err.message,'error'); nextQuestionBtn.disabled = false; }
+            statusInfo.textContent = '다음 질문 요청 완료';
+        } catch(err){
+            append('❌ 다음 질문 요청 오류: '+err.message,'error');
+            nextQuestionBtn.disabled = false;
+            statusInfo.textContent = '오류 발생';
+        }
     };
 </script>
 </body>

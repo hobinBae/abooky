@@ -48,6 +48,72 @@ public class OpenAiClient implements AiClient{
         return followUp.isBlank() ? null : followUp;
 
     }
+    
+    @Override
+    public String generateDynamicFollowUp(String promptTemplate, String userAnswer) {
+        ChatMessage system = ChatMessage.of("system", props.getDynamicFollowUpSystem());
+        ChatMessage user = ChatMessage.of("user", String.format(promptTemplate, userAnswer));
+        
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model(props.getModel())
+                .messages(List.of(system, user))
+                .maxTokens(props.getMaxTokensNext())
+                .temperature(props.getTemperature())
+                .build();
+        
+        String response = openAiService.createChatCompletion(request)
+                .getChoices()
+                .get(0)
+                .getMessage()
+                .getContent()
+                .trim();
+        
+        return response.isBlank() ? null : response;
+    }
+    
+    @Override
+    public String generateEpisode(String conversationHistory) {
+        ChatMessage system = ChatMessage.of("system", props.getEpisodeGenerationSystem());
+        ChatMessage user = ChatMessage.of("user", String.format(props.getEpisodeGenerationTemplate(), conversationHistory));
+        
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model(props.getModel())
+                .messages(List.of(system, user))
+                .maxTokens(500) // 에피소드는 더 긴 텍스트 필요
+                .temperature(0.8) // 창의적인 글쓰기를 위해 temperature 높임
+                .build();
+        
+        String episode = openAiService.createChatCompletion(request)
+                .getChoices()
+                .get(0)
+                .getMessage()
+                .getContent()
+                .trim();
+        
+        return episode.isBlank() ? null : episode;
+    }
+    
+    @Override
+    public String analyzeAnsweredQuestions(String userAnswer, String remainingQuestions) {
+        ChatMessage system = ChatMessage.of("system", props.getAnswerAnalysisSystem());
+        ChatMessage user = ChatMessage.of("user", String.format(props.getAnswerAnalysisTemplate(), userAnswer, remainingQuestions));
+        
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model(props.getModel())
+                .messages(List.of(system, user))
+                .maxTokens(50) // 짧은 응답만 필요
+                .temperature(0.1) // 정확성 우선
+                .build();
+        
+        String analysis = openAiService.createChatCompletion(request)
+                .getChoices()
+                .get(0)
+                .getMessage()
+                .getContent()
+                .trim();
+        
+        return analysis.isBlank() ? null : analysis;
+    }
 
 
 }
