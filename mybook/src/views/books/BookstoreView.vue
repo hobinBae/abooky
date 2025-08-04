@@ -2,24 +2,30 @@
   <div class="bookstore-page">
     <h2 class="section-title">지금 가장 인기있는 책 TOP 10</h2>
     <p class="section-subtitle">독자들이 가장 많이 찾고 사랑하는 책들을 만나보세요.</p>
-    <!-- 베스트 10 캐러셀 섹션 -->
     <section class="carousel-section">
       <div class="perspective-carousel-container">
         <div class="perspective-carousel" :style="carouselStyle" @mousedown.prevent="onMouseDown"
           @touchstart.prevent="onTouchStart">
-          <div v-for="(book, index) in topBooks" :key="book.id" class="carousel-item-3d" :style="get3DStyle(index)"
-            @click="goToBookDetail(book.id)">
-            <div class="book-cover-3d">
-              {{ book.title }}
+          
+          <div v-for="(book, index) in topBooks" :key="book.id" class="carousel-item-3d"
+               :style="{ transform: get3DTransform(index) }"
+               @click="goToBookDetail(book.id)">
+            <div class="book-model">
+                <div class="book-face book-cover">
+                    <div class="vertical-line-face"></div>{{ book.title }}
+                </div>
+                <div class="book-face book-spine"></div>
+                <div class="book-face book-side-edge"></div>
+                <div class="book-face book-back-cover"><div class="vertical-line-back"></div></div>
             </div>
           </div>
+
         </div>
       </div>
       <button @click="prevBook" class="carousel-control-btn prev-btn"><i class="bi bi-chevron-left"></i></button>
       <button @click="nextBook" class="carousel-control-btn next-btn"><i class="bi bi-chevron-right"></i></button>
     </section>
 
-    <!-- 검색 및 필터 섹션 -->
     <section class="filter-section">
       <div class="search-input-wrapper">
         <input type="text" v-model="searchTerm" class="form-control search-input" placeholder="책 제목, 작가, 내용으로 검색...">
@@ -39,7 +45,6 @@
       </div>
     </section>
 
-    <!-- 책 리스트 섹션 -->
     <section class="book-list-section">
       <div class="row g-4">
         <div v-if="filteredBooks.length === 0" class="col-12">
@@ -164,23 +169,9 @@ const carouselStyle = computed(() => ({
   transform: `rotateY(${carouselRotation.value}deg)`,
 }));
 
-const get3DStyle = (index: number) => {
+const get3DTransform = (index: number) => {
   const itemAngle = index * 36;
-  const totalRotation = carouselRotation.value + itemAngle;
-  const normalizedAngle = Math.abs(totalRotation % 360);
-  const angleToFront = Math.min(normalizedAngle, 360 - normalizedAngle);
-
-  const angleFactor = angleToFront / 180;
-  const effectFactor = Math.pow(angleFactor, 1.2);
-
-  const opacity = Math.max(0.8, 1 - effectFactor * 0.2); // 최소 투명도 대폭 증가
-  const blur = effectFactor * 2; // 블러 효과 감소
-
-  return {
-    transform: `rotateY(${itemAngle}deg) translateZ(400px)`,
-    opacity: opacity,
-    filter: `blur(${blur}px)`,
-  };
+  return `rotateY(${itemAngle}deg) translateZ(450px)`;
 };
 
 const changeBook = (direction: number) => {
@@ -270,15 +261,97 @@ function toggleLike(book: Book) {
 }
 </script>
 
+<!-- [수정됨] 3D 캐러셀 스타일만 scoped가 없는 별도의 style 태그로 분리 -->
+<style>
+/* CSS 변수로 책 크기 및 두께 정의 */
+:root {
+  --book-width: 200px;
+  --book-height: 300px;
+  --book-depth: 30px;
+}
+
+/* 3D Book Model Styling */
+.bookstore-page .book-model {
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+}
+
+.bookstore-page .book-face {
+    position: absolute;
+    box-sizing: border-box;
+    background-color: #8C6A56;
+    backface-visibility: hidden;
+}
+
+.bookstore-page .book-cover {
+    width: var(--book-width);
+    height: var(--book-height);
+    color: #F2EAD0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1.5rem;
+    font-family: 'Noto Serif KR', serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    border-radius: 2px 2px 2px 2px;
+    box-shadow: inset -2px 0 5px rgba(0, 0, 0, 0.15);
+    transform: translateZ(calc(var(--book-depth) / 2));
+}
+
+.bookstore-page .vertical-line-face {
+    position: absolute;
+    left: 15px;
+    width: 3px;
+    background-color: #574130;
+    height: var(--book-height);
+}
+.bookstore-page .vertical-line-back {
+    position: absolute;
+    right: 15px;
+    width: 3px;
+    background-color: #574130;
+    height: var(--book-height);
+}
+.bookstore-page .book-back-cover {
+    width: var(--book-width);
+    height: var(--book-height);
+    background-color: #8C6A56;
+    border-radius: 2px 2px 2px 2px;
+    transform: rotateY(180deg) translateZ(calc(var(--book-depth) / 2));
+}
+
+.bookstore-page .book-spine {
+    width: var(--book-depth);
+    height: var(--book-height);
+    background-color: #7f604e;
+    transform: rotateY(-90deg) translateZ(calc(var(--book-width) / 2 - 86px));
+}
+
+.bookstore-page .book-side-edge {
+    width: var(--book-depth);
+    height: var(--book-height);
+    background-color: #a6916f;
+    background-image: repeating-linear-gradient(to right,
+            #362e23,
+            #a6916f 1px,
+            #bbb 1px,
+            #362e23 4px);
+    transform: rotateY(90deg) translateZ(calc(var(--book-width) / 2 + 83px));
+}
+</style>
+
+
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
-/* 전역 변수 대신 이 파일에서만 쓸 색상 변수 제거, 직접 색상 사용 */
 .bookstore-page {
   padding: 80px 2rem 2rem;
-  background-color: #F5F5DC; /* 연한 베이지 */
-  color: #3D2C20;            /* 진한 브라운 */
+  background-color: #F2EAD0;
+  color: #403023;
   min-height: calc(100vh - 56px);
   font-family: 'Pretendard', sans-serif;
 }
@@ -287,14 +360,14 @@ function toggleLike(book: Book) {
   font-family: 'Noto Serif KR', serif;
   font-size: 2.8rem;
   font-weight: 700;
-  color: #3D2C20;
+  color: #26250F;
   margin-bottom: 0.75rem;
   text-align: center;
 }
 
 .section-subtitle {
   font-size: 1.25rem;
-  color: #5C4033;
+  color: #403023;
   margin-bottom: 3rem;
   max-width: 600px;
   margin-left: auto;
@@ -310,13 +383,13 @@ function toggleLike(book: Book) {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
 }
 
 .perspective-carousel-container {
-  perspective: 2000px;
-  width: 300px;
-  height: 400px;
+  perspective: 3000px;
+  width: var(--book-width);
+  height: var(--book-height);
   position: relative;
 }
 
@@ -334,31 +407,11 @@ function toggleLike(book: Book) {
 
 .carousel-item-3d {
   position: absolute;
-  left: 50px;
-  top: 50px;
-  width: 200px;
-  height: 300px;
+  width: var(--book-width);
+  height: var(--book-height);
   transform-style: preserve-3d;
   cursor: pointer;
-  transition: transform 0.6s, opacity 0.6s, filter 0.6s;
-}
-
-.book-cover-3d {
-  width: 100%;
-  height: 100%;
-  background-color: #8B4513; /* 진한 브라운 */
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 1.5rem;
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.4rem;
-  font-weight: 600;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
+  transition: transform 0.6s;
 }
 
 .carousel-control-btn {
@@ -366,21 +419,22 @@ function toggleLike(book: Book) {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  background-color: #FDFDF5;
-  border: 1px solid #EAE0D5;
-  color: #3D2C20;
+  background-color: rgba(242, 234, 208, 0.7);
+  border: 1px solid #8C6A56;
+  color: #403023;
   width: 50px;
   height: 50px;
   border-radius: 50%;
   font-size: 1.5rem;
   transition: all 0.2s;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
 }
 
 .carousel-control-btn:hover {
-  background-color: #8B4513;
-  border-color: #8B4513;
-  color: #fff;
+  background-color: #8C4332;
+  border-color: #8C4332;
+  color: #F2EAD0;
 }
 
 .prev-btn {
@@ -393,13 +447,13 @@ function toggleLike(book: Book) {
 
 /* Filter Section */
 .filter-section {
-  background: #FDFDF5;
+  background: rgba(255, 255, 255, 0.3);
   border-radius: 12px;
   padding: 2rem;
   margin: 0 auto 3rem auto;
   max-width: 1000px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-  border: 1px solid #EAE0D5;
+  border: 1px solid #8C6A56;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -412,16 +466,16 @@ function toggleLike(book: Book) {
 .search-input {
   width: 100%;
   padding: 0.75rem 1.5rem 0.75rem 3rem;
-  border: 1px solid #EAE0D5;
+  border: 1px solid #8C6A56;
   border-radius: 9999px;
-  background-color: #F5F5DC;
-  color: #3D2C20;
+  background-color: #F2EAD0;
+  color: #403023;
   font-size: 1rem;
 }
 
 .search-input:focus {
-  box-shadow: 0 0 0 0.25rem rgba(139, 69, 19, 0.25);
-  border-color: #8B4513;
+  box-shadow: 0 0 0 0.25rem rgba(140, 67, 50, 0.25);
+  border-color: #8C4332;
   outline: none;
 }
 
@@ -430,7 +484,7 @@ function toggleLike(book: Book) {
   left: 1.2rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #6c757d;
+  color: #8C6A56;
 }
 
 .sort-options-wrapper {
@@ -440,30 +494,21 @@ function toggleLike(book: Book) {
   flex-wrap: wrap;
 }
 
-.radio-button {
-  display: inline-block;
-  position: relative;
-  cursor: pointer;
-}
-
-.radio-button input[type="radio"] {
-  display: none;
-}
-
+.radio-button input[type="radio"] { display: none; }
 .radio-button span {
   display: block;
   padding: 0.5rem 1.2rem;
-  border: 1px solid #EAE0D5;
+  border: 1px solid #8C6A56;
   border-radius: 20px;
-  background-color: #FDFDF5;
-  color: #6c757d;
+  background-color: transparent;
+  color: #403023;
   transition: all 0.2s;
+  cursor: pointer;
 }
-
 .radio-button input[type="radio"]:checked+span {
-  background-color: #8B4513;
-  color: #fff;
-  border-color: #8B4513;
+  background-color: #8C4332;
+  color: #F2EAD0;
+  border-color: #8C4332;
 }
 
 .keyword-buttons-container {
@@ -476,17 +521,17 @@ function toggleLike(book: Book) {
 .keyword-button {
   padding: 0.5rem 1rem;
   border-radius: 9999px;
-  border: 1px solid #EAE0D5;
+  border: 1px solid #8C6A56;
   background-color: transparent;
-  color: #6c757d;
+  color: #403023;
   transition: all 0.2s;
 }
 
 .keyword-button.active,
 .keyword-button:hover {
-  background-color: #8B4513;
-  color: #FFFFFF;
-  border-color: #8B4513;
+  background-color: #8C4332;
+  color: #F2EAD0;
+  border-color: #8C4332;
 }
 
 /* Book List Section */
@@ -496,7 +541,7 @@ function toggleLike(book: Book) {
 }
 
 .book-card {
-  background: #FDFDF5;
+  background: #F2EAD0;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.06);
   display: flex;
@@ -504,22 +549,22 @@ function toggleLike(book: Book) {
   padding: 1.5rem;
   transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
   cursor: pointer;
-  border: 1px solid #EAE0D5;
+  border: 1px solid #8C6A56;
   margin-bottom: 1.5rem;
 }
 
 .book-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
-  border-color: #8B4513;
+  box-shadow: 0 8px 25px rgba(38, 37, 15, 0.1);
+  border-color: #8C4332;
 }
 
 .book-cover-placeholder {
   flex-shrink: 0;
   width: 120px;
   height: 170px;
-  background-color: #D2B48C;
-  color: #3D2C20;
+  background-color: #8C6A56;
+  color: #F2EAD0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -541,11 +586,11 @@ function toggleLike(book: Book) {
   font-weight: 700;
   font-size: 1.3rem;
   margin-bottom: 0.5rem;
-  color: #3D2C20;
+  color: #26250F;
 }
 
 .book-author {
-  color: #6c757d;
+  color: #403023;
   margin-bottom: 0.75rem;
   font-size: 1rem;
 }
@@ -555,25 +600,23 @@ function toggleLike(book: Book) {
   flex-grow: 1;
   margin-bottom: 1rem;
   line-height: 1.6;
-  color: #3D2C20;
+  color: #403023;
 }
 
 .book-stats {
   display: flex;
   gap: 1rem;
   font-size: 0.9rem;
-  color: #6c757d;
+  color: #8C6A56;
   margin-bottom: 1rem;
 }
 
-.book-stats i {
-  margin-right: 0.3rem;
-}
+.book-stats i { margin-right: 0.3rem; }
 
 .like-button {
   background-color: transparent;
-  border: 1px solid #D9BFB3;
-  color: #8B4513;
+  border: 1px solid #8C6A56;
+  color: #8C4332;
   align-self: flex-start;
   padding: 0.5rem 1rem;
   border-radius: 8px;
@@ -583,63 +626,36 @@ function toggleLike(book: Book) {
 
 .like-button.liked,
 .like-button:hover {
-  background-color: #8B4513;
-  color: #FFFFFF;
-  border-color: #8B4513;
+  background-color: #8C4332;
+  color: #F2EAD0;
+  border-color: #8C4332;
 }
 
 .no-books-message {
   text-align: center;
   padding: 3rem;
   font-size: 1.2rem;
-  color: #6c757d;
-  background: #FDFDF5;
+  color: #8C6A56;
+  background: rgba(255, 255, 255, 0.2);
   border-radius: 12px;
-  border: 1px solid #EAE0D5;
+  border: 1px solid #8C6A56;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .bookstore-page {
-    padding: 60px 1rem 1rem;
-  }
-
-  .section-title {
-    font-size: 2.2rem;
-  }
-
-  .carousel-section {
-    height: 400px;
-  }
-
-  .prev-btn {
-    left: 5%;
-  }
-
-  .next-btn {
-    right: 5%;
-  }
-
-  .filter-section, .book-list-section {
-    padding: 1.5rem;
-  }
-
+  .bookstore-page { padding: 60px 1rem 1rem; }
+  .section-title { font-size: 2.2rem; }
+  .carousel-section { height: 400px; }
+  .prev-btn { left: 5%; }
+  .next-btn { right: 5%; }
+  .filter-section, .book-list-section { padding: 1.5rem; }
   .book-card {
     flex-direction: column;
     align-items: center;
     text-align: center;
   }
-
-  .book-cover-placeholder {
-    margin-bottom: 1rem;
-  }
-
-  .book-details {
-    align-items: center;
-  }
-
-  .like-button {
-    align-self: center;
-  }
+  .book-cover-placeholder { margin-bottom: 1rem; }
+  .book-details { align-items: center; }
+  .like-button { align-self: center; }
 }
 </style>
