@@ -7,6 +7,8 @@ import * as THREE from 'three'
 import { ref, onMounted, defineEmits, onUnmounted, defineExpose } from 'vue'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
 import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
@@ -16,7 +18,7 @@ import { gsap } from 'gsap'
 
 const emit = defineEmits(['loaded', 'hotspot', 'background-loaded'])
 
-defineExpose({ moveToYard, moveCameraTo });
+defineExpose({ moveToYard, moveCameraTo, loadModel });
 
 const container = ref<HTMLDivElement | null>(null)
 let camera: THREE.PerspectiveCamera
@@ -66,7 +68,7 @@ function initScene() {
   RectAreaLightUniformsLib.init()
   setupLights()
   loadHDR()
-  loadModel()
+  // loadModel() // 자동 모델 로딩 제거
   animate()
 }
 
@@ -155,8 +157,15 @@ function loadHDR() {
 }
 
 function loadModel() {
+  const ktx2Loader = new KTX2Loader()
+    .setTranscoderPath('https://cdn.jsdelivr.net/gh/mrdoob/three.js@r165/examples/jsm/libs/basis/')
+    .detectSupport(renderer)
+
   const loader = new GLTFLoader()
-  loader.load('/3D/hanok_0729_1755.glb', (gltf: GLTF) => {
+  loader.setKTX2Loader(ktx2Loader)
+  loader.setMeshoptDecoder(MeshoptDecoder)
+
+  loader.load('/3D/hanok_optimized.glb', (gltf: GLTF) => {
     const hanok = gltf.scene
     hanok.scale.set(1.5, 1.5, 1.5) // 모델 크기 조절
 
