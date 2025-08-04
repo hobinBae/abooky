@@ -58,9 +58,7 @@ const activeHotspot = ref<string | null>(null)
 const hasEntered = ref(false) // '들어가기' 버튼 클릭 여부
 
 // 로딩 및 애니메이션 상태
-const isLoading = ref(false) // 초기 상태를 false로 변경
-const isModelLoaded = ref(false)
-const isTextAnimationFinished = ref(false)
+const isLoading = ref(false)
 const isTextVisible = ref(false)
 const showLine1 = ref(false)
 const showLine2 = ref(false)
@@ -84,6 +82,7 @@ onActivated(() => {
 })
 
 const onBackgroundLoaded = () => {
+  // 1. 배경이 로드되면 텍스트를 표시하고 애니메이션 시작
   isTextVisible.value = true
   showLine1.value = true
   showLine2.value = true
@@ -91,13 +90,10 @@ const onBackgroundLoaded = () => {
   nextTick(() => {
     const tl = gsap.timeline({
       onComplete: () => {
-        isTextAnimationFinished.value = true
-        // 텍스트 애니메이션이 끝나면, 모델이 아직 로딩 중일 경우 로딩 아이콘 표시
-        if (!isModelLoaded.value) {
-          isLoading.value = true
-        } else {
-          // 모델 로딩이 이미 끝났다면 바로 버튼 표시
-          showEnterButton.value = true
+        // 2. 텍스트 애니메이션이 끝나면 3D 모델 로딩 시작
+        if (threeSceneRef.value) {
+          isLoading.value = true // 로딩 아이콘 표시
+          threeSceneRef.value.loadModel()
         }
       }
     })
@@ -107,13 +103,9 @@ const onBackgroundLoaded = () => {
 }
 
 const onSceneLoaded = () => {
-  isModelLoaded.value = true
-  // 모델 로딩이 끝나면, 텍스트 애니메이션이 이미 끝났는지 확인
-  if (isTextAnimationFinished.value) {
-    // 텍스트 애니메이션이 끝나서 로딩 아이콘이 보이고 있다면, 숨기고 버튼 표시
-    isLoading.value = false
-    showEnterButton.value = true
-  }
+  // 3. 모델 로딩이 완료되면 로딩 아이콘을 숨기고 '시작하기' 버튼 표시
+  isLoading.value = false
+  showEnterButton.value = true
 }
 
 const enterYard = () => {
