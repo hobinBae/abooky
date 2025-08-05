@@ -1,6 +1,6 @@
 package com.c203.autobiography.domain.book.dto;
 
-import com.c203.autobiography.domain.book.Entity.Book;
+import com.c203.autobiography.domain.book.entity.Book;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;

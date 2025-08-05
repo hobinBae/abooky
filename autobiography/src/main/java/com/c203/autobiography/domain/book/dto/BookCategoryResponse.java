@@ -1,7 +1,7 @@
 package com.c203.autobiography.domain.book.dto;
 
 
-import com.c203.autobiography.domain.book.Entity.BookCategory;
+import com.c203.autobiography.domain.book.entity.BookCategory;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

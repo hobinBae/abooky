@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @Schema(description = "에피소드 저장 요청 DTO")
-public class EpisodeRequest {
+public class EpisodeCreateRequest {
 
     @NotNull(message = "bookId는 필수입니다.")
     @Schema(description = "책 ID (Book)", example = "5001")

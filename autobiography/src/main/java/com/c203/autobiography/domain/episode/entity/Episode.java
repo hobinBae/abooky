@@ -1,6 +1,6 @@
 package com.c203.autobiography.domain.episode.entity;
 
-import com.c203.autobiography.domain.book.Entity.Book;
+import com.c203.autobiography.domain.book.entity.Book;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,10 +52,9 @@ public class Episode {
     )
     private Book book;
 
-    //테스트 코드
-    @Builder.Default
+
     @Column(nullable = false, length = 100)
-    private String title = "테스트";
+    private String title;
 
     @Column(name = "episode_date")
     private LocalDate episodeDate;
@@ -99,14 +98,12 @@ public class Episode {
             String title,
             LocalDate episodeDate,
             Integer episodeOrder,
-            String content,
-            String audioUrl
+            String content
     ) {
         this.title = title;
         this.episodeDate = episodeDate;
         this.episodeOrder = episodeOrder;
         this.content = content;
-        this.audioUrl = audioUrl;
     }
     /**
      * 삭제 요청 시 deletedAt에 타임스탬프를 설정합니다.

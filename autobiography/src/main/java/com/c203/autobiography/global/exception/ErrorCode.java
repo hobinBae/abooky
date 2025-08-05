@@ -27,7 +27,9 @@ public enum ErrorCode {
 
     // book 관련 에러
     BOOK_CATEGORY_NOT_FOUND("BOOK_CATEGORY_NOT_FOUND", HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
-    BOOK_NOT_FOUND("BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다.");
+    BOOK_NOT_FOUND("BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다."),
+    EPISODE_NOT_FOUND("EPISODE_NOT_FOUND", HttpStatus.NOT_FOUND, "에피소드를 찾을 수 없습니다."),
+    FORBIDDEN("FORBIDDEN", HttpStatus.FORBIDDEN, "권한이 없습니다.");
     //
     // 필요한 에러 코드 계속 추가
 
