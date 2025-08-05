@@ -1,75 +1,56 @@
 <template>
   <div class="page-container group-book-creation-page">
-    <!-- Step 1: Lobby / Pre-join screen -->
     <div v-if="!hasJoined" class="lobby-container">
-      <div class="auth-container">
-        <h1 class="auth-title">화면 미리보기</h1>
-        <p class="auth-subtitle">입장하기 전, 카메라와 마이크 상태를 확인해 주세요.</p>
-        
+      <div class="lobby-card">
+        <h1 class="lobby-title">화면 미리보기</h1>
+        <p class="lobby-subtitle">입장하기 전, 카메라와 마이크 상태를 확인해 주세요.</p>
         <div class="video-preview-container">
           <video ref="localVideo" autoplay muted playsinline class="video-preview"></video>
           <div class="media-controls">
-            <button @click="toggleAudio" class="btn btn-media" :class="{ active: isAudioEnabled }">
+            <button @click="toggleAudio" class="btn-media" :class="{ 'is-muted': !isAudioEnabled }">
               <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
             </button>
-            <button @click="toggleVideo" class="btn btn-media" :class="{ active: isVideoEnabled }">
+            <button @click="toggleVideo" class="btn-media" :class="{ 'is-muted': !isVideoEnabled }">
               <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
             </button>
           </div>
         </div>
-        <button @click="joinSession" class="btn btn-primary w-100 btn-auth">그룹책 만들기 입장</button>
+        <button @click="joinSession" class="btn btn-primary btn-join">그룹책 만들기 입장</button>
       </div>
     </div>
 
-    <!-- Step 2: Main collaborative workspace -->
-    <div v-else class="workspace-container">
-      <!-- Main Content: Video + AI Helper -->
-      <div class="main-content">
-        <div class="card video-grid-card">
-          <h3 class="card-header">참여자</h3>
-          <div class="video-grid">
-            <div class="video-participant">
-              <video :srcObject="localStream" autoplay muted playsinline class="participant-video"></video>
-              <div class="participant-name local-participant-name" @click="toggleAudio">
-                <i class="bi me-2" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                나
-              </div>
+    <div v-else class="workspace-container single-content">
+      <div class="card video-grid-card expanded">
+        <h3 class="card-header">참여자</h3>
+        <div class="video-grid large" :style="{ gridTemplateColumns: getGridTemplate }">
+          <div class="video-participant">
+            <video :srcObject="localStream" autoplay muted playsinline class="participant-video"></video>
+            <div class="participant-name">
+              <i class="bi me-1" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+              나 (You)
             </div>
-            <div v-for="p in remoteParticipants" :key="p.id" class="video-participant">
-              <div class="participant-video-placeholder">{{ p.name }}</div>
-              <div class="participant-name">
-                <i class="bi me-2" :class="p.isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                {{ p.name }}
-              </div>
+          </div>
+          <div v-for="p in remoteParticipants" :key="p.id" class="video-participant">
+            <div class="participant-video-placeholder">{{ p.name.charAt(0) }}</div>
+            <div class="participant-name">
+              <i class="bi me-1" :class="p.isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+              {{ p.name }}
             </div>
           </div>
         </div>
-
-        <div class="card ai-helper-card">
-           <h3 class="card-header">글벗, 한석봉</h3>
-          <div class="ai-transcript">
-            <p v-for="(line, index) in transcript" :key="index" :class="`speaker-${line.speaker}`"><strong>{{ line.speaker }}:</strong> {{ line.text }}</p>
-          </div>
-          <div class="ai-actions">
-            <button class="btn btn-info btn-sm">글 요약하기</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Sidebar: Shared Editor + Controls -->
-      <div class="sidebar">
-        <div class="card editor-card">
-          <h3 class="card-header">우리의 이야기</h3>
-          <textarea v-model="sharedContent" @input="onEditorChange" class="shared-editor" placeholder="이곳에 동료들과 함께 이야기의 첫 문장을 써내려가 보세요..."></textarea>
-          <div class="editor-actions">
-          </div>
-        </div>
-        <div class="card controls-card">
-          <h3 class="card-header">마무리</h3>
-          <div class="session-controls">
-            <button @click="saveAndExit" class="btn btn-secondary w-100">임시저장하고 나가기</button>
-            <button @click="publishAndExit" class="btn btn-primary w-100">완성하기</button>
-          </div>
+        <div class="main-controls">
+          <button @click="toggleAudio" class="btn btn-control" :class="{ 'is-muted': !isAudioEnabled }">
+            <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+            <span>{{ isAudioEnabled ? '음소거' : '음소거 해제' }}</span>
+          </button>
+          <button @click="toggleVideo" class="btn btn-control" :class="{ 'is-muted': !isVideoEnabled }">
+            <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
+            <span>{{ isVideoEnabled ? '비디오 중지' : '비디오 시작' }}</span>
+          </button>
+           <button @click="saveAndExit" class="btn btn-control btn-leave">
+            <i class="bi bi-box-arrow-right"></i>
+            <span>나가기</span>
+          </button>
         </div>
       </div>
     </div>
@@ -77,14 +58,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
 // --- Mock/Placeholder Data & Interfaces ---
-interface TranscriptLine {
-  speaker: string;
-  text: string;
-}
 interface RemoteParticipant {
   id: string;
   name: string;
@@ -103,53 +80,70 @@ const localVideo = ref<HTMLVideoElement | null>(null);
 const localStream = ref<MediaStream | null>(null);
 const isAudioEnabled = ref(true);
 const isVideoEnabled = ref(true);
+const remoteParticipants = ref<RemoteParticipant[]>([{ id: 'user2', name: '김철수', isAudioEnabled: true }, { id: 'user3', name: '이영희', isAudioEnabled: false }, { id: 'user4', name: '김아윤', isAudioEnabled: true }]);
 
-const remoteParticipants = ref<RemoteParticipant[]>([{ id: 'user2', name: '김철수', isAudioEnabled: true }, { id: 'user3', name: '이영희', isAudioEnabled: false }]);
-const transcript = ref<TranscriptLine[]>([
-  { speaker: '나', text: '안녕하세요, 오늘 회의를 시작하겠습니다.' },
-  { speaker: '김철수', text: '네, 안녕하세요. 첫 번째 에피소드부터 이야기해볼까요?' },
-]);
-const sharedContent = ref('그룹 통합 책의 내용이 여기에 실시간으로 작성됩니다.');
-
-// --- WebRTC & Media Functions (Simplified/Mocked) ---
+// --- WebRTC & Media Functions ---
 async function setupLocalMedia() {
   try {
-    localStream.value = new MediaStream();
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    localStream.value = stream;
     if (localVideo.value) {
-      // In a real app: localVideo.value.srcObject = await navigator.mediaDevices.getUserMedia(...)
+      localVideo.value.srcObject = stream;
     }
   } catch (error) {
-    console.error('Error accessing media devices (mocked):', error);
+    console.error('미디어 장치에 접근할 수 없습니다:', error);
+    // 실제 카메라 없을 때를 대비한 목업 스트림
+    if (localVideo.value) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(0, 0, 640, 480);
+        ctx.fillStyle = 'white';
+        ctx.font = '30px Arial';
+        ctx.fillText('No Camera', 230, 250);
+      }
+      localStream.value = canvas.captureStream();
+      localVideo.value.srcObject = localStream.value;
+    }
   }
 }
 
 function toggleAudio() {
   isAudioEnabled.value = !isAudioEnabled.value;
+  localStream.value?.getAudioTracks().forEach(track => track.enabled = isAudioEnabled.value);
 }
 
 function toggleVideo() {
   isVideoEnabled.value = !isVideoEnabled.value;
+  localStream.value?.getVideoTracks().forEach(track => track.enabled = isVideoEnabled.value);
 }
 
 function joinSession() {
   hasJoined.value = true;
-}
-
-// --- Editor & Session Functions ---
-function onEditorChange() {
-  console.log('Shared content updated:', sharedContent.value);
+  // 로비에서 사용한 스트림 정지 (필요 시)
+  if (localVideo.value) {
+    localVideo.value.srcObject = null;
+  }
 }
 
 function saveAndExit() {
-  alert('내용이 임시 저장되었습니다. (더미 기능)');
-  router.push(`/group-bookshelf/${groupId || 'default'}`);
+  alert('작업을 종료합니다. (더미 기능)');
+  router.push(`/group-book-lobby/${groupId || 'default'}`);
 }
 
-function publishAndExit() {
-  alert('책이 발행되었습니다. (더미 기능)');
-  router.push(`/group-bookshelf/${groupId || 'default'}`);
-}
-
+// --- Computed Properties ---
+const getGridTemplate = computed(() => {
+  const total = remoteParticipants.value.length + 1;
+  let columns = 1;
+  if (total <= 4) columns = total;
+  else if (total <= 6) columns = 3;
+  else if (total <= 9) columns = 3;
+  else columns = 4;
+  return `repeat(${columns}, 1fr)`;
+});
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
@@ -157,39 +151,41 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (localStream.value) {
-    localStream.value.getTracks().forEach(track => track.stop());
-  }
+  localStream.value?.getTracks().forEach(track => track.stop());
 });
 </script>
 
 <style scoped>
+/* --- 폰트 Import --- */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
+/* --- [수정] CSS 변수 (현대적인 테마) --- */
 :root {
   --font-main: 'Pretendard', sans-serif;
   --font-title: 'Noto Serif KR', serif;
-  --color-bg: #F5F5DC; /* Beige */
-  --color-text: #3D2C20; /* Dark Brown */
-  --color-primary: #B8860B; /* Dark Goldenrod */
-  --color-surface: #FFFDF5; /* Creamy White */
-  --color-border: #DCD0B9; /* Soft Brown */
-  --color-accent: #8B4513; /* Saddle Brown */
+  --color-bg: #f8f9fa;
+  --color-text: #212529;
+  --color-primary: #343a40;
+  --color-danger: #fa5252;
+  --color-surface: #ffffff;
+  --color-border: #dee2e6;
+  --color-muted-text: #868e96;
 }
 
-/* General Page Styles */
+/* --- 페이지 기본 스타일 --- */
 .page-container {
-  padding: 80px 2rem 2rem;
+  padding: 2rem;
   background-color: var(--color-bg);
   min-height: 100vh;
   color: var(--color-text);
-  font-family: 'Pretendard', sans-serif;
+  font-family: var(--font-main);
 }
 
 .card {
   background-color: var(--color-surface);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   border: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
@@ -197,60 +193,58 @@ onUnmounted(() => {
 }
 
 .card-header {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.5rem;
+  font-family: var(--font-main);
+  font-size: 1.25rem;
   font-weight: 600;
-  padding: 0.8rem 1.5rem;
+  padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--color-border);
   margin-bottom: 0;
-  background-color: rgba(210, 180, 140, 0.2); /* Light Tan */
-  color: var(--color-accent);
+  background-color: transparent;
+  color: var(--color-text);
 }
 
-/* --- Lobby Styles --- */
+/* --- 로비 스타일 --- */
 .lobby-container {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  padding-top: 2rem;
+  align-items: center;
+  min-height: calc(100vh - 4rem);
 }
 
-.auth-container {
+.lobby-card {
   width: 100%;
-  max-width: 550px;
+  max-width: 500px;
   background-color: var(--color-surface);
-  padding: 2.5rem 3rem;
-  border-radius: 8px;
+  padding: 2.5rem;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
-  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
 }
 
-.auth-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 2.8rem;
+.lobby-title {
+  font-family: var(--font-main);
+  font-size: 2rem;
   font-weight: 700;
   text-align: center;
-  color: var(--color-accent);
+  color: var(--color-text);
   margin-bottom: 0.75rem;
 }
 
-.auth-subtitle {
+.lobby-subtitle {
   text-align: center;
-  color: var(--color-text);
-  margin-bottom: 2.5rem;
-  font-size: 1.25rem;
-  line-height: 1.7;
+  color: var(--color-muted-text);
+  margin-bottom: 2rem;
+  font-size: 1rem;
 }
 
 .video-preview-container {
   position: relative;
   width: 100%;
-  padding-top: 75%; /* 4:3 Aspect Ratio */
-  margin: 0 auto 2rem auto;
-  background: #EAE0C8;
+  padding-top: 56.25%; /* 16:9 Aspect Ratio */
+  margin-bottom: 2rem;
+  background: #f1f3f5;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--color-border);
 }
 
 .video-preview {
@@ -269,98 +263,70 @@ onUnmounted(() => {
   transform: translateX(-50%);
   display: flex;
   gap: 1rem;
-  background: rgb(61, 44, 32);
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
 }
 
 .btn-media {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fffbe6;
-  color: #B8860B;
+  background-color: rgba(0, 0, 0, 0.4);
+  color: #fff;
   border-radius: 50%;
-  width: 44px;
-  height: 44px;
-  border: 2px solid #B8860B;
+  width: 50px;
+  height: 50px;
+  border: none;
   font-size: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease-in-out;
-  cursor: pointer; /* ✨ 커서 추가 */
+  cursor: pointer;
 }
 
 .btn-media:hover {
-  background-color: #fff3c4;
-  border-color: #B8860B;
-  opacity: 0.7; /* ✨ 살짝 투명해짐 */
+  background-color: rgba(0, 0, 0, 0.6);
 }
 
-
-.btn-media.active {
-  background: #fffbe6;
-  color: #fff;
-  border-color: #B8860B;
+.btn-media.is-muted {
+  background-color: var(--color-danger);
 }
 
-.btn-auth {
+.btn-join {
+  width: 100%;
+  background-color: var(--color-primary);
   color: white;
-  font-weight: 700;
-  font-size: 1.1rem;
-  padding: 0.75rem;
+  font-weight: 600;
+  font-size: 1rem;
+  padding: 0.8rem;
   border-radius: 8px;
+  border: none;
   transition: background-color 0.2s ease;
 }
 
-/* Icon color transitions for mic/camera buttons */
-.btn-media i {
-  transition: color 0.2s;
-  color: #e53935 !important;
-}
-.btn-media:not(.active) i {
-  color: #e53935 !important;
-}
-.btn-media.active i {
-  color: #e53935 !important;
+.btn-join:hover {
+  background-color: #555;
 }
 
-
-.btn-auth:hover {
-  background-color: #a7770a;
-}
-
-
-/* --- Workspace Styles --- */
+/* --- 워크스페이스 스타일 --- */
 .workspace-container {
   display: flex;
   gap: 1.5rem;
-  height: calc(100vh - 80px - 4rem);
+  height: calc(100vh - 4rem);
 }
 
-.main-content {
-  flex-grow: 1;
+.workspace-container.single-content {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  height: calc(100vh - 4rem);
+  gap: 0;
 }
 
-.sidebar {
-  width: 380px;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.video-grid-card {
+.video-grid-card.expanded {
   flex-grow: 1;
+  height: 100%;
 }
 
 .video-grid {
-  padding: 1.5rem;
+  padding: 1rem;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
   overflow-y: auto;
   flex-grow: 1;
 }
@@ -368,12 +334,10 @@ onUnmounted(() => {
 .video-participant {
   position: relative;
   width: 100%;
-  padding-top: 75%; /* 4:3 aspect ratio */
-  background: #EAE0C8;
+  aspect-ratio: 16 / 9;
+  background: #e9ecef;
   border-radius: 8px;
   overflow: hidden;
-  border: 1px solid var(--color-border);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .participant-video, .participant-video-placeholder {
@@ -386,146 +350,74 @@ onUnmounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
+  font-size: 2rem;
   font-weight: bold;
-  color: var(--color-text);
+  color: var(--color-muted-text);
 }
 
 .participant-name {
   position: absolute;
   bottom: 0.5rem;
   left: 0.5rem;
-  background: rgba(61, 44, 32, 0.7);
+  background: rgba(0, 0, 0, 0.5);
   color: #fff;
-  padding: 0.3rem 0.6rem;
+  padding: 0.25rem 0.6rem;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   display: flex;
   align-items: center;
 }
 
-.local-participant-name {
-  cursor: pointer;
-}
-
-.ai-helper-card {
-  height: 280px;
-}
-
-.ai-transcript {
-  flex-grow: 1;
-  overflow-y: auto;
-  font-size: 1rem;
-  padding: 1rem 1.5rem;
-  line-height: 1.6;
-}
-
-.ai-actions {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid var(--color-border);
+.main-controls {
   display: flex;
-  gap: 0.75rem;
-}
-
-.editor-card {
-  flex-grow: 1;
-}
-
-.shared-editor {
-  width: 100%;
-  flex-grow: 1;
-  resize: none;
-  border: none;
-  padding: 1.5rem;
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.1rem;
-  line-height: 1.9;
-  color: var(--color-text);
-  background-color: transparent;
-  outline: none;
-  background-size: 100% 2.8em;
-}
-
-.editor-actions {
-  padding: 1rem 1.5rem;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
   border-top: 1px solid var(--color-border);
 }
 
-.controls-card .session-controls {
-  padding: 1.5rem;
+.btn-control {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-
-/* General Button Styles in Workspace */
-.btn {
-  font-family: var(--font-main);
-  font-weight: 600;
-  border-radius: 6px;
+  align-items: center;
+  gap: 0.25rem;
+  background-color: var(--color-surface);
+  color: var(--color-muted-text);
+  border: 1px solid var(--color-border);
   padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  min-width: 80px;
+  cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.btn-primary {
-  background-color: #a7770a;
-  border-color: #a7770a;
-  color: #fffbe6; 
-}
-.btn-primary:hover {
-  opacity: 0.8;
+.btn-control:hover {
+  background-color: var(--color-bg);
+  border-color: #ced4da;
 }
 
-.btn-secondary {
-  background-color: #7a3d10;
-  border-color: #7a3d10;
-  color: #fffbe6;
-}
-.btn-secondary:hover {
-  opacity: 0.8;
+.btn-control i {
+  font-size: 1.25rem;
 }
 
+.btn-control:not(.is-muted) {
+  color: var(--color-text);
+}
 
-.btn-info, .btn-success {
-  background-color: #8B795E; /* Muted Brown */
-  border-color: #8B795E;
+.btn-control.is-muted {
+  color: var(--color-danger);
+}
+
+.btn-control.btn-leave {
+  background-color: var(--color-danger);
+  border-color: var(--color-danger);
   color: white;
 }
-.btn-info:hover, .btn-success:hover {
-  background-color: #7a6a50;
+
+.btn-control.btn-leave:hover {
+  opacity: 0.8;
 }
 
-.btn-outline-secondary {
-  color: var(--color-accent);
-  border-color: var(--color-border);
-}
-.btn-outline-secondary:hover {
-  background-color: rgba(210, 180, 140, 0.2);
-}
-
-
-@media (max-width: 992px) {
-  .workspace-container {
-    flex-direction: column;
-    height: auto;
-  }
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-  }
-  .editor-card, .controls-card {
-    width: 50%;
-  }
-}
-
-@media (max-width: 768px) {
-  .page-container {
-    padding: 70px 1rem 1rem;
-  }
-  .sidebar {
-    flex-direction: column;
-  }
-  .editor-card, .controls-card {
-    width: 100%;
-  }
-}
 </style>

@@ -25,7 +25,7 @@ import { useRouter } from 'vue-router';
 const router = useRouter();
 
 const goToCreate = () => {
-  router.push({ name: 'GroupBookCreation' });
+  router.push({ name: 'group-book-creation' });
 };
 
 const goToJoin = () => {
