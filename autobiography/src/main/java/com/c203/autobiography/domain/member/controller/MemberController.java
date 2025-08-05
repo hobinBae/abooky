@@ -30,7 +30,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MemberController {
 
-    private final FileStorageService fileStorageService;
     private final MemberService memberService;
     private final GroupApplyService groupApplyService;
     private final GroupMemberService groupMemberService;

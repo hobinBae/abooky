@@ -93,7 +93,7 @@ public class SttController {
         }
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                        .body(ApiResponse.of(HttpStatus.CREATED, "성공", null, httpRequest.getRequestURI()));
+                .body(ApiResponse.of(HttpStatus.CREATED, "성공", null, httpRequest.getRequestURI()));
     }
 
 }

@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.episode.dto;
 
+import com.c203.autobiography.domain.episode.entity.Episode;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -40,4 +41,17 @@ public class EpisodeResponse {
 
     @Schema(description = "수정일시")
     private LocalDateTime updatedAt;
+
+    public static EpisodeResponse of(Episode e){
+        return EpisodeResponse.builder()
+                .episodeId(e.getEpisodeId())
+                .bookId(e.getBook().getBookId())
+                .title(e.getTitle())
+                .episodeDate(e.getEpisodeDate())
+                .audioUrl(e.getAudioUrl())
+                .createdAt(e.getCreatedAt())
+                .updatedAt(e.getUpdatedAt())
+                .build();
+    }
+
 }
