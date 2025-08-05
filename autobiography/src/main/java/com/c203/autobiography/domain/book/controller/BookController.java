@@ -62,13 +62,13 @@ public class BookController {
 
     @Operation(summary = "책 조회", description = "책을 조회한다.")
     @GetMapping("/{bookId}")
-    public ResponseEntity<ApiResponse<BookResponse>> readBook(
+    public ResponseEntity<ApiResponse<BookResponse>> getBookDetail(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long bookId,
             HttpServletRequest httpRequest
     ) {
         Long memberId = userDetails.getMemberId();
-        BookResponse response = bookService.readBook(memberId, bookId);
+        BookResponse response = bookService.getBookDetail(memberId, bookId);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "책 조회 성공", response, httpRequest.getRequestURI()));
     }
@@ -141,8 +141,8 @@ public class BookController {
     ) {
         Long memberId = userDetails.getMemberId();
         EpisodeResponse response = episodeService.updateEpisode(memberId, bookId, episodeId, request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.of(HttpStatus.CREATED, "에피소드 수정 성공", response, httpRequest.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "에피소드 수정 성공", response, httpRequest.getRequestURI()));
     }
 
     @Operation(summary = "에피소드 삭제", description = "에피소드를 삭제합니다.")

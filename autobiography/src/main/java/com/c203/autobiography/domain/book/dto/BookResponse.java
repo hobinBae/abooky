@@ -1,10 +1,12 @@
 package com.c203.autobiography.domain.book.dto;
 
 import com.c203.autobiography.domain.book.entity.Book;
+import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -39,7 +41,10 @@ public class BookResponse {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime completedAt;
 
-    public static BookResponse of(Book book) {
+    //책에 속한 에피소드 목록
+    private List<EpisodeResponse> episodes;
+
+    public static BookResponse of(Book book, List<EpisodeResponse> episodes) {
         return BookResponse.builder()
                 .bookId(book.getBookId())
                 .memberId(book.getMember().getMemberId())
@@ -56,6 +61,10 @@ public class BookResponse {
                 .averageRating(book.getAverageRating())
                 .completed(book.getCompleted())
                 .completedAt(book.getCompletedAt())
+                .episodes(episodes)
                 .build();
+    }
+    public static BookResponse of(Book book){
+        return BookResponse.of(book, List.of());
     }
 }

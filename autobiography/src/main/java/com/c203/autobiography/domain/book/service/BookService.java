@@ -16,7 +16,7 @@ public interface BookService {
 
     BookResponse completeBook(Long memberId, Long bookId);
 
-    BookResponse readBook(Long memberId, Long bookId);
+    BookResponse getBookDetail(Long memberId, Long bookId);
 
     List<BookResponse> getMyBooks(Long memberId);
 }
