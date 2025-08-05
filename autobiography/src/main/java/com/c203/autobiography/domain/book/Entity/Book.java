@@ -1,4 +1,4 @@
-package com.c203.autobiography.domain.book.Entity;
+package com.c203.autobiography.domain.book.entity;
 
 import com.c203.autobiography.domain.book.dto.BookType;
 import com.c203.autobiography.domain.member.entity.Member;

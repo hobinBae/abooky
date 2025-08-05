@@ -1,4 +1,4 @@
-package com.c203.autobiography.domain.book.Entity;
+package com.c203.autobiography.domain.book.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
