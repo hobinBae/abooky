@@ -1,7 +1,7 @@
 package com.c203.autobiography.domain.episode.service;
 
 import com.c203.autobiography.domain.ai.client.AiClient;
-import com.c203.autobiography.domain.book.Entity.Book;
+import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.repository.BookRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
@@ -17,7 +17,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hibernate.validator.internal.constraintvalidators.bv.number.bound.decimal.DecimalMaxValidatorForInteger;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,7 +31,6 @@ public class EpisodeServiceImpl implements EpisodeService{
     private final AiClient aiClient;
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
-    private final DecimalMaxValidatorForInteger decimalMaxValidatorForInteger;
 
     /**
      * 에피소드 생성
@@ -97,7 +95,7 @@ public class EpisodeServiceImpl implements EpisodeService{
 
         Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
 
-        episode.updateEpisode(request.getTitle(), request.getEpisodeDate(), request.getEpisodeOrder(), request.getContent());
+        episode.updateEpisode(request.getTitle(), request.getEpisodeDate(), request.getEpisodeOrder(), request.getContent(), request.getAudioUrl());
 
         return EpisodeResponse.of(episode);
     }

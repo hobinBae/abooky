@@ -1,5 +1,8 @@
 package com.c203.autobiography.domain.book.dto;
 
+import com.c203.autobiography.domain.book.entity.Book;
+import com.c203.autobiography.domain.book.entity.BookCategory;
+import com.c203.autobiography.domain.member.entity.Member;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -25,10 +28,12 @@ public class BookCreateRequest {
     @NotNull(message = "bookType은 필수입니다.")
     private BookType bookType;
 
+    private String coverImageUrl;
+
     /** null 허용: 카테고리를 지정하지 않을 수도 있습니다. */
     private Long categoryId;
 
-    /*
+
     // 필요 시 서비스 계층에서 사용
     public Book toEntity(Member member, BookCategory category) {
         return Book.builder()
@@ -40,5 +45,5 @@ public class BookCreateRequest {
             .category(category)
             .build();
     }
-    */
+
 }

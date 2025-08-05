@@ -98,12 +98,14 @@ public class Episode {
             String title,
             LocalDate episodeDate,
             Integer episodeOrder,
-            String content
+            String content,
+            String audioUrl
     ) {
         this.title = title;
         this.episodeDate = episodeDate;
         this.episodeOrder = episodeOrder;
         this.content = content;
+        this.audioUrl = audioUrl;
     }
     /**
      * 삭제 요청 시 deletedAt에 타임스탬프를 설정합니다.

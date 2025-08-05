@@ -51,11 +51,11 @@ public class Book {
     private String title;
 
     @Size(max = 255)
-    @Column(name = "cover_image_url", length = 100)
+    @Column(name = "cover_image_url", length = 255)
     private String coverImageUrl;
 
     @Lob
-    @Column
+    @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
@@ -111,7 +111,7 @@ public class Book {
     // — 도메인 행위 메서드 —
 
     /** 책 정보를 업데이트합니다. */
-    public void updateDetails(
+    public void updateBook(
             String title,
             String coverImageUrl,
             String summary,
@@ -122,6 +122,11 @@ public class Book {
         this.summary = summary;
         this.category = category;
     }
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
+
 
     /** 좋아요 수를 1 증가시킵니다. */
     public void incrementLike() {

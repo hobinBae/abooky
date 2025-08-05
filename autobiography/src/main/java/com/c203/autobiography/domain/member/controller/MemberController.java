@@ -24,7 +24,6 @@ import org.springframework.web.multipart.MultipartFile;
 @RequiredArgsConstructor
 public class MemberController {
 
-    private final FileStorageService fileStorageService;
     private final MemberService memberService;
 
     @Operation(summary = "회원가입", description = "회원가입 + 프로필 사진 등록")
