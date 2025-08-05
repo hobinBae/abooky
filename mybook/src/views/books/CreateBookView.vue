@@ -218,7 +218,7 @@ function startNewBook() {
 }
 
 function goToGroupCreate() {
-  router.push('/group-book-creation');
+  router.push('/group-book-lobby');
 }
 
 function fetchInProgressBooks() {

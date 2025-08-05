@@ -57,9 +57,9 @@ const router = createRouter({
       component: () => import('../views/auth/ProfileEditView.vue')
     },
     {
-      path: '/group-bookshelf',
-      name: 'group-bookshelf',
-      component: () => import('../views/groups/GroupBookshelfView.vue')
+      path: '/group-book-lobby',
+      name: 'group-book-lobby',
+      component: () => import('../views/groups/GroupBookLobbyView.vue')
     },
     {
       path: '/group-book-creation',
