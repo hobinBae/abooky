@@ -13,6 +13,7 @@ import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import okhttp3.Response;
 import org.springframework.http.HttpStatus;
@@ -21,6 +22,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import retrofit2.http.Path;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/books")
@@ -57,6 +60,34 @@ public class BookController {
                 .body(ApiResponse.of(HttpStatus.OK, "책 완성 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "책 조회", description = "책을 조회한다.")
+    @GetMapping("/{bookId}")
+    public ResponseEntity<ApiResponse<BookResponse>> readBook(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        BookResponse response = bookService.readBook(memberId, bookId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "책 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "나의 쓴 책 목록 조회", description = "내가 쓴 책들을 조회한다.")
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<BookResponse>>> searchMyBooks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        List<BookResponse> response = bookService.getMyBooks(memberId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "나의 보유 책 목록 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
+//    @Operation(summary = "책 검색", description = "책 검색을 한다.")
+//    @GetMapping("/search")
+//    public ResponseEntity
 
     @Operation(summary = "책 수정", description = "책 정보 수정")
     @PatchMapping("/{bookId}")

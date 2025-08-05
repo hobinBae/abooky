@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -107,6 +109,23 @@ public class BookServiceImpl implements BookService{
 
         // 4) BookResponse 변환
         return BookResponse.of(book);
+    }
+
+    @Override
+    public BookResponse readBook(Long memberId, Long bookId) {
+
+        memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        return null;
+    }
+
+    @Override
+    public List<BookResponse> getMyBooks(Long memberId) {
+        return List.of();
     }
 
 }
