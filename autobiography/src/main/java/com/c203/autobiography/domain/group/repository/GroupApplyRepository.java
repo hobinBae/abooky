@@ -9,4 +9,5 @@ import java.util.List;
 public interface GroupApplyRepository extends JpaRepository<GroupApply, Long> {
     List<GroupApply> findByGroupIdAndStatus(Long groupId, ApplyStatus status);
     List<GroupApply> findByReceiverIdAndStatus(Long receiverId, ApplyStatus status);
+    boolean existsByGroupIdAndReceiverIdAndStatus(Long groupId, Long receiverId, ApplyStatus status);
 }

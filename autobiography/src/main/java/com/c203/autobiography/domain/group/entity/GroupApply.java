@@ -31,4 +31,9 @@ public class GroupApply {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ApplyStatus status;
+
+    /** 초대 상태 변경 메서드 **/
+    public void changeStatus(ApplyStatus newStatus) {
+        this.status = newStatus;
+    }
 }

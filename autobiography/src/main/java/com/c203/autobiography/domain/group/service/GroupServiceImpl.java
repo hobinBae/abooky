@@ -4,7 +4,11 @@ import com.c203.autobiography.domain.group.dto.GroupCreateRequest;
 import com.c203.autobiography.domain.group.dto.GroupResponse;
 import com.c203.autobiography.domain.group.dto.GroupUpdateRequest;
 import com.c203.autobiography.domain.group.entity.Group;
+import com.c203.autobiography.domain.group.entity.GroupMember;
+import com.c203.autobiography.domain.group.entity.GroupRole;
+import com.c203.autobiography.domain.group.repository.GroupMemberRepository;
 import com.c203.autobiography.domain.group.repository.GroupRepository;
+import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
@@ -24,6 +28,9 @@ import java.util.List;
 public class GroupServiceImpl implements GroupService{
 
     private final GroupRepository groupRepository;
+    private final GroupMemberRepository groupMemberRepository;
+    private final MemberRepository memberRepository;
+
     private final FileStorageService fileStorageService;
     private static final String DEFAULT_IMAGE_URL = "https://ssafytrip.s3.ap-northeast-2.amazonaws.com/userProfile/default.png";
 
@@ -41,6 +48,16 @@ public class GroupServiceImpl implements GroupService{
 
         Group group = request.toEntity(leaderId);
         Group saved = groupRepository.save(group);
+
+        // 생성하는 멤버도 GroupMember에 추가
+        Member leader = memberRepository.findById(leaderId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        GroupMember leaderEntry = GroupMember.builder()
+                .groupId(saved.getGroupId())
+                .memberId(leaderId)
+                .role(GroupRole.LEADER)
+                .build();
+        groupMemberRepository.save(leaderEntry);
         return GroupResponse.from(saved);
     }
 
