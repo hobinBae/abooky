@@ -32,15 +32,15 @@ public class GroupServiceImpl implements GroupService{
     private final MemberRepository memberRepository;
 
     private final FileStorageService fileStorageService;
-    private static final String DEFAULT_IMAGE_URL = "https://ssafytrip.s3.ap-northeast-2.amazonaws.com/userProfile/default.png";
+    private static final String DEFAULT_IMAGE_URL = "https://ssafytrip.s3.ap-northeast-2.amazonaws.com/groupProfile/default.png";
 
     @Transactional
     @Override
     public GroupResponse createGroup(Long leaderId, GroupCreateRequest request, MultipartFile file) {
         // 이미지 업로드
-        String imageUrl = null;
+
         if(file != null && !file.isEmpty()) {
-            imageUrl = fileStorageService.store(file, "groupProfiles");
+            String imageUrl = fileStorageService.store(file, "groupProfiles");
             request.setGroupImageUrl(imageUrl);
         } else {
             request.setGroupImageUrl(DEFAULT_IMAGE_URL);
