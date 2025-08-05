@@ -295,28 +295,24 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface);
-  color: var(--color-text);
+  background-color: #fffbe6 !important; /* 정리: background 속성 통일 */
+  color: #B8860B;
   border-radius: 50%;
   width: 44px;
   height: 44px;
-  border: 1px solid var(--color-border);
-  font-size: 1.3rem;
-  transition: all 0.2s ease-in-out;
-  background-color: var(--color-surface) !important;
-  /* Updated for better visibility */
-  background: #fffbe6;
-  color: #B8860B;
   border: 2px solid #B8860B;
   font-size: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  background-color: #fffbe6 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s ease-in-out;
+  cursor: pointer; /* ✨ 커서 추가 */
 }
 
 .btn-media:hover {
   background-color: #fff3c4;
   border-color: #B8860B;
+  opacity: 0.7; /* ✨ 살짝 투명해짐 */
 }
+
 
 .btn-media.active {
   background: #B8860B;
@@ -491,10 +487,11 @@ onUnmounted(() => {
 .btn-primary {
   background-color: var(--color-primary);
   border-color: var(--color-primary);
-  color: white;
+  color: #a7770a;
 }
 .btn-primary:hover {
   background-color: #a7770a;
+  color: white;
 }
 
 .btn-secondary {
