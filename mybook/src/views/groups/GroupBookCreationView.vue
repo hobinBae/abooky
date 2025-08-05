@@ -3,8 +3,8 @@
     <!-- Step 1: Lobby / Pre-join screen -->
     <div v-if="!hasJoined" class="lobby-container">
       <div class="auth-container">
-        <h1 class="auth-title">그룹 책 만들기 준비</h1>
-        <p class="auth-subtitle">참여하기 전에 카메라와 마이크를 확인하세요.</p>
+        <h1 class="auth-title">화면 미리보기</h1>
+        <p class="auth-subtitle">입장하기 전, 카메라와 마이크 상태를 확인해 주세요.</p>
         
         <div class="video-preview-container">
           <video ref="localVideo" autoplay muted playsinline class="video-preview"></video>
@@ -17,7 +17,7 @@
             </button>
           </div>
         </div>
-        <button @click="joinSession" class="btn btn-primary w-100 btn-auth">참여하기</button>
+        <button @click="joinSession" class="btn btn-primary w-100 btn-auth">그룹책 만들기 입장</button>
       </div>
     </div>
 
@@ -26,7 +26,7 @@
       <!-- Main Content: Video + AI Helper -->
       <div class="main-content">
         <div class="card video-grid-card">
-          <h3 class="card-header">참여자 영상</h3>
+          <h3 class="card-header">참여자</h3>
           <div class="video-grid">
             <div class="video-participant">
               <video :srcObject="localStream" autoplay muted playsinline class="participant-video"></video>
@@ -46,13 +46,12 @@
         </div>
 
         <div class="card ai-helper-card">
-           <h3 class="card-header">AI 작성 도우미 (한석봉)</h3>
+           <h3 class="card-header">글벗, 한석봉</h3>
           <div class="ai-transcript">
             <p v-for="(line, index) in transcript" :key="index" :class="`speaker-${line.speaker}`"><strong>{{ line.speaker }}:</strong> {{ line.text }}</p>
           </div>
           <div class="ai-actions">
-            <button class="btn btn-info btn-sm">내용 요약</button>
-            <button class="btn btn-success btn-sm">이미지 생성</button>
+            <button class="btn btn-info btn-sm">글 요약하기</button>
           </div>
         </div>
       </div>
@@ -60,19 +59,16 @@
       <!-- Sidebar: Shared Editor + Controls -->
       <div class="sidebar">
         <div class="card editor-card">
-          <h3 class="card-header">통합 책 내용</h3>
-          <textarea v-model="sharedContent" @input="onEditorChange" class="shared-editor"></textarea>
+          <h3 class="card-header">우리의 이야기</h3>
+          <textarea v-model="sharedContent" @input="onEditorChange" class="shared-editor" placeholder="이곳에 동료들과 함께 이야기의 첫 문장을 써내려가 보세요..."></textarea>
           <div class="editor-actions">
-            <button @click="addImageFile" class="btn btn-outline-secondary w-100">
-              <i class="bi bi-image me-2"></i>이미지 파일 추가
-            </button>
           </div>
         </div>
         <div class="card controls-card">
-          <h3 class="card-header">세션 관리</h3>
+          <h3 class="card-header">마무리</h3>
           <div class="session-controls">
-            <button @click="saveAndExit" class="btn btn-secondary w-100">임시 저장 및 종료</button>
-            <button @click="publishAndExit" class="btn btn-primary w-100 mt-2">발행 및 종료</button>
+            <button @click="saveAndExit" class="btn btn-secondary w-100">임시저장하고 나가기</button>
+            <button @click="publishAndExit" class="btn btn-primary w-100">완성하기</button>
           </div>
         </div>
       </div>
@@ -185,32 +181,50 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+
+:root {
+  --font-main: 'Pretendard', sans-serif;
+  --font-title: 'Noto Serif KR', serif;
+  --color-bg: #F5F5DC; /* Beige */
+  --color-text: #3D2C20; /* Dark Brown */
+  --color-primary: #B8860B; /* Dark Goldenrod */
+  --color-surface: #FFFDF5; /* Creamy White */
+  --color-border: #DCD0B9; /* Soft Brown */
+  --color-accent: #8B4513; /* Saddle Brown */
+}
+
 /* General Page Styles */
 .page-container {
   padding: 80px 2rem 2rem;
-  background-color: #F5F5DC;
+  background-color: var(--color-bg);
   min-height: 100vh;
-  color: #3D2C20;
+  color: var(--color-text);
+  font-family: 'Pretendard', sans-serif;
 }
 
 .card {
-  background-color: #FFFFFF;
-  border-radius: 12px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.07);
-  border: 1px solid #EFEBE9;
+  background-color: var(--color-surface);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  border: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .card-header {
-  font-size: 1.25rem;
-  font-weight: 700;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #EFEBE9;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  padding: 0.8rem 1.5rem;
+  border-bottom: 1px solid var(--color-border);
   margin-bottom: 0;
+  background-color: rgba(210, 180, 140, 0.2); /* Light Tan */
+  color: var(--color-accent);
 }
 
-/* Lobby Styles (similar to LoginView) */
+/* --- Lobby Styles --- */
 .lobby-container {
   display: flex;
   justify-content: center;
@@ -220,25 +234,29 @@ onUnmounted(() => {
 
 .auth-container {
   width: 100%;
-  max-width: 500px;
-  background-color: #FFFFFF;
-  padding: 2.5rem;
-  border-radius: 12px;
+  max-width: 550px;
+  background-color: var(--color-surface);
+  padding: 2.5rem 3rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
   box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
 
 .auth-title {
-  font-size: 2.2rem;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 2.8rem;
   font-weight: 700;
   text-align: center;
-  color: #3D2C20;
-  margin-bottom: 0.5rem;
+  color: var(--color-accent);
+  margin-bottom: 0.75rem;
 }
 
 .auth-subtitle {
   text-align: center;
-  color: #5C4033;
-  margin-bottom: 2rem;
+  color: var(--color-text);
+  margin-bottom: 2.5rem;
+  font-size: 1.25rem;
+  line-height: 1.7;
 }
 
 .video-preview-container {
@@ -246,9 +264,10 @@ onUnmounted(() => {
   width: 100%;
   padding-top: 75%; /* 4:3 Aspect Ratio */
   margin: 0 auto 2rem auto;
-  background: #EFEBE9;
+  background: #EAE0C8;
   border-radius: 8px;
   overflow: hidden;
+  border: 1px solid var(--color-border);
 }
 
 .video-preview {
@@ -267,37 +286,76 @@ onUnmounted(() => {
   transform: translateX(-50%);
   display: flex;
   gap: 1rem;
-  background: rgba(0,0,0,0.5);
+  background: rgb(61, 44, 32);
   padding: 0.5rem 1rem;
   border-radius: 20px;
 }
 
 .btn-media {
-  background: #fff;
-  color: #3D2C20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: var(--color-text);
   border-radius: 50%;
-  width: 40px;
-  height: 40px;
-  border: none;
-  font-size: 1.2rem;
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  font-size: 1.3rem;
+  transition: all 0.2s ease-in-out;
+  background-color: var(--color-surface) !important;
+  /* Updated for better visibility */
+  background: #fffbe6;
+  color: #B8860B;
+  border: 2px solid #B8860B;
+  font-size: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  background-color: #fffbe6 !important;
+}
+
+.btn-media:hover {
+  background-color: #fff3c4;
+  border-color: #B8860B;
 }
 
 .btn-media.active {
   background: #B8860B;
   color: #fff;
+  border-color: #B8860B;
 }
 
 .btn-auth {
-  background-color: #B8860B;
-  border-color: #B8860B;
-  font-weight: 600;
+  color: white;
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  transition: background-color 0.2s ease;
 }
 
-/* Workspace Styles */
+/* Icon color transitions for mic/camera buttons */
+.btn-media i {
+  transition: color 0.2s;
+  color: #e53935 !important;
+}
+.btn-media:not(.active) i {
+  color: #e53935 !important;
+}
+.btn-media.active i {
+  color: #e53935 !important;
+}
+
+
+.btn-auth:hover {
+  background-color: #a7770a;
+}
+
+
+/* --- Workspace Styles --- */
 .workspace-container {
   display: flex;
   gap: 1.5rem;
-  height: calc(100vh - 80px - 4rem); /* Full height minus padding */
+  height: calc(100vh - 80px - 4rem);
 }
 
 .main-content {
@@ -323,7 +381,7 @@ onUnmounted(() => {
   padding: 1.5rem;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 1rem;
+  gap: 1.5rem;
   overflow-y: auto;
   flex-grow: 1;
 }
@@ -332,9 +390,11 @@ onUnmounted(() => {
   position: relative;
   width: 100%;
   padding-top: 75%; /* 4:3 aspect ratio */
-  background: #EFEBE9;
+  background: #EAE0C8;
   border-radius: 8px;
   overflow: hidden;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .participant-video, .participant-video-placeholder {
@@ -348,18 +408,18 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   font-weight: bold;
-  color: #5C4033;
+  color: var(--color-text);
 }
 
 .participant-name {
   position: absolute;
   bottom: 0.5rem;
   left: 0.5rem;
-  background: rgba(0,0,0,0.6);
+  background: rgba(61, 44, 32, 0.7);
   color: #fff;
-  padding: 0.2rem 0.5rem;
+  padding: 0.3rem 0.6rem;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
 }
@@ -375,15 +435,16 @@ onUnmounted(() => {
 .ai-transcript {
   flex-grow: 1;
   overflow-y: auto;
-  font-size: 0.9rem;
+  font-size: 1rem;
   padding: 1rem 1.5rem;
+  line-height: 1.6;
 }
 
 .ai-actions {
   padding: 1rem 1.5rem;
-  border-top: 1px solid #EFEBE9;
+  border-top: 1px solid var(--color-border);
   display: flex;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .editor-card {
@@ -396,20 +457,72 @@ onUnmounted(() => {
   resize: none;
   border: none;
   padding: 1.5rem;
-  font-family: 'Montserrat', sans-serif;
-  color: #3D2C20;
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.1rem;
+  line-height: 1.9;
+  color: var(--color-text);
   background-color: transparent;
   outline: none;
+  background-image: linear-gradient(to bottom, transparent 95%, var(--color-border) 95%);
+  background-size: 100% 2.8em;
 }
 
 .editor-actions {
-  padding: 0 1.5rem 1.5rem;
-  border-top: 1px solid #EFEBE9;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--color-border);
 }
 
 .controls-card .session-controls {
   padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
+
+/* General Button Styles in Workspace */
+.btn {
+  font-family: var(--font-main);
+  font-weight: 600;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+.btn-primary:hover {
+  background-color: #a7770a;
+}
+
+.btn-secondary {
+  background-color: var(--color-accent);
+  border-color: var(--color-accent);
+  color: white;
+}
+.btn-secondary:hover {
+  background-color: #7a3d10;
+}
+
+.btn-info, .btn-success {
+  background-color: #8B795E; /* Muted Brown */
+  border-color: #8B795E;
+  color: white;
+}
+.btn-info:hover, .btn-success:hover {
+  background-color: #7a6a50;
+}
+
+.btn-outline-secondary {
+  color: var(--color-accent);
+  border-color: var(--color-border);
+}
+.btn-outline-secondary:hover {
+  background-color: rgba(210, 180, 140, 0.2);
+}
+
 
 @media (max-width: 992px) {
   .workspace-container {
