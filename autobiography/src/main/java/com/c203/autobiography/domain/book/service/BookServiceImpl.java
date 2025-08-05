@@ -1,5 +1,7 @@
 package com.c203.autobiography.domain.book.service;
 
+import com.c203.autobiography.domain.book.dto.BookCopyRequest;
+import com.c203.autobiography.domain.book.dto.BookCopyResponse;
 import com.c203.autobiography.domain.book.dto.BookUpdateRequest;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.entity.BookCategory;
@@ -7,13 +9,16 @@ import com.c203.autobiography.domain.book.dto.BookCreateRequest;
 import com.c203.autobiography.domain.book.dto.BookResponse;
 import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
 import com.c203.autobiography.domain.book.repository.BookRepository;
+import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
+import com.c203.autobiography.domain.episode.entity.Episode;
 import com.c203.autobiography.domain.episode.repository.EpisodeRepository;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.s3.FileStorageService;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -150,6 +155,66 @@ public class BookServiceImpl implements BookService{
                 .stream()
                 .map(BookResponse::of)
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public BookCopyResponse copyBook(Long memberId, Long bookId, BookCopyRequest request) {
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        Book original = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        if (!original.getMember().getMemberId().equals(memberId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
+        // 3) 카테고리 검증
+        BookCategory category = null;
+        if (request.getCategoryId() != null) {
+            category = bookCategoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+        }
+
+        Book copy = Book.builder()
+                .member(member)
+                .title(request.getTitle())
+                .summary(request.getSummary())
+                .coverImageUrl(original.getCoverImageUrl())
+                .bookType(original.getBookType())
+                .category(category)
+                .build();
+        bookRepository.save(copy);
+
+        for (EpisodeCopyRequest dto : request.getEpisodes()) {
+            if (dto.isDelete()) {
+                continue;
+            }
+            Episode origEp = episodeRepository.findByEpisodeIdAndDeletedAtIsNull(dto.getEpisodeId())
+                    .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+
+            Episode newEp = Episode.builder()
+                    .book(copy)
+                    .title(Optional.ofNullable(dto.getTitle()).orElse(origEp.getTitle()))
+                    .content(Optional.ofNullable(dto.getContent()).orElse(origEp.getContent()))
+                    .episodeDate(Optional.ofNullable(dto.getEpisodeDate()).orElse(origEp.getEpisodeDate()))
+                    .episodeOrder(Optional.ofNullable(dto.getEpisodeOrder()).orElse(origEp.getEpisodeOrder()))
+                    .audioUrl(Optional.ofNullable(dto.getAudioUrl()).orElse(origEp.getAudioUrl()))
+                    .build();
+            episodeRepository.save(newEp);
+
+            // (선택) 태그/이미지도 복제하려면 이곳에서 처리
+        }
+        // 6) 응답 반환
+        return BookCopyResponse.builder()
+                .bookId(copy.getBookId())
+                .title(copy.getTitle())
+                .summary(copy.getSummary())
+                .categoryId(copy.getCategory() != null ? copy.getCategory().getBookCategoryId() : null)
+                .createdAt(copy.getCreatedAt())
+                .updatedAt(copy.getUpdatedAt())
+                .build();
+
     }
 
 }
