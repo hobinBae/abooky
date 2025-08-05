@@ -62,6 +62,11 @@
         <div class="card editor-card">
           <h3 class="card-header">통합 책 내용</h3>
           <textarea v-model="sharedContent" @input="onEditorChange" class="shared-editor"></textarea>
+          <div class="editor-actions">
+            <button @click="addImageFile" class="btn btn-outline-secondary w-100">
+              <i class="bi bi-image me-2"></i>이미지 파일 추가
+            </button>
+          </div>
         </div>
         <div class="card controls-card">
           <h3 class="card-header">세션 관리</h3>
@@ -147,6 +152,24 @@ function saveAndExit() {
 function publishAndExit() {
   alert('책이 발행되었습니다. (더미 기능)');
   router.push(`/group-bookshelf/${groupId || 'default'}`);
+}
+
+function addImageFile() {
+  // Create a file input element programmatically
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.onchange = (e) => {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (file) {
+      // Here you would handle the file upload, e.g., to a server
+      // For this example, we'll just log it and maybe append a placeholder to the text
+      console.log('Selected file:', file.name);
+      sharedContent.value += `\n[이미지: ${file.name}]\n`;
+      alert(`${file.name} 파일이 추가되었습니다. (실제 업로드 기능은 구현 필요)`);
+    }
+  };
+  input.click();
 }
 
 // --- Lifecycle Hooks ---
@@ -377,6 +400,11 @@ onUnmounted(() => {
   color: #3D2C20;
   background-color: transparent;
   outline: none;
+}
+
+.editor-actions {
+  padding: 0 1.5rem 1.5rem;
+  border-top: 1px solid #EFEBE9;
 }
 
 .controls-card .session-controls {
