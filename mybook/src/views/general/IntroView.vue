@@ -114,10 +114,13 @@ const enterYard = () => {
     gsap.to('.animated-text-container', {
       opacity: 0,
       duration: 0.7, // 카메라 이동 시간과 비슷하게 설정하여 자연스럽게
-      ease: 'power1.in'
-    });
+      ease: 'power1.in',
+      onComplete: () => {
+        isTextVisible.value = false
+      }
+    })
 
-    threeSceneRef.value.moveToYard();
+    threeSceneRef.value.moveToYard()
     showEnterButton.value = false;
     hasEntered.value = true;
     emit('intro-finished');
