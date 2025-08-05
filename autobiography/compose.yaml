@@ -25,6 +25,24 @@ services:
     networks:
       - app-network
 
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    restart: always
+    ports:
+      - "7880:7880"
+      - "7881:7881"
+      - "7882:7882"
+    environment:
+      - LIVEKIT_KEYS__0__API_KEY=devkey
+      - LIVEKIT_KEYS__0__API_SECRET=secret
+      - LIVEKIT_ICE_SERVERS__0__urls=stun:stun.l.google.com:19302
+      - LIVEKIT_ICE_SERVERS__1__urls=turn:YOUR.TURN.SERVER:3478
+      - LIVEKIT_ICE_SERVERS__1__username=turnUser
+      - LIVEKIT_ICE_SERVERS__1__credential=turnPass
+    networks:
+      - app-network
+
 volumes:
   mysql-data:
 
