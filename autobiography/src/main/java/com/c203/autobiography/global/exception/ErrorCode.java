@@ -30,6 +30,12 @@ public enum ErrorCode {
     BOOK_NOT_FOUND("BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다."),
     EPISODE_NOT_FOUND("EPISODE_NOT_FOUND", HttpStatus.NOT_FOUND, "에피소드를 찾을 수 없습니다."),
     FORBIDDEN("FORBIDDEN", HttpStatus.FORBIDDEN, "권한이 없습니다.");
+
+    GROUP_NOT_FOUND("GROUP_NOT_FOUND", HttpStatus.NOT_FOUND, "그룹을 찾을 수 없습니다."),
+    GROUP_ACCESS_DENIED("GROUP_ACCESS_DENIED", HttpStatus.UNAUTHORIZED, "그룹 접근 권한이 없습니다."),
+
+    GROUP_MEMBER_ALREADY_EXISTS("GROUP_MEMBER_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 존재하는 그룹원입니다."),
+    INVITE_ALREADY_EXISTS("INVITE_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 대기 중인 초대가 있습니다.");
     //
     // 필요한 에러 코드 계속 추가
 
