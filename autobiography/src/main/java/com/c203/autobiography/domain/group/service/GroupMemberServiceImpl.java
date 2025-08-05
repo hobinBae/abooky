@@ -21,6 +21,16 @@ public class GroupMemberServiceImpl implements GroupMemberService {
 
     private final GroupMemberRepository groupMemberRepository;
 
+    @Override
+    public void verifyMember(Long groupId, Long memberId) {
+        boolean isMember = groupMemberRepository.findByGroupIdAndMemberIdAndDeletedAtIsNull(groupId, memberId)
+                .isPresent();
+        if(!isMember) {
+            throw new ApiException(ErrorCode.GROUP_ACCESS_DENIED);
+        }
+
+    }
+
     @Transactional(readOnly = true)
     @Override
     public List<GroupMemberResponse> listGroupMembers(Long groupId) {

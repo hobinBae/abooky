@@ -36,10 +36,20 @@ services:
     environment:
       - LIVEKIT_KEYS__0__API_KEY=devkey
       - LIVEKIT_KEYS__0__API_SECRET=secret
-      - LIVEKIT_ICE_SERVERS__0__urls=stun:stun.l.google.com:19302
-      - LIVEKIT_ICE_SERVERS__1__urls=turn:YOUR.TURN.SERVER:3478
-      - LIVEKIT_ICE_SERVERS__1__username=turnUser
-      - LIVEKIT_ICE_SERVERS__1__credential=turnPass
+        # 2) 기본 STUN 서버 (구글 공개 서버)
+      - LIVEKIT_ICE_SERVERS__0__URLS=stun:stun.l.google.com:19302
+
+      # 3) (선택) 외부 TURN 서버 정보
+      #- LIVEKIT_ICE_SERVERS__1__URLS=turn:turn.example.com:3478?transport=udp
+      #- LIVEKIT_ICE_SERVERS__1__USERNAME=turnUser
+      #- LIVEKIT_ICE_SERVERS__1__CREDENTIAL=turnPass
+
+      # 4) (선택) LiveKit 내장 TURN 활성화
+      #- LIVEKIT_TURN__ENABLED=true
+      #- LIVEKIT_TURN__TLS_PORT=5349
+      #- LIVEKIT_TURN__DOMAIN=turn.example.com
+      #- LIVEKIT_TURN__CERT_FILE=/certs/turn.crt
+      #- LIVEKIT_TURN__KEY_FILE=/certs/turn.key
     networks:
       - app-network
 
