@@ -150,23 +150,6 @@ function publishAndExit() {
   router.push(`/group-bookshelf/${groupId || 'default'}`);
 }
 
-function addImageFile() {
-  // Create a file input element programmatically
-  const input = document.createElement('input');
-  input.type = 'file';
-  input.accept = 'image/*';
-  input.onchange = (e) => {
-    const file = (e.target as HTMLInputElement).files?.[0];
-    if (file) {
-      // Here you would handle the file upload, e.g., to a server
-      // For this example, we'll just log it and maybe append a placeholder to the text
-      console.log('Selected file:', file.name);
-      sharedContent.value += `\n[이미지: ${file.name}]\n`;
-      alert(`${file.name} 파일이 추가되었습니다. (실제 업로드 기능은 구현 필요)`);
-    }
-  };
-  input.click();
-}
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
@@ -295,7 +278,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #fffbe6 !important; /* 정리: background 속성 통일 */
+  background-color: #fffbe6;
   color: #B8860B;
   border-radius: 50%;
   width: 44px;
@@ -315,7 +298,7 @@ onUnmounted(() => {
 
 
 .btn-media.active {
-  background: #B8860B;
+  background: #fffbe6;
   color: #fff;
   border-color: #B8860B;
 }
@@ -459,7 +442,6 @@ onUnmounted(() => {
   color: var(--color-text);
   background-color: transparent;
   outline: none;
-  background-image: linear-gradient(to bottom, transparent 95%, var(--color-border) 95%);
   background-size: 100% 2.8em;
 }
 
@@ -485,23 +467,23 @@ onUnmounted(() => {
 }
 
 .btn-primary {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  color: #a7770a;
+  background-color: #a7770a;
+  border-color: #a7770a;
+  color: #fffbe6; 
 }
 .btn-primary:hover {
-  background-color: #a7770a;
-  color: white;
+  opacity: 0.8;
 }
 
 .btn-secondary {
-  background-color: var(--color-accent);
-  border-color: var(--color-accent);
-  color: white;
+  background-color: #7a3d10;
+  border-color: #7a3d10;
+  color: #fffbe6;
 }
 .btn-secondary:hover {
-  background-color: #7a3d10;
+  opacity: 0.8;
 }
+
 
 .btn-info, .btn-success {
   background-color: #8B795E; /* Muted Brown */
