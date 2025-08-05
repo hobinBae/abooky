@@ -2,59 +2,74 @@
   <div class="bookstore-page">
     <h2 class="section-title">지금 가장 인기있는 책 TOP 10</h2>
     <p class="section-subtitle">독자들이 가장 많이 찾고 사랑하는 책들을 만나보세요.</p>
+    
     <section class="carousel-section">
       <div class="perspective-carousel-container">
         <div class="perspective-carousel" :style="carouselStyle" @mousedown.prevent="onMouseDown"
           @touchstart.prevent="onTouchStart">
-          
           <div v-for="(book, index) in topBooks" :key="book.id" class="carousel-item-3d"
-               :style="{ transform: get3DTransform(index) }"
-               @click="goToBookDetail(book.id)">
+            :style="{ transform: get3DTransform(index) }" @click="goToBookDetail(book.id)">
             <div class="book-model">
-                <div class="book-face book-cover">
-                    <div class="vertical-line-face"></div>{{ book.title }}
+              <div class="book-face book-cover"
+                :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                <div class="vertical-line-front-bright-effect"></div>
+                <div class="title-box">
+                  <h1>{{ book.title }}</h1>
+                  <p class="author-in-box">{{ book.authorName }}</p>
                 </div>
-                <div class="book-face book-spine"></div>
-                <div class="book-face book-side-edge"></div>
-                <div class="book-face book-back-cover"><div class="vertical-line-back"></div></div>
+              </div>
+              <div class="book-face book-spine"
+                :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+              </div>
+              <div class="book-face book-side-edge"></div>
+              <div class="book-face book-back-cover"
+                :style="{ backgroundImage: `url(${book.coverUrl || 'https.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                <div class="barcode-placeholder"></div>
+              </div>
             </div>
           </div>
-
         </div>
       </div>
-      <button @click="prevBook" class="carousel-control-btn prev-btn"><i class="bi bi-chevron-left"></i></button>
-      <button @click="nextBook" class="carousel-control-btn next-btn"><i class="bi bi-chevron-right"></i></button>
+      <button @click="prevBook" class="carousel-control-btn prev-btn"><i class="bi bi-chevron-compact-left"></i></button>
+      <button @click="nextBook" class="carousel-control-btn next-btn"><i class="bi bi-chevron-compact-right"></i></button>
     </section>
 
-    <section class="filter-section">
+    <section class="search-section">
       <div class="search-input-wrapper">
         <input type="text" v-model="searchTerm" class="form-control search-input" placeholder="책 제목, 작가, 내용으로 검색...">
         <i class="bi bi-search search-icon"></i>
       </div>
-      <div class="sort-options-wrapper">
-        <label class="radio-button" v-for="option in sortOptions" :key="option.value">
-          <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption">
-          <span>{{ option.text }}</span>
-        </label>
-      </div>
-      <div class="keyword-buttons-container">
-        <button v-for="keyword in keywords" :key="keyword" @click="toggleKeyword(keyword)"
-          :class="['keyword-button', { active: activeKeywords.has(keyword) }]">
-          #{{ keyword }}
-        </button>
-      </div>
     </section>
 
-    <section class="book-list-section">
-      <div class="row g-4">
-        <div v-if="filteredBooks.length === 0" class="col-12">
-          <div class="no-books-message">
-            해당하는 책이 없습니다.
+    <div class="main-content-area">
+      <aside class="left-sidebar">
+        <div class="sidebar-block">
+          <h4 class="sidebar-title">정렬</h4>
+          <div class="sort-options-wrapper">
+            <label class="radio-button" v-for="option in sortOptions" :key="option.value">
+              <input type="radio" name="sort-option" :value="option.value" v-model="currentSortOption">
+              <span>{{ option.text }}</span>
+            </label>
           </div>
         </div>
-        <div v-for="book in filteredBooks" :key="book.id" class="col-12">
-          <div class="book-card" @click="goToBookDetail(book.id)">
-            <div class="book-cover-placeholder">표지</div>
+        <div class="sidebar-block">
+          <h4 class="sidebar-title">키워드</h4>
+          <div class="keyword-buttons-container">
+            <button v-for="keyword in keywords" :key="keyword" @click="toggleKeyword(keyword)"
+              :class="['keyword-button', { active: activeKeywords.has(keyword) }]">
+              #{{ keyword }}
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="book-list-main">
+        <div v-if="filteredBooks.length === 0" class="no-books-message">
+          찾으시는 책이 없습니다.
+        </div>
+        <div v-else class="book-list-container">
+          <div v-for="book in filteredBooks" :key="book.id" class="book-list-item" @click="goToBookDetail(book.id)">
+            <img :src="book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'" alt="Book Cover" class="book-cover-image">
             <div class="book-details">
               <h5 class="book-title">{{ book.title }}</h5>
               <h6 class="book-author">{{ book.authorName }}</h6>
@@ -63,15 +78,17 @@
                 <span><i class="bi bi-eye"></i> {{ book.views }}</span>
                 <span><i class="bi bi-heart-fill"></i> {{ book.likes }}</span>
               </div>
-              <button class="btn btn-sm like-button" @click.stop="toggleLike(book)"
+            </div>
+            <div class="book-actions">
+               <button class="btn btn-sm like-button" @click.stop="toggleLike(book)"
                 :class="{ liked: isLiked(book.id) }">
                 <i class="bi bi-heart"></i> 좋아요
               </button>
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </main>
+    </div>
   </div>
 </template>
 
@@ -86,6 +103,7 @@ interface Book {
   authorId: string;
   authorName?: string;
   summary?: string;
+  coverUrl?: string;
   keywords?: string[];
   views?: number;
   likes?: number;
@@ -99,16 +117,16 @@ const router = useRouter();
 
 // --- Dummy Data ---
 const DUMMY_BOOKS: Book[] = [
-  { id: 'b1', title: '별 헤는 밤', authorId: 'author1', authorName: '윤동주', views: 1200, likes: 250, summary: '어두운 밤하늘 아래 별들을 헤아리며 고향과 가족을 그리워하는 시인의 마음을 담은 아름다운 시집.', keywords: ['자서전', '감성', '시'], createdAt: new Date('2023-01-15') },
-  { id: 'b2', title: '어린 왕자', authorId: 'author2', authorName: '생텍쥐페리', views: 3500, likes: 780, summary: '사막에 불시착한 조종사가 만난 어린 왕자와의 이야기를 통해 삶의 진정한 의미를 탐구하는 철학 동화.', keywords: ['여행', '성장', '철학'], createdAt: new Date('2022-11-01') },
-  { id: 'b3', title: '가족의 발견', authorId: 'author3', authorName: '김작가', views: 800, likes: 120, summary: '현대 사회에서 가족의 의미를 되새기고, 다양한 가족 형태의 아름다움을 조명하는 에세이.', keywords: ['가족', '에세이', '사회'], createdAt: new Date('2024-03-20') },
-  { id: 'b4', title: '취미로 시작하는 코딩', authorId: 'author4', authorName: '이개발', views: 1500, likes: 300, summary: '코딩을 처음 접하는 사람들을 위한 쉽고 재미있는 입문서. 다양한 프로젝트를 통해 코딩의 즐거움을 알려준다.', keywords: ['취미', 'IT', '자기계발'], createdAt: new Date('2023-09-10') },
-  { id: 'b5', title: '사랑의 온도', authorId: 'author5', authorName: '박사랑', views: 2000, likes: 450, summary: '엇갈린 사랑과 인연 속에서 진정한 사랑의 의미를 찾아가는 연인들의 이야기. 감성적인 문체가 돋보인다.', keywords: ['연애', '로맨스', '감성'], createdAt: new Date('2024-01-05') },
-  { id: 'b6', title: '스포츠 심리학 개론', authorId: 'author6', authorName: '최건강', views: 950, likes: 180, summary: '운동선수들의 심리 상태와 경기력 향상을 위한 심리학적 접근을 다룬 전문 서적.', keywords: ['스포츠', '심리학', '건강'], createdAt: new Date('2023-05-22') },
-  { id: 'b7', title: '드래곤의 유산', authorId: 'author7', authorName: '김판타', views: 2500, likes: 600, summary: '고대 드래곤의 힘을 이어받은 주인공이 세상을 구하기 위해 모험을 떠나는 장대한 판타지 소설.', keywords: ['판타지', '모험', '영웅'], createdAt: new Date('2022-08-01') },
-  { id: 'b8', title: '우주 탐사대의 기록', authorId: 'author8', authorName: '이공상', views: 1800, likes: 380, summary: '미지의 행성을 탐사하는 우주선 승무원들의 생존과 발견을 다룬 SF 소설. 과학적 상상력이 돋보인다.', keywords: ['공상과학', '우주', '미래'], createdAt: new Date('2024-02-28') },
-  { id: 'b9', title: '조선 왕조 실록 이야기', authorId: 'author9', authorName: '정역사', views: 1100, likes: 200, summary: '조선 왕조 500년 역사를 쉽고 재미있게 풀어낸 역사 교양서. 흥미로운 에피소드와 인물 중심의 서술.', keywords: ['역사', '교양', '한국사'], createdAt: new Date('2023-07-07') },
-  { id: 'b10', title: '나는 오늘부터 성장한다', authorId: 'author10', authorName: '강성장', views: 2200, likes: 550, summary: '작은 습관의 변화가 삶을 어떻게 바꾸는지 보여주는 자기계발서. 긍정적인 메시지와 실천적인 조언.', keywords: ['자기계발', '성장', '동기부여'], createdAt: new Date('2024-04-12') },
+  { id: 'b1', title: '별 헤는 밤', authorId: 'author1', authorName: '윤동주', coverUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=500', views: 1200, likes: 250, summary: '어두운 밤하늘 아래 별들을 헤아리며 고향과 가족을 그리워하는 시인의 마음을 담은 아름다운 시집.', keywords: ['자서전', '감성', '시'], createdAt: new Date('2023-01-15') },
+  { id: 'b2', title: '어린 왕자', authorId: 'author2', authorName: '생텍쥐페리', coverUrl: 'https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?w=500', views: 3500, likes: 780, summary: '사막에 불시착한 조종사가 만난 어린 왕자와의 이야기를 통해 삶의 진정한 의미를 탐구하는 철학 동화.', keywords: ['여행', '성장', '철학'], createdAt: new Date('2022-11-01') },
+  { id: 'b3', title: '가족의 발견', authorId: 'author3', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500', views: 800, likes: 120, summary: '현대 사회에서 가족의 의미를 되새기고, 다양한 가족 형태의 아름다움을 조명하는 에세이.', keywords: ['가족', '에세이', '사회'], createdAt: new Date('2024-03-20') },
+  { id: 'b4', title: '취미로 시작하는 코딩', authorId: 'author4', authorName: '이개발', coverUrl: 'https://images.unsplash.com/photo-1550063873-ab792950096b?w=500', views: 1500, likes: 300, summary: '코딩을 처음 접하는 사람들을 위한 쉽고 재미있는 입문서. 다양한 프로젝트를 통해 코딩의 즐거움을 알려준다.', keywords: ['취미', 'IT', '자기계발'], createdAt: new Date('2023-09-10') },
+  { id: 'b5', title: '사랑의 온도', authorId: 'author5', authorName: '박사랑', coverUrl: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=500', views: 2000, likes: 450, summary: '엇갈린 사랑과 인연 속에서 진정한 사랑의 의미를 찾아가는 연인들의 이야기. 감성적인 문체가 돋보인다.', keywords: ['연애', '로맨스', '감성'], createdAt: new Date('2024-01-05') },
+  { id: 'b6', title: '스포츠 심리학 개론', authorId: 'author6', authorName: '최건강', coverUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=500', views: 950, likes: 180, summary: '운동선수들의 심리 상태와 경기력 향상을 위한 심리학적 접근을 다룬 전문 서적.', keywords: ['스포츠', '심리학', '건강'], createdAt: new Date('2023-05-22') },
+  { id: 'b7', title: '드래곤의 유산', authorId: 'author7', authorName: '김판타', coverUrl: 'https://images.unsplash.com/photo-1523586044048-b7d32d5da502?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8JUVEJThDJThDJUVDJUI2JUE5JUVCJUE1JTk4fGVufDB8fDB8fHww', views: 2500, likes: 600, summary: '고대 드래곤의 힘을 이어받은 주인공이 세상을 구하기 위해 모험을 떠나는 장대한 판타지 소설.', keywords: ['판타지', '모험', '영웅'], createdAt: new Date('2022-08-01') },
+  { id: 'b8', title: '우주 탐사대의 기록', authorId: 'author8', authorName: '이공상', coverUrl: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=500', views: 1800, likes: 380, summary: '미지의 행성을 탐사하는 우주선 승무원들의 생존과 발견을 다룬 SF 소설. 과학적 상상력이 돋보인다.', keywords: ['공상과학', '우주', '미래'], createdAt: new Date('2024-02-28') },
+  { id: 'b9', title: '조선 왕조 실록 이야기', authorId: 'author9', authorName: '정역사', coverUrl: 'https://images.unsplash.com/photo-1448523183439-d2ac62aca997?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8JUVEJTk1JTlDJUVBJUI1JUFEfGVufDB8fDB8fHww', views: 1100, likes: 200, summary: '조선 왕조 500년 역사를 쉽고 재미있게 풀어낸 역사 교양서. 흥미로운 에피소드와 인물 중심의 서술.', keywords: ['역사', '교양', '한국사'], createdAt: new Date('2023-07-07') },
+  { id: 'b10', title: '나는 오늘부터 성장한다', authorId: 'author10', authorName: '강성장', coverUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500', views: 2200, likes: 550, summary: '작은 습관의 변화가 삶을 어떻게 바꾸는지 보여주는 자기계발서. 긍정적인 메시지와 실천적인 조언.', keywords: ['자기계발', '성장', '동기부여'], createdAt: new Date('2024-04-12') },
 ];
 
 // --- Reactive State ---
@@ -261,85 +279,92 @@ function toggleLike(book: Book) {
 }
 </script>
 
-<!-- [수정됨] 3D 캐러셀 스타일만 scoped가 없는 별도의 style 태그로 분리 -->
 <style>
 /* CSS 변수로 책 크기 및 두께 정의 */
 :root {
-  --book-width: 200px;
-  --book-height: 300px;
-  --book-depth: 30px;
+  --book-width: 210px;
+  --book-height: 310px;
+  --book-depth: 20px;
 }
 
 /* 3D Book Model Styling */
 .bookstore-page .book-model {
-    width: 100%;
-    height: 100%;
-    transform-style: preserve-3d;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
 }
 
 .bookstore-page .book-face {
-    position: absolute;
-    box-sizing: border-box;
-    background-color: #8C6A56;
-    backface-visibility: hidden;
+  position: absolute;
+  box-sizing: border-box;
+  background-color: #e7e2d8;
+  backface-visibility: hidden;
 }
 
 .bookstore-page .book-cover {
-    width: var(--book-width);
-    height: var(--book-height);
-    color: #F2EAD0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 1.5rem;
-    font-family: 'Noto Serif KR', serif;
-    font-size: 1.4rem;
-    font-weight: 600;
-    border-radius: 2px 2px 2px 2px;
-    box-shadow: inset -2px 0 5px rgba(0, 0, 0, 0.15);
-    transform: translateZ(calc(var(--book-depth) / 2));
+  width: var(--book-width);
+  height: var(--book-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px 5px 5px 2px;
+  box-shadow: inset -2px 0 5px rgba(0, 0, 0, 0.15);
+  transform: translateZ(calc(var(--book-depth) / 2));
+  background-size: cover;
+  background-position: center;
 }
 
-.bookstore-page .vertical-line-face {
-    position: absolute;
-    left: 15px;
-    width: 3px;
-    background-color: #574130;
-    height: var(--book-height);
+.bookstore-page .vertical-line-front-bright-effect {
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.441), transparent);
 }
-.bookstore-page .vertical-line-back {
-    position: absolute;
-    right: 15px;
-    width: 3px;
-    background-color: #574130;
-    height: var(--book-height);
-}
+
 .bookstore-page .book-back-cover {
-    width: var(--book-width);
-    height: var(--book-height);
-    background-color: #8C6A56;
-    border-radius: 2px 2px 2px 2px;
-    transform: rotateY(180deg) translateZ(calc(var(--book-depth) / 2));
+  width: var(--book-width);
+  height: var(--book-height);
+  background-color: #e7e2d8;
+  border-radius: 2px 2px 2px 2px;
+  transform: rotateY(180deg) translateZ(calc(var(--book-depth) / 2));
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.4) blur(3px);
+  transform: rotateY(180deg) translateZ(calc(var(--book-depth) / 2)) scaleX(-1);
+}
+
+.bookstore-page .book-back-cover .barcode-placeholder {
+  position: absolute;
+  bottom: 15px;
+  left: 20px;
+  width: 60px;
+  height: 30px;
+  background-color: white;
+  opacity: 0.9;
 }
 
 .bookstore-page .book-spine {
-    width: var(--book-depth);
-    height: var(--book-height);
-    background-color: #7f604e;
-    transform: rotateY(-90deg) translateZ(calc(var(--book-width) / 2 - 86px));
+  width: var(--book-depth);
+  height: var(--book-height);
+  background-color: #e7e2d8;
+  transform: rotateY(-90deg) translateZ(calc(var(--book-width) / 2 - 96px));
+  background-size: cover;
+  background-position: center;
+  filter: brightness(0.7) blur(0.5px);
 }
 
 .bookstore-page .book-side-edge {
-    width: var(--book-depth);
-    height: var(--book-height);
-    background-color: #a6916f;
-    background-image: repeating-linear-gradient(to right,
-            #362e23,
-            #a6916f 1px,
-            #bbb 1px,
-            #362e23 4px);
-    transform: rotateY(90deg) translateZ(calc(var(--book-width) / 2 + 83px));
+  width: var(--book-depth);
+  height: var(--book-height);
+  background-color: #a6916f;
+  background-image: repeating-linear-gradient(to right,
+      #ffffff27,
+      #dfdedd 1px,
+      #bbb 1px,
+      #999590c8 3px);
+  transform: rotateY(90deg) translateZ(calc(var(--book-width) / 2 + 90px));
 }
 </style>
 
@@ -350,7 +375,7 @@ function toggleLike(book: Book) {
 
 .bookstore-page {
   padding: 80px 2rem 2rem;
-  background-color: #F2EAD0;
+  background-color: #ffffff;
   color: #403023;
   min-height: calc(100vh - 56px);
   font-family: 'Pretendard', sans-serif;
@@ -376,7 +401,6 @@ function toggleLike(book: Book) {
   text-align: center;
 }
 
-/* Carousel Section */
 .carousel-section {
   position: relative;
   height: 450px;
@@ -387,10 +411,25 @@ function toggleLike(book: Book) {
 }
 
 .perspective-carousel-container {
-  perspective: 3000px;
+  perspective: 2000px;
   width: var(--book-width);
   height: var(--book-height);
   position: relative;
+  transform-style: preserve-3d;
+}
+
+.perspective-carousel-container::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 10px;
+  bottom: -40px;
+  left: 0;
+  background: rgba(0, 0, 0, 1);
+  border-radius: 50%;
+  filter: blur(25px);
+  transform: scale(2);
+  z-index: -1;
 }
 
 .perspective-carousel {
@@ -419,22 +458,16 @@ function toggleLike(book: Book) {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  background-color: rgba(242, 234, 208, 0.7);
-  border: 1px solid #8C6A56;
-  color: #403023;
+  color: #9f9b8c;
   width: 50px;
   height: 50px;
-  border-radius: 50%;
-  font-size: 1.5rem;
+  font-size: 2rem;
   transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
 }
 
 .carousel-control-btn:hover {
-  background-color: #8C4332;
-  border-color: #8C4332;
-  color: #F2EAD0;
+  color: #000000;
 }
 
 .prev-btn {
@@ -445,18 +478,41 @@ function toggleLike(book: Book) {
   right: 15%;
 }
 
-/* Filter Section */
-.filter-section {
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 12px;
-  padding: 2rem;
-  margin: 0 auto 3rem auto;
-  max-width: 1000px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-  border: 1px solid #8C6A56;
+.title-box {
+  width: 63%;
+  height: 58%;
+  background-color: rgba(255, 255, 255, 0.97);
+  padding: 15px;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  justify-content: space-between;
+  text-align: left;
+  color: #000000;
+}
+
+.title-box h1 {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.author-in-box {
+  font-size: 10px;
+  color: #333;
+  font-weight: 600;
+  margin: 0;
+}
+
+
+/* --- [수정된 레이아웃 및 스타일 시작] --- */
+
+.search-section {
+  max-width: 1200px;
+  margin: 0 auto 2rem auto;
+  padding: 0 1rem;
 }
 
 .search-input-wrapper {
@@ -465,114 +521,113 @@ function toggleLike(book: Book) {
 
 .search-input {
   width: 100%;
-  padding: 0.75rem 1.5rem 0.75rem 3rem;
-  border: 1px solid #8C6A56;
-  border-radius: 9999px;
-  background-color: #F2EAD0;
-  color: #403023;
+  padding: 1rem 2rem 1rem 3.5rem;
+  border: 1px solid #EAEAEA;
+  border-radius: 8px;
+  background-color: #FFFFFF;
   font-size: 1rem;
-}
-
-.search-input:focus {
-  box-shadow: 0 0 0 0.25rem rgba(140, 67, 50, 0.25);
-  border-color: #8C4332;
-  outline: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .search-icon {
   position: absolute;
-  left: 1.2rem;
+  left: 1.5rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #8C6A56;
+  color: #BEB4A7;
+  font-size: 1.2rem;
 }
 
-.sort-options-wrapper {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-  flex-wrap: wrap;
-}
-
-.radio-button input[type="radio"] { display: none; }
-.radio-button span {
-  display: block;
-  padding: 0.5rem 1.2rem;
-  border: 1px solid #8C6A56;
-  border-radius: 20px;
-  background-color: transparent;
-  color: #403023;
-  transition: all 0.2s;
-  cursor: pointer;
-}
-.radio-button input[type="radio"]:checked+span {
-  background-color: #8C4332;
-  color: #F2EAD0;
-  border-color: #8C4332;
-}
-
-.keyword-buttons-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-  justify-content: center;
-}
-
-.keyword-button {
-  padding: 0.5rem 1rem;
-  border-radius: 9999px;
-  border: 1px solid #8C6A56;
-  background-color: transparent;
-  color: #403023;
-  transition: all 0.2s;
-}
-
-.keyword-button.active,
-.keyword-button:hover {
-  background-color: #8C4332;
-  color: #F2EAD0;
-  border-color: #8C4332;
-}
-
-/* Book List Section */
-.book-list-section {
-  max-width: 1000px;
+.main-content-area {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 3rem;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 0 1rem;
 }
 
-.book-card {
-  background: #F2EAD0;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.06);
-  display: flex;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  transition: transform 0.3s, box-shadow 0.3s, border-color 0.3s;
-  cursor: pointer;
-  border: 1px solid #8C6A56;
-  margin-bottom: 1.5rem;
+.left-sidebar {
+  width: 100%;
 }
 
-.book-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(38, 37, 15, 0.1);
-  border-color: #8C4332;
+.sidebar-block {
+  margin-bottom: 2.5rem;
 }
 
-.book-cover-placeholder {
-  flex-shrink: 0;
-  width: 120px;
-  height: 170px;
-  background-color: #8C6A56;
-  color: #F2EAD0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 8px;
+.sidebar-title {
   font-size: 1rem;
   font-weight: 600;
-  text-align: center;
-  padding: 0.5rem;
+  color: #333;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #333;
+}
+
+.sort-options-wrapper,
+.keyword-buttons-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.radio-button span,
+.keyword-button {
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0;
+  border: none;
+  background: none;
+  font-size: 0.95rem;
+  color: #555;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.radio-button input[type="radio"] {
+  display: none;
+}
+
+.radio-button input[type="radio"]:checked+span,
+.keyword-button.active {
+  font-weight: 700;
+  color: #000;
+}
+
+.radio-button span:hover,
+.keyword-button:hover {
+  color: #000;
+}
+
+.book-list-main {
+  width: 100%;
+}
+
+.book-list-container {
+  display: flex;
+  flex-direction: column;
+}
+
+.book-list-item {
+  display: flex;
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.book-list-item:hover {
+  background-color: #fafafa;
+}
+
+.book-cover-image {
+  width: 120px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  flex-shrink: 0;
 }
 
 .book-details {
@@ -584,78 +639,74 @@ function toggleLike(book: Book) {
 .book-title {
   font-family: 'Noto Serif KR', serif;
   font-weight: 700;
-  font-size: 1.3rem;
-  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+  margin-bottom: 0.25rem;
   color: #26250F;
 }
 
 .book-author {
-  color: #403023;
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
+  color: #888;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
 }
 
 .book-summary {
-  font-size: 0.95rem;
-  flex-grow: 1;
-  margin-bottom: 1rem;
+  font-size: 0.9rem;
   line-height: 1.6;
-  color: #403023;
+  color: #555;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 2줄까지 보이도록 */
+  -webkit-box-orient: vertical;
+  flex-grow: 1;
 }
 
 .book-stats {
   display: flex;
   gap: 1rem;
-  font-size: 0.9rem;
-  color: #8C6A56;
-  margin-bottom: 1rem;
+  font-size: 0.85rem;
+  color: #aaa;
+}
+.book-stats i { margin-right: 0.2rem; }
+
+.book-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 1.5rem;
 }
 
-.book-stats i { margin-right: 0.3rem; }
-
 .like-button {
-  background-color: transparent;
-  border: 1px solid #8C6A56;
-  color: #8C4332;
-  align-self: flex-start;
-  padding: 0.5rem 1rem;
+  background-color: #f5f5f5;
+  border: 1px solid #eee;
+  color: #aaa;
   border-radius: 8px;
-  font-weight: 600;
+  width: auto;
+  padding: 0.5rem 1rem;
   transition: all 0.2s;
+  white-space: nowrap; /* "좋아요" 글자 줄바꿈 방지 */
 }
 
 .like-button.liked,
 .like-button:hover {
-  background-color: #8C4332;
-  color: #F2EAD0;
-  border-color: #8C4332;
+  background-color: #FFEFEA;
+  color: #E57373;
+  border-color: #FFEFEA;
 }
 
 .no-books-message {
   text-align: center;
-  padding: 3rem;
+  padding: 4rem;
   font-size: 1.2rem;
-  color: #8C6A56;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  border: 1px solid #8C6A56;
+  color: #ccc;
+  border: 1px dashed #eee;
+  border-radius: 8px;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .bookstore-page { padding: 60px 1rem 1rem; }
-  .section-title { font-size: 2.2rem; }
-  .carousel-section { height: 400px; }
-  .prev-btn { left: 5%; }
-  .next-btn { right: 5%; }
-  .filter-section, .book-list-section { padding: 1.5rem; }
-  .book-card {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-  .book-cover-placeholder { margin-bottom: 1rem; }
-  .book-details { align-items: center; }
-  .like-button { align-self: center; }
+/* --- 기존 스타일 숨기기 또는 삭제 --- */
+.filter-section, .book-list-section {
+  display: none;
 }
 </style>
