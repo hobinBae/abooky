@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/groups")
 @RequiredArgsConstructor
+@Slf4j
 public class GroupController {
     private final GroupService groupService;
     private final GroupMemberService groupMemberService;
@@ -33,10 +35,9 @@ public class GroupController {
     public ResponseEntity<ApiResponse<GroupResponse>> createGroup(
             @AuthenticationPrincipal CustomUserDetails currentUserId,
             @Valid @ModelAttribute GroupCreateRequest request,
-            @RequestPart(name = "imageFile", required = false)MultipartFile file,
+            @RequestPart(value = "file", required = false)MultipartFile file,
             HttpServletRequest httpRequest
             ) {
-
         GroupResponse response = groupService.createGroup(currentUserId.getMemberId(), request, file);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "그룹 생성 성공", response, httpRequest.getRequestURI()));
@@ -56,7 +57,7 @@ public class GroupController {
             @AuthenticationPrincipal CustomUserDetails currentUserId,
             @PathVariable Long groupId,
             @Valid @ModelAttribute GroupUpdateRequest request,
-            @RequestPart(name = "imageFile", required = false) MultipartFile imageFile,
+            @RequestPart(value = "file", required = false) MultipartFile imageFile,
             HttpServletRequest httpRequest
             ) {
         GroupResponse response = groupService.updateGroup(currentUserId.getMemberId(), groupId, request, imageFile);
