@@ -1,8 +1,10 @@
 package com.c203.autobiography.domain.group.controller;
 
 import com.c203.autobiography.domain.group.dto.GroupCreateRequest;
+import com.c203.autobiography.domain.group.dto.GroupMemberResponse;
 import com.c203.autobiography.domain.group.dto.GroupResponse;
 import com.c203.autobiography.domain.group.dto.GroupUpdateRequest;
+import com.c203.autobiography.domain.group.service.GroupMemberService;
 import com.c203.autobiography.domain.group.service.GroupService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
@@ -17,11 +19,14 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/groups")
 @RequiredArgsConstructor
 public class GroupController {
     private final GroupService groupService;
+    private final GroupMemberService groupMemberService;
 
     @Operation(summary = "그룹 생성", description = "그룹 정보 + 커버 이미지 등록")
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -69,5 +74,41 @@ public class GroupController {
                 .body(ApiResponse.of(HttpStatus.CREATED, "그룹 삭제가 완료되었습니다.", null, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "그룹원 조회", description = "현재 그룹의 그룹원들을 조회합니다.")
+    @GetMapping("/{groupId}/members")
+    public ResponseEntity<ApiResponse<List<GroupMemberResponse>>> listMembers(
+            @PathVariable Long groupId,
+            HttpServletRequest httpRequest
+    ) {
+        List<GroupMemberResponse> response = groupMemberService.listGroupMembers(groupId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹원 목록 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "그룹원 강퇴", description = "현재 그룹에서 그룹원을 강퇴시킵니다.")
+    @DeleteMapping("/{groupId}/{targetId}")
+    public ResponseEntity<ApiResponse<Void>> kickMember(
+            @PathVariable Long groupId,
+            @PathVariable Long targetId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            HttpServletRequest httpRequest
+    ) {
+        groupMemberService.removeMember(groupId, targetId, currentUser.getMemberId());
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹원 강퇴 성공", null, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "그룹 탈퇴", description = "현재 그룹을 탈퇴합니다.")
+    @DeleteMapping("/{groupId}/me")
+    public ResponseEntity<ApiResponse<Void>> deleteMember(
+            @PathVariable Long groupId,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            HttpServletRequest httpRequest
+    ) {
+        groupMemberService.leaveGroup(groupId, currentUser.getMemberId());
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹 탈퇴 성공", null, httpRequest.getRequestURI()));
+
+    }
 
 }

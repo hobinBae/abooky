@@ -33,7 +33,7 @@ public class GroupApplyResponse {
 
     public static GroupApplyResponse from(GroupApply ga) {
         return GroupApplyResponse.builder()
-                .groupApplyId(ga.getGroupId())
+                .groupApplyId(ga.getGroupApplyId())
                 .groupId(ga.getGroupId())
                 .receiverId(ga.getReceiverId())
                 .status(ga.getStatus())
