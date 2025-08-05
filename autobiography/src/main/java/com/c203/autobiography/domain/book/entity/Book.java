@@ -88,12 +88,15 @@ public class Book {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Builder.Default
     @Column(name = "like_count", nullable = false)
     private Integer likeCount = 0;
 
+    @Builder.Default
     @Column(name = "view_count", nullable = false)
     private Integer viewCount = 0;
 
+    @Builder.Default
     @Column(
             name = "average_rating",
             precision = 2,
@@ -102,6 +105,7 @@ public class Book {
     )
     private BigDecimal averageRating = BigDecimal.valueOf(0.0);
 
+    @Builder.Default
     @Column(name = "completed", nullable = false)
     private Boolean completed = false;
 

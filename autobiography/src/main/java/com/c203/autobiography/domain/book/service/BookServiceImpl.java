@@ -7,6 +7,8 @@ import com.c203.autobiography.domain.book.dto.BookCreateRequest;
 import com.c203.autobiography.domain.book.dto.BookResponse;
 import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
 import com.c203.autobiography.domain.book.repository.BookRepository;
+import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
+import com.c203.autobiography.domain.episode.repository.EpisodeRepository;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
@@ -18,6 +20,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -28,6 +32,7 @@ public class BookServiceImpl implements BookService{
     private final MemberRepository memberRepository;
     private final BookCategoryRepository bookCategoryRepository;
     private final FileStorageService fileStorageService;
+    private final EpisodeRepository episodeRepository;
 
     @Override
     @Transactional
@@ -53,6 +58,7 @@ public class BookServiceImpl implements BookService{
     }
 
     @Override
+    @Transactional
     public BookResponse updateBook(Long memberId,Long bookId, BookUpdateRequest request, MultipartFile file) {
         memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
@@ -81,6 +87,7 @@ public class BookServiceImpl implements BookService{
     }
 
     @Override
+    @Transactional
     public Void deleteBook(Long memberId, Long bookId) {
         memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
@@ -93,6 +100,7 @@ public class BookServiceImpl implements BookService{
     }
 
     @Override
+    @Transactional
     public BookResponse completeBook(Long memberId, Long bookId) {
         memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
@@ -107,6 +115,41 @@ public class BookServiceImpl implements BookService{
 
         // 4) BookResponse 변환
         return BookResponse.of(book);
+    }
+
+    @Override
+    public BookResponse getBookDetail(Long memberId, Long bookId) {
+
+        memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        if (!book.getMember().getMemberId().equals(memberId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
+        // 3) 에피소드 목록 조회 + DTO 매핑
+        List<EpisodeResponse> episodes = episodeRepository
+                .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId)
+                .stream()
+                .map(EpisodeResponse::of)
+                .toList();
+
+        return BookResponse.of(book, episodes);
+    }
+
+    @Override
+    public List<BookResponse> getMyBooks(Long memberId) {
+        memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        return bookRepository
+                .findAllByMemberMemberIdAndDeletedAtIsNull(memberId)
+                .stream()
+                .map(BookResponse::of)
+                .toList();
     }
 
 }
