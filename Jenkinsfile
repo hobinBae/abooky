@@ -15,8 +15,8 @@ pipeline {
         
         // 프로젝트 경로 (Jenkins workspace 기준)
         PROJECT_ROOT = "${WORKSPACE}"
-        BACKEND_PATH = "${WORKSPACE}/autobiography"
-        FRONTEND_PATH = "${WORKSPACE}/mybook"
+        BACKEND_PATH = "autobiography"      // 상대 경로
+        FRONTEND_PATH = "mybook"            // 상대 경로
         
         COMPOSE_FILE = 'docker-compose.prod.yml'
         
