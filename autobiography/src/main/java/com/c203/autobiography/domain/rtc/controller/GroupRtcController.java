@@ -1,80 +1,73 @@
 package com.c203.autobiography.domain.rtc.controller;
 
 import com.c203.autobiography.domain.group.service.GroupMemberService;
-import com.c203.autobiography.domain.group.service.GroupService;
+import com.c203.autobiography.domain.rtc.dto.RtcRequest;
 import com.c203.autobiography.domain.rtc.dto.RtcTokenResponse;
+import com.c203.autobiography.domain.rtc.service.GroupRoomService;
+import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
+import io.swagger.v3.oas.annotations.Operation;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
-import java.net.URI;
 
 @RestController
 @RequestMapping("/api/v1/groups/{groupId}/rtc")
 @RequiredArgsConstructor
 public class GroupRtcController {
-    private final LivekitService livekitService;
-    private final GroupService groupService;
+
+    private final GroupRoomService groupRoomService;
     private final GroupMemberService groupMemberService;
 
-    // 그룹 전용 방 생성
+    @Operation(summary = "그룹 화상 채팅 방 생성", description = "그룹 멤버만 방을 생성할 수 있습니다.")
     @PostMapping("/room")
-    public ResponseEntity<Void> createGroupRoom(
+    public ResponseEntity<ApiResponse<Void>> createGroupRoom(
             @PathVariable Long groupId,
-            @AuthenticationPrincipal CustomUserDetails currentUser
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            HttpServletRequest httpRequest
             ) throws Exception {
         // 그룹 소속 확인하기
         groupMemberService.verifyMember(groupId, currentUser.getMemberId());
 
-        // RoomName 설정
-        String roomName = "group-" + groupId;
-
-        // 방 생성 시도 (있으면 예외)
-        try {
-            livekitService.ensureRoomExists(roomName);
-        } catch (RoomAlreadyExistsException ex) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
-
-        // Created + Location 헤더
-        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
-                .path("/room")
-                .build()
-                .toUri();
-        return ResponseEntity.created(location).build();
+        groupRoomService.createRoom(groupId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "그룹 화상 채팅방 생성 성공", null, httpRequest.getRequestURI()));
 
     }
 
-    @GetMapping("/token")
-    public ResponseEntity<RtcTokenResponse> getGroupToken(
+    @Operation(summary = "그룹 방 입장 토큰 발급", description = "그룹 멤버에게 방 입장 토큰을 발급합니다.")
+    @PostMapping("/token")
+    public ResponseEntity<ApiResponse<RtcTokenResponse>> getGroupToken(
             @PathVariable Long groupId,
-            @RequestBody RtcRequest request,
-            @AuthenticationPrincipal CustomUserDetails currentUser
+            @RequestBody @Valid RtcRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            HttpServletRequest httpRequest
     ) throws Exception {
-        groupMemberService.verifyMember(groupId, currentUser.getMemberId());
-        String roomName = "group" + groupId;
+        Long memberId = currentUser.getMemberId();
+        groupMemberService.verifyMember(groupId, memberId);
 
-        // 방이 없으면 생성하기 (idempotent)
-        livekitService.ensureRoomExists(roomName);
-
-        String token = livekitService.createJoinToken(
-                roomName, currentUser.getMemberId(), request.getMemberId()
-        );
+        String token = groupRoomService.generateToken(groupId, memberId.toString(), request.getUserName());
 
         String url = "ws://localhost:7881";
-        return ResponseEntity.ok(new RtcTokenResponse(url, token));
+        RtcTokenResponse response = new RtcTokenResponse(url, token);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "토큰 발급 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "그룹 화상 채팅 방 삭제", description = "그룹 멤버만 방을 삭제할 수 있습니다.")
     @DeleteMapping("/room")
-    public ResponseEntity<Void> deleteGroupRoom(
+    public ResponseEntity<ApiResponse<Void>> deleteGroupRoom(
             @PathVariable Long groupId,
-            @AuthenticationPrincipal CustomUserDetails currentUser
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            HttpServletRequest httpRequest
     ) throws Exception {
         groupMemberService.verifyMember(groupId, currentUser.getMemberId());
-        rct
+        groupRoomService.deleteRoom(groupId);
+        return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                .body(ApiResponse.of(HttpStatus.NO_CONTENT, "그룹 화상 채팅 방 삭제 성공", null, httpRequest.getRequestURI()));
     }
 }

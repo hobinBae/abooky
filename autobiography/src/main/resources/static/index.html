@@ -1,191 +1,103 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Autobiography STT + SSE 테스트 (VAD 적용)</title>
-    <style>
-        body { font-family: sans-serif; max-width: 700px; margin: 2rem auto; }
-        #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; }
-        .ai    { text-align: left;  color: #090; }
-        .user  { text-align: right; color: #006; }
-        .error { text-align: left; color: #f66; }
-        .system { text-align: center; color: #888; font-style: italic; }
-        button, input { padding: .5rem; margin: .5rem 0; width: 100%; box-sizing: border-box; }
-
-        #audioLevel {
-            width: 100%;
-            height: 20px;
-            background: #f0f0f0;
-            border-radius: 10px;
-            overflow: hidden;
-            margin: 10px 0;
-        }
-
-        #audioLevelBar {
-            height: 100%;
-            background: linear-gradient(90deg, #4CAF50, #FFC107, #FF5722);
-            width: 0%;
-            transition: width 0.1s ease;
-        }
-
-        .settings { background: #f9f9f9; padding: 1rem; border-radius: 5px; margin: 1rem 0; }
-        .settings label { display: block; margin: .5rem 0; }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LiveKit WebRTC Test</title>
 </head>
 <body>
-<h2>Autobiography STT + SSE 테스트 (VAD 적용)</h2>
-<div id="messages"></div>
-
-<div class="settings">
-    <label><input type="checkbox" id="enableVAD" checked /> VAD (음성 활동 감지) 사용</label>
-    <label>음성 감지 임계값: <span id="thresholdValue">0.01</span>
-        <input type="range" id="threshold" min="0.001" max="0.1" step="0.001" value="0.01" />
-    </label>
-    <label>무음 허용 시간 (초): <span id="silenceTimeValue">10</span>
-        <input type="range" id="silenceTime" min="1" max="30" step="1" value="10" />
-    </label>
+<h1>LiveKit WebRTC Test</h1>
+<button id="joinBtn" style="padding:10px 20px; font-size:16px;">Join Room</button>
+<div style="margin-top:20px; display:flex; gap:10px;">
+    <!-- Local Video Container -->
+    <div class="video-container" style="position:relative; width:300px;">
+        <video id="localVideo" autoplay muted playsinline style="width:100%; border:1px solid #ccc;"></video>
+        <div id="localOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Local</div>
+    </div>
+    <!-- Remote Video Container -->
+    <div class="video-container" style="position:relative; width:300px;">
+        <video id="remoteVideo" autoplay playsinline style="width:100%; border:1px solid #ccc;"></video>
+        <div id="remoteOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Remote</div>
+    </div>
 </div>
 
-<div id="audioLevel">
-    <div id="audioLevelBar"></div>
-</div>
-
-<input type="text" id="properInput" placeholder="고유명사를 쉼표로 구분해 입력하세요" />
-<button id="startBtn">▶ 에피소드 시작</button>
-<button id="recordBtn" disabled>🎙️ 녹음 시작</button>
-<button id="stopBtn" disabled>⏹️ 녹음 중지</button>
-<button id="nextQuestionBtn" disabled>▶ 다음 질문 받기</button>
-
+<script src="https://unpkg.com/livekit-client@2.15.4/dist/livekit-client.umd.js"></script>
+<!-- ESM 모듈 방식으로 LiveKit SDK 가져오기 -->
 <script>
-    const msgs = document.getElementById('messages');
-    const properInput = document.getElementById('properInput');
-    const startBtn = document.getElementById('startBtn');
-    const recordBtn = document.getElementById('recordBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const nextQuestionBtn = document.getElementById('nextQuestionBtn');
-    const enableVAD = document.getElementById('enableVAD');
-    const threshold = document.getElementById('threshold');
-    const thresholdValue = document.getElementById('thresholdValue');
-    const silenceTime = document.getElementById('silenceTime');
-    const silenceTimeValue = document.getElementById('silenceTimeValue');
-    const audioLevelBar = document.getElementById('audioLevelBar');
+    const lk = window.LivekitClient || window.LiveKitClient || window.livekitClient;
+    const Room = lk.Room;
+    const createLocalVideoTrack = lk.createLocalVideoTrack;
+    const createLocalAudioTrack = lk.createLocalAudioTrack;
 
-    let sessionId = crypto.randomUUID();
-    let episodeId = 1;
-    let chunkIndex = 0;
-    let source, mediaRecorder, stream, chunkTimer, audioContext, analyser;
-    let isRecording = false;
-    let currentAudioLevel = 0;
-    let lastSpeechTime = 0;
-    let voiceDetected = false;
+    const params = new URLSearchParams(window.location.search);
+    let accessToken = params.get('token');
+    let identity = params.get('identity');
+    if (!accessToken || !identity) {
+        accessToken = prompt('Access Token을 입력하세요:', accessToken || '');
+        identity = prompt('Identity를 입력하세요 (예: userA, userB):', identity || '');
+    }
+    const groupId = params.get('groupId') || 5;
+    const livekitServerUrl = params.get('livekitUrl') || 'ws://localhost:7880';
 
-    threshold.oninput = () => thresholdValue.textContent = threshold.value;
-    silenceTime.oninput = () => silenceTimeValue.textContent = silenceTime.value;
-
-    function append(txt, cls='ai') {
-        const d = document.createElement('div');
-        d.className = cls;
-        d.textContent = txt;
-        msgs.appendChild(d);
-        msgs.scrollTop = msgs.scrollHeight;
+    async function getToken() {
+        const res = await fetch(`/api/v1/groups/${groupId}/rtc/token`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json','Authorization': `Bearer ${accessToken}`},
+            body: JSON.stringify({ userName: identity })
+        });
+        if (!res.ok) { console.error('토큰 요청 실패:', res.status); throw new Error(res.status); }
+        return (await res.json()).data.token;
     }
 
-    function analyzeAudio() {
-        if (!analyser) return;
-        const dataArray = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(dataArray);
-        let sum = dataArray.reduce((acc,v) => acc + v*v, 0);
-        const rms = Math.sqrt(sum / dataArray.length);
-        currentAudioLevel = rms / 255;
-        audioLevelBar.style.width = (currentAudioLevel*100) + '%';
-        const currentThreshold = parseFloat(threshold.value);
-        const currentSilenceTime = parseFloat(silenceTime.value)*1000;
-        if (currentAudioLevel > currentThreshold) {
-            lastSpeechTime = Date.now();
-            if (!voiceDetected) { voiceDetected = true; append('🎤 음성 감지됨','system'); }
-        } else if (voiceDetected && Date.now() - lastSpeechTime > currentSilenceTime) {
-            voiceDetected = false; append('🔇 음성 중단 감지','system');
+    function attachTrack(track, overlayId) {
+        track.attach(document.getElementById(overlayId.replace('Overlay', 'Video')));
+    }
+
+    async function start() {
+        try {
+            const token = await getToken();
+            const room = new Room();
+            await room.connect(livekitServerUrl, token);
+            console.log('Connected to room:', room.name);
+
+            // Publish local tracks
+            // 첫 번째 클라이언트만 오디오 퍼블리시 (장치 충돌 방지)
+
+            const audioTrack = await createLocalAudioTrack();
+            await room.localParticipant.publishTrack(audioTrack);
+
+            // 비디오 트랙 퍼블리시
+            const videoTrack = await createLocalVideoTrack();
+            await room.localParticipant.publishTrack(videoTrack);
+            videoTrack.attach(document.getElementById('localVideo'));
+            document.getElementById('localOverlay').innerText = identity;
+
+            // Subscribe existing participants
+            room.participants.forEach(participant => {
+                participant.tracks.forEach(publication => {
+                    if (publication.isSubscribed && publication.track.kind === 'video') {
+                        attachTrack(publication.track, 'remoteOverlay');
+                        document.getElementById('remoteOverlay').innerText = participant.identity;
+                    }
+                });
+            });
+
+            // Handle new tracks
+            room.on('trackSubscribed', (track, publication, participant) => {
+                if (track.kind === 'video') {
+                    attachTrack(track, 'remoteOverlay');
+                    document.getElementById('remoteOverlay').innerText = participant.identity;
+                }
+                if (track.kind === 'audio') { track.attach(); }
+            });
+
+        } catch (err) {
+            console.error('실행 오류:', err);
         }
-        if (isRecording) requestAnimationFrame(analyzeAudio);
     }
 
-    startBtn.onclick = () => {
-        source = new EventSource(
-            `http://localhost:8080/api/conversation/stream?sessionId=${sessionId}`
-        );
-        source.addEventListener('question', e => {
-            const { text } = JSON.parse(e.data);
-            append(`AI: ${text}`,'ai');
-            recordBtn.disabled = false;
-            nextQuestionBtn.disabled = false;
-        });
-        source.addEventListener('partialTranscript', e => {
-            const { chunkIndex, text } = JSON.parse(e.data);
-            append(`(${chunkIndex}) 음성 인식 중… ${text}`,'user');
-        });
-        source.addEventListener('finalTranscript', e => {
-            const { chunkIndex, text } = JSON.parse(e.data);
-            append(`✅ 최종 인식 (#${chunkIndex}): ${text}`,'user');
-            // STT 검토 후 확정
-            nextQuestionBtn.disabled = false;
-        });
-        source.addEventListener('error', () => { append('❌ SSE 에러','error'); source.close(); });
-        append(`세션 열림: ${sessionId}`,'system');
-        startBtn.disabled = true;
-    };
-
-    recordBtn.onclick = async () => {
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ audio:true });
-            audioContext = new (window.AudioContext||window.webkitAudioContext)();
-            const mic = audioContext.createMediaStreamSource(stream);
-            analyser = audioContext.createAnalyser(); mic.connect(analyser);
-            isRecording = true; voiceDetected = false; lastSpeechTime = Date.now();
-            startChunkRecorder(); analyzeAudio();
-            append('🎙️ 녹음 시작 (음성 활동 감지)','system');
-            recordBtn.disabled = true; stopBtn.disabled = false;
-        } catch(err){ append('❌ 마이크 오류: '+err.message,'error'); }
-    };
-
-    stopBtn.onclick = () => {
-        isRecording = false; voiceDetected = false; clearTimeout(chunkTimer);
-        if(mediaRecorder?.state==='recording') mediaRecorder.stop();
-        stream?.getTracks().forEach(t=>t.stop());
-        audioContext?.close(); audioContext = analyser = null;
-        audioLevelBar.style.width = '0%';
-        append('🔊 녹음 중지','user');
-        stopBtn.disabled = true; recordBtn.disabled = false;
-    };
-
-    function startChunkRecorder() {
-        mediaRecorder = new MediaRecorder(stream,{ mimeType:'audio/webm;codecs=opus' });
-        mediaRecorder.ondataavailable = async e => {
-            if(!e.data||e.data.size<1000){ chunkIndex++; append(`🧹 무음 청크 무시 (size=${e.data.size})`,'system'); return; }
-            const form = new FormData();
-            form.append('sessionId',sessionId);
-            form.append('chunkIndex',chunkIndex);
-            form.append('audio',e.data,'audio.webm');
-            form.append('finalTranscript','true');
-            form.append('audioLevel',currentAudioLevel.toFixed(3));
-            if(properInput.value.trim()) form.append('customProperNouns',properInput.value.trim());
-            append(`📤 청크 #${chunkIndex} 전송중...`,'system');
-            chunkIndex++;
-            try {
-                await axios.post('http://localhost:8080/api/stt/chunk',form,{ timeout:60000 });
-            } catch(err){ append('❌ STT 오류: '+err.message,'error'); }
-        };
-        mediaRecorder.onstop = () => { if(isRecording) startChunkRecorder(); };
-        mediaRecorder.start();
-        chunkTimer = setTimeout(()=>{ if(mediaRecorder.state==='recording') mediaRecorder.stop(); },6000);
-    }
-
-    nextQuestionBtn.onclick = async () => {
-        nextQuestionBtn.disabled = true;
-        try {
-            await axios.post('http://localhost:8080/api/conversation/next', null, { params:{ sessionId } });
-        } catch(err){ append('❌ 다음 질문 요청 오류: '+err.message,'error'); nextQuestionBtn.disabled = false; }
-    };
+    document.getElementById('joinBtn').addEventListener('click', start);
 </script>
 </body>
 </html>
