@@ -314,7 +314,7 @@ pipeline {
                             script {
                                 try {
                                     def response = sh(
-                                        script: 'curl -f http://i13c203.p.ssafy.io:8081/actuator/health',
+                                        script: 'curl -f http://i13c203.p.ssafy.io:8081/cicd/health',
                                         // script: 'curl -f http://i13c203.p.ssafy.io:8080/actuator/health',
                                         // script: 'curl -f http://localhost:8080/actuator/health',
                                         returnStatus: true
@@ -372,10 +372,10 @@ pipeline {
 
                     sh '''
                         echo "🧪 API 기능 테스트 실행 중..."
-                        curl -f http://i13c203.p.ssafy.io:8081/api/health || echo "API 헬스체크 실패"
-                        curl -f http://i13c203.p.ssafy.io:8081/api/test/database || echo "DB 연결 테스트 실패"
-                        curl -f http://i13c203.p.ssafy.io:8081/api/test/redis || echo "Redis 연결 테스트 실패"
-                        curl -f http://i13c203.p.ssafy.io:8081/api/test/all || echo "전체 시스템 테스트 실패"
+                        curl -f http://i13c203.p.ssafy.io:8081/cicd/health || echo "API 헬스체크 실패"
+                        curl -f http://i13c203.p.ssafy.io:8081/cicd/test/database || echo "DB 연결 테스트 실패"
+                        curl -f http://i13c203.p.ssafy.io:8081/cicd/test/redis || echo "Redis 연결 테스트 실패"
+                        curl -f http://i13c203.p.ssafy.io:8081/cicd/test/all || echo "전체 시스템 테스트 실패"
 
                         echo "🗄️ 데이터베이스 연결 확인..."
                         # MySQL 연결 확인 (포트 3307)
