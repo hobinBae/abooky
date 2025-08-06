@@ -123,7 +123,7 @@ pipeline {
                             script {
                                 // JUnit 테스트 결과 발행
                                 try {
-                                    junit testResultsPattern: "${BACKEND_PATH}/build/test-results/test/*.xml",
+                                    junit testResults: "${BACKEND_PATH}/build/test-results/test/*.xml",
                                           allowEmptyResults: true
                                 } catch (Exception e) {
                                     echo "⚠️ 테스트 결과 발행 스킵: ${e.getMessage()}"
