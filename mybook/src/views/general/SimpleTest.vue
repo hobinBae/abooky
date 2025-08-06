@@ -54,7 +54,7 @@ const fetchFromBackend = async (): Promise<void> => {
     
     // 백엔드가 꺼져있을 때 대비한 fallback
     if (axiosError.code === 'ERR_NETWORK') {
-      error.value = '백엔드 서버에 연결할 수 없습니다. localhost:8081이 실행 중인지 확인해주세요.'
+      error.value = '백엔드 서버에 연결할 수 없습니다. http://i13c203.p.ssafy.io:8081이 실행 중인지 확인해주세요.'
     }
   } finally {
     loading.value = false
