@@ -101,7 +101,7 @@ const markAsRead = (notification: any) => {
 
 const logout = () => {
   localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
+  // localStorage.removeItem('refreshToken');
   setLoggedIn(false);
   alert('로그아웃 되었습니다.');
   router.push('/login');

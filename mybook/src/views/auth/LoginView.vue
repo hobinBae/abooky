@@ -72,7 +72,7 @@ async function handleLogin() {
 
     const { accessToken, refreshToken } = response.data.data;
     localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
+    // localStorage.setItem('refreshToken', refreshToken);
 
     setLoggedIn(true);
 
