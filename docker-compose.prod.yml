@@ -61,7 +61,7 @@ services:
     networks:
       - app-network  # ← 🔄 네트워크명 변경
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8081/cicd/health"]
       interval: 30s
       timeout: 10s
       retries: 5
