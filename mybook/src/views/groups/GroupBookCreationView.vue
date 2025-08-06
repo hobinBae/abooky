@@ -290,7 +290,7 @@ onUnmounted(() => {
 
 .btn-join {
   width: 100%;
-  background-color: var(--color-primary);
+  background-color:  #555;
   color: white;
   font-weight: 600;
   font-size: 1rem;
@@ -301,7 +301,7 @@ onUnmounted(() => {
 }
 
 .btn-join:hover {
-  background-color: #555;
+  opacity: 0.8;
 }
 
 /* --- 워크스페이스 스타일 --- */
