@@ -30,7 +30,7 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean
 
 # JAR 파일 복사 (빌드된 결과물)
-COPY build/libs/app.jar app.jar
+COPY build/libs/autobiography-0.0.1-SNAPSHOT.jar app.jar
 
 # 애플리케이션 실행을 위한 사용자 생성 (보안)
 RUN groupadd -r spring && useradd -r -g spring spring
