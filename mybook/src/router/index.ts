@@ -3,12 +3,17 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    // ✅ 인트로 진입 (한옥 3D 씬)
     {
       path: '/',
-      name: 'intro',
-      component: () => import('../views/general/IntroView.vue')
+      name: 'test',
+      component: () => import('../views/general/SimpleTest.vue')
     },
+    // ✅ 인트로 진입 (한옥 3D 씬)
+    // {
+    //   path: '/',
+    //   name: 'intro',
+    //   component: () => import('../views/general/IntroView.vue')
+    // },
     // ✅ 기존 HomeView는 '/home'으로 이동
     {
       path: '/home',
