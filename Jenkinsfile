@@ -160,7 +160,15 @@ pipeline {
             '''
         }
         success {
-            echo "🎉 Build & Deploy 성공!"
+            def duration = currentBuild.durationString.replace(' and counting', '')
+            echo """
+            🎉 Build & Deploy 성공!
+            📊 배포 정보:
+                - 빌드 번호: #${BUILD_NUMBER}
+                - Git 커밋: ${env.GIT_COMMIT}
+                - 브랜치: ${env.GIT_BRANCH}
+                - 소요 시간: ${duration}
+            """
         }
         failure {
             echo "❌ Build 실패. 로그를 확인하세요."
