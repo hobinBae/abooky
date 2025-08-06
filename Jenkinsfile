@@ -22,6 +22,20 @@ pipeline {
         
         // 배포 경로
         DEPLOY_PATH = '/opt/autobiography-deploy'
+
+        // Jenkins Credentials 주입
+        AWS_S3_ACCESS_KEY = credentials('AWS_S3_ACCESS_KEY')
+        AWS_S3_SECRET_KEY = credentials('AWS_S3_SECRET_KEY')
+        DB_PASSWORD = credentials('DB_PASSWORD')
+        JWT_SECRET = credentials('JWT_SECRET')
+        GOOGLE_CLIENT_ID = credentials('GOOGLE_CLIENT_ID')
+        GOOGLE_CLIENT_SECRET = credentials('GOOGLE_CLIENT_SECRET')
+        MAIL_USERNAME = credentials('MAIL_USERNAME')
+        MAIL_PASSWORD = credentials('MAIL_PASSWORD')
+        CLOVA_STT_API_KEY = credentials('CLOVA_STT_API_KEY')
+        OPENAI_API_KEY = credentials('OPENAI_API_KEY')
+        LIVEKIT_API_KEY = credentials('LIVEKIT_API_KEY')
+        LIVEKIT_API_SECRET = credentials('LIVEKIT_API_SECRET')
     }
     
     options {

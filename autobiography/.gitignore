@@ -74,5 +74,4 @@ hs_err_pid*
 # Lombok generated
 lombok.config
 
-application.properties
 application.yml
