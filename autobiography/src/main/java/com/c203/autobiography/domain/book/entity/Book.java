@@ -107,11 +107,7 @@ public class Book {
      * 태그 추가
      *
      */
-    @OneToMany(
-            mappedBy = "book",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
-    )
+    @OneToMany(mappedBy="book")
     private List<BookTag> tags = new ArrayList<>();
 
 

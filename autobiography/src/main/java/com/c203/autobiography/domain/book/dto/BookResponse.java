@@ -20,6 +20,9 @@ import lombok.NoArgsConstructor;
 public class BookResponse {
     private Long bookId;
     private Long memberId;
+    private String name;
+    private String email;
+    private String nickname;
     private String title;
     private String coverImageUrl;
     private String summary;
@@ -49,6 +52,9 @@ public class BookResponse {
         return BookResponse.builder()
                 .bookId(book.getBookId())
                 .memberId(book.getMember().getMemberId())
+                .name(book.getMember().getName())
+                .email(book.getMember().getEmail())
+                .nickname(book.getMember().getNickname())
                 .title(book.getTitle())
                 .coverImageUrl(book.getCoverImageUrl())
                 .summary(book.getSummary())

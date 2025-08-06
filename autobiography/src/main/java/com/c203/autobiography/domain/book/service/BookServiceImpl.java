@@ -11,6 +11,7 @@ import com.c203.autobiography.domain.book.entity.Tag;
 import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
 import com.c203.autobiography.domain.book.repository.BookRepository;
 import com.c203.autobiography.domain.book.repository.TagRepository;
+import com.c203.autobiography.domain.book.util.BookSpecifications;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.entity.Episode;
@@ -25,6 +26,9 @@ import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -207,7 +211,17 @@ public class BookServiceImpl implements BookService {
         return bookRepository
                 .findAllByMemberMemberIdAndDeletedAtIsNull(memberId)
                 .stream()
-                .map(BookResponse::of)
+                .map(book -> {
+                    // 에피소드 목록이 필요 없으면 빈 리스트
+                    List<EpisodeResponse> episodes = List.of();
+
+                    // 실제로 붙어있는 태그 이름들만 추출
+                    List<String> tagNames = book.getTags().stream()
+                            .map(bt -> bt.getTag().getTagName())
+                            .toList();
+
+                    return BookResponse.of(book, episodes, tagNames);
+                })
                 .toList();
     }
 
@@ -276,5 +290,23 @@ public class BookServiceImpl implements BookService {
                 .build();
 
     }
+
+    @Override
+    public Page<BookResponse> searchBooks(String title, Long categoryId, List<String> tags, Pageable pageable) {
+
+        Specification<Book> spec = BookSpecifications.titleContains(title)
+                .and(BookSpecifications.categoryEquals(categoryId))
+                .and(BookSpecifications.hasAnyTag(tags));
+
+        Page<Book> page = bookRepository.findAll(spec, pageable);
+
+
+        return page.map(book -> {
+            List<String> tagNames = book.getTags().stream()
+                    .map(bt -> bt.getTag().getTagName())
+                    .toList();
+            return BookResponse.of(book, List.of(), tagNames);
+        });
+        }
 
 }

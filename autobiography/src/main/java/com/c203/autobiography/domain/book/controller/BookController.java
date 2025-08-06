@@ -7,14 +7,20 @@ import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
 import com.c203.autobiography.domain.episode.service.EpisodeService;
 import com.c203.autobiography.global.dto.ApiResponse;
+import com.c203.autobiography.global.dto.PageResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import okhttp3.Response;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -85,9 +91,27 @@ public class BookController {
                 .body(ApiResponse.of(HttpStatus.OK, "나의 보유 책 목록 조회 성공", response, httpRequest.getRequestURI()));
     }
 
-//    @Operation(summary = "책 검색", description = "책 검색을 한다.")
-//    @GetMapping("/search")
-//    public ResponseEntity
+    @Operation(summary = "책 검색", description = "description = 제목, 카테고리, 태그로 책을 검색합니다.")
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<PageResponse<BookResponse>>> searchBooks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @RequestParam(required = false) String title,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) List<String> tags,
+            @Parameter(
+                    description = "정렬 기준. 예: sort=likeCount,desc;viewCount,asc",
+                    example = "likeCount,desc"
+            )
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable,
+            HttpServletRequest httpRequest
+
+    ) {
+        Page<BookResponse> page = bookService.searchBooks(title, categoryId, tags, pageable);
+        PageResponse<BookResponse> response = PageResponse.from(page);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "책 검색 성공", response, httpRequest.getRequestURI()));
+    }
 
     @Operation(summary = "책 수정", description = "책 정보 수정")
     @PatchMapping("/{bookId}")
