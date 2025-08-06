@@ -4,7 +4,7 @@
 
 <script setup lang="ts">
 import * as THREE from 'three'
-import { ref, onMounted, defineEmits, onUnmounted, defineExpose } from 'vue'
+import { ref, onMounted, defineEmits, onUnmounted, defineExpose, onActivated, onDeactivated } from 'vue'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
@@ -28,16 +28,40 @@ let renderer: THREE.WebGLRenderer
 const hotspots: THREE.Object3D[] = []
 
 let animationFrameId: number;
+const isAnimating = ref(false);
+
+const startAnimation = () => {
+  if (!isAnimating.value) {
+    isAnimating.value = true;
+    animate();
+  }
+};
+
+const stopAnimation = () => {
+  if (isAnimating.value) {
+    cancelAnimationFrame(animationFrameId);
+    isAnimating.value = false;
+  }
+};
 
 onMounted(() => {
-  initScene()
-})
+  initScene();
+  startAnimation();
+});
 
 onUnmounted(() => {
-  window.removeEventListener('resize', onWindowResize)
+  window.removeEventListener('resize', onWindowResize);
   container.value?.removeEventListener('click', onCanvasClick);
-  cancelAnimationFrame(animationFrameId);
-})
+  stopAnimation();
+});
+
+onActivated(() => {
+  startAnimation();
+});
+
+onDeactivated(() => {
+  stopAnimation();
+});
 
 function initScene() {
   scene = new THREE.Scene()
@@ -46,7 +70,7 @@ function initScene() {
   camera.position.set(7.3, 25, 30)
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5))
+  renderer.setPixelRatio(window.devicePixelRatio)
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
@@ -69,7 +93,6 @@ function initScene() {
   setupLights()
   loadHDR()
   // loadModel() // 자동 모델 로딩 제거
-  animate()
 }
 
 function onWindowResize() {
@@ -83,8 +106,8 @@ function setupLights() {
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
   dirLight.position.set(30, 30, 10);
   dirLight.castShadow = true;
-  dirLight.shadow.mapSize.width = 1024;
-  dirLight.shadow.mapSize.height = 1024;
+  dirLight.shadow.mapSize.width = 512;
+  dirLight.shadow.mapSize.height = 512;
   dirLight.shadow.camera.near = 1;
   dirLight.shadow.camera.far = 100;
   dirLight.shadow.camera.left = -100;
@@ -94,54 +117,54 @@ function setupLights() {
   scene.add(dirLight);
 
   // RectAreaLight
-  const areaLight = new THREE.RectAreaLight(0xeba64d, 12, 2.28, 2.28);
-  areaLight.position.set(7.3, 5, 25);
-  areaLight.rotation.set(
-    THREE.MathUtils.degToRad(91.174),
-    THREE.MathUtils.degToRad(180.48163),
-    THREE.MathUtils.degToRad(-0.75941)
-  );
-  scene.add(areaLight);
+  // const areaLight = new THREE.RectAreaLight(0xeba64d, 12, 2.28, 2.28);
+  // areaLight.position.set(7.3, 5, 25);
+  // areaLight.rotation.set(
+  //   THREE.MathUtils.degToRad(91.174),
+  //   THREE.MathUtils.degToRad(180.48163),
+  //   THREE.MathUtils.degToRad(-0.75941)
+  // );
+  // scene.add(areaLight);
 
   // PointLight 1
-  const point1 = new THREE.PointLight(0xf0ab43, 20, 15);
+  const point1 = new THREE.PointLight(0xf0ab43, 10, 15);
   point1.position.set(-12, 3, -6.6);
   scene.add(point1);
   // scene.add(new THREE.PointLightHelper(point1));
 
   // PointLight 1a
-  const point1a = new THREE.PointLight(0xf0ab43, 20, 15);
+  const point1a = new THREE.PointLight(0xf0ab43, 10, 15);
   point1a.position.set(-12, 3, 2);
   scene.add(point1a);
   // scene.add(new THREE.PointLightHelper(point1a));
 
   // 방 안에서 나오는 불빛을 위한 RectAreaLight 4개 추가
-  const windowLight1 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
-  windowLight1.position.set(-8, 2.5, -4);
-  windowLight1.lookAt(-8, 2.5, -5);
-  scene.add(windowLight1);
-  // scene.add(new RectAreaLightHelper(windowLight1));
+  // const windowLight1 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
+  // windowLight1.position.set(-8, 2.5, -4);
+  // windowLight1.lookAt(-8, 2.5, -5);
+  // scene.add(windowLight1);
+  // // scene.add(new RectAreaLightHelper(windowLight1));
 
-  const windowLight2 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
-  windowLight2.position.set(-5, 2.5, -4.2);
-  windowLight2.lookAt(-5, 2.5, -5);
-  scene.add(windowLight2);
-  // scene.add(new RectAreaLightHelper(windowLight2));
+  // const windowLight2 = new THREE.RectAreaLight(0xffd580, 0.8, 2, 2.3);
+  // windowLight2.position.set(-5, 2.5, -4.2);
+  // windowLight2.lookAt(-5, 2.5, -5);
+  // scene.add(windowLight2);
+  // // scene.add(new RectAreaLightHelper(windowLight2));
 
-  const windowLight3 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
-  windowLight3.position.set(1.55, 2.25, -4.3);
-  windowLight3.lookAt(1.55, 2.25, -5);
-  scene.add(windowLight3);
-  // scene.add(new RectAreaLightHelper(windowLight3));
+  // const windowLight3 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
+  // windowLight3.position.set(1.55, 2.25, -4.3);
+  // windowLight3.lookAt(1.55, 2.25, -5);
+  // scene.add(windowLight3);
+  // // scene.add(new RectAreaLightHelper(windowLight3));
 
-  const windowLight4 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
-  windowLight4.position.set(4.8, 2.25, -4.3);
-  windowLight4.lookAt(4.8, 2.25, -5);
-  scene.add(windowLight4);
-  // scene.add(new RectAreaLightHelper(windowLight4));
+  // const windowLight4 = new THREE.RectAreaLight(0xffd580, 1, 1.3, 1.9);
+  // windowLight4.position.set(4.8, 2.25, -4.3);
+  // windowLight4.lookAt(4.8, 2.25, -5);
+  // scene.add(windowLight4);
+  // // scene.add(new RectAreaLightHelper(windowLight4));
 
   // PointLight 4
-  const point4 = new THREE.PointLight(0xf0ab43, 15, 15);
+  const point4 = new THREE.PointLight(0xf0ab43, 10, 15);
   point4.position.set(8.5, 3, -0.33191);
   scene.add(point4);
   // scene.add(new THREE.PointLightHelper(point4));
@@ -165,7 +188,7 @@ function loadModel() {
   loader.setKTX2Loader(ktx2Loader)
   loader.setMeshoptDecoder(MeshoptDecoder)
 
-  loader.load('/3D/hanok_optimized.glb', (gltf: GLTF) => {
+  loader.load('/3D/hanok_250806.glb', (gltf: GLTF) => {
     const hanok = gltf.scene
     hanok.scale.set(1.5, 1.5, 1.5) // 모델 크기 조절
 
@@ -303,8 +326,9 @@ function moveToYard() {
 }
 
 function animate() {
-  animationFrameId = requestAnimationFrame(animate)
-  renderer.render(scene, camera)
+  if (!isAnimating.value) return;
+  animationFrameId = requestAnimationFrame(animate);
+  renderer.render(scene, camera);
 }
 
 function onCanvasClick(event: MouseEvent) {
