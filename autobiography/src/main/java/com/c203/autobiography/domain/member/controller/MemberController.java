@@ -1,5 +1,9 @@
 package com.c203.autobiography.domain.member.controller;
 
+import com.c203.autobiography.domain.group.dto.GroupApplyResponse;
+import com.c203.autobiography.domain.group.dto.GroupResponse;
+import com.c203.autobiography.domain.group.service.GroupApplyService;
+import com.c203.autobiography.domain.group.service.GroupMemberService;
 import com.c203.autobiography.domain.member.dto.MemberUpdateRequest;
 import com.c203.autobiography.domain.member.service.MemberService;
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
@@ -18,14 +22,17 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 @Tag(name = "회원 API", description = "회원가입 관련 API")
 @RestController
 @RequestMapping("/api/v1/members")
 @RequiredArgsConstructor
 public class MemberController {
 
-    private final FileStorageService fileStorageService;
     private final MemberService memberService;
+    private final GroupApplyService groupApplyService;
+    private final GroupMemberService groupMemberService;
 
     @Operation(summary = "회원가입", description = "회원가입 + 프로필 사진 등록")
     @PostMapping("/register")
@@ -76,4 +83,24 @@ public class MemberController {
 
     }
 
+    @Operation(summary = "내가 받은 초대 목록 조회", description = "그룹에 초대받은 목록을 조회합니다.")
+    @GetMapping("/me/invites")
+    public ResponseEntity<ApiResponse<List<GroupApplyResponse>>> getMyInvites(
+            @AuthenticationPrincipal CustomUserDetails currentUser, HttpServletRequest httpRequest
+    ) {
+        Long currentUserId = currentUser.getMemberId();
+        List<GroupApplyResponse> response = groupApplyService.listReceivedInvites(currentUserId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "내가 온 초대 목록 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "내가 속한 그룹 목록 조회", description = "속한 그룹 목록을 조회합니다.")
+    @GetMapping("/me/groups")
+    public ResponseEntity<ApiResponse<List<GroupResponse>>> getMyGroups(
+            @AuthenticationPrincipal CustomUserDetails currentUser, HttpServletRequest httpRequest
+    ) {
+        List<GroupResponse> groups = groupMemberService.listMyGroups(currentUser.getMemberId());
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "내가 속한 그룹 목록 조회 성공", groups, httpRequest.getRequestURI()));
+    }
 }
