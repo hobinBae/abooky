@@ -28,16 +28,25 @@
                 <router-link :to="`/author/${book.authorId}`" class="author-link">{{ book.authorName }}</router-link>
               </p>
               <hr class="divider" />
-              <h4>해시태그</h4>
+              <h4>장르</h4>
+              <div class="genres-container">
+                <span v-for="genre in book.genres" :key="genre" class="tag">{{ genre }}</span>
+              </div>
+              <hr class="divider" />
+              <h4>태그</h4>
               <div class="tags-container">
-                <span v-for="tag in book.keywords" :key="tag" class="tag">#{{ tag }}</span>
+                <span v-for="tag in book.tags" :key="tag" class="tag">#{{ tag }}</span>
               </div>
               <hr class="divider" />
               <h4>줄거리</h4>
               <p class="summary">{{ book.summary }}</p>
-              <hr class="divider" />
-              <h4>발행일</h4>
-              <p class="publish-date">{{ formattedPublicationDate }}</p>
+            </div>
+          </div>
+          
+          <div class="cover-adornment">
+            <i v-if="!isCoverFlipped" class="bi bi-hand-index flip-indicator"></i>
+            <div v-if="isCoverFlipped" class="vertical-publish-date">
+              {{ formattedPublicationDate }}
             </div>
           </div>
         </div>
@@ -60,7 +69,6 @@
 
       <main class="right-panel">
         <div class="right-panel-scroller">
-
           <article class="episode-content" v-if="currentEpisode">
             <button @click="goBackToList" class="btn-back">
               <i class="bi bi-arrow-left"></i> 목록으로
@@ -90,7 +98,7 @@
 
           <section class="comments-section">
             <div class="comments-header">
-              <h3>댓글 <span class="comment-count">{{ comments.length }}</span></h3>
+              <h3>댓글<span class="comment-count">{{ comments.length }}</span></h3>
               <button @click="toggleCommentsVisibility" class="btn-toggle-comments">
                 <i class="bi" :class="areCommentsVisible ? 'bi-chevron-up' : 'bi-chevron-down'"></i>
                 <span>{{ areCommentsVisible ? '숨기기' : '보기' }}</span>
@@ -146,7 +154,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 // --- Interfaces ---
 interface Episode { title: string; content: string; }
-interface Book { id: string; title: string; authorId: string; authorName?: string; summary?: string; coverUrl?: string; keywords?: string[]; episodes: Episode[]; likes: number; views: number; publicationDate?: Date; }
+interface Book { id: string; title: string; authorId: string; authorName?: string; summary?: string; coverUrl?: string; genres?: string[]; tags?: string[]; episodes: Episode[]; likes: number; views: number; publicationDate?: Date; }
 interface Comment { id: string; bookId: string; authorId: string; authorName?: string; text: string; createdAt: Date; }
 
 // --- Dummy Data ---
@@ -158,7 +166,8 @@ const DUMMY_BOOKS: Book[] = [{
   summary: '어린 시절의 소중한 추억들을 담은 자서전입니다. 골목길에서의 모험, 할머니의 따뜻한 손길, 그리고 친구들과의 우정까지, 순수했던 그 시절의 이야기들이 펼쳐집니다.',
   coverUrl: '',
   publicationDate: new Date('2024-05-20T00:00:00Z'),
-  keywords: ['자서전', '어린시절', '추억', '성장', '가족', '친구'],
+  genres: ['에세이', '자서전'],
+  tags: ['어린시절', '추억', '성장', '가족', '친구'],
   episodes: [
     { title: '골목길의 추억', content: '어릴 적 살던 동네의 골목길은 언제나 모험의 시작이었다.\n낡은 담벼락을 따라 이어진 좁은 길은 우리에게 미지의 세계로 통하는 문과 같았다. 해 질 녘까지 술래잡기를 하고, 숨바꼭질을 하며 뛰어놀던 그곳은 단순한 길이 아니라, 우리의 꿈과 상상력이 자라나던 놀이터였다.' }, 
     { title: '할머니의 손맛', content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다.\n할머니 댁에 가면 언제나 구수한 된장찌개 냄새가 나를 반겼다. 할머니는 내가 좋아하는 반찬들을 한가득 차려주셨고, 나는 할머니의 사랑이 담긴 밥상을 마주할 때마다 세상에서 가장 행복한 아이가 되었다.' }, 
@@ -186,7 +195,15 @@ const areCommentsVisible = ref(false);
 const editingCommentId = ref<string | null>(null);
 const editingCommentText = ref('');
 const coverImageUrl = computed(() => { return book.value?.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'; });
-const formattedPublicationDate = computed(() => { if (!book.value?.publicationDate) return '정보 없음'; return book.value.publicationDate.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }); });
+// [수정] 발행일 형식 변경 (YYYY.MM.DD)
+const formattedPublicationDate = computed(() => { 
+  if (!book.value?.publicationDate) return '';
+  const date = book.value.publicationDate;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}.${month}.${day}`;
+});
 const currentEpisode = computed(() => { if (book.value && currentEpisodeIndex.value !== null) { return book.value.episodes[currentEpisodeIndex.value]; } return null; });
 const isAuthor = computed(() => book.value && book.value.authorId === currentUserId.value);
 const formattedContent = (content: string) => content.replace(/\n/g, '<br />');
@@ -213,6 +230,23 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
+/* --- 애니메이션 --- */
+/* [수정] 기존 @keyframes 내용을 아래 코드로 교체 */
+@keyframes pulse {
+  0% {
+    opacity: 0.7;
+    transform: scale(1) rotate(-15deg); /* <-- rotate 추가 */
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.1) rotate(-15deg); /* <-- rotate 추가 */
+  }
+  100% {
+    opacity: 0.7;
+    transform: scale(1) rotate(-15deg); /* <-- rotate 추가 */
+  }
+}
+
 /* --- 기본 페이지 스타일 --- */
 .book-detail-page { background-color: #fff; min-height: 100vh; font-family: 'Pretendard', sans-serif; color: #333; overflow: hidden; display: flex; justify-content: center; align-items: center; }
 .loading-message { text-align: center; padding: 4rem; font-size: 1.2rem; }
@@ -221,13 +255,13 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .book-cover-initial:hover { transform: scale(1.05); box-shadow: 0 15px 45px rgba(0,0,0,0.2); }
 .book-wrapper { display: grid; grid-template-columns: 320px 1fr; max-width: 1200px; width: 100%; align-items: center; gap: 40px; }
 .left-panel, .right-panel { height: 85vh; max-height: 750px; background-color: #fff; transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); }
-.left-panel { z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; transform: translateX(-150%); opacity: 0; }
+.left-panel { position: relative; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; transform: translateX(-150%); opacity: 0; }
 .book-wrapper.is-open .left-panel { transform: translateX(0); opacity: 1; }
 .right-panel { transform: translateX(150%); opacity: 0; }
 .book-wrapper.is-open .right-panel { transform: translateX(0); opacity: 1; transition-delay: 0.1s; }
 
 /* --- 책 뒤집기(Flip) 스타일 --- */
-.flipper-container { width: 300px; height: 450px; perspective: 1000px; transition: transform 0.3s ease; }
+.flipper-container { position: relative; width: 300px; height: 450px; perspective: 1000px; transition: transform 0.3s ease; }
 .flipper-container:hover { transform: scale(1.05); }
 .flipper { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.8s cubic-bezier(0.68, -0.55, 0.27, 1.55); }
 .flipper.is-flipped { transform: rotateY(180deg); }
@@ -236,10 +270,10 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .flipper-back { transform: rotateY(180deg); background-color: #f8f9fa; padding: 24px; display: flex; flex-direction: column; color: #343a40; }
 .flipper-back h4 { font-size: 14px; font-weight: 700; margin: 0 0 8px 0; color: #868e96; }
 .flipper-back .summary { font-size: 14px; line-height: 1.5; flex-grow: 1; overflow-y: auto; margin: 0; }
-.flipper-back .tags-container { display: flex; flex-wrap: wrap; gap: 8px; }
-.flipper-back .tag { background-color: #e9ecef; padding: 4px 8px; border-radius: 30px; font-size: 13px; }
-.flipper-back .author-line, .flipper-back .publish-date { font-size: 16px; font-weight: 500; margin: 0; }
-.flipper-back .publish-date { font-size: 15px; font-weight: 500; margin: 0; }
+.flipper-back .tags-container, .flipper-back .genres-container { display: flex; flex-wrap: wrap; gap: 8px; }
+/* [수정] 장르, 태그 색상 통일 */
+.flipper-back .tag { background-color: #e9ecef; padding: 4px 8px; border-radius: 30px; font-size: 13px; color: #343a40; }
+.flipper-back .author-line { font-size: 16px; font-weight: 500; margin: 0; }
 .flipper-back .author-link { color: #343a40; text-decoration: none; display: inline-block; transition: transform 0.2s ease; }
 .flipper-back .author-link:hover { text-decoration: underline; transform: scale(1.05); }
 .flipper-back .divider { border: 0; border-top: 1px solid #e9ecef; margin: 15px 0; }
@@ -249,13 +283,41 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .title-box { width: 60%; height: 60%; background-color: rgba(255, 255, 255, 0.95); padding: 20px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; text-align: left; }
 .title-box h1 { font-family: 'Noto Serif KR', serif; font-size: 25px; font-weight: 700; line-height: 1.4; margin: 0; }
 .author-in-box { font-size: 12px; color: #333; font-weight: 600; margin: 0; }
-.book-stats { display: flex; align-items: center; justify-content: center; gap: 24px; font-size: 14px; color: #666; margin-top: 24px; flex-shrink: 0; }
+.book-stats { display: flex; align-items: center; justify-content: center; gap: 24px; font-size: 18px; color: #666; margin-top: 24px; flex-shrink: 0; }
 .btn-stat { background: none; border: none; padding: 0; color: #666; cursor: pointer; display:flex; align-items:center; gap: 6px; transition: transform 0.2s ease; }
 .btn-stat:hover { transform: scale(1.1); }
 .stat-item { display:flex; align-items:center; gap: 6px;}
 .btn-edit { background: none; border: 1px solid #ddd; color: #333; font-size: 14px; padding: 10px 16px; border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-top: 16px; flex-shrink: 0; }
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 8px; }
+
+/* [추가] 아이콘과 날짜를 감싸는 컨테이너 */
+.cover-adornment {
+  position: absolute;
+  bottom: 8px;
+  right: -25px; /* 책 바깥쪽으로 위치 조정 */
+  height: 150px; /* 세로 텍스트/아이콘이 들어갈 공간 확보 */
+  display: flex;
+  align-items: flex-end;
+  pointer-events: none; /* 클릭 방지 */
+}
+
+/* [수정] 기존 transform 속성 삭제 및 display 추가 */
+.flip-indicator {
+  display: inline-block; /* transform이 잘 적용되도록 추가 */
+  font-size: 20px;
+  color: #ccc;
+  animation: pulse 2.5s infinite ease-in-out;
+
+}
+
+.vertical-publish-date {
+  writing-mode: vertical-lr; /* [수정] 글자 방향을 바깥쪽으로 */
+  text-orientation: mixed;
+  color: #ccc;
+  font-size: 12px;
+  letter-spacing: 2px;
+}
 
 /* --- 오른쪽 패널 내부 스타일 --- */
 .right-panel-scroller { height: 100%; overflow-y: auto; padding: 40px 8%; }
