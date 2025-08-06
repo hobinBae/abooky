@@ -218,33 +218,13 @@ pipeline {
             }
         }
         
-        stage('🚀 Deploy Application - Final Simple') {
+        stage('🚀 Deploy Application - Docker Compose V2') {
             steps {
-                echo '🚀 최종 단순 배포 중...'
+                echo '🚀 Docker Compose V2로 배포 중...'
                 script {
                     try {
                         sh '''
                             cd ${PROJECT_ROOT}
-                            
-                            # Docker Compose 명령어 확인 (수정된 로직)
-                            if [ -x "/usr/local/bin/docker-compose" ]; then
-                                COMPOSE_CMD="/usr/local/bin/docker-compose"
-                                echo "✅ 사용할 명령어: $COMPOSE_CMD (V1)"
-                            elif command -v docker-compose >/dev/null 2>&1; then
-                                COMPOSE_CMD="docker-compose"
-                                echo "✅ 사용할 명령어: $COMPOSE_CMD (V1)"
-                            else
-                                # Docker Compose V2 확인
-                                if docker compose version >/dev/null 2>&1; then
-                                    COMPOSE_CMD="docker compose"
-                                    echo "✅ 사용할 명령어: $COMPOSE_CMD (V2)"
-                                else
-                                    echo "❌ Docker Compose를 찾을 수 없습니다!"
-                                    echo "설치된 Docker 버전 확인:"
-                                    docker --version
-                                    exit 1
-                                fi
-                            fi
                             
                             export BACKEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
                             export FRONTEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
@@ -252,38 +232,28 @@ pipeline {
                             echo "BACKEND_IMAGE_TAG: $BACKEND_IMAGE_TAG"
                             echo "FRONTEND_IMAGE_TAG: $FRONTEND_IMAGE_TAG"
                             
+                            # Docker Compose 버전 확인
+                            echo "🔍 Docker Compose 버전 확인:"
+                            docker compose version
+                            
                             # Docker Compose 파일 문법 검증
                             echo "🔍 Docker Compose 파일 문법 검증..."
-                            if [ "$COMPOSE_CMD" = "docker compose" ]; then
-                                # V2 명령어 사용
-                                docker compose -f ${COMPOSE_FILE} config --quiet
-                                echo "📋 사용 가능한 서비스 목록:"
-                                docker compose -f ${COMPOSE_FILE} config --services
-                                
-                                echo "🔄 모든 서비스 업데이트 중..."
-                                docker compose -f ${COMPOSE_FILE} up -d
-                            else
-                                # V1 명령어 사용
-                                $COMPOSE_CMD -f ${COMPOSE_FILE} config --quiet
-                                echo "📋 사용 가능한 서비스 목록:"
-                                $COMPOSE_CMD -f ${COMPOSE_FILE} config --services
-                                
-                                echo "🔄 모든 서비스 업데이트 중..."
-                                $COMPOSE_CMD -f ${COMPOSE_FILE} up -d
-                            fi
+                            docker compose -f ${COMPOSE_FILE} config --quiet
                             
-                            echo "⏳ 서비스 안정화 대기 (10초)..."
-                            sleep 10
+                            echo "📋 사용 가능한 서비스 목록:"
+                            docker compose -f ${COMPOSE_FILE} config --services
+                            
+                            echo "🔄 모든 서비스 업데이트 중..."
+                            docker compose -f ${COMPOSE_FILE} up -d
+                            
+                            echo "⏳ 서비스 안정화 대기 (15초)..."
+                            sleep 15
                             
                             echo "📊 최종 컨테이너 상태:"
                             docker ps --format "table {{.Names}}\\t{{.Status}}\\t{{.Ports}}"
                             
                             echo "🔍 Docker Compose 서비스 상태:"
-                            if [ "$COMPOSE_CMD" = "docker compose" ]; then
-                                docker compose -f ${COMPOSE_FILE} ps
-                            else
-                                $COMPOSE_CMD -f ${COMPOSE_FILE} ps
-                            fi
+                            docker compose -f ${COMPOSE_FILE} ps
                         '''
                         echo "✅ 배포 완료!"
                     } catch (Exception e) {
@@ -291,22 +261,23 @@ pipeline {
                         
                         sh '''
                             echo "=== 진단 정보 ==="
-                            echo "\\n1. Docker 버전 정보:"
-                            docker --version
-                            docker version
+                            echo "\\n1. Docker Compose 버전:"
+                            docker compose version
                             
-                            echo "\\n2. Docker Compose 확인:"
-                            docker-compose --version 2>/dev/null || echo "docker-compose V1 없음"
-                            docker compose version 2>/dev/null || echo "docker compose V2 없음"
-                            
-                            echo "\\n3. Docker Compose 파일 존재 확인:"
+                            echo "\\n2. Docker Compose 파일 존재 확인:"
                             ls -la ${COMPOSE_FILE}
+                            
+                            echo "\\n3. Docker Compose 파일 내용 검증:"
+                            docker compose -f ${COMPOSE_FILE} config --services || echo "서비스 목록 확인 실패"
                             
                             echo "\\n4. 현재 실행 중인 컨테이너:"
                             docker ps -a --format "table {{.Names}}\\t{{.Status}}\\t{{.Image}}"
                             
                             echo "\\n5. Docker 이미지 확인:"
                             docker images | grep autobiography || echo "autobiography 이미지 없음"
+                            
+                            echo "\\n6. Docker Compose 로그 (마지막 20줄):"
+                            docker compose -f ${COMPOSE_FILE} logs --tail=20 || echo "로그 확인 실패"
                         '''
                         
                         currentBuild.result = 'FAILURE'
