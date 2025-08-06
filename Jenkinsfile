@@ -78,7 +78,7 @@ pipeline {
                             sh '''
                                 export GRADLE_USER_HOME=${GRADLE_CACHE_DIR}
                                 chmod +x gradlew
-                                ./gradlew build -x test --no-daemon
+                                ./gradlew build -x test
                             '''
                         }
                     }
