@@ -3,7 +3,7 @@
     <div class="auth-container">
       <h1 class="auth-title">로그인</h1>
       <p class="auth-subtitle">다시 만나서 반가워요! 당신의 이야기를 이어가세요.</p>
-      
+
       <form @submit.prevent="handleLogin">
         <div class="mb-3">
           <label for="email" class="form-label">이메일</label>
@@ -13,9 +13,9 @@
           <label for="password" class="form-label">비밀번호</label>
           <input type="password" v-model="password" class="form-control" id="password" placeholder="••••••••" required>
         </div>
-        
+
         <div v-if="errorMessage" class="alert alert-danger">{{ errorMessage }}</div>
-        
+
         <button type="submit" class="btn btn-primary w-100 btn-auth" :disabled="isLoading">
           <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           {{ isLoading ? '로그인 중...' : '로그인' }}
@@ -41,10 +41,13 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter, RouterLink } from 'vue-router';
+import { useRoute, useRouter, RouterLink } from 'vue-router';
+import apiClient from '@/api';
+import { setLoggedIn } from '@/stores/auth';
 
 // --- Router ---
 const router = useRouter();
+const route = useRoute();
 
 // --- Reactive State ---
 const email = ref('');
@@ -61,28 +64,35 @@ async function handleLogin() {
   isLoading.value = true;
   errorMessage.value = '';
 
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1000)); 
+  try {
+    const response = await apiClient.post('/api/v1/auth/login', {
+      email: email.value,
+      password: password.value,
+    });
 
-  if (email.value === 'test@example.com' && password.value === 'password123') {
-    alert('로그인 성공! (더미)');
-    router.push('/'); // Simulate successful login
-  } else {
-    errorMessage.value = '이메일 또는 비밀번호가 잘못되었습니다. (더미)';
+    const { accessToken, refreshToken } = response.data.data;
+    localStorage.setItem('accessToken', accessToken);
+    localStorage.setItem('refreshToken', refreshToken);
+
+    setLoggedIn(true);
+
+    // 성공 시 이전 페이지 또는 홈으로 리디렉션
+    const redirectPath = route.query.redirect as string || '/';
+    router.push(redirectPath);
+  } catch (error: any) {
+    if (error.response && error.response.data && error.response.data.message) {
+      errorMessage.value = error.response.data.message;
+    } else {
+      errorMessage.value = '로그인에 실패했습니다. 서버에 문제가 발생했을 수 있습니다.';
+    }
+  } finally {
+    isLoading.value = false;
   }
-  isLoading.value = false;
 }
 
-async function handleSocialLogin(providerName: string) {
-  isLoading.value = true;
-  errorMessage.value = '';
-
-  // Simulate social login
-  await new Promise(resolve => setTimeout(resolve, 1000));
-
-  alert(`${providerName} 로그인 성공! (더미)`);
-  router.push('/');
-  isLoading.value = false;
+function handleSocialLogin(provider: 'google') {
+  // 백엔드의 소셜 로그인 URL로 리디렉션
+  window.location.href = `http://localhost:8080/oauth2/authorization/${provider}`;
 }
 
 </script>

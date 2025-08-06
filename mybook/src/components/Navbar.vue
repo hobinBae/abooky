@@ -70,13 +70,15 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { isLoggedIn, setLoggedIn } from '@/stores/auth';
+
+const router = useRouter();
 
 defineProps({
   isIntroActive: Boolean,
   isHome: Boolean
 });
-
-const isLoggedIn = ref(true); // Always logged in for verification
 const showNotificationModal = ref(false);
 
 const notifications = ref([
@@ -98,8 +100,11 @@ const markAsRead = (notification: any) => {
 };
 
 const logout = () => {
-  isLoggedIn.value = false;
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  setLoggedIn(false);
   alert('로그아웃 되었습니다.');
+  router.push('/login');
 };
 </script>
 

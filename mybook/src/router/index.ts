@@ -24,17 +24,20 @@ const router = createRouter({
       path: '/create-book/:bookId?',
       name: 'CreateBookView',
       component: () => import('../views/books/CreateBookView.vue'),
-      props: true
+      props: true,
+      meta: { requiresAuth: true }
     },
     {
       path: '/my-library',
       name: 'my-library',
-      component: () => import('../views/books/MyLibraryView.vue')
+      component: () => import('../views/books/MyLibraryView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/my-page',
       name: 'my-page',
-      component: () => import('../views/auth/MyPageView.vue')
+      component: () => import('../views/auth/MyPageView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/login',
@@ -54,17 +57,20 @@ const router = createRouter({
     {
       path: '/profile-edit',
       name: 'profile-edit',
-      component: () => import('../views/auth/ProfileEditView.vue')
+      component: () => import('../views/auth/ProfileEditView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/group-book-lobby',
       name: 'group-book-lobby',
-      component: () => import('../views/groups/GroupBookLobbyView.vue')
+      component: () => import('../views/groups/GroupBookLobbyView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/group-book-creation',
       name: 'group-book-creation',
-      component: () => import('../views/groups/GroupBookCreationView.vue')
+      component: () => import('../views/groups/GroupBookCreationView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/book-detail/:id',
@@ -90,13 +96,18 @@ const router = createRouter({
       path: '/about',
       name: 'about',
       component: () => import('../views/general/AboutView.vue')
-    },
-    {
-      path: '/community',
-      name: 'community',
-      component: () => import('../views/general/CommunityView.vue')
     }
   ]
 })
+
+router.beforeEach((to, from, next) => {
+  const isLoggedIn = !!localStorage.getItem('accessToken');
+
+  if (to.meta.requiresAuth && !isLoggedIn) {
+    next({ path: '/login', query: { redirect: to.fullPath } });
+  } else {
+    next();
+  }
+});
 
 export default router
