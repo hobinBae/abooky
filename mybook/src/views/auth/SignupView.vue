@@ -3,7 +3,7 @@
     <div class="auth-container">
       <h1 class="auth-title">회원가입</h1>
       <p class="auth-subtitle">당신의 이야기, 지금 바로 시작해보세요.</p>
-      
+
       <form @submit.prevent="handleSignup">
         <div class="row">
           <div class="col-md-6 mb-3">
@@ -30,9 +30,20 @@
           <label for="confirmPassword" class="form-label">비밀번호 확인</label>
           <input type="password" v-model="form.confirmPassword" class="form-control" id="confirmPassword" required>
         </div>
-        
+
+        <div class="row">
+          <!-- <div class="col-md-6 mb-3">
+            <label for="phoneNumber" class="form-label">전화번호</label>
+            <input type="tel" v-model="form.phoneNumber" class="form-control" id="phoneNumber" placeholder="010-1234-5678" required>
+          </div> -->
+          <div class="col-md-6 mb-3">
+            <label for="birthdate" class="form-label">생년월일</label>
+            <input type="date" v-model="form.birthdate" class="form-control" id="birthdate" required>
+          </div>
+        </div>
+
         <div v-if="errorMessage" class="alert alert-danger">{{ errorMessage }}</div>
-        
+
         <button type="submit" class="btn btn-primary w-100 btn-auth" :disabled="isLoading">
           <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
           {{ isLoading ? '가입하는 중...' : '회원가입' }}
@@ -50,6 +61,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
+import apiClient from '@/api';
 
 // --- Router ---
 const router = useRouter();
@@ -61,6 +73,8 @@ const form = ref({
   email: '',
   password: '',
   confirmPassword: '',
+  // phoneNumber: '',
+  birthdate: '',
 });
 const errorMessage = ref('');
 const isLoading = ref(false);
@@ -76,27 +90,47 @@ async function handleSignup() {
     errorMessage.value = '비밀번호가 일치하지 않습니다.';
     return;
   }
-  if (form.value.password.length < 6) {
-    errorMessage.value = '비밀번호는 6자리 이상이어야 합니다.';
+  // 비밀번호 정책은 백엔드에서 검증하므로 프론트에서는 최소한의 검증만 수행
+  if (form.value.password.length < 4) {
+    errorMessage.value = '비밀번호는 4자리 이상이어야 합니다.';
     return;
   }
 
   isLoading.value = true;
   errorMessage.value = '';
 
-  // Simulate API call
-  await new Promise(resolve => setTimeout(resolve, 1500)); 
+  try {
+    const formData = new FormData();
+    formData.append('name', form.value.name);
+    formData.append('nickname', form.value.nickname);
+    formData.append('email', form.value.email);
+    formData.append('password', form.value.password);
+    // formData.append('phoneNumber', form.value.phoneNumber);
+    formData.append('birthdate', form.value.birthdate);
+    // 프로필 사진 파일이 있다면 추가
+    // const profileImage = document.getElementById('profileImage').files[0];
+    // if (profileImage) {
+    //   formData.append('file', profileImage);
+    // }
 
-  // Simulate success or failure based on email for testing
-  if (form.value.email === 'test@example.com') {
-    errorMessage.value = '이미 사용 중인 이메일입니다. (더미)';
-  } else if (form.value.email === 'fail@example.com') {
-    errorMessage.value = '회원가입에 실패했습니다. (더미)';
-  } else {
-    alert('회원가입 성공! (더미)');
-    router.push('/login'); // Simulate successful signup
+    await apiClient.post('/api/v1/members/register', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    alert('회원가입에 성공했습니다! 로그인 페이지로 이동합니다.');
+    router.push('/login');
+
+  } catch (error: any) {
+    if (error.response && error.response.data && error.response.data.message) {
+      errorMessage.value = error.response.data.message;
+    } else {
+      errorMessage.value = '회원가입에 실패했습니다. 서버에 문제가 발생했을 수 있습니다.';
+    }
+  } finally {
+    isLoading.value = false;
   }
-  isLoading.value = false;
 }
 
 </script>
