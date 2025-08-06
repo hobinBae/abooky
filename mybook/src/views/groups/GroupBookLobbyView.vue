@@ -71,6 +71,62 @@
         </div>
       </div>
     </div>
+
+    <!-- 그룹책 참여 모달 -->
+    <div v-if="showJoinModal" class="modal-overlay" @click="closeModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h2>활성화된 그룹책 만들기</h2>
+          <button class="close-button" @click="closeModal">
+            <i class="bi bi-x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div v-if="availableGroupBookSessions.length === 0" class="no-sessions-message">
+            <div class="no-sessions-icon">
+              <i class="bi bi-book"></i>
+            </div>
+            <h3>참여할 수 있는 그룹책 만들기가 없습니다</h3>
+            <p>현재 진행 중인 그룹책 만들기가 없습니다.<br>직접 그룹책 방을 만들어보세요.</p>
+            <button class="btn btn-primary" @click="closeModal">
+              그룹책 방 만들기
+            </button>
+          </div>
+          <div v-else class="session-list">
+            <div 
+              v-for="session in availableGroupBookSessions" 
+              :key="session.groupId"
+              class="session-item"
+              @click="joinGroupBookSession(session)"
+            >
+              <div class="session-avatar">
+                <i class="bi bi-book-fill"></i>
+              </div>
+              <div class="session-info">
+                <h3>{{ session.groupName }}</h3>
+                <p class="session-host">방장: {{ session.hostName }}</p>
+                <div class="session-details">
+                  <span class="participant-count">
+                    <i class="bi bi-people-fill me-1"></i>
+                    {{ session.participantCount }}명 참여 중
+                  </span>
+                  <span class="session-time">{{ getTimeAgo(session.startedAt) }}</span>
+                </div>
+                <div class="session-status">
+                  <span class="status-badge active-badge">
+                    <i class="bi bi-circle-fill"></i>
+                    활성화
+                  </span>
+                </div>
+              </div>
+              <div class="session-arrow">
+                <i class="bi bi-chevron-right"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -99,6 +155,7 @@ const router = useRouter();
 
 // 모달 상태
 const showGroupModal = ref(false);
+const showJoinModal = ref(false);
 
 // 현재 사용자 (MyLibraryView.vue와 동일)
 const currentUserNickname = ref('김작가');
@@ -134,13 +191,42 @@ const myGroups = ref<Group[]>([
   },
 ]);
 
+// 활성화된 그룹책 만들기 세션 (실제로는 서버에서 가져올 데이터)
+const activeGroupBookSessions = ref([
+  {
+    groupId: 'group3',
+    groupName: '여행 에세이 클럽',
+    hostName: '정민준',
+    startedAt: new Date(),
+    participantCount: 1
+  }
+  // 예시: group1에서도 세션이 활성화된 경우
+  // {
+  //   groupId: 'group1',
+  //   groupName: '독서 토론 모임',
+  //   hostName: '이영희',
+  //   startedAt: new Date(),
+  //   participantCount: 2
+  // }
+]);
+
 // 내가 속한 그룹만 필터링
 const filteredGroups = computed(() => {
   return myGroups.value.filter(group => group.members.includes(currentUserNickname.value));
 });
 
+// 참여 가능한 활성화된 그룹책 만들기 세션 필터링
+const availableGroupBookSessions = computed(() => {
+  return activeGroupBookSessions.value.filter(session => {
+    // 해당 그룹의 멤버인지 확인
+    const group = myGroups.value.find(g => g.id === session.groupId);
+    return group && group.members.includes(currentUserNickname.value);
+  });
+});
+
 const closeModal = () => {
   showGroupModal.value = false;
+  showJoinModal.value = false;
 };
 
 const selectGroup = (group: Group) => {
@@ -164,14 +250,47 @@ const selectGroup = (group: Group) => {
 };
 
 const goToJoin = () => {
-  // 참여 로직 구현
-  console.log('그룹책 방 참여하기 클릭');
-  // 예: router.push({ path: '/group-book-join' });
+  showJoinModal.value = true;
+};
+
+const joinGroupBookSession = (session: any) => {
+  console.log('참여할 세션:', session);
+  
+  try {
+    // 활성화된 그룹책 만들기 세션에 참여
+    router.push({
+      path: '/group-book-creation',
+      query: { 
+        groupId: session.groupId, 
+        groupName: session.groupName,
+        mode: 'join' // 참여 모드로 구분
+      }
+    });
+    closeModal();
+  } catch (error) {
+    console.error('그룹책 세션 참여 오류:', error);
+    window.location.href = `/group-book-creation?groupId=${session.groupId}&groupName=${encodeURIComponent(session.groupName)}&mode=join`;
+  }
 };
 
 const goToMyLibrary = () => {
   closeModal();
   router.push({ path: '/my-library' });
+};
+
+// 시간 경과 표시 함수
+const getTimeAgo = (date: Date) => {
+  const now = new Date();
+  const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+  
+  if (diffInMinutes < 1) return '방금 전';
+  if (diffInMinutes < 60) return `${diffInMinutes}분 전`;
+  
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) return `${diffInHours}시간 전`;
+  
+  const diffInDays = Math.floor(diffInHours / 24);
+  return `${diffInDays}일 전`;
 };
 </script>
 
@@ -491,6 +610,155 @@ const goToMyLibrary = () => {
 
 .group-item:hover .group-arrow {
   color: #42b983;
+}
+
+/* 그룹책 참여 모달 스타일 */
+.no-sessions-message {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: #666;
+}
+
+.no-sessions-icon {
+  font-size: 3rem;
+  color: #ddd;
+  margin-bottom: 1rem;
+}
+
+.no-sessions-message h3 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.no-sessions-message p {
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.session-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.session-item {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  cursor: pointer;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color 0.2s ease;
+}
+
+.session-item:hover {
+  background-color: #f8f9fa;
+}
+
+.session-item:last-child {
+  border-bottom: none;
+}
+
+.session-avatar {
+  width: 50px;
+  height: 50px;
+  background-color: #3498db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 1rem;
+  flex-shrink: 0;
+}
+
+.session-avatar i {
+  color: white;
+  font-size: 1.5rem;
+}
+
+.session-info {
+  flex-grow: 1;
+  text-align: left;
+}
+
+.session-info h3 {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.session-host {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.session-details {
+  margin-bottom: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.participant-count {
+  font-size: 0.85rem;
+  color: #3498db;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.session-time {
+  font-size: 0.8rem;
+  color: #888;
+  font-style: italic;
+}
+
+.session-status {
+  display: flex;
+  align-items: center;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.active-badge {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.active-badge i {
+  font-size: 0.6rem;
+  color: #28a745;
+}
+
+.session-arrow {
+  color: #ccc;
+  font-size: 1rem;
+  margin-left: 1rem;
+  flex-shrink: 0;
+}
+
+.session-item:hover .session-arrow {
+  color: #3498db;
+}
+
+.btn-primary {
+  background-color: #42b983;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #369870;
 }
 
 /* 반응형 디자인 */
