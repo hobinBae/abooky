@@ -7,8 +7,10 @@ import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.entity.BookCategory;
 import com.c203.autobiography.domain.book.dto.BookCreateRequest;
 import com.c203.autobiography.domain.book.dto.BookResponse;
+import com.c203.autobiography.domain.book.entity.Tag;
 import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
 import com.c203.autobiography.domain.book.repository.BookRepository;
+import com.c203.autobiography.domain.book.repository.TagRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.entity.Episode;
@@ -18,7 +20,9 @@ import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.s3.FileStorageService;
+
 import java.util.Optional;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,36 +31,50 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+import static com.c203.autobiography.domain.book.dto.BookType.FREE_FORM;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
 @Transactional(readOnly = true)
-public class BookServiceImpl implements BookService{
+public class BookServiceImpl implements BookService {
 
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
     private final BookCategoryRepository bookCategoryRepository;
     private final FileStorageService fileStorageService;
     private final EpisodeRepository episodeRepository;
+    private final TagRepository tagRepository;
 
     @Override
     @Transactional
     public BookResponse createBook(Long memberId, BookCreateRequest request, MultipartFile file) {
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
-        BookCategory category = null;
-        // 오류 추가해야함
-        if (request.getCategoryId() != null) {
-            category = bookCategoryRepository.findById(request.getCategoryId())
+
+        BookCategory category = switch (request.getBookType()) {
+            case AUTO -> bookCategoryRepository
+                    .findByCategoryName("자서전")
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
-        }
+            case DIARY -> bookCategoryRepository
+                    .findByCategoryName("일기")
+                    .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+            case FREE_FORM -> {
+                if (request.getCategoryId() == null) {
+                    throw new ApiException(ErrorCode.VALIDATION_FAILED);
+                }
+                yield bookCategoryRepository
+                        .findById(request.getCategoryId())
+                        .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+            }
+            default -> throw new ApiException(ErrorCode.INTERNAL_SERVER_ERROR);
+        };
+
+        String coverImageUrl = null;
         if (file != null && !file.isEmpty()) {
-            String imageUrl = fileStorageService.store(file, "book");
-            request.setCoverImageUrl(imageUrl);
-        }else{
-            request.setCoverImageUrl(null);
+            coverImageUrl = fileStorageService.store(file, "book");
         }
-        Book book = request.toEntity(member, category);
+        Book book = request.toEntity(member, category, coverImageUrl);
 
         Book saved = bookRepository.save(book);
         return BookResponse.of(saved);
@@ -64,30 +82,34 @@ public class BookServiceImpl implements BookService{
 
     @Override
     @Transactional
-    public BookResponse updateBook(Long memberId,Long bookId, BookUpdateRequest request, MultipartFile file) {
+    public BookResponse updateBook(Long memberId, Long bookId, BookUpdateRequest request, MultipartFile file) {
         memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
 
+        if (!book.getMember().getMemberId().equals(memberId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
         BookCategory category = null;
-        // 오류 추가해야함
+
         if (request.getCategoryId() != null) {
             category = bookCategoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
         }
 
-        if(file != null && !file.isEmpty()){
+        String newImageUrl = book.getCoverImageUrl();
+        if (file != null && !file.isEmpty()) {
             String currentImageUrl = book.getCoverImageUrl();
-            if(currentImageUrl != null && !currentImageUrl.isBlank()){
+            if (currentImageUrl != null && !currentImageUrl.isBlank()) {
                 fileStorageService.delete(currentImageUrl);
             }
 
-            String newImageUrl = fileStorageService.store(file, "book");
+            newImageUrl = fileStorageService.store(file, "book");
 
-            request.setCoverImageUrl(newImageUrl);
         }
-        book.updateBook(request.getTitle(), request.getCoverImageUrl(), request.getSummary(), category);
+        book.updateBook(request.getTitle(), newImageUrl, request.getSummary(), category);
         return BookResponse.of(book);
     }
 
@@ -99,6 +121,10 @@ public class BookServiceImpl implements BookService{
         Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
 
+        if (!book.getMember().getMemberId().equals(memberId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
         book.softDelete();
 
         return null;
@@ -106,7 +132,7 @@ public class BookServiceImpl implements BookService{
 
     @Override
     @Transactional
-    public BookResponse completeBook(Long memberId, Long bookId) {
+    public BookResponse completeBook(Long memberId, Long bookId, List<String> tags) {
         memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
@@ -118,8 +144,31 @@ public class BookServiceImpl implements BookService{
         // 3) 완료 처리
         book.markCompleted();
 
-        // 4) BookResponse 변환
-        return BookResponse.of(book);
+        // 4) 태그 설정 (null/empty 스킵)
+        if (tags != null && !tags.isEmpty()) {
+            book.getTags().clear();
+            tags.stream().distinct().forEach(name -> {
+                Tag tag = tagRepository.findByTagName(name)
+                        .orElseGet(() -> tagRepository.save(
+                                Tag.builder().tagName(name).build()
+                        ));
+                book.addTag(tag);
+            });
+        }
+
+        List<EpisodeResponse> episodes = episodeRepository
+                .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId)
+                .stream()
+                .map(EpisodeResponse::of)
+                .toList();
+
+        List<String> tagNames = book.getTags().stream()
+                .map(bt -> bt.getTag().getTagName())
+                .toList();
+
+        // 6) DTO 변환
+        return BookResponse.of(book, episodes, tagNames);
+
     }
 
     @Override
@@ -135,14 +184,19 @@ public class BookServiceImpl implements BookService{
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
 
-        // 3) 에피소드 목록 조회 + DTO 매핑
+        // 에피소드 목록 조회 + DTO 매핑
         List<EpisodeResponse> episodes = episodeRepository
                 .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId)
                 .stream()
                 .map(EpisodeResponse::of)
                 .toList();
 
-        return BookResponse.of(book, episodes);
+        // 태그 조회
+        List<String> tagNames = book.getTags().stream()
+                .map(bt -> bt.getTag().getTagName())
+                .toList();
+
+        return BookResponse.of(book, episodes, tagNames);
     }
 
     @Override
@@ -171,7 +225,13 @@ public class BookServiceImpl implements BookService{
 
         // 3) 카테고리 검증
         BookCategory category = null;
-        if (request.getCategoryId() != null) {
+
+        if (original.getBookType() == FREE_FORM) {
+            if (request.getCategoryId() == null) {
+                throw new ApiException(
+                        ErrorCode.VALIDATION_FAILED
+                );
+            }
             category = bookCategoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
         }

@@ -35,7 +35,7 @@ public class BookCreateRequest {
 
 
     // 필요 시 서비스 계층에서 사용
-    public Book toEntity(Member member, BookCategory category) {
+    public Book toEntity(Member member, BookCategory category, String coverImageUrl) {
         return Book.builder()
             .member(member)
             .title(title)

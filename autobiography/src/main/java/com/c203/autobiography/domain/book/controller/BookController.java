@@ -1,10 +1,6 @@
 package com.c203.autobiography.domain.book.controller;
 
-import com.c203.autobiography.domain.book.dto.BookCopyRequest;
-import com.c203.autobiography.domain.book.dto.BookCopyResponse;
-import com.c203.autobiography.domain.book.dto.BookCreateRequest;
-import com.c203.autobiography.domain.book.dto.BookResponse;
-import com.c203.autobiography.domain.book.dto.BookUpdateRequest;
+import com.c203.autobiography.domain.book.dto.*;
 import com.c203.autobiography.domain.book.service.BookService;
 import com.c203.autobiography.domain.episode.dto.EpisodeCreateRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
@@ -12,6 +8,7 @@ import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
 import com.c203.autobiography.domain.episode.service.EpisodeService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -53,11 +50,12 @@ public class BookController {
     @PatchMapping("/{bookId}/complete")
     public ResponseEntity<ApiResponse<BookResponse>> completeBook(
             @AuthenticationPrincipal CustomUserDetails userDetails
-            ,@PathVariable Long bookId
-            ,HttpServletRequest httpRequest
+            , @PathVariable Long bookId
+            , @Valid @RequestBody BookCompleteRequest request
+            , HttpServletRequest httpRequest
     ){
         Long memberId = userDetails.getMemberId();
-        BookResponse response = bookService.completeBook(memberId, bookId);
+        BookResponse response = bookService.completeBook(memberId, bookId, request.getTags());
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "책 완성 성공", response, httpRequest.getRequestURI()));
     }
@@ -137,7 +135,7 @@ public class BookController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long bookId,
             @Valid @RequestParam String sessionId, HttpServletRequest httpRequest
-    ) {
+    ) throws JsonProcessingException {
 
         Long memberId = userDetails.getMemberId();
         EpisodeResponse response = episodeService.createEpisode(memberId, bookId, sessionId);

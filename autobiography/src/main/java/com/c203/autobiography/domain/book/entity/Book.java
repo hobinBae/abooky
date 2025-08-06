@@ -2,23 +2,14 @@ package com.c203.autobiography.domain.book.entity;
 
 import com.c203.autobiography.domain.book.dto.BookType;
 import com.c203.autobiography.domain.member.entity.Member;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.ForeignKey;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.Lob;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -112,6 +103,18 @@ public class Book {
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
+    /**
+     * 태그 추가
+     *
+     */
+    @OneToMany(
+            mappedBy = "book",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<BookTag> tags = new ArrayList<>();
+
+
     // — 도메인 행위 메서드 —
 
     /** 책 정보를 업데이트합니다. */
@@ -160,5 +163,19 @@ public class Book {
 //        this.completed = false;
 //        this.completedAt = null;
 //    }
+
+    /**
+     * 태그를 추가합니다.
+     */
+    public void addTag(Tag tag) {
+        BookTag link = BookTag.of(this, tag);
+        tags.add(link);
+    }
+    /**
+     * 태그를 제거합니다.
+     */
+    public void removeTag(Tag tag) {
+        tags.removeIf(link -> link.getTag().equals(tag));
+    }
 
 }

@@ -15,6 +15,10 @@ import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -41,7 +45,7 @@ public class EpisodeServiceImpl implements EpisodeService{
      */
     @Override
     @Transactional
-    public EpisodeResponse createEpisode(Long memberId, Long bookId, String sessionId) {
+    public EpisodeResponse createEpisode(Long memberId, Long bookId, String sessionId) throws JsonProcessingException {
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
@@ -61,14 +65,28 @@ public class EpisodeServiceImpl implements EpisodeService{
         }
 
         // 3) AI에게 “정돈된 에피소드 본문” 생성 요청
-        String prompt = String.format(
-                "위 대화 내용을 바탕으로, 사용자 자서전의 하나의 에피소드 본문을 자연스럽게 작성해주세요:\n\n%s",
-                dialog.toString()
-        );
-        String episodeContent = aiClient.generateEpisode(prompt);
+        String prompt = String.format("""
+        다음 JSON 포맷으로 응답해주세요:
+        {
+          "title": "여기에 에피소드 제목을 적어주세요",
+          "content": "여기에 에피소드 본문을 적어주세요"
+        }
+        위와 같은 형태로, 아래 대화 내용을 바탕으로 에피소드 제목과 본문을 작성해 주세요:
+
+        %s
+        """, dialog);
+        String episodeJsonContent = aiClient.generateEpisode(prompt);
+
+        // 2) JSON 파싱 (예: Jackson ObjectMapper)
+        ObjectMapper om = new ObjectMapper();
+        JsonNode node = om.readTree(episodeJsonContent);
+        String title   = node.get("title").asText();
+        String content = node.get("content").asText();
+
         Episode episode = Episode.builder()
                 .book(book)
-                .content(episodeContent)
+                .title(title)
+                .content(content)
                 .createdAt(LocalDateTime.now())
                 .build();
         episodeRepository.save(episode);
@@ -108,6 +126,7 @@ public class EpisodeServiceImpl implements EpisodeService{
      * @return
      */
     @Override
+    @Transactional
     public Void deleteEpisode(Long memberId, Long bookId, Long episodeId) {
 
         Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);

@@ -16,7 +16,7 @@ public interface BookService {
 
     Void deleteBook(Long memberId, Long bookId);
 
-    BookResponse completeBook(Long memberId, Long bookId);
+    BookResponse completeBook(Long memberId, Long bookId, List<String> tags);
 
     BookResponse getBookDetail(Long memberId, Long bookId);
 
