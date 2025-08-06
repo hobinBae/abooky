@@ -21,47 +21,43 @@
   </div>
 </template>
 
-<script>
-import axios from 'axios'
+<script setup lang="ts">
+import { ref } from 'vue'
+import axios, { type AxiosError } from 'axios'
 
-export default {
-  name: 'HelloBackend',
-  data() {
-    return {
-      loading: false,
-      result: '',
-      error: ''
+// Reactive state
+const loading = ref<boolean>(false)
+const result = ref<string>('')
+const error = ref<string>('')
+
+// Methods
+const fetchFromBackend = async (): Promise<void> => {
+  loading.value = true
+  result.value = ''
+  error.value = ''
+  
+  try {
+    // 백엔드 API 호출 (/cicd/ahyoon → "ahyoon" 반환)
+    const response = await axios.get<string>('http://localhost:8081/cicd/ahyoon')
+    const backendData = response.data // 백엔드에서 "ahyoon" 문자열 받아옴
+    
+    // 받은 데이터에 "hello " 붙이기
+    result.value = `hello ${backendData}`
+    
+    console.log('백엔드에서 받은 데이터:', backendData)
+    console.log('hello를 붙인 최종 결과:', result.value)
+    
+  } catch (err) {
+    const axiosError = err as AxiosError
+    error.value = `백엔드 연결 실패: ${axiosError.message}`
+    console.error('API 에러:', err)
+    
+    // 백엔드가 꺼져있을 때 대비한 fallback
+    if (axiosError.code === 'ERR_NETWORK') {
+      error.value = '백엔드 서버에 연결할 수 없습니다. localhost:8081이 실행 중인지 확인해주세요.'
     }
-  },
-  methods: {
-    async fetchFromBackend() {
-      this.loading = true
-      this.result = ''
-      this.error = ''
-      
-      try {
-        // 백엔드 API 호출 (/cicd/ahyoon → "ahyoon" 반환)
-        const response = await axios.get('http://localhost:8081/cicd/ahyoon')
-        const backendData = response.data // 백엔드에서 "ahyoon" 문자열 받아옴
-        
-        // 받은 데이터에 "hello " 붙이기
-        this.result = `hello ${backendData}`
-        
-        console.log('백엔드에서 받은 데이터:', backendData)
-        console.log('hello를 붙인 최종 결과:', this.result)
-        
-      } catch (err) {
-        this.error = `백엔드 연결 실패: ${err.message}`
-        console.error('API 에러:', err)
-        
-        // 백엔드가 꺼져있을 때 대비한 fallback
-        if (err.code === 'ERR_NETWORK') {
-          this.error = '백엔드 서버에 연결할 수 없습니다. localhost:8081이 실행 중인지 확인해주세요.'
-        }
-      } finally {
-        this.loading = false
-      }
-    }
+  } finally {
+    loading.value = false
   }
 }
 </script>
