@@ -3,6 +3,7 @@ pipeline {
 
     tools {
         jdk 'OpenJDK-17'  // Global Tool Configuration에서 설정한 이름
+        nodejs 'NodeJS 22.18.0' // Node.js 도구
     }
     
     environment {
