@@ -1,5 +1,7 @@
 package com.c203.autobiography.domain.book.service;
 
+import com.c203.autobiography.domain.book.dto.BookCopyRequest;
+import com.c203.autobiography.domain.book.dto.BookCopyResponse;
 import com.c203.autobiography.domain.book.dto.BookCreateRequest;
 import com.c203.autobiography.domain.book.dto.BookResponse;
 import com.c203.autobiography.domain.book.dto.BookUpdateRequest;
@@ -19,4 +21,6 @@ public interface BookService {
     BookResponse getBookDetail(Long memberId, Long bookId);
 
     List<BookResponse> getMyBooks(Long memberId);
+
+    BookCopyResponse copyBook(Long memberId, Long bookId, BookCopyRequest request);
 }

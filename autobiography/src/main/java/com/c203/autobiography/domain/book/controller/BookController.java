@@ -1,5 +1,7 @@
 package com.c203.autobiography.domain.book.controller;
 
+import com.c203.autobiography.domain.book.dto.BookCopyRequest;
+import com.c203.autobiography.domain.book.dto.BookCopyResponse;
 import com.c203.autobiography.domain.book.dto.BookCreateRequest;
 import com.c203.autobiography.domain.book.dto.BookResponse;
 import com.c203.autobiography.domain.book.dto.BookUpdateRequest;
@@ -115,6 +117,19 @@ public class BookController {
                 .body(ApiResponse.of(HttpStatus.NO_CONTENT, "책 삭제 성공", null, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "책 다른 이름으로 저장", description = "원본을 그대로 두고, 수정/삭제한 에피소드 반영하여 새 책을 만듭니다.")
+    @PostMapping("/{bookId}/copy")
+    public ResponseEntity<ApiResponse<BookCopyResponse>> copyBook(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            @Valid @RequestBody BookCopyRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        BookCopyResponse response = bookService.copyBook(memberId, bookId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "다른 이름으로 저장 성공", response, httpRequest.getRequestURI()));
+    }
     //여기부터 에피소드 관련 api
     @Operation(summary = "에피소드 생성", description = "대화 세션을 마무리하고 에피소드를 생성합니다.")
     @PostMapping("/{bookId}/episodes")
@@ -123,6 +138,7 @@ public class BookController {
             @PathVariable Long bookId,
             @Valid @RequestParam String sessionId, HttpServletRequest httpRequest
     ) {
+
         Long memberId = userDetails.getMemberId();
         EpisodeResponse response = episodeService.createEpisode(memberId, bookId, sessionId);
         //episodeCreateRequest 추가
