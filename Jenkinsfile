@@ -121,19 +121,20 @@ pipeline {
                     post {
                         always {
                             script {
-                                // JUnit 테스트 결과 발행
-                                try {
+                                
+                                // JUnit 테스트 결과 발행 - 조건부 처리
+                                if (fileExists("${BACKEND_PATH}/build/test-results/test/*.xml")) {
                                     junit testResults: "${BACKEND_PATH}/build/test-results/test/*.xml",
-                                          allowEmptyResults: true
-                                } catch (Exception e) {
-                                    echo "⚠️ 테스트 결과 발행 스킵: ${e.getMessage()}"
+                                        allowEmptyResults: true
+                                } else {
+                                    echo "테스트 결과 파일이 없습니다 (테스트 건너뛰기로 인함)"
                                 }
                                 
                                 // 빌드 결과물 보관
                                 try {
-                                    archiveArtifacts artifacts: "${BACKEND_PATH}/build/libs/*.jar",
-                                                   allowEmptyArchive: true,
-                                                   fingerprint: true
+                                    archiveArtifacts artifacts: "${BACKEND_PATH}/build/libs/*.jar", 
+                                    allowEmptyArchive: true,
+                                    fingerprint: true
                                 } catch (Exception e) {
                                     echo "⚠️ Artifacts 보관 스킵: ${e.getMessage()}"
                                 }
