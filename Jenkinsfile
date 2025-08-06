@@ -107,7 +107,7 @@ pipeline {
                                         if [ -f gradlew ]; then
                                             chmod +x gradlew
                                             echo "📝 테스트 포함 전체 빌드 실행..."
-                                            ./gradlew clean build -x test --no-daemon
+                                            ./gradlew build -x test --no-daemon
                                             
                                             echo "📊 테스트 결과 확인..."
                                             if [ -d "build/test-results" ]; then
