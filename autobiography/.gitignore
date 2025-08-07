@@ -57,9 +57,6 @@ ehthumbs.db
 # 예외적으로 gradle-wrapper.jar는 추적
 !autobiography/gradle/wrapper/gradle-wrapper.jar
 
-# 예외적으로 gradle-wrapper.jar는 추적
-!autobiography/gradle/wrapper/gradle-wrapper.jar
-
 # Java Crash Dumps / Heap Dump
 hs_err_pid*
 *.hprof
@@ -76,4 +73,5 @@ hs_err_pid*
 # Lombok generated
 lombok.config
 
+application.properties
 application.yml
