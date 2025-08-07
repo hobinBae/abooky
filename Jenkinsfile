@@ -4,7 +4,7 @@ pipeline {
     tools {
         jdk 'OpenJDK-17'
         nodejs 'NodeJS 22.18.0'
-    }
+    } 
 
     environment {
         BACKEND_IMAGE = 'autobiography-backend'
