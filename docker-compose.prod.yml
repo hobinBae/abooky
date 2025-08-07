@@ -27,7 +27,7 @@ services:
       # Redis 연결
       SPRING_REDIS_HOST: redis
       SPRING_REDIS_PORT: 6379
-      SPRING_REDIS_PASSWORD: ""  # ← 🔄 Redis 비밀번호 제거 (복사본에 없음)
+      # SPRING_REDIS_PASSWORD: ""  # ← 🔄 Redis 비밀번호 제거 (복사본에 없음)
       SPRING_REDIS_TIMEOUT: 2000ms
       
       # 서버 설정
