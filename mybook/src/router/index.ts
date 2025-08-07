@@ -3,17 +3,19 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // ✅ 테스트용 간단한 컴포넌트
     {
-      path: '/',
+      path: '/test',
       name: 'test',
       component: () => import('../views/general/SimpleTest.vue')
     },
+
     // ✅ 인트로 진입 (한옥 3D 씬)
-    // {
-    //   path: '/',
-    //   name: 'intro',
-    //   component: () => import('../views/general/IntroView.vue')
-    // },
+    {
+      path: '/',
+      name: 'intro',
+      component: () => import('../views/general/IntroView.vue')
+    },
     // ✅ 기존 HomeView는 '/home'으로 이동
     {
       path: '/home',
@@ -29,17 +31,20 @@ const router = createRouter({
       path: '/create-book/:bookId?',
       name: 'CreateBookView',
       component: () => import('../views/books/CreateBookView.vue'),
-      props: true
+      props: true,
+      meta: { requiresAuth: true }
     },
     {
       path: '/my-library',
       name: 'my-library',
-      component: () => import('../views/books/MyLibraryView.vue')
+      component: () => import('../views/books/MyLibraryView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/my-page',
       name: 'my-page',
-      component: () => import('../views/auth/MyPageView.vue')
+      component: () => import('../views/auth/MyPageView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/login',
@@ -59,17 +64,20 @@ const router = createRouter({
     {
       path: '/profile-edit',
       name: 'profile-edit',
-      component: () => import('../views/auth/ProfileEditView.vue')
+      component: () => import('../views/auth/ProfileEditView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/group-book-lobby',
       name: 'group-book-lobby',
-      component: () => import('../views/groups/GroupBookLobbyView.vue')
+      component: () => import('../views/groups/GroupBookLobbyView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/group-book-creation',
       name: 'group-book-creation',
-      component: () => import('../views/groups/GroupBookCreationView.vue')
+      component: () => import('../views/groups/GroupBookCreationView.vue'),
+      meta: { requiresAuth: true }
     },
     {
       path: '/book-detail/:id',
@@ -98,5 +106,15 @@ const router = createRouter({
     }
   ]
 })
+
+router.beforeEach((to, from, next) => {
+  const isLoggedIn = !!localStorage.getItem('accessToken');
+
+  if (to.meta.requiresAuth && !isLoggedIn) {
+    next({ path: '/login', query: { redirect: to.fullPath } });
+  } else {
+    next();
+  }
+});
 
 export default router
