@@ -1,9 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
-interface TestModule {
-  testRoutes: RouteRecordRaw[]
-}
-
 const mainRoutes: Array<RouteRecordRaw> = [
   // ✅ 인트로 진입 (한옥 3D 씬)
   {
@@ -23,12 +19,25 @@ const mainRoutes: Array<RouteRecordRaw> = [
     component: () => import('../views/books/BookstoreView.vue')
   },
   {
-    path: '/create-book/:bookId?',
-    name: 'CreateBookView',
+    path: '/create-book',
+    name: 'CreateBook',
     component: () => import('../views/books/CreateBookView.vue'),
-    props: true,
     meta: { requiresAuth: true }
   },
+
+  // {
+  //   path: '/continue-writing',
+  //   name: 'ContinueWriting',
+  //   component: () => import('../views/books/ContinueWritingView.vue'),
+  //   meta: { requiresAuth: true }
+  // },
+  // {
+  //   path: '/book-editor/:bookId?',
+  //   name: 'BookEditor',
+  //   component: () => import('../views/books/BookEditorView.vue'),
+  //   props: true,
+  //   meta: { requiresAuth: true }
+  // },
   {
     path: '/my-library',
     name: 'my-library',
@@ -101,6 +110,10 @@ const mainRoutes: Array<RouteRecordRaw> = [
   }
 ]
 
+interface TestModule {
+  testRoutes: RouteRecordRaw[]
+}
+
 let allRoutes = mainRoutes
 if (import.meta.env.DEV) {
   const testRouteFiles = import.meta.glob('./test.ts', { eager: true })
@@ -115,14 +128,16 @@ const router = createRouter({
   routes: allRoutes
 })
 
-router.beforeEach((to, from, next) => {
-  const isLoggedIn = !!localStorage.getItem('accessToken');
+import { useAuthStore } from '@/stores/auth'
 
-  if (to.meta.requiresAuth && !isLoggedIn) {
-    next({ path: '/login', query: { redirect: to.fullPath } });
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore()
+
+  if (to.meta.requiresAuth && !authStore.isLoggedIn) {
+    next({ path: '/login', query: { redirect: to.fullPath } })
   } else {
-    next();
+    next()
   }
-});
+})
 
 export default router
