@@ -1,0 +1,21 @@
+# livekit.yaml
+
+# TURN 설정
+turn:
+  enabled: true
+  domain: localhost
+  tls_port: 5349
+  udp_port: 3478
+
+# ICE 서버(예시)
+rtc:
+  turn_servers:
+    - host: localhost
+      port: 5349
+      protocol: "tls"
+      username: APIVF9CHMKuosGX
+      credential: EeEstLze1k7SGqia67y3CJlo0onba1dZBUrZzHb4om9
+
+# 또는 최상위 keys 맵으로도 가능
+keys:
+  APIVF9CHMKuosGX: EeEstLze1k7SGqia67y3CJlo0onba1dZBUrZzHb4om9

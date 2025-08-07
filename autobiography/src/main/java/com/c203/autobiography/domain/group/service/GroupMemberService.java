@@ -7,6 +7,8 @@ import com.c203.autobiography.domain.group.entity.GroupMember;
 import java.util.List;
 
 public interface GroupMemberService {
+    void verifyMember(Long groupId, Long memberId);
+
     List<GroupMemberResponse> listGroupMembers(Long groupId);
 
     /** 그룹원 강퇴 (관리자 전용) **/
