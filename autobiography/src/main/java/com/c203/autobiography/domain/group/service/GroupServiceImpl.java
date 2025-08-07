@@ -73,15 +73,16 @@ public class GroupServiceImpl implements GroupService{
         return null;
     }
 
+    @Transactional
     @Override
     public GroupResponse updateGroup(Long leaderId, Long groupId, GroupUpdateRequest request, MultipartFile file) {
+        // 권한 체크
         Group group = groupRepository.findByGroupIdAndDeletedAtIsNull(groupId)
                 .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
-
-        // 권한 체크
         if(!group.getLeaderId().equals(leaderId)){
             throw new ApiException(ErrorCode.GROUP_ACCESS_DENIED);
         }
+
 
         // 이미지 교체 로직
         if(file != null && !file.isEmpty()) {
