@@ -3,6 +3,13 @@ import { createRouter, createWebHistory } from 'vue-router'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // ✅ 테스트용 간단한 컴포넌트
+    {
+      path: '/test',
+      name: 'test',
+      component: () => import('../views/general/SimpleTest.vue')
+    },
+
     // ✅ 인트로 진입 (한옥 3D 씬)
     {
       path: '/',
