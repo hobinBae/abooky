@@ -24,6 +24,19 @@ const mainRoutes: Array<RouteRecordRaw> = [
     component: () => import('../views/books/CreateBookView.vue'),
     meta: { requiresAuth: true }
   },
+  {
+    path: '/continue-writing',
+    name: 'ContinueWriting',
+    component: () => import('../views/books/ContinueWritingView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
+    path: '/book-editor/:bookId?',
+    name: 'BookEditor',
+    component: () => import('../views/books/BookEditorView.vue'),
+    props: true,
+    meta: { requiresAuth: true }
+  },
 
   // {
   //   path: '/continue-writing',
