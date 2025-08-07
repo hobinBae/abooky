@@ -54,6 +54,8 @@ ehthumbs.db
 *.war
 *.ear
 *.zip
+# 예외적으로 gradle-wrapper.jar는 추적
+!autobiography/gradle/wrapper/gradle-wrapper.jar
 
 # 예외적으로 gradle-wrapper.jar는 추적
 !autobiography/gradle/wrapper/gradle-wrapper.jar

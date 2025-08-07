@@ -1,4 +1,4 @@
-package com.c203.autobiography.domain.episode.entity;
+package com.c203.autobiography.domain.book.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
@@ -14,10 +14,10 @@ import lombok.NoArgsConstructor;
 @EqualsAndHashCode
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(staticName = "of")
-public class EpisodeTagId implements Serializable {
+public class BookTagId implements Serializable {
 
-    @Column(name = "episode_id", nullable = false)
-    private Long episodeId;
+    @Column(name = "book_id", nullable = false)
+    private Long bookId;
 
     @Column(name = "tag_id", nullable = false)
     private Long tagId;

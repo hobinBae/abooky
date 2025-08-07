@@ -47,6 +47,8 @@ public class EpisodeResponse {
                 .episodeId(e.getEpisodeId())
                 .bookId(e.getBook().getBookId())
                 .title(e.getTitle())
+                .content(e.getContent())
+                .episodeOrder(e.getEpisodeOrder())
                 .episodeDate(e.getEpisodeDate())
                 .audioUrl(e.getAudioUrl())
                 .createdAt(e.getCreatedAt())

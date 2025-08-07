@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.episode.entity;
 
 import com.c203.autobiography.domain.book.entity.Book;
+import com.c203.autobiography.domain.book.entity.Tag;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -52,7 +53,6 @@ public class Episode {
     )
     private Book book;
 
-
     @Column(nullable = false, length = 100)
     private String title;
 
@@ -79,16 +79,6 @@ public class Episode {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    /**
-     * 태그 추가
-     *
-     */
-    @OneToMany(
-            mappedBy = "episode",
-            cascade = CascadeType.ALL,
-            orphanRemoval = true
-    )
-    private List<EpisodeTag> tags = new ArrayList<>();
 
     // — 도메인 메서드 추가 —
     /**
@@ -115,17 +105,5 @@ public class Episode {
         this.deletedAt = LocalDateTime.now();
     }
 
-    /**
-     * 태그를 추가합니다.
-     */
-    public void addTag(Tag tag) {
-        EpisodeTag link = EpisodeTag.of(this, tag);
-        tags.add(link);
-    }
-    /**
-     * 태그를 제거합니다.
-     */
-    public void removeTag(Tag tag) {
-        tags.removeIf(link -> link.getTag().equals(tag));
-    }
+
 }
