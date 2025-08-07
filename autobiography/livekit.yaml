@@ -1,21 +1,19 @@
 # livekit.yaml
 
-# TURN 설정
+port: 7880
+bind_addresses:
+  - ""
+rtc:
+  tcp_port: 7881
+  port_range_start: 7900
+  port_range_end: 7999
+redis:
+  address: redis:6379
+  use_tls: false
 turn:
   enabled: true
-  domain: localhost
-  tls_port: 5349
   udp_port: 3478
-
-# ICE 서버(예시)
-rtc:
-  turn_servers:
-    - host: localhost
-      port: 5349
-      protocol: "tls"
-      username: APIVF9CHMKuosGX
-      credential: EeEstLze1k7SGqia67y3CJlo0onba1dZBUrZzHb4om9
-
-# 또는 최상위 keys 맵으로도 가능
+  relay_range_start: 50000
+  relay_range_end: 60000
 keys:
   APIVF9CHMKuosGX: EeEstLze1k7SGqia67y3CJlo0onba1dZBUrZzHb4om9

@@ -29,18 +29,14 @@ services:
     image: livekit/livekit-server:latest
     container_name: livekit-server
     restart: always
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    command: --config /etc/livekit.yaml
     ports:
       - "7880:7880"
       - "7881:7881"
-      - "7882:7882"
       - "3478:3478/udp"
-      - "5349:5349/tcp"
-    volumes:
-      - ./livekit.yaml:/etc/config.yaml:ro
-    command:
-      - livekit-server
-      -  --config
-      - /etc/livekit/config.yaml
+#      - "50000-60000:50000-60000/udp"
     networks:
       - app-network
 
