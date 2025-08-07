@@ -42,8 +42,11 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute, useRouter, RouterLink } from 'vue-router';
-import apiClient from '@/api';
-import { setLoggedIn } from '@/stores/auth';
+import { useAuthStore } from '@/stores/auth';
+import { AxiosError } from 'axios';
+
+// --- Store ---
+const authStore = useAuthStore();
 
 // --- Router ---
 const router = useRouter();
@@ -65,25 +68,21 @@ async function handleLogin() {
   errorMessage.value = '';
 
   try {
-    const response = await apiClient.post('/api/v1/auth/login', {
+    await authStore.login({
       email: email.value,
       password: password.value,
     });
 
-    const { accessToken, refreshToken } = response.data.data;
-    localStorage.setItem('accessToken', accessToken);
-    // localStorage.setItem('refreshToken', refreshToken);
-
-    setLoggedIn(true);
-
     // 성공 시 이전 페이지 또는 홈으로 리디렉션
     const redirectPath = route.query.redirect as string || '/';
     router.push(redirectPath);
-  } catch (error: any) {
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
+      errorMessage.value = error.response.data.message || '아이디 또는 비밀번호를 확인해주세요.';
+    } else if (error instanceof Error) {
+      errorMessage.value = error.message;
     } else {
-      errorMessage.value = '로그인에 실패했습니다. 서버에 문제가 발생했을 수 있습니다.';
+      errorMessage.value = '로그인 중 알 수 없는 오류가 발생했습니다.';
     }
   } finally {
     isLoading.value = false;
