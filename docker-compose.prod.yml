@@ -119,7 +119,7 @@ services:
   # Redis 캐시
   redis:
     image: redis:7.2-alpine  # ← 🔄 버전 변경 (7-alpine → 7.2-alpine)
-    container_name: redis-server  # ← 🔄 컨테이너명 변경
+    container_name: redis  # ← 🔄 컨테이너명 변경
     command: 
       - redis-server  # ← 🔄 비밀번호 제거 (복사본에 없음)
       - --appendonly 
