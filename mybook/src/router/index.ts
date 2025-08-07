@@ -1,5 +1,9 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 
+interface TestModule {
+  testRoutes: RouteRecordRaw[]
+}
+
 const mainRoutes: Array<RouteRecordRaw> = [
   // ✅ 인트로 진입 (한옥 3D 씬)
   {
@@ -101,8 +105,8 @@ let allRoutes = mainRoutes
 if (import.meta.env.DEV) {
   const testRouteFiles = import.meta.glob('./test.ts', { eager: true })
   const testModule = testRouteFiles['./test.ts']
-  if (testModule && 'testRoutes' in testModule) {
-    allRoutes = [...mainRoutes, ...(testModule as any).testRoutes]
+  if (testModule && typeof testModule === 'object' && 'testRoutes' in testModule) {
+    allRoutes = [...mainRoutes, ...(testModule as TestModule).testRoutes]
   }
 }
 
