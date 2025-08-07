@@ -25,6 +25,12 @@ public enum ErrorCode {
     EMAIL_ALREADY_EXISTS("EMAIL_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 사용 중인 이메일입니다."),
     NICKNAME_ALREADY_EXISTS("NICKNAME_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 사용 중인 닉네임입니다."),
 
+    // book 관련 에러
+    BOOK_CATEGORY_NOT_FOUND("BOOK_CATEGORY_NOT_FOUND", HttpStatus.NOT_FOUND, "카테고리를 찾을 수 없습니다."),
+    BOOK_NOT_FOUND("BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "책을 찾을 수 없습니다."),
+    EPISODE_NOT_FOUND("EPISODE_NOT_FOUND", HttpStatus.NOT_FOUND, "에피소드를 찾을 수 없습니다."),
+    FORBIDDEN("FORBIDDEN", HttpStatus.FORBIDDEN, "권한이 없습니다."),
+
     GROUP_NOT_FOUND("GROUP_NOT_FOUND", HttpStatus.NOT_FOUND, "그룹을 찾을 수 없습니다."),
     GROUP_ACCESS_DENIED("GROUP_ACCESS_DENIED", HttpStatus.UNAUTHORIZED, "그룹 접근 권한이 없습니다."),
 

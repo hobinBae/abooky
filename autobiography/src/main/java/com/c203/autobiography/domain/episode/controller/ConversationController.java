@@ -9,10 +9,13 @@ import com.c203.autobiography.domain.episode.dto.ConversationSessionRequest;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionResponse;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionUpdateRequest;
 import com.c203.autobiography.domain.episode.dto.MessageType;
+import com.c203.autobiography.domain.episode.entity.ConversationSession;
 import com.c203.autobiography.domain.episode.service.ConversationService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import com.c203.autobiography.domain.episode.template.service.QuestionTemplateService;
+import com.c203.autobiography.domain.episode.template.service.ChapterBasedQuestionService;
+import com.c203.autobiography.domain.episode.template.dto.NextQuestionDto;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -37,20 +40,37 @@ public class ConversationController {
     private final ConversationService convService;
     private final SseService sseService;
     private final QuestionTemplateService templateService;
+    private final ChapterBasedQuestionService chapterBasedService;
 
     /**
      * 에피소드 시작 및 SSE 연결
      */
     @GetMapping(value = "/stream", produces = TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(@RequestParam String sessionId) {
+    public SseEmitter stream(@RequestParam String sessionId, 
+                            @RequestParam(value = "useChapterMode", defaultValue = "true") boolean useChapterMode) {
         convService.createSession(new ConversationSessionRequest(sessionId, null));
         SseEmitter emitter = new SseEmitter(0L);
         emitter.onTimeout(() -> sseService.remove(sessionId));
         emitter.onCompletion(() -> sseService.remove(sessionId));
         emitter.onError(e -> sseService.remove(sessionId));
         sseService.register(sessionId, emitter);
-        // 3) 첫 질문: templateService가 아니라 service.getNextQuestion()으로 꺼내기
-        String first = convService.getNextQuestion(sessionId);
+        
+        String first = null;
+        NextQuestionDto firstQuestion = null;
+        if (useChapterMode) {
+            // 새로운 챕터 기반 모드 사용
+            try {
+                firstQuestion = chapterBasedService.initializeSession(sessionId);
+                first = firstQuestion.getQuestionText();
+            } catch (Exception e) {
+                // 챕터 기반 서비스 실패시 레거시 모드로 fallback
+                first = convService.getNextQuestion(sessionId);
+            }
+        } else {
+            // 레거시 모드
+            first = convService.getNextQuestion(sessionId);
+        }
+        
         if (first != null) {
             // DB 저장(QUESTION 메시지)도 여기서 해주면 추적이 명확해집니다.
             convService.createMessage(
@@ -60,10 +80,22 @@ public class ConversationController {
                             .content(first)
                             .build()
             );
-            sseService.pushQuestion(
-                    sessionId,
-                    QuestionResponse.builder().text(first).build()
-            );
+            
+            // QuestionResponse 생성 (챕터 정보 포함)
+            QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
+                    .text(first);
+            
+            if (firstQuestion != null) {
+                responseBuilder
+                        .currentChapter(firstQuestion.getCurrentChapterName())
+                        .currentStage(firstQuestion.getCurrentStageName())
+                        .questionType(firstQuestion.getQuestionType())
+                        .overallProgress(firstQuestion.getOverallProgress())
+                        .chapterProgress(firstQuestion.getChapterProgress())
+                        .isLastQuestion(firstQuestion.isLastQuestion());
+            }
+            
+            sseService.pushQuestion(sessionId, responseBuilder.build());
         }
 
         return emitter;
@@ -115,8 +147,26 @@ public class ConversationController {
     }
     @PostMapping("/next")
     public ResponseEntity<Void> nextQuestion(@RequestParam String sessionId) {
-        // 1) 서비스에서 다음 질문 꺼내기
-        String next = convService.getNextQuestion(sessionId);
+        // 1) 서비스에서 다음 질문 꺼내기 - 챕터 기반 모드 우선 시도
+        ConversationSession session = convService.getSessionEntity(sessionId);
+        NextQuestionDto nextQuestionDto = null;
+        String next = null;
+        
+        if (session != null && session.getCurrentChapterId() != null) {
+            // 챕터 기반 모드
+            try {
+                String lastAnswer = convService.getLastAnswer(sessionId);
+                nextQuestionDto = chapterBasedService.getNextQuestion(sessionId, lastAnswer);
+                next = nextQuestionDto.getQuestionText();
+            } catch (Exception e) {
+                // 오류시 레거시 모드로 fallback
+                next = convService.getNextQuestion(sessionId);
+            }
+        } else {
+            // 레거시 모드
+            next = convService.getNextQuestion(sessionId);
+        }
+        
         if (next != null) {
             // 2) DB에 QUESTION 메시지 저장
             convService.createMessage(
@@ -126,11 +176,22 @@ public class ConversationController {
                             .content(next)
                             .build()
             );
-            // 3) SSE로 클라이언트에 푸시
-            sseService.pushQuestion(
-                    sessionId,
-                    QuestionResponse.builder().text(next).build()
-            );
+            
+            // 3) SSE로 클라이언트에 푸시 (챕터 정보 포함)
+            QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
+                    .text(next);
+            
+            if (nextQuestionDto != null) {
+                responseBuilder
+                        .currentChapter(nextQuestionDto.getCurrentChapterName())
+                        .currentStage(nextQuestionDto.getCurrentStageName())
+                        .questionType(nextQuestionDto.getQuestionType())
+                        .overallProgress(nextQuestionDto.getOverallProgress())
+                        .chapterProgress(nextQuestionDto.getChapterProgress())
+                        .isLastQuestion(nextQuestionDto.isLastQuestion());
+            }
+            
+            sseService.pushQuestion(sessionId, responseBuilder.build());
         }
         return ResponseEntity.ok().build();
     }

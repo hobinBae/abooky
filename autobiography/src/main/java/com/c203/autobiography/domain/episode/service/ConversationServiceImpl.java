@@ -3,6 +3,8 @@ package com.c203.autobiography.domain.episode.service;
 import com.c203.autobiography.domain.ai.client.AiClient;
 import com.c203.autobiography.domain.episode.dto.ConversationMessageRequest;
 import com.c203.autobiography.domain.episode.dto.ConversationMessageResponse;
+import com.c203.autobiography.domain.episode.template.service.ChapterBasedQuestionService;
+import com.c203.autobiography.domain.episode.template.dto.NextQuestionDto;
 import com.c203.autobiography.domain.episode.dto.ConversationMessageUpdateRequest;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionRequest;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionResponse;
@@ -34,8 +36,10 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConversationMessageRepository messageRepo;
     private final QuestionTemplateService templateService;
     private final AiClient aiClient;
+    private final ChapterBasedQuestionService chapterBasedService;
     // 세션별 질문 큐 관리 (0부터 시작)
     private final ConcurrentHashMap<String, Deque<String>> questionQueueMap = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, String> lastQuestionMap = new ConcurrentHashMap<>();
 
     @Override
     public ConversationSessionResponse createSession(ConversationSessionRequest request) {
@@ -80,9 +84,35 @@ public class ConversationServiceImpl implements ConversationService {
                 .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
         return ConversationSessionResponse.from(session);
     }
+    
+    @Override
+    public ConversationSession getSessionEntity(String sessionId) {
+        return sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
+    }
 
     @Override
     public String getNextQuestion(String sessionId) {
+        // 새로운 챕터 기반 서비스 사용 여부 확인
+        ConversationSession session = sessionRepo.findById(sessionId).orElse(null);
+        if (session != null && session.getCurrentChapterId() != null) {
+            // 챕터 기반 모드
+            try {
+                String lastAnswer = getLastAnswer(sessionId);
+                NextQuestionDto nextQuestionDto = chapterBasedService.getNextQuestion(sessionId, lastAnswer);
+                String next = nextQuestionDto.getQuestionText();
+                
+                if (next != null) {
+                    lastQuestionMap.put(sessionId, next);
+                }
+                return next;
+            } catch (Exception e) {
+                // 챕터 기반 서비스에서 오류 발생시 레거시 모드로 fallback
+                // log.warn("챕터 기반 서비스 오류, 레거시 모드로 전환: {}", e.getMessage());
+            }
+        }
+        
+        // 레거시 모드 (기존 로직)
         Deque<String> queue = questionQueueMap.get(sessionId);
         if (queue == null || queue.isEmpty()) {
             return null;
@@ -90,11 +120,9 @@ public class ConversationServiceImpl implements ConversationService {
 
         String lastAnswer = getLastAnswer(sessionId);
         String next;
-        // 첫 질문: 사용자 답변이 없으면 템플릿에서만 꺼내기
         if (lastAnswer.isBlank()) {
             next = queue.poll();
         } else {
-            // 후속 질문 생성 로직
             String followUp = aiClient.generateFollowUp(lastAnswer);
             if (shouldInjectFollowUp(lastAnswer, followUp)) {
                 queue.addFirst(followUp);
@@ -102,22 +130,10 @@ public class ConversationServiceImpl implements ConversationService {
             next = queue.poll();
         }
 
-        if (next == null) {
-            return null;
+        if (next != null) {
+            // (2) "마지막 질문" 맵에 저장
+            lastQuestionMap.put(sessionId, next);
         }
-
-        // 세션의 templateIndex 증가 및 저장
-        ConversationSession session = sessionRepo.findById(sessionId)
-                .orElseThrow();
-        session = ConversationSession.builder()
-                .sessionId(session.getSessionId())
-                .bookId(session.getBookId())
-                .episodeId(session.getEpisodeId())
-                .status(session.getStatus())
-                .tokenCount(session.getTokenCount())
-                .templateIndex(session.getTemplateIndex() + 1)
-                .build();
-        sessionRepo.save(session);
         return next;
     }
 
@@ -158,7 +174,8 @@ public class ConversationServiceImpl implements ConversationService {
                 .collect(Collectors.toList());
     }
 
-    private String getLastAnswer(String sessionId) {
+    @Override
+    public String getLastAnswer(String sessionId) {
         return messageRepo
                 .findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.FINAL)
                 .map(ConversationMessage::getContent)
@@ -169,4 +186,9 @@ public class ConversationServiceImpl implements ConversationService {
         if (followUp == null || followUp.isBlank()) return false;
         return !followUp.trim().equalsIgnoreCase(lastAnswer.trim());
     }
+    @Override
+    public String getLastQuestion(String sessionId) {
+        return lastQuestionMap.getOrDefault(sessionId, "");
+    }
+
 }

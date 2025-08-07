@@ -1,7 +1,6 @@
 HELP.md
 .gradle
 build/
-!gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -55,6 +54,8 @@ ehthumbs.db
 *.war
 *.ear
 *.zip
+# 예외적으로 gradle-wrapper.jar는 추적
+!autobiography/gradle/wrapper/gradle-wrapper.jar
 
 # Java Crash Dumps / Heap Dump
 hs_err_pid*
