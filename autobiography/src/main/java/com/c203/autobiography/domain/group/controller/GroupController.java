@@ -79,8 +79,10 @@ public class GroupController {
     @GetMapping("/{groupId}/members")
     public ResponseEntity<ApiResponse<List<GroupMemberResponse>>> listMembers(
             @PathVariable Long groupId,
+            @AuthenticationPrincipal CustomUserDetails currentUserId,
             HttpServletRequest httpRequest
     ) {
+        groupMemberService.verifyMember(currentUserId.getMemberId(), groupId);
         List<GroupMemberResponse> response = groupMemberService.listGroupMembers(groupId);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "그룹원 목록 조회 성공", response, httpRequest.getRequestURI()));
