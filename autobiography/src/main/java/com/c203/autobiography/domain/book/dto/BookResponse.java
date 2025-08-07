@@ -20,6 +20,9 @@ import lombok.NoArgsConstructor;
 public class BookResponse {
     private Long bookId;
     private Long memberId;
+    private String name;
+    private String email;
+    private String nickname;
     private String title;
     private String coverImageUrl;
     private String summary;
@@ -43,11 +46,15 @@ public class BookResponse {
 
     //책에 속한 에피소드 목록
     private List<EpisodeResponse> episodes;
+    private List<String> tags;
 
-    public static BookResponse of(Book book, List<EpisodeResponse> episodes) {
+    public static BookResponse of(Book book, List<EpisodeResponse> episodes, List<String> tags) {
         return BookResponse.builder()
                 .bookId(book.getBookId())
                 .memberId(book.getMember().getMemberId())
+                .name(book.getMember().getName())
+                .email(book.getMember().getEmail())
+                .nickname(book.getMember().getNickname())
                 .title(book.getTitle())
                 .coverImageUrl(book.getCoverImageUrl())
                 .summary(book.getSummary())
@@ -62,9 +69,17 @@ public class BookResponse {
                 .completed(book.getCompleted())
                 .completedAt(book.getCompletedAt())
                 .episodes(episodes)
+                .tags(tags)
                 .build();
     }
+    public static BookResponse of(
+            Book book,
+            List<EpisodeResponse> episodes
+    ) {
+        return of(book, episodes, List.of());
+    }
+
     public static BookResponse of(Book book){
-        return BookResponse.of(book, List.of());
+        return of(book, List.of(), List.of());
     }
 }

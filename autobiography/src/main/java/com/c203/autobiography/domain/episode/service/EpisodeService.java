@@ -2,10 +2,11 @@ package com.c203.autobiography.domain.episode.service;
 
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
 
 public interface EpisodeService {
 
-    EpisodeResponse createEpisode(Long memberId, Long bookId, String sessionId);
+    EpisodeResponse createEpisode(Long memberId, Long bookId, String sessionId) throws JsonProcessingException;
 
     EpisodeResponse getEpisode(Long episodeId);
 
