@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface GroupApplyRepository extends JpaRepository<GroupApply, Long> {
-    List<GroupApply> findByGroupIdAndStatus(Long groupId, ApplyStatus status);
+    List<GroupApply> findByGroup_GroupIdAndStatus(Long groupId, ApplyStatus status);
     List<GroupApply> findByReceiverIdAndStatus(Long receiverId, ApplyStatus status);
-    boolean existsByGroupIdAndReceiverIdAndStatus(Long groupId, Long receiverId, ApplyStatus status);
+    boolean existsByGroup_GroupIdAndReceiverIdAndStatus(Long groupId, Long receiverId, ApplyStatus status);
 }

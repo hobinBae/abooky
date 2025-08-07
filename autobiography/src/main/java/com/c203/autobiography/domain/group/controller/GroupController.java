@@ -82,7 +82,7 @@ public class GroupController {
             @AuthenticationPrincipal CustomUserDetails currentUserId,
             HttpServletRequest httpRequest
     ) {
-        groupMemberService.verifyMember(currentUserId.getMemberId(), groupId);
+        groupMemberService.verifyMember(groupId, currentUserId.getMemberId());
         List<GroupMemberResponse> response = groupMemberService.listGroupMembers(groupId);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "그룹원 목록 조회 성공", response, httpRequest.getRequestURI()));
