@@ -3,19 +3,33 @@
     <section class="content-section representative-book-section">
       <h2 class="section-title">나의 대표 인생책</h2>
       <p class="section-subtitle">당신의 삶에 가장 큰 영감을 준 책을 설정해보세요.</p>
-      <div class="representative-book-carousel">
-        <button @click="prevRepBook" :disabled="representativeBooks.length <= 1" class="carousel-btn">
-          <i class="bi bi-chevron-left"></i>
-        </button>
-        <div class="representative-book-wrapper">
-          <div class="representative-book">
-            {{ representativeBooks.length > 0 ? representativeBooks[currentRepBookIndex] : '대표책이 없습니다' }}
+
+      <div class="rep-book-display-area">
+        <div v-if="currentRepBook" class="rep-book-container" @mousemove="handleMouseMove" @mouseleave="resetRotation">
+          <div class="rep-book-shadow"></div>
+
+          <div class="book-3d-wrapper" :style="repBookStyle">
+            <div class="book-3d">
+              <div class="book-face front" :style="{ backgroundImage: `url(${currentRepBook.coverUrl})` }">
+                <div class="bright-edge-effect"></div>
+                <div class="book-title-overlay">
+                  <div class="book-title">{{ currentRepBook.title }}</div>
+                  <div class="book-author">{{ currentRepBook.authorName }}</div>
+                </div>
+              </div>
+              <div class="book-face back" :style="{ backgroundImage: `url(${currentRepBook.coverUrl})` }"></div>
+              <div class="book-face left" :style="{ backgroundImage: `url(${currentRepBook.coverUrl})` }"></div>
+              <div class="book-face right"></div>
+              <div class="book-face top"></div>
+              <div class="book-face bottom"></div>
+            </div>
           </div>
         </div>
-        <button @click="nextRepBook" :disabled="representativeBooks.length <= 1" class="carousel-btn">
-          <i class="bi bi-chevron-right"></i>
-        </button>
+        <div v-else class="no-rep-book">
+          대표책을 선택해주세요.
+        </div>
       </div>
+
       <button @click="openRepBookModal" class="btn btn-primary select-rep-btn">
         <i class="bi bi-pencil-square"></i> 대표책 선택
       </button>
@@ -101,8 +115,8 @@
         <div v-if="isRepBookModalVisible">
           <h2 class="modal-title">대표 인생책 선택</h2>
           <p class="modal-description">Ctrl/Cmd 키를 누른 채 여러 책을 선택할 수 있습니다.</p>
-          <select v-model="selectedRepBooks" multiple class="form-select modal-select">
-            <option v-for="book in myBooks" :key="book.id" :value="book.title">{{ book.title }}</option>
+          <select v-model="selectedRepBookIds" multiple class="form-select modal-select">
+            <option v-for="book in myBooks" :key="book.id" :value="book.id">{{ book.title }}</option>
           </select>
           <button @click="saveRepresentativeBooksHandler" class="btn btn-primary modal-action-btn">
             저장하기
@@ -149,6 +163,7 @@ interface Book {
   title: string;
   authorId: string;
   authorName?: string;
+  coverUrl?: string;
 }
 interface Group {
   id: string;
@@ -168,36 +183,43 @@ interface DraggableEvent {
 // --- Dummy Data ---
 const currentUserNickname = ref('김작가');
 const DUMMY_MY_BOOKS: Book[] = [
-  { id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가' },
-  { id: 'mybook2', title: '꿈을 향한 도전', authorId: 'dummyUser1', authorName: '김작가' },
-  { id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가' },
-  { id: 'mybook4', title: '개발자의 삶', authorId: 'dummyUser1', authorName: '김작가' },
+  { id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974' },
+  { id: 'mybook2', title: '꿈을 향한 도전', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=500' },
+  { id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500' },
+  { id: 'mybook4', title: '개발자의 삶', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500' },
 ];
 const DUMMY_GROUPS: Group[] = [
-  { id: 'group1', groupName: '독서 토론 모임', ownerId: '김작가', managers: ['이영희'], members: ['김작가', '이영희', '박철수'], books: [{ id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가' }], createdAt: new Date() },
+  { id: 'group1', groupName: '독서 토론 모임', ownerId: '김작가', managers: ['이영희'], members: ['김작가', '이영희', '박철수'], books: [{ id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1506894824902-72895a783ac0?w=500' }], createdAt: new Date() },
   { id: 'group2', groupName: '글쓰기 동호회', ownerId: '김작가', managers: [], members: ['김작가', '최수진'], books: [], createdAt: new Date() },
-  { id: 'group3', groupName: '여행 에세이 클럽', ownerId: '정민준', managers: [], members: ['정민준', '김작가', '하은지'], books: [{ id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가' }], createdAt: new Date() },
+  { id: 'group3', groupName: '여행 에세이 클럽', ownerId: '정민준', managers: [], members: ['정민준', '김작가', '하은지'], books: [{ id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500' }], createdAt: new Date() },
 ];
 
 // --- Reactive State ---
-const representativeBooks = ref<string[]>(['나의 어린 시절 이야기']);
-const currentRepBookIndex = ref(0);
+const representativeBooks = ref<Book[]>([DUMMY_MY_BOOKS[0]]);
 const myBooks = ref<Book[]>(DUMMY_MY_BOOKS);
 const allGroups = ref<Group[]>(DUMMY_GROUPS);
 const isDraggingBook = ref(false);
 const isRepBookModalVisible = ref(false);
-const selectedRepBooks = ref<string[]>([]);
+const selectedRepBookIds = ref<string[]>([]);
 const isGroupModalVisible = ref(false);
 const newGroupName = ref('');
 const newGroupMembers = ref('');
 const isMessageBoxVisible = ref(false);
 const messageBoxTitle = ref('');
 const messageBoxContent = ref('');
+const repBookRotationY = ref(0);
 
 // --- Computed Properties ---
 const isBookInAnyGroup = computed(() => (bookId: string) => {
   return allGroups.value.some(group => group.books.some(book => book.id === bookId));
 });
+const currentRepBook = computed(() => {
+  return representativeBooks.value.length > 0 ? representativeBooks.value[0] : null;
+});
+const repBookStyle = computed(() => ({
+  transform: `rotateY(${repBookRotationY.value}deg)`,
+  transition: isDraggingBook.value ? 'none' : 'transform 0.1s ease-out'
+}));
 
 // --- Functions ---
 function closeAllModals() {
@@ -221,7 +243,7 @@ function handleBookDrop(event: DraggableEvent, groupId: string) {
     }
   }
 }
-function handleGroupBookChange(event: DraggableEvent, groupId: string) {}
+function handleGroupBookChange(event: DraggableEvent, groupId: string) { }
 function removeBookFromGroup(groupId: string, bookId: string) {
   const group = allGroups.value.find(g => g.id === groupId);
   if (group) {
@@ -235,23 +257,14 @@ function removeBookFromGroup(groupId: string, bookId: string) {
 function isMemberRegistered(group: Group, memberName: string): boolean {
   return group.members.includes(memberName);
 }
-function prevRepBook() {
-  if (representativeBooks.value.length > 0) {
-    currentRepBookIndex.value = (currentRepBookIndex.value - 1 + representativeBooks.value.length) % representativeBooks.value.length;
-  }
-}
-function nextRepBook() {
-  if (representativeBooks.value.length > 0) {
-    currentRepBookIndex.value = (currentRepBookIndex.value + 1) % representativeBooks.value.length;
-  }
-}
 function openRepBookModal() {
-  selectedRepBooks.value = [...representativeBooks.value];
+  selectedRepBookIds.value = representativeBooks.value.map(book => book.id);
   isRepBookModalVisible.value = true;
 }
 function saveRepresentativeBooksHandler() {
-  representativeBooks.value = [...selectedRepBooks.value];
-  currentRepBookIndex.value = 0;
+  representativeBooks.value = selectedRepBookIds.value
+    .map(id => myBooks.value.find(book => book.id === id))
+    .filter((book): book is Book => !!book);
   isRepBookModalVisible.value = false;
   showMessageBox('대표책이 저장되었습니다.');
 }
@@ -283,7 +296,206 @@ function createGroupHandler() {
   newGroupMembers.value = '';
   showMessageBox('그룹이 성공적으로 생성되었습니다.');
 }
+function handleMouseMove(event: MouseEvent) {
+  const target = event.currentTarget as HTMLElement;
+  const rect = target.getBoundingClientRect();
+  const x = event.clientX - rect.left;
+  const width = rect.width;
+  const mouseXPercent = (x / width) - 0.5;
+  const maxRotation = 45; // [수정] 회전 각도 증가
+  repBookRotationY.value = mouseXPercent * maxRotation * -1;
+}
+function resetRotation() {
+  repBookRotationY.value = 0;
+}
 </script>
+
+<style>
+/* --- 3D 책 모델 전용 전역 스타일 --- */
+:root {
+  /* -- 변수 선언: 이곳의 값을 바꾸면 책 전체 크기가 조절됩니다 -- */
+  --rep-book-width: 300px;
+  /* 책의 가로 너비 */
+  --rep-book-height: 450px;
+  /* 책의 세로 높이 */
+  --rep-book-depth: 50px;
+  /* 책의 두께 */
+}
+
+/* 3D 책 모델을 감싸는 전체 컨테이너 */
+.book-3d-wrapper {
+  width: var(--rep-book-width);
+  /* 변수에서 너비 값 가져오기 */
+  height: var(--rep-book-height);
+  /* 변수에서 높이 값 가져오기 */
+  transform-style: preserve-3d;
+  /* 자식 요소들의 3D 공간을 유지시킴 (필수) */
+  position: relative;
+  /* 자식 요소 위치 지정의 기준점 */
+}
+
+/* 3D 책 모델의 실제 뼈대 */
+.book-3d {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  /* 자식 요소(각 면)들의 3D 공간을 유지시킴 (필수) */
+  /* 책의 중심을 기준으로 회전하도록 Z축 위치 조정 */
+  transform: translateZ(calc(var(--rep-book-depth) / -2));
+}
+
+/* 책의 각 면(앞, 뒤, 옆 등)에 대한 공통 스타일 */
+.book-face {
+  position: absolute;
+  /* 모든 면을 같은 위치에 겹치게 배치 */
+  box-sizing: border-box;
+  /* 테두리를 크기에 포함 */
+  backface-visibility: hidden;
+  /* 요소의 뒷면이 보이지 않게 처리 */
+  width: 100%;
+  height: 100%;
+  border-radius: 2px 4px 4px 2px;
+  /* 모서리 둥글게 (왼쪽 위, 오른쪽 위, 오른쪽 아래, 왼쪽 아래 순) */
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  /* 얇은 테두리 */
+}
+
+/* 표지 왼쪽 가장자리에 밝은 빛 효과 */
+.book-face.front .bright-edge-effect {
+  position: absolute;
+  left: 8px;
+  /* 왼쪽 끝에 붙임 */
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  /* 효과 너비 */
+  /* 오른쪽으로 갈수록 투명해지는 흰색 그라데이션 */
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.441), transparent);
+  border-radius: 0 2px 2px 0;
+  /* 효과가 표지 모서리를 따라 둥글게 */
+  pointer-events: none;
+  /* 마우스 상호작용(회전)을 방해하지 않도록 설정 */
+}
+
+/* 책 앞면 (표지) */
+.book-face.front {
+  background-size: cover;
+  /* 이미지가 요소를 완전히 덮도록 설정 */
+  background-position: center;
+  /* 이미지를 중앙에 배치 */
+  /* Z축으로 책 두께의 절반만큼 앞으로 이동시켜 표지를 만듦 */
+  transform: translateZ(calc(var(--rep-book-depth)));
+  display: flex;
+  /* 내부 제목/저자 박스를 중앙에 배치하기 위함 */
+  align-items: center;
+  justify-content: center;
+  color: #333;
+}
+
+/* 표지 위에 올라가는 흰색 정보 박스 */
+.book-title-overlay {
+  width: 60%;
+  /* 표지 대비 가로 너비 */
+  height: 60%;
+  /* 표지 대비 세로 높이 */
+  background-color: rgba(255, 255, 255, 0.95);
+  /* 반투명한 흰색 배경 */
+  padding: 1rem;
+  box-sizing: border-box;
+  display: flex;
+  /* 제목과 저자를 위아래로 배치하기 위함 */
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+  /* 부드러운 그림자 효과 */
+}
+
+/* 정보 박스 안의 책 제목 */
+.book-title-overlay .book-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 25px;
+  /* 글자 크기 */
+  line-height: 1.4;
+  /* 줄 간격 */
+  font-weight: 700;
+  color: #000000;
+}
+
+/* 정보 박스 안의 저자 이름 */
+.book-title-overlay .book-author {
+  font-size: 12px;
+  /* 글자 크기 */
+  font-weight: 600;
+  color: #333;
+}
+
+/* 책 뒷면 */
+.book-face.back {
+  background-size: cover;
+  background-position: center;
+  /* Y축으로 180도 회전 후, Z축으로 책 두께의 절반만큼 이동 */
+  transform: rotateY(180deg) translateZ(calc(var(--rep-book-depth) / 2));
+  filter: brightness(0.7) blur(2px);
+  /* 뒷면은 어둡고 흐리게 처리 */
+}
+
+/* 책등 (왼쪽 면) */
+.book-face.left {
+  width: var(--rep-book-depth);
+  /* 너비를 책 두께와 동일하게 설정 */
+  background-color: #f3f1ed;
+  /* 기본 배경색 */
+  /* Y축으로 -90도 회전 후, 책등이 제자리에 오도록 위치 조정 */
+  transform: rotateY(-90deg) translateZ(-0.3px) scaleY(0.995);
+  transform-origin: left;
+  /* 왼쪽을 축으로 회전 */
+  filter: brightness(0.7) blur(0.5px);
+  /* 책등은 약간 어둡고 흐릿하게 처리 */
+
+}
+
+/* 책 펼치는 쪽 (오른쪽 면) */
+.book-face.right {
+  width: var(--rep-book-depth);
+  /* 너비를 책 두께와 동일하게 설정 */
+  /* 종이가 여러 장 겹쳐진 듯한 효과 */
+  background-color: #a6916f;
+  background-image: repeating-linear-gradient(to right,
+      #ffffff27,
+      #dfdedd 1px,
+      #bbb 1px,
+      #999590c8 3px);
+  /* Y축으로 90도 회전 후, 제자리에 오도록 위치 조정 */
+  transform: rotateY(90deg) translateZ(calc(var(--rep-book-width) - var(--rep-book-depth))) translateZ(-2px) scaleY(0.995);
+  transform-origin: right;
+  /* 오른쪽을 축으로 회전 */
+}
+
+/* 책 윗면 */
+.book-face.top {
+  height: var(--rep-book-depth);
+  /* 높이를 책 두께와 동일하게 설정 */
+  background-color: #e0dace;
+  /* X축으로 90도 회전 후, 제자리에 오도록 위치 조정 */
+  transform: rotateX(90deg) translateZ(0);
+  transform-origin: top;
+  /* 위쪽을 축으로 회전 */
+}
+
+/* 책 아랫면 */
+.book-face.bottom {
+  height: var(--rep-book-depth);
+  /* 높이를 책 두께와 동일하게 설정 */
+  background-color: #d3c8ba;
+  /* X축으로 -90도 회전 후, 제자리에 오도록 위치 조정 */
+  transform: rotateX(-90deg) translateZ(calc(var(--rep-book-height) - var(--rep-book-depth)));
+  transform-origin: bottom;
+  /* 아래쪽을 축으로 회전 */
+}
+</style>
+
 
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
@@ -292,20 +504,18 @@ function createGroupHandler() {
 /* --- Base Page Layout --- */
 .my-library-page {
   padding: 80px 2rem 2rem;
-  background-color: #F5F5F3;
+  background-color: #ffffff;
   color: #261E17;
   min-height: calc(100vh - 56px);
   font-family: 'Pretendard', sans-serif;
 }
+
 .content-section {
-  background: #FFFFFF;
-  border-radius: 16px;
   padding: 2.5rem;
   margin: 0 auto 3rem auto;
   max-width: 1200px;
-  box-shadow: 0 8px 25px rgba(38, 30, 23, 0.08);
-  border: 1px solid #E0E0E0;
 }
+
 .section-title {
   font-family: 'Noto Serif KR', serif;
   font-size: 2rem;
@@ -313,6 +523,7 @@ function createGroupHandler() {
   margin-bottom: 0.75rem;
   text-align: center;
 }
+
 .section-subtitle {
   font-size: 1.1rem;
   opacity: 0.8;
@@ -326,10 +537,11 @@ function createGroupHandler() {
 
 /* --- Section Title Colors --- */
 .representative-book-section .section-title {
-  color: #594C40;
+  color: #000000;
 }
+
 .book-shelves-section .section-title {
-  color: #F5F5F3;
+  color: #000000;
 }
 
 /* --- General Button Styles --- */
@@ -348,112 +560,135 @@ function createGroupHandler() {
   gap: 0.5rem;
   box-shadow: 0 2px 4px rgba(38, 30, 23, 0.08);
 }
+
 .btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 8px rgba(38, 30, 23, 0.08);
   border-color: #594C40;
 }
+
 .btn-primary {
   background-color: #D4A373;
   border-color: #D4A373;
   color: #FFFFFF;
 }
+
 .btn-primary:hover {
   background-color: #c79561;
   border-color: #c79561;
 }
 
 /* --- Representative Book Section --- */
-.representative-book-carousel {
+.rep-book-display-area {
   display: flex;
-  align-items: center;
   justify-content: center;
-  gap: 1.5rem;
+  align-items: center;
+  min-height: 500px;
+  /* 그림자 공간을 위해 높이 확보 */
   margin-bottom: 2rem;
 }
-.carousel-btn {
-  background-color: #FFFFFF;
-  border: 1px solid #E0E0E0;
-  color: #261E17;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  font-size: 1.5rem;
-}
-.carousel-btn:hover:not(:disabled) {
-  background-color: #D4A373;
-  color: #FFFFFF;
-}
-.carousel-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.representative-book-wrapper {
-  perspective: 1000px;
-}
-.representative-book {
-  width: 180px;
-  height: 250px;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-  background-color: #594C40;
-  color: #D4A373;
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.5rem;
-  font-weight: 700;
+
+.rep-book-container {
+  perspective: 1200px;
+  cursor: grab;
+  position: relative;
+  /* 그림자 위치의 기준점 */
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 1.5rem;
-  writing-mode: vertical-rl;
-  text-orientation: upright;
-  word-break: break-word;
-  transition: transform 0.4s ease;
-  border: 2px solid rgba(0, 0, 0, 0.2);
+  width: var(--rep-book-width);
+  height: var(--rep-book-height);
 }
-.representative-book-wrapper:hover .representative-book {
-  transform: rotateY(10deg);
+
+.rep-book-container:active {
+  cursor: grabbing;
 }
+
+/* [추가] 3D 책 모델 아래의 그림자 스타일 */
+.rep-book-shadow {
+  position: absolute;
+  bottom: -30px;
+  /* 그림자가 책 아래에 위치하도록 조정 */
+  left: 50%;
+  transform: translateX(-50%);
+  /* 가운데 정렬 */
+  width: 350px;
+  /* 그림자 너비 조절 */
+  height: 40px;
+  /* 그림자 높이 (흐릿한 정도) 조절 */
+  background-color: rgba(38, 30, 23, 0.6);
+  /* 그림자 색상 및 투명도 */
+  border-radius: 100%;
+  /* 둥근 그림자 형태 */
+  filter: blur(30px);
+  /* 흐릿한 효과 */
+  z-index: 0;
+  /* 책 모델(z-index:1 이상) 뒤에 위치 */
+  pointer-events: none;
+  /* 마우스 이벤트 방해 방지 */
+  transition: opacity 0.1s ease-out;
+}
+
+.book-3d-wrapper {
+  position: relative;
+  z-index: 1;
+  /* 그림자보다 위에 보이도록 설정 */
+}
+
+.no-rep-book {
+  width: var(--rep-book-width);
+  height: var(--rep-book-height);
+  border: 2px dashed #E0E0E0;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #BEB4A7;
+  font-weight: 500;
+}
+
 .select-rep-btn {
   display: block;
   margin: 0 auto;
 }
 
-/* --- Centered Bookshelves Section --- */
 .book-shelves-section {
-  background-color: #8C6A56;
-  border: 4px solid #594C40; /* 👈 양옆 테두리 추가 */
-  padding-bottom: 2.5rem; /* 아래쪽 패딩 추가 */
+  background-color: #ffffff;
+  border: 1px solid #ffffff;
 }
+
 .book-shelves-section .section-subtitle,
 .book-shelves-section .shelf-title,
 .book-shelves-section .shelf-title small {
-  color: #F5F5F3;
+  color: #000000;
 }
+
 .book-shelves-section .btn-primary {
   background-color: #D4A373;
   border-color: #D4A373;
   color: #261E17;
 }
 
-/* --- Sticky "My Books" Shelf --- */
 .my-books-shelf-wrapper {
   position: sticky;
   top: 56px;
   z-index: 100;
-  background-color: #8C6A56;
-  padding: 2.5rem 0 1.5rem 0;
+  background-color: #e6e6e6;
+  padding: 2.5rem 3rem 1rem 3rem;
   margin: 0;
+  border-radius: 10px 10px 0 0;
   border: none;
   box-shadow: none;
 }
+
 .shelf-title {
   font-family: 'Noto Serif KR', serif;
   font-size: 1.4rem;
   font-weight: 600;
   margin-bottom: 1rem;
+
 }
+
 .shelf-title small {
   font-family: 'Pretendard', sans-serif;
   font-size: 0.9rem;
@@ -462,38 +697,46 @@ function createGroupHandler() {
   margin-left: 0.75rem;
 }
 
-/* --- Book Shelves & Items --- */
 .book-shelf-container {
   padding: 1rem;
 }
+
 .my-books-container {
-  background-color: #594C40;
-  border-radius: 8px;
+  background-color: #ffffff;
   box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
-  border: 2px solid #4a3f35;
+  /* border: 1px solid #000000; */
 }
+
 .book-shelf {
   display: flex;
-  gap: 1.25rem;
+  gap: 0.75rem; /* 책 사이 간격 줄임 */
   overflow-x: auto;
-  min-height: 180px;
+  min-height: 240px;
   align-items: flex-end;
-  padding-bottom: 10px;
+  padding-bottom: 0; /* 책과 책꽂이 바닥 사이 여백 제거 */
 }
-.book-shelf::-webkit-scrollbar { height: 10px; }
-.book-shelf::-webkit-scrollbar-track { background: transparent; }
+
+.book-shelf::-webkit-scrollbar {
+  height: 10px;
+}
+
+.book-shelf::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .book-shelf::-webkit-scrollbar-thumb {
   background: #D4A373;
   border-radius: 5px;
-  border: 2px solid #594C40;
+  border: 1px solid #594C40;
 }
+
 .book-item {
   flex-shrink: 0;
   width: 45px;
-  height: 160px;
+  height: 220px;
   padding-top: 15px;
-  border-radius: 4px 4px 2px 2px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  border-radius: 4px 2px 2px 4px; /* 모서리 둥글게 조정 */
+  box-shadow: inset 2px 0 5px rgba(0,0,0,0.1), 0 4px 8px rgba(0, 0, 0, 0.2); /* 안쪽 그림자로 입체감 */
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -508,22 +751,55 @@ function createGroupHandler() {
   position: relative;
   overflow: hidden;
   white-space: nowrap;
-  border: 1px solid rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.2); /* 테두리 색상 연하게 */
+  border-left: 3px solid rgba(0, 0, 0, 0.3); /* 책등 효과 */
 }
+
 .book-item:hover {
   transform: translateY(-8px) scale(1.05);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
 }
-.sortable-ghost { opacity: 0.4; }
 
-.book-color-1 { background-color: #8E6E53; color: #fff; }
-.book-color-2 { background-color: #E4C5AF; color: #261E17; }
-.book-color-3 { background-color: #6D7275; color: #fff; }
-.book-color-4 { background-color: #B0A295; color: #261E17; }
+.sortable-ghost {
+  opacity: 0.4;
+}
 
-.member-book { cursor: default; height: 150px; }
-.member-book-registered { background-color: #D4A373; color: #FFFFFF; }
-.member-book-unregistered { background-color: #ccc; color: #555; opacity: 0.8; }
+.book-color-1 {
+  background: linear-gradient(to right, #7c5f48, #8E6E53 15%);
+  color: #fff;
+}
+
+.book-color-2 {
+  background: linear-gradient(to right, #d1b29a, #E4C5AF 15%);
+  color: #261E17;
+}
+
+.book-color-3 {
+  background: linear-gradient(to right, #5a5f61, #6D7275 15%);
+  color: #fff;
+}
+
+.book-color-4 {
+  background: linear-gradient(to right, #9d8f82, #B0A295 15%);
+  color: #261E17;
+}
+
+.member-book {
+  cursor: default;
+  height: 210px;
+}
+
+.member-book-registered {
+  background-color: #D4A373;
+  color: #FFFFFF;
+}
+
+.member-book-unregistered {
+  background-color: #ccc;
+  color: #555;
+  opacity: 0.8;
+}
+
 .group-link-icon {
   position: absolute;
   bottom: 5px;
@@ -532,6 +808,7 @@ function createGroupHandler() {
   writing-mode: horizontal-tb;
   transform: rotate(45deg);
 }
+
 .remove-book-btn {
   position: absolute;
   top: 2px;
@@ -551,10 +828,16 @@ function createGroupHandler() {
   transition: all 0.2s;
   writing-mode: horizontal-tb;
 }
-.book-item:hover .remove-book-btn { opacity: 1; }
-.remove-book-btn:hover { background-color: rgba(239, 68, 68, 1); transform: scale(1.1); }
 
-/* --- Group Shelves Section --- */
+.book-item:hover .remove-book-btn {
+  opacity: 1;
+}
+
+.remove-book-btn:hover {
+  background-color: rgba(239, 68, 68, 1);
+  transform: scale(1.1);
+}
+
 .group-shelf-header {
   display: flex;
   justify-content: center;
@@ -562,73 +845,96 @@ function createGroupHandler() {
   gap: 1rem;
   margin-bottom: 0.5rem;
 }
+
 .group-shelves-container {
-  margin-top: 2.5rem;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 0rem;
 }
+
 .group-shelf-wrapper {
-  background: none;
-  border: none;
+  background-color: #e6e6e6;
+  /* border: 1px solid #000000; */
   position: relative;
-  padding: 0;
+  padding: 1rem 3rem 0.5rem 3rem;
+  margin: 0;
+  box-shadow: none;
 }
+
+.group-shelf-wrapper:last-child {
+  padding-bottom: 3rem;
+  border-radius: 0 0 10px 10px;
+}
+
 .group-shelf-title-bar {
   display: flex;
   align-items: center;
   margin-bottom: 0.7rem;
   gap: 1rem;
 }
+
 .group-shelf-title {
   font-family: 'Noto Serif KR', serif;
   font-size: 1.4rem;
   font-weight: 700;
-  color: #F5F5F3;
+  color: #000000;
   text-decoration: none;
   transition: color 0.2s;
 }
+
 .group-shelf-title:hover {
   color: #D4A373;
   text-decoration: underline;
 }
+
 .group-bookshelf-inner {
-  background-color: #594C40;
-  border-radius: 8px;
-  box-shadow: inset 0 4px 12px rgba(0, 0, 0, 0.18);
+  background-color: #ffffff;
+  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
   padding: 1rem 0.5rem;
-  border: 2px solid #4a3f35;
+  /* border: 1px solid #000000; */
 }
+
 .group-shelf-wrapper .book-shelf-container {
   background-color: transparent;
   border: none;
   box-shadow: none;
   padding: 0;
 }
+
 .group-shelf-horizontal {
   display: flex;
   align-items: flex-end;
-  gap: 1.25rem;
+  gap: 0.75rem; /* 책 사이 간격 줄임 */
   overflow-x: auto;
-  min-height: 180px;
-  padding-bottom: 1px;
+  min-height: 240px;
+  padding-bottom: 0; /* 책과 책꽂이 바닥 사이 여백 제거 */
 }
-.group-shelf-horizontal::-webkit-scrollbar { height: 10px; }
-.group-shelf-horizontal::-webkit-scrollbar-track { background: transparent; }
+
+.group-shelf-horizontal::-webkit-scrollbar {
+  height: 10px;
+}
+
+.group-shelf-horizontal::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .group-shelf-horizontal::-webkit-scrollbar-thumb {
   background: #D4A373;
   border-radius: 5px;
   border: 2px solid #594C40;
 }
+
 .group-books-draggable-area {
   display: flex;
-  gap: 1.25rem;
+  gap: 0.75rem; /* 책 사이 간격 줄임 */
   flex-grow: 1;
   min-width: 120px;
-  min-height: 170px;
+  min-height: 230px;
   border-radius: 6px;
   align-items: flex-end;
 }
+
 .no-groups-message {
   text-align: center;
   color: #F5F5F3;
@@ -638,8 +944,6 @@ function createGroupHandler() {
   margin-top: 2rem;
 }
 
-
-/* --- Modal Styles --- */
 .modal-backdrop {
   position: fixed;
   z-index: 1000;
@@ -650,6 +954,7 @@ function createGroupHandler() {
   justify-content: center;
   align-items: center;
 }
+
 .modal-content {
   background-color: #FFFFFF;
   margin: 1rem;
@@ -661,7 +966,11 @@ function createGroupHandler() {
   position: relative;
   border: 1px solid #E0E0E0;
 }
-.modal-content.modal-sm { max-width: 400px; }
+
+.modal-content.modal-sm {
+  max-width: 400px;
+}
+
 .close-button {
   color: #594C40;
   position: absolute;
@@ -674,7 +983,11 @@ function createGroupHandler() {
   line-height: 1;
   padding: 0.5rem;
 }
-.close-button:hover { color: #261E17; }
+
+.close-button:hover {
+  color: #261E17;
+}
+
 .modal-title {
   font-family: 'Noto Serif KR', serif;
   font-size: 1.8rem;
@@ -682,6 +995,7 @@ function createGroupHandler() {
   margin-bottom: 0.75rem;
   text-align: center;
 }
+
 .modal-description,
 .modal-body {
   margin-bottom: 1.5rem;
@@ -689,6 +1003,7 @@ function createGroupHandler() {
   text-align: center;
   line-height: 1.6;
 }
+
 .modal-select {
   background-color: #F5F5F3;
   border: 1px solid #E0E0E0;
@@ -698,22 +1013,26 @@ function createGroupHandler() {
   height: 180px;
   margin-bottom: 1.5rem;
 }
+
 .modal-select:focus,
 .form-control:focus {
   outline: none;
   border-color: #D4A373;
   box-shadow: 0 0 0 3px rgba(212, 163, 115, 0.4);
 }
+
 .form-group {
   margin-bottom: 1.25rem;
   text-align: left;
 }
+
 .form-label {
   display: block;
   font-weight: 600;
   margin-bottom: 0.5rem;
   font-size: 1rem;
 }
+
 .form-control {
   background-color: #F5F5F3;
   border: 1px solid #E0E0E0;
@@ -723,6 +1042,7 @@ function createGroupHandler() {
   box-sizing: border-box;
   font-size: 1rem;
 }
+
 .modal-action-btn {
   width: 100%;
   padding: 0.8rem;
