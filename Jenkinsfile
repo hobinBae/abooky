@@ -144,7 +144,7 @@ pipeline {
             steps {
                 sh '''
                     sleep 20
-                    curl -f http://i13c203.p.ssafy.io:8081/cicd/health
+                    curl -f http://i13c203.p.ssafy.io:8081/actuator/health
                     curl -f http://i13c203.p.ssafy.io:3000/health
                 '''
             }
