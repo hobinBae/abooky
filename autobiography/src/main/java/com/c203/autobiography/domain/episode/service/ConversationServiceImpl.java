@@ -17,12 +17,14 @@ import com.c203.autobiography.domain.episode.repository.ConversationMessageRepos
 import com.c203.autobiography.domain.episode.repository.ConversationSessionRepository;
 import com.c203.autobiography.domain.episode.template.service.QuestionTemplateService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
 
 /**
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ConversationServiceImpl implements ConversationService {
     private final ConversationSessionRepository sessionRepo;
     private final ConversationMessageRepository messageRepo;
@@ -43,6 +46,11 @@ public class ConversationServiceImpl implements ConversationService {
 
     @Override
     public ConversationSessionResponse createSession(ConversationSessionRequest request) {
+        // 여기 에러 코드 추가
+        ConversationSession existing = sessionRepo.findById(request.getSessionId()).orElse(null);
+        if(existing != null){
+            return ConversationSessionResponse.from(existing);
+        }
         ConversationSession session = ConversationSession.builder()
                 .sessionId(request.getSessionId())
                 .bookId(null)
@@ -53,10 +61,17 @@ public class ConversationServiceImpl implements ConversationService {
                 .build();
         sessionRepo.save(session);
         // 템플릿 전체를 순서대로 큐에 담기
-        List<String> allTemplates = templateService.getAllInorder();
-        Deque<String> queue = new ArrayDeque<>(allTemplates);
-        questionQueueMap.put(request.getSessionId(), queue);
         return ConversationSessionResponse.from(session);
+    }
+
+    private Deque<String> getOrInitLegacyQueue(String sessionId) {
+        Deque<String> q = questionQueueMap.get(sessionId);
+        if (q == null) {
+            List<String> allTemplates = templateService.getAllInorder();
+            q = new ConcurrentLinkedDeque<>(allTemplates);
+            questionQueueMap.put(sessionId, q);
+        }
+        return q;
     }
 
     @Override
@@ -74,7 +89,7 @@ public class ConversationServiceImpl implements ConversationService {
         sessionRepo.save(session);
         // 큐 재초기화
         List<String> allTemplates = templateService.getAllInorder();
-        questionQueueMap.put(request.getSessionId(), new ArrayDeque<>(allTemplates));
+        questionQueueMap.put(request.getSessionId(), new ConcurrentLinkedDeque<>(allTemplates));
         return ConversationSessionResponse.from(session);
     }
 
@@ -108,8 +123,25 @@ public class ConversationServiceImpl implements ConversationService {
                 return next;
             } catch (Exception e) {
                 // 챕터 기반 서비스에서 오류 발생시 레거시 모드로 fallback
-                // log.warn("챕터 기반 서비스 오류, 레거시 모드로 전환: {}", e.getMessage());
+                 log.warn("챕터 기반 서비스 오류, 레거시 모드로 전환: {}", e.getMessage());
             }
+            Deque<String> queue = getOrInitLegacyQueue(sessionId);
+            if (queue == null || queue.isEmpty()) return null;
+            String lastAnswer = getLastAnswer(sessionId);
+            String next;
+            if (lastAnswer.isBlank()) {
+                next = queue.poll();
+            } else {
+                String followUp = aiClient.generateFollowUp(lastAnswer);
+                if (shouldInjectFollowUp(lastAnswer, followUp)) {
+                    queue.addFirst(followUp);
+                }
+                next = queue.poll();
+            }
+            if (next != null) {
+                lastQuestionMap.put(sessionId, next);
+            }
+            return next;
         }
         
         // 레거시 모드 (기존 로직)
@@ -136,18 +168,47 @@ public class ConversationServiceImpl implements ConversationService {
         }
         return next;
     }
+    private long estimateTokens(String text) {
+        if (text == null) return 0;
+// 한글 기준 대략 2~3자당 1토큰으로 가정
+        return Math.max(1, text.length() / 3);
+    }
 
     @Override
     public ConversationMessageResponse createMessage(ConversationMessageRequest request) {
-        int no = messageRepo.findBySessionIdOrderByMessageNo(request.getSessionId()).size();
+        int lastNo = messageRepo.findTopBySessionIdOrderByMessageNoDesc(request.getSessionId())
+                .map(ConversationMessage::getMessageNo)
+                .orElse(0);
         ConversationMessage msg = ConversationMessage.builder()
                 .sessionId(request.getSessionId())
                 .messageType(request.getMessageType())
                 .chunkIndex(request.getChunkIndex())
                 .content(request.getContent())
-                .messageNo(no + 1)
+                .messageNo(lastNo + 1)
                 .build();
         messageRepo.save(msg);
+        if (request.getMessageType() == MessageType.ANSWER) {
+            long add = estimateTokens(request.getContent());
+            sessionRepo.findById(request.getSessionId()).ifPresent(s -> {
+                ConversationSession updated = ConversationSession.builder()
+                        .sessionId(s.getSessionId())
+                        .bookId(s.getBookId())
+                        .episodeId(s.getEpisodeId())
+                        .status(s.getStatus())
+                        .tokenCount((s.getTokenCount() == null ? 0L : s.getTokenCount()) + add)
+                        .templateIndex(s.getTemplateIndex())
+                        .lastMessageAt(s.getLastMessageAt())
+                        .createdAt(s.getCreatedAt())
+                        .updatedAt(s.getUpdatedAt())
+                        .currentChapterId(s.getCurrentChapterId())
+                        .currentTemplateId(s.getCurrentTemplateId())
+                        .followUpQuestionIndex(s.getFollowUpQuestionIndex())
+                        .currentChapterOrder(s.getCurrentChapterOrder())
+                        .currentTemplateOrder(s.getCurrentTemplateOrder())
+                        .build();
+                sessionRepo.save(updated);
+            });
+        }
         return ConversationMessageResponse.from(msg);
     }
 
@@ -177,7 +238,7 @@ public class ConversationServiceImpl implements ConversationService {
     @Override
     public String getLastAnswer(String sessionId) {
         return messageRepo
-                .findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.FINAL)
+                .findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.ANSWER)
                 .map(ConversationMessage::getContent)
                 .orElse("");
     }

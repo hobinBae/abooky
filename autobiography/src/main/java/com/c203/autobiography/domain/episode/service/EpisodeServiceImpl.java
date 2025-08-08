@@ -8,6 +8,7 @@ import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
 import com.c203.autobiography.domain.episode.entity.ConversationMessage;
 import com.c203.autobiography.domain.episode.entity.Episode;
 import com.c203.autobiography.domain.episode.repository.ConversationMessageRepository;
+import com.c203.autobiography.domain.episode.repository.ConversationSessionRepository;
 import com.c203.autobiography.domain.episode.repository.EpisodeRepository;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
@@ -35,6 +36,7 @@ public class EpisodeServiceImpl implements EpisodeService{
     private final AiClient aiClient;
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
+    private final ConversationSessionRepository conversationSessionRepository;
 
     /**
      * 에피소드 생성
@@ -45,9 +47,9 @@ public class EpisodeServiceImpl implements EpisodeService{
      */
     @Override
     @Transactional
-    public EpisodeResponse createEpisode(Long memberId, Long bookId, String sessionId) throws JsonProcessingException {
-        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+    public EpisodeResponse createEpisode( Long bookId, String sessionId) throws JsonProcessingException {
+//        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+//                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
         Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
@@ -90,6 +92,7 @@ public class EpisodeServiceImpl implements EpisodeService{
                 .createdAt(LocalDateTime.now())
                 .build();
         episodeRepository.save(episode);
+        conversationSessionRepository.updateEpisodeId(sessionId, episode.getEpisodeId());
 
         return EpisodeResponse.of(episode);
     }

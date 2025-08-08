@@ -27,6 +27,10 @@ public class ChapterTemplate {
     
     @Column(name = "template_order", nullable = false)
     private Integer templateOrder;
+
+    /** 연대기 흐름을 위한 절대 단계 값 (1,2,3…) */
+    @Column(name = "stage_level", nullable = false)
+    private Integer stageLevel;
     
     @Enumerated(EnumType.STRING)
     @Column(name = "followup_type", nullable = false)
