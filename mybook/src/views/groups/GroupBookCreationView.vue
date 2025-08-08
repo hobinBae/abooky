@@ -169,7 +169,7 @@ const participantVideoRefs = ref<Map<string, HTMLVideoElement>>(new Map());
 
 // --- LiveKit Configuration ---
 const LIVEKIT_URL = 'ws://localhost:7880'; // 백엔드 LiveKit 서버 URL (application.properties에서 관리)
-const API_URL = `/api/groups/${groupId}/rtc/token`; // 토큰 발급 API 엔드포인트
+const API_URL = `http://localhost:8080/api/v1/groups/${groupId}/rtc/token`; // 토큰 발급 API 엔드포인트
 
 // --- Computed Properties ---
 const totalParticipants = computed(() => {
@@ -205,9 +205,9 @@ function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
 }
 
 // --- LiveKit Functions ---
-async function getAccessToken(): Promise<string> {
+async function getAccessToken(): Promise<{ url: string, token: string}> {
   try {
-    const participantName = `User_${Date.now()}`;
+    const userName = `User_${Date.now()}`;
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
@@ -216,8 +216,7 @@ async function getAccessToken(): Promise<string> {
         // 'Authorization': `Bearer ${userToken}`
       },
       body: JSON.stringify({
-        roomName: groupId,
-        participantName: participantName
+        userName
       })
     });
     
@@ -225,15 +224,10 @@ async function getAccessToken(): Promise<string> {
       const errorText = await response.text();
       throw new Error(`토큰 발급 실패: ${response.status} - ${errorText}`);
     }
-    
-    const data = await response.json();
-    
-    if (!data.token) {
-      throw new Error('서버에서 토큰을 반환하지 않았습니다');
-    }
-    
-    console.log('토큰 발급 성공:', participantName);
-    return data.token;
+    const json = await response.json();
+    const data = json?.data ?? json;
+    if(!data?.token || !data?.url) throw new Error('응답에 url/token 없음');
+    return { url: data.url, token: data.token };
   } catch (error) {
     console.error('토큰 발급 오류:', error);
     throw error; // 더미 토큰 제거, 실제 오류를 전파
@@ -287,8 +281,8 @@ async function joinRoom() {
     setupRoomEventListeners();
 
     // 토큰 발급 및 연결
-    const token = await getAccessToken();
-    await room.value.connect(LIVEKIT_URL, token);
+    const { url, token } = await getAccessToken();
+    await room.value.connect(url, token);
 
     // 로컬 미디어 퍼블리시
     await publishLocalMedia();

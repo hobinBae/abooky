@@ -81,7 +81,7 @@
           </article>
 
           <section v-else class="other-episodes-section">
-            <h3>전체 에피소드</h3>
+            <h3>목차</h3>
             <ul class="other-episodes-list">
               <li v-for="(episode, index) in book.episodes" :key="index" @click="selectEpisode(index)"
                 :class="{ active: index === currentEpisodeIndex }">
@@ -212,7 +212,7 @@ function goBackToList() { currentEpisodeIndex.value = null; }
 function fetchBookData() { const foundBook = DUMMY_BOOKS.find(b => b.id === bookId.value); if (foundBook) { book.value = { ...foundBook }; likeCount.value = book.value.likes || 0; } else { book.value = null; } }
 function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); }
 function toggleLike() { isLiked.value = !isLiked.value; likeCount.value += isLiked.value ? 1 : -1; }
-function editBook() { if (book.value) { router.push({ name: 'CreateBookView', params: { bookId: book.value.id } }); } }
+function editBook() { if (book.value) { router.push({ name: 'BookEditor', params: { bookId: book.value.id } }); } }
 function selectEpisode(index: number) { if (book.value && index >= 0 && index < book.value.episodes.length) { currentEpisodeIndex.value = index; document.querySelector('.right-panel-scroller')?.scrollTo(0, 0); } }
 function toggleCommentsVisibility() { areCommentsVisible.value = !areCommentsVisible.value; }
 function addComment() { if (!newComment.value.trim() || !book.value) return; const comment: Comment = { id: `c${Date.now()}`, bookId: book.value.id, authorId: currentUserId.value, authorName: '현재 사용자', text: newComment.value, createdAt: new Date() }; comments.value.unshift(comment); newComment.value = ''; areCommentsVisible.value = true; }

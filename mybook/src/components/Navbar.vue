@@ -70,10 +70,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { isLoggedIn, setLoggedIn } from '@/stores/auth';
+import { useAuthStore } from '@/stores/auth';
+import { storeToRefs } from 'pinia';
 
-const router = useRouter();
+const authStore = useAuthStore();
+const { isLoggedIn } = storeToRefs(authStore);
+const { logout } = authStore;
 
 defineProps({
   isIntroActive: Boolean,
@@ -95,16 +97,14 @@ const toggleNotificationModal = () => {
   showNotificationModal.value = !showNotificationModal.value;
 };
 
-const markAsRead = (notification: any) => {
-  notification.read = true;
-};
+interface Notification {
+  id: number;
+  message: string;
+  read: boolean;
+}
 
-const logout = () => {
-  localStorage.removeItem('accessToken');
-  // localStorage.removeItem('refreshToken');
-  setLoggedIn(false);
-  alert('로그아웃 되었습니다.');
-  router.push('/login');
+const markAsRead = (notification: Notification) => {
+  notification.read = true;
 };
 </script>
 
