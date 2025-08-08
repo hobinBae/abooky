@@ -80,7 +80,7 @@ services:
     networks:
       - app-network  # ← 🔄 네트워크명 변경
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 5s
       retries: 3
