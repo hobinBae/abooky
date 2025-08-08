@@ -9,6 +9,7 @@ import com.c203.autobiography.domain.group.service.GroupService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+
+@Tag(name = "그룹 API", description = "그룹 CRUD 관련 API")
 @RestController
 @RequestMapping("/api/v1/groups")
 @RequiredArgsConstructor

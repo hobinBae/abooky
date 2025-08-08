@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.security.SecurityRequirement;
 import io.swagger.v3.oas.models.security.SecurityScheme;
+import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -15,8 +16,8 @@ public class SwaggerConfig {
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("API 문서")
-                        .description("API 명세서입니다.")
+                        .title("아북이 API 문서")
+                        .description("AI와 대화를 통해 자서전을 만드는 웹사이트 아북이의 API 사용 방법을 설명합니다.")
                         .version("v1"))
                 .addSecurityItem(new SecurityRequirement().addList("bearerAuth"))
                 .components(new Components()
@@ -25,6 +26,45 @@ public class SwaggerConfig {
                                         .type(SecurityScheme.Type.HTTP)
                                         .scheme("bearer")
                                         .bearerFormat("JWT")));
+    }
+
+    @Bean
+    public GroupedOpenApi authApi() {
+        return GroupedOpenApi.builder()
+                .group("01-Auth")
+                .pathsToMatch("/api/v1/auth/**")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi memberApi() {
+        return GroupedOpenApi.builder()
+                .group("02-Member")
+                .pathsToMatch("/api/v1/members/**")
+                .build();
+    }
+    @Bean
+    public GroupedOpenApi bookApi() {
+        return GroupedOpenApi.builder()
+                .group("03-Book")
+                .pathsToMatch("/api/v1/books/**")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi groupApi() {
+        return GroupedOpenApi.builder()
+                .group("04-Group")
+                .pathsToMatch("/api/v1/groups/**")
+                .build();
+    }
+
+    @Bean
+    public GroupedOpenApi rtcApi() {
+        return GroupedOpenApi.builder()
+                .group("05-RTC")
+                .pathsToMatch("/api/v1/groups/*/rtc/**")
+                .build();
     }
 
 }

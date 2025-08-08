@@ -10,6 +10,7 @@ import com.c203.autobiography.domain.stt.dto.TranscriptResponse;
 import com.c203.autobiography.domain.stt.service.SttService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import com.c203.autobiography.global.dto.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Min;
 import java.util.List;
@@ -21,6 +22,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+
+@Tag(name = "STT API", description = "STT 관련 API")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/stt")
