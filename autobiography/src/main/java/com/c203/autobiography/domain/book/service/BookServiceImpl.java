@@ -1,14 +1,8 @@
 package com.c203.autobiography.domain.book.service;
 
 import com.c203.autobiography.domain.book.dto.*;
-import com.c203.autobiography.domain.book.entity.Book;
-import com.c203.autobiography.domain.book.entity.BookCategory;
-import com.c203.autobiography.domain.book.entity.BookLike;
-import com.c203.autobiography.domain.book.entity.Tag;
-import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
-import com.c203.autobiography.domain.book.repository.BookLikeRepository;
-import com.c203.autobiography.domain.book.repository.BookRepository;
-import com.c203.autobiography.domain.book.repository.TagRepository;
+import com.c203.autobiography.domain.book.entity.*;
+import com.c203.autobiography.domain.book.repository.*;
 import com.c203.autobiography.domain.book.util.BookSpecifications;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
@@ -20,6 +14,8 @@ import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.s3.FileStorageService;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
@@ -48,6 +44,8 @@ public class BookServiceImpl implements BookService {
     private final EpisodeRepository episodeRepository;
     private final TagRepository tagRepository;
     private final BookLikeRepository bookLikeRepository;
+    private final RatingRepository ratingRepository;
+    private final MemberRatingSummaryRespository memberRatingSummaryRespository;
 
     @Override
     @Transactional
@@ -331,6 +329,75 @@ public class BookServiceImpl implements BookService {
             return new LikeResponse(false, bookLikeRepository.countByBook(book));
 
         }
+    }
+
+    @Override
+    @Transactional
+    public BookRatingResponse rateBook(Long memberId, Long bookId, BookRatingRequest request) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // upsert
+        RatingId ratingId = new RatingId(bookId, memberId);
+        Rating rating = ratingRepository.findById(ratingId)
+                .map(r -> { r.updateScore(request.getScore()); return r; })
+                .orElseGet(() -> Rating.create(book, member, request.getScore()));
+        ratingRepository.save(rating);
+
+        // 책 평균/카운트 계산
+        Double avg = ratingRepository.findAverageScoreByBookId(bookId);
+        long count = ratingRepository.countByBook_BookId(bookId);
+        BigDecimal avgOneDecimal = BigDecimal.valueOf(avg == null ? 0.0 : avg)
+                .setScale(1, RoundingMode.HALF_UP);
+
+        // Book Entity 평균 갱신
+        book.updateAverageRating(avgOneDecimal);
+
+        // 멤버 요약 테이블 갱신
+        Double mAvg = ratingRepository.findAverageScoreByBookId(bookId);
+        long mCount = ratingRepository.countByBook_BookId(bookId);
+        BigDecimal mAvgOneDecimal = BigDecimal.valueOf(avg == null ? 0.0 : avg)
+                .setScale(1, RoundingMode.HALF_UP);
+        MemberRatingSummary summary = memberRatingSummaryRespository.findById(memberId)
+                .orElseGet(() -> MemberRatingSummary.init(memberId));
+        summary.update(mAvgOneDecimal, (int) mCount);
+        memberRatingSummaryRespository.save(summary);
+
+        return BookRatingResponse.builder()
+                .bookId(bookId)
+                .myScore(rating.getScore())
+                .averageRating(avgOneDecimal)
+                .ratingCount(count)
+                .build();
+    }
+
+    @Override
+    public BookRatingResponse getBookRating(Long memberId, Long bookId) {
+        memberRepository.findById(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 내 평점
+        Integer myScore = ratingRepository.findById(new RatingId(bookId, memberId))
+                .map(Rating::getScore)
+                .orElse(null);
+
+        // 책 평균/카운트
+        Double avg = ratingRepository.findAverageScoreByBookId(bookId);
+        long count = ratingRepository.countByBook_BookId(bookId);
+        BigDecimal avgOneDecimal = BigDecimal.valueOf(avg == null ? 0.0 : avg)
+                .setScale(1, RoundingMode.HALF_UP);
+
+        return BookRatingResponse.builder()
+                .bookId(bookId)
+                .myScore(myScore)
+                .averageRating(avgOneDecimal)
+                .ratingCount(count)
+                .build();
     }
 
 }

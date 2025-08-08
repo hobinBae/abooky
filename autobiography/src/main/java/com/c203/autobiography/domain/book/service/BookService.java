@@ -26,5 +26,7 @@ public interface BookService {
 
     LikeResponse toggleLike(Long bookId, Long memberId);
 
+    BookRatingResponse rateBook(Long memberId, Long bookId, BookRatingRequest request);
 
+    BookRatingResponse getBookRating(Long memberId, Long bookId);
 }
