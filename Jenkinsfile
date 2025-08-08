@@ -44,7 +44,7 @@ pipeline {
         LIVEKIT_API_SECRET = credentials('LIVEKIT_API_SECRET')
 
         // 캐시 경로
-        NPM_CACHE_DIR = "${WORKSPACE}/.npm-cache"
+        NPM_CACHE_DIR = "/var/jenkins_home/.npm-cache"
         GRADLE_CACHE_DIR = "/var/jenkins_home/.gradle-cache"
     }
 
@@ -115,7 +115,21 @@ pipeline {
                         dir("${FRONTEND_PATH}") {
                             sh '''
                                 npm config set cache ${NPM_CACHE_DIR} --global
-                                npm ci || npm install
+                                npm config set prefer-offline true --global
+                                npm config set audit false --global
+                                npm config set fund false --global
+                                npm config set update-notifier false --global
+
+                                echo "=== 의존성 설치 시작 ==="
+                                if [ -f "package-lock.json" ]; then
+                                    echo "npm ci 사용 (package-lock.json 발견)"
+                                    npm ci --cache ${NPM_CACHE_DIR} --prefer-offline --no-audit --no-fund
+                                else
+                                    echo "npm install 사용 (package-lock.json 없음)"
+                                    npm install --cache ${NPM_CACHE_DIR} --prefer-offline --no-audit --no-fund
+                                fi
+
+                                echo "=== 프론트엔드 빌드 시작 ==="
                                 npm run build
                             '''
                         }
