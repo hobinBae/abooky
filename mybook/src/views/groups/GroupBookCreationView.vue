@@ -117,6 +117,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import apiClient from '@/api';
 
 // LiveKit 타입 정의 (실제 환경에서는 npm install livekit-client 후 import 사용)
 declare global {
@@ -208,29 +209,16 @@ function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
 async function getAccessToken(): Promise<{ url: string, token: string}> {
   try {
     const userName = `User_${Date.now()}`;
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        // 인증 헤더가 필요한 경우 추가
-        // 'Authorization': `Bearer ${userToken}`
-      },
-      body: JSON.stringify({
-        userName
-      })
+    const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
+      userName
     });
     
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`토큰 발급 실패: ${response.status} - ${errorText}`);
-    }
-    const json = await response.json();
-    const data = json?.data ?? json;
+    const data = response.data.data ?? response.data;
     if(!data?.token || !data?.url) throw new Error('응답에 url/token 없음');
     return { url: data.url, token: data.token };
   } catch (error) {
     console.error('토큰 발급 오류:', error);
-    throw error; // 더미 토큰 제거, 실제 오류를 전파
+    throw error;
   }
 }
 
