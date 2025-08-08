@@ -38,6 +38,11 @@ public class BookController {
     private final BookService bookService;
     private final EpisodeService episodeService;
 
+    public void test(){
+        System.out.println("merge test");
+        return;
+    }
+
     @Operation(summary = "책 생성", description = "책 정보 등록")
     @PostMapping
     public ResponseEntity<ApiResponse<BookResponse>> createBook(
@@ -152,6 +157,24 @@ public class BookController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "다른 이름으로 저장 성공", response, httpRequest.getRequestURI()));
     }
+
+    @Operation(summary = "책 좋아요/좋아요 취소", description = "다른 책에 좋아요를 누릅니다.")
+    @PostMapping("/{bookId}/likes")
+    public ResponseEntity<ApiResponse<LikeResponse>> likeBook(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            HttpServletRequest httpRequest
+
+    ) {
+        Long memberId = userDetails.getMemberId();
+
+        LikeResponse response = bookService.toggleLike(bookId, memberId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.CREATED, "좋아요/취소 성공", response, httpRequest.getRequestURI()));
+
+
+    }
+
     //여기부터 에피소드 관련 api
     @Operation(summary = "에피소드 생성", description = "대화 세션을 마무리하고 에피소드를 생성합니다.")
     @PostMapping("/{bookId}/episodes")

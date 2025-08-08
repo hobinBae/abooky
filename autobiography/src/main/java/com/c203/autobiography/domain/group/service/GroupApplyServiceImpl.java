@@ -2,12 +2,10 @@ package com.c203.autobiography.domain.group.service;
 
 import com.c203.autobiography.domain.group.dto.GroupApplyRequest;
 import com.c203.autobiography.domain.group.dto.GroupApplyResponse;
-import com.c203.autobiography.domain.group.entity.ApplyStatus;
-import com.c203.autobiography.domain.group.entity.GroupApply;
-import com.c203.autobiography.domain.group.entity.GroupMember;
-import com.c203.autobiography.domain.group.entity.GroupRole;
+import com.c203.autobiography.domain.group.entity.*;
 import com.c203.autobiography.domain.group.repository.GroupApplyRepository;
 import com.c203.autobiography.domain.group.repository.GroupMemberRepository;
+import com.c203.autobiography.domain.group.repository.GroupRepository;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
@@ -25,6 +23,7 @@ public class GroupApplyServiceImpl implements GroupApplyService {
 
     private final GroupApplyRepository groupApplyRepository;
     private final MemberRepository memberRepository;
+    private final GroupRepository groupRepository;
     private final GroupMemberRepository groupMemberRepository;
 
     @Transactional
@@ -39,23 +38,36 @@ public class GroupApplyServiceImpl implements GroupApplyService {
         if (isMember) {
             throw new ApiException(ErrorCode.GROUP_MEMBER_ALREADY_EXISTS);
         }
-        boolean exists = groupApplyRepository.existsByGroupIdAndReceiverIdAndStatus(
+        boolean exists = groupApplyRepository.existsByGroup_GroupIdAndReceiverIdAndStatus(
                 groupId, receiver.getMemberId(), ApplyStatus.PENDING
         );
         if(exists) {
             throw new ApiException(ErrorCode.INVITE_ALREADY_EXISTS);
         }
-        GroupApply entity = groupApplyRequest.toEntity(groupId, receiver.getMemberId());
+        Group gg = groupRepository.getById(groupId);
+        GroupApply entity = groupApplyRequest.toEntity(gg, receiver.getMemberId());
         GroupApply saved = groupApplyRepository.save(entity);
-        return GroupApplyResponse.from(saved);
+
+        Group g = groupRepository.findByGroupIdAndDeletedAtIsNull(saved.getGroupId())
+                .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
+        Member leader = memberRepository.findById(g.getLeaderId())
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        return GroupApplyResponse.from(saved, g, leader);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<GroupApplyResponse> listInvites(Long groupId) {
-        List<GroupApply> pendingList = groupApplyRepository.findByGroupIdAndStatus(groupId, ApplyStatus.PENDING);
+        List<GroupApply> pendingList = groupApplyRepository.findByGroup_GroupIdAndStatus(groupId, ApplyStatus.PENDING);
         return pendingList.stream()
-                .map(GroupApplyResponse::from)
+                .map(ga -> {
+                    Group g = groupRepository.findById(ga.getGroupId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
+                    Member leader = memberRepository.findById(g.getLeaderId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+                    return GroupApplyResponse.from(ga, g, leader);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -63,7 +75,13 @@ public class GroupApplyServiceImpl implements GroupApplyService {
     public List<GroupApplyResponse> listReceivedInvites(Long memberId) {
         List<GroupApply> invites = groupApplyRepository.findByReceiverIdAndStatus(memberId, ApplyStatus.PENDING);
         return invites.stream()
-                .map(GroupApplyResponse::from)
+                .map(ga -> {
+                    Group g = groupRepository.findById(ga.getGroupId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
+                    Member leader = memberRepository.findById(g.getLeaderId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+                    return GroupApplyResponse.from(ga, g, leader);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -93,6 +111,10 @@ public class GroupApplyServiceImpl implements GroupApplyService {
                 groupMemberRepository.save(newMember);
             }
         }
-        return GroupApplyResponse.from(apply);
+        Group g = groupRepository.findById(apply.getGroupId())
+                .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
+        Member leader = memberRepository.findById(g.getLeaderId())
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        return GroupApplyResponse.from(apply, g, leader);
     }
 }

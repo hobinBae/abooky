@@ -1,14 +1,12 @@
 package com.c203.autobiography.domain.book.service;
 
-import com.c203.autobiography.domain.book.dto.BookCopyRequest;
-import com.c203.autobiography.domain.book.dto.BookCopyResponse;
-import com.c203.autobiography.domain.book.dto.BookUpdateRequest;
+import com.c203.autobiography.domain.book.dto.*;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.entity.BookCategory;
-import com.c203.autobiography.domain.book.dto.BookCreateRequest;
-import com.c203.autobiography.domain.book.dto.BookResponse;
+import com.c203.autobiography.domain.book.entity.BookLike;
 import com.c203.autobiography.domain.book.entity.Tag;
 import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
+import com.c203.autobiography.domain.book.repository.BookLikeRepository;
 import com.c203.autobiography.domain.book.repository.BookRepository;
 import com.c203.autobiography.domain.book.repository.TagRepository;
 import com.c203.autobiography.domain.book.util.BookSpecifications;
@@ -49,6 +47,7 @@ public class BookServiceImpl implements BookService {
     private final FileStorageService fileStorageService;
     private final EpisodeRepository episodeRepository;
     private final TagRepository tagRepository;
+    private final BookLikeRepository bookLikeRepository;
 
     @Override
     @Transactional
@@ -308,5 +307,30 @@ public class BookServiceImpl implements BookService {
             return BookResponse.of(book, List.of(), tagNames);
         });
         }
+
+    @Override
+    @Transactional
+    public LikeResponse toggleLike(Long bookId, Long memberId) {
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        boolean exists = bookLikeRepository.existsByBookAndMember(book, member);
+
+        if(!exists){
+            BookLike like = BookLike.of(book, member);
+            bookLikeRepository.save(like);
+            book.incrementLike();
+            return new LikeResponse(true, bookLikeRepository.countByBook(book));
+
+        }else{
+            bookLikeRepository.deleteByBookAndMember(book, member);
+            book.decrementLike();
+            return new LikeResponse(false, bookLikeRepository.countByBook(book));
+
+        }
+    }
 
 }

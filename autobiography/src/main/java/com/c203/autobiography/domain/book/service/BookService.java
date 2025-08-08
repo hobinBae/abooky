@@ -1,10 +1,6 @@
 package com.c203.autobiography.domain.book.service;
 
-import com.c203.autobiography.domain.book.dto.BookCopyRequest;
-import com.c203.autobiography.domain.book.dto.BookCopyResponse;
-import com.c203.autobiography.domain.book.dto.BookCreateRequest;
-import com.c203.autobiography.domain.book.dto.BookResponse;
-import com.c203.autobiography.domain.book.dto.BookUpdateRequest;
+import com.c203.autobiography.domain.book.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,4 +23,8 @@ public interface BookService {
     BookCopyResponse copyBook(Long memberId, Long bookId, BookCopyRequest request);
 
     Page<BookResponse> searchBooks(String title, Long categoryId,List<String> tags, Pageable pageable);
+
+    LikeResponse toggleLike(Long bookId, Long memberId);
+
+
 }

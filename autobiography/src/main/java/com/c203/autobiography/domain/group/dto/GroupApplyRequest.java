@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.group.dto;
 
 import com.c203.autobiography.domain.group.entity.ApplyStatus;
+import com.c203.autobiography.domain.group.entity.Group;
 import com.c203.autobiography.domain.group.entity.GroupApply;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Email;
@@ -21,9 +22,9 @@ public class GroupApplyRequest {
     @Email(message = "유효한 이메일 형식이어야 합니다.")
     private String receiverEmail;
 
-    public GroupApply toEntity(Long groupId, Long receiverId) {
+    public GroupApply toEntity(Group group, Long receiverId) {
         return GroupApply.builder()
-                .groupId(groupId)
+                .group(group)
                 .receiverId(receiverId)
                 .status(ApplyStatus.PENDING)
                 .build();
