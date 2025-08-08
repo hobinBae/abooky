@@ -155,7 +155,7 @@ pipeline {
                     docker exec autobiography-backend env | grep -i redis
                     
                     echo "4. Redis API 테스트 (실제 애플리케이션 레벨 테스트)"
-                    curl -f http://localhost:8081/cicd/test/redis || echo "Redis API 테스트 실패"
+                    curl -f http://i13c203.p.ssafy.io:8081/cicd/test/redis || echo "Redis API 테스트 실패"
                     
                     echo "5. Redis 데이터 확인"
                     docker exec redis-server redis-cli keys "*" | head -10
