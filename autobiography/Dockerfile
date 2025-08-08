@@ -41,7 +41,7 @@ USER spring
 EXPOSE 8081
 
 # 헬스체크 추가
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=30s --start-period=120s --retries=3 \
     CMD curl -f http://localhost:8081/actuator/health || exit 1
     
 
