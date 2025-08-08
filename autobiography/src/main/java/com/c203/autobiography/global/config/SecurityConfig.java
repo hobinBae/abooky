@@ -71,7 +71,9 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/api/stt/**",
                                 "/api/stream/**",
-                                "/api/conversation/**"
+                                "/api/conversation/**",
+                                "/cicd/**",
+                                "/actuator/**"
                                 ).permitAll()
                         .requestMatchers("/api/v1/members/**").hasAnyAuthority("MEMBER", "ADMIN")
                         .anyRequest().authenticated())
