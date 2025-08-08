@@ -42,7 +42,9 @@ EXPOSE 8081
 
 # 헬스체크 추가
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:8081/actuator/health || exit 1
+    # CMD curl -f http://localhost:8081/actuator/health || exit 1
+    CMD curl -f http://localhost:8081/cicd/health || exit 1
+    
 
 # JVM 옵션 설정 및 애플리케이션 실행
 ENTRYPOINT ["java", \
