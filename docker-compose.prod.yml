@@ -25,10 +25,11 @@ services:
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
       
       # Redis 연결
-      SPRING_REDIS_HOST: redis
-      SPRING_REDIS_PORT: 6379
-      # SPRING_REDIS_PASSWORD: ""  # ← 🔄 Redis 비밀번호 제거 (복사본에 없음)
-      SPRING_REDIS_TIMEOUT: 2000ms
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_TIMEOUT: 2000ms
+      # SPRING_REDIS_PASSWORD: ""  # ← Redis 비밀번호 없음
+      SPRING_DATA_REDIS_DATABASE: 0
       
       # 서버 설정
       SERVER_PORT: 8081
