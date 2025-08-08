@@ -9,6 +9,8 @@ pipeline {
     environment {
         DOCKER_BUILDKIT = '1'
 
+        GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true'
+
         BACKEND_IMAGE = 'autobiography-backend'
         FRONTEND_IMAGE = 'autobiography-frontend'
         BUILD_NUMBER_TAG = "${BUILD_NUMBER}"
@@ -77,11 +79,17 @@ pipeline {
                 stage('Backend Test & Build (with Cache)') {
                     steps {
                         dir("${BACKEND_PATH}") {
+                            // sh '''
+                            //     export GRADLE_USER_HOME=${GRADLE_CACHE_DIR}
+                            //     chmod +x gradlew
+                            //     ./gradlew build -x test
+                            // '''
                             sh '''
                                 export GRADLE_USER_HOME=${GRADLE_CACHE_DIR}
                                 chmod +x gradlew
-                                ./gradlew build -x test
+                                ./gradlew build -x test --build-cache --parallel
                             '''
+                            
                         }
                     }
                     post {
