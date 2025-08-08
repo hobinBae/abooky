@@ -133,6 +133,10 @@ services:
       - 128mb
       - --maxmemory-policy 
       - allkeys-lru
+      - --replica-read-only
+      - "no"
+      - --save
+      - ""   
     ports:
       - "6379:6379"  # ← 🔄 포트 변경 (16379 → 6379)
     volumes:
