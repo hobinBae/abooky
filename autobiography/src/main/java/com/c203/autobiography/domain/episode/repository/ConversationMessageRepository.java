@@ -8,5 +8,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface ConversationMessageRepository extends JpaRepository<ConversationMessage, Long> {
     List<ConversationMessage> findBySessionIdOrderByMessageNo(String sessionId);
+    Optional<ConversationMessage> findTopBySessionIdOrderByMessageNoDesc(String sessionId);
     Optional<ConversationMessage> findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(String sessionId, MessageType type);
 }

@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Service
 @RequiredArgsConstructor
@@ -174,7 +175,17 @@ public class ChapterBasedQuestionServiceImpl implements ChapterBasedQuestionServ
         
         // 첫 번째 답변이면 AI로 후속질문 생성
         if (dynamicQueue == null && session.getFollowUpQuestionIndex() == 0) {
-            String generatedQuestions = aiClient.generateDynamicFollowUp(template.getDynamicPromptTemplate(), userAnswer);
+            String sectionKey = template.getDynamicPromptTemplate();
+            String generatedQuestions = null;
+            try{
+                generatedQuestions = aiClient.generateDynamicFollowUpBySection(sectionKey, userAnswer);
+            } catch(Exception e){
+                log.warn("동적 후속질문 생성 실패(sectionKey={}):", sectionKey, e.getMessage(),e);
+            }
+
+
+
+//            String generatedQuestions = aiClient.generateDynamicFollowUp(template.getDynamicPromptTemplate(), userAnswer);
             
             // AI 응답을 파싱하여 질문들을 큐에 추가
             dynamicQueue = parseAndCreateDynamicQueue(generatedQuestions);
@@ -189,7 +200,7 @@ public class ChapterBasedQuestionServiceImpl implements ChapterBasedQuestionServ
     }
     
     private Deque<String> parseAndCreateDynamicQueue(String aiResponse) {
-        Deque<String> queue = new ArrayDeque<>();
+        Deque<String> queue = new ConcurrentLinkedDeque<>();
         if (aiResponse != null && !aiResponse.trim().isEmpty()) {
             // AI 응답을 줄바꿈으로 분리하여 질문들 추출
             String[] questions = aiResponse.split("\n");

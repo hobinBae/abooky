@@ -56,22 +56,23 @@ public class SecurityConfig {
                         .requestMatchers("/", "/index.html", "/js/**", "/css/**", "/img/**")
                         .permitAll()
                         .requestMatchers(
-                                "/api/v1/members/register",
-                                "/api/v1/auth/login",
-                                "/api/v1/auth/refresh-token",
-                                "/api/v1/auth/find-email",
-                                "/api/v1/auth/forgot-password",
-                                "/api/v1/auth/oauth2/**",
-                                "/oauth2/**",
-                                "/login/oauth2/**",
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-resources/**",
-                                "/swagger-ui.html",
-                                "/webjars/**",
-                                "/api/stt/**",
-                                "/api/stream/**",
-                                "/api/conversation/**"
+//                                "/api/v1/members/register",
+//                                "/api/v1/auth/login",
+//                                "/api/v1/auth/refresh-token",
+//                                "/api/v1/auth/find-email",
+//                                "/api/v1/auth/forgot-password",
+//                                "/api/v1/auth/oauth2/**",
+//                                "/oauth2/**",
+//                                "/login/oauth2/**",
+//                                "/v3/api-docs/**",
+//                                "/swagger-ui/**",
+//                                "/swagger-resources/**",
+//                                "/swagger-ui.html",
+//                                "/webjars/**",
+//                                "/api/stt/**",
+//                                "/api/stream/**",
+//                                "/api/conversation/**"
+                                "/**"
                                 ).permitAll()
                         .requestMatchers("/api/v1/members/**").hasAnyAuthority("MEMBER", "ADMIN")
                         .anyRequest().authenticated())

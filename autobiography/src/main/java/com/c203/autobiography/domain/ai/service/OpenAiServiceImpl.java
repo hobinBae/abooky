@@ -32,4 +32,5 @@ public class OpenAiServiceImpl implements OpenAiService {
                 .block(Duration.ofSeconds(props.getRequestTimeoutSec()));
     }
 
+
 }

@@ -1,103 +1,237 @@
-<!--<!DOCTYPE html>-->
-<!--<html lang="en">-->
-<!--<head>-->
-<!--    <meta charset="UTF-8" />-->
-<!--    <meta http-equiv="X-UA-Compatible" content="IE=edge" />-->
-<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0" />-->
-<!--    <title>LiveKit WebRTC Test</title>-->
-<!--</head>-->
-<!--<body>-->
-<!--<h1>LiveKit WebRTC Test</h1>-->
-<!--<button id="joinBtn" style="padding:10px 20px; font-size:16px;">Join Room</button>-->
-<!--<div style="margin-top:20px; display:flex; gap:10px;">-->
-<!--    &lt;!&ndash; Local Video Container &ndash;&gt;-->
-<!--    <div class="video-container" style="position:relative; width:300px;">-->
-<!--        <video id="localVideo" autoplay muted playsinline style="width:100%; border:1px solid #ccc;"></video>-->
-<!--        <div id="localOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Local</div>-->
-<!--    </div>-->
-<!--    &lt;!&ndash; Remote Video Container &ndash;&gt;-->
-<!--    <div class="video-container" style="position:relative; width:300px;">-->
-<!--        <video id="remoteVideo" autoplay playsinline style="width:100%; border:1px solid #ccc;"></video>-->
-<!--        <div id="remoteOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Remote</div>-->
-<!--    </div>-->
-<!--</div>-->
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8" />
+    <title>🔸 자서전 챕터 기반 인터뷰 시스템 (VAD 적용 + 에피소드 저장)</title>
+    <style>
+        body { font-family: sans-serif; max-width: 700px; margin: 2rem auto; }
+        #messages { border: 1px solid #ccc; padding: 1rem; height: 300px; overflow-y: auto; }
+        .ai    { text-align: left;  color: #090; }
+        .user  { text-align: right; color: #006; }
+        .error { text-align: left; color: #f66; }
+        .system { text-align: center; color: #888; font-style: italic; }
+        button, input { padding: .5rem; margin: .5rem 0; width: 100%; box-sizing: border-box; }
+        #audioLevel { width: 100%; height: 20px; background: #f0f0f0; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        #audioLevelBar { height: 100%; background: linear-gradient(90deg, #4CAF50, #FFC107, #FF5722); width: 0%; transition: width 0.1s ease; }
+        .settings { background: #f9f9f9; padding: 1rem; border-radius: 5px; margin: 1rem 0; }
+        .settings label { display: block; margin: .5rem 0; }
+        #progressInfo { background: #e7f3ff; padding: 10px; border-radius: 5px; margin: 10px 0; display: none; }
+        #progressBar { background: #4CAF50; height: 100%; width: 0%; transition: width 0.3s; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+<h2>🔸 자서전 챕터 기반 인터뷰 시스템</h2>
 
-<!--<script src="https://unpkg.com/livekit-client@2.15.4/dist/livekit-client.umd.js"></script>-->
-<!--&lt;!&ndash; ESM 모듈 방식으로 LiveKit SDK 가져오기 &ndash;&gt;-->
-<!--<script>-->
-<!--    const lk = window.LivekitClient || window.LiveKitClient || window.livekitClient;-->
-<!--    const Room = lk.Room;-->
-<!--    const createLocalVideoTrack = lk.createLocalVideoTrack;-->
-<!--    const createLocalAudioTrack = lk.createLocalAudioTrack;-->
+<!-- 진행 상태 표시 -->
+<div id="progressInfo">
+    <div id="chapterInfo" style="font-weight:bold; color:#0066cc;"></div>
+    <div id="stageInfo" style="color:#666; font-size:0.9em;"></div>
+    <div style="background:#fff; border-radius:10px; height:8px; margin:5px 0; overflow:hidden;">
+        <div id="progressBar"></div>
+    </div>
+</div>
 
-<!--    const params = new URLSearchParams(window.location.search);-->
-<!--    let accessToken = params.get('token');-->
-<!--    let identity = params.get('identity');-->
-<!--    if (!accessToken || !identity) {-->
-<!--        accessToken = prompt('Access Token을 입력하세요:', accessToken || '');-->
-<!--        identity = prompt('Identity를 입력하세요 (예: userA, userB):', identity || '');-->
-<!--    }-->
-<!--    const groupId = params.get('groupId') || 5;-->
-<!--    const livekitServerUrl = params.get('livekitUrl') || 'ws://localhost:7880';-->
+<!-- 대화 로그 -->
+<div id="messages"></div>
 
-<!--    async function getToken() {-->
-<!--        const res = await fetch(`/api/v1/groups/${groupId}/rtc/token`, {-->
-<!--            method: 'POST',-->
-<!--            headers: {'Content-Type': 'application/json','Authorization': `Bearer ${accessToken}`},-->
-<!--            body: JSON.stringify({ userName: identity })-->
-<!--        });-->
-<!--        if (!res.ok) { console.error('토큰 요청 실패:', res.status); throw new Error(res.status); }-->
-<!--        return (await res.json()).data.token;-->
-<!--    }-->
+<!-- 설정 -->
+<div class="settings">
+    <label><input type="checkbox" id="enableVAD" checked /> VAD 사용</label>
+    <label>감지 임계값: <span id="thresholdValue">0.01</span>
+        <input type="range" id="threshold" min="0.001" max="0.1" step="0.001" value="0.01" />
+    </label>
+    <label>무음 허용 시간(초): <span id="silenceTimeValue">10</span>
+        <input type="range" id="silenceTime" min="1" max="30" step="1" value="10" />
+    </label>
+</div>
 
-<!--    function attachTrack(track, overlayId) {-->
-<!--        track.attach(document.getElementById(overlayId.replace('Overlay', 'Video')));-->
-<!--    }-->
+<!-- 오디오 레벨 바 -->
+<div id="audioLevel"><div id="audioLevelBar"></div></div>
 
-<!--    async function start() {-->
-<!--        try {-->
-<!--            const token = await getToken();-->
-<!--            const room = new Room();-->
-<!--            await room.connect(livekitServerUrl, token);-->
-<!--            console.log('Connected to room:', room.name);-->
+<!-- 사용자 입력 -->
+<input type="text" id="properInput" placeholder="고유명사 입력 (쉼표 구분)" />
 
-<!--            // Publish local tracks-->
-<!--            // 첫 번째 클라이언트만 오디오 퍼블리시 (장치 충돌 방지)-->
+<!-- 주요 버튼 -->
+<button id="startBtn">▶ 에피소드 시작</button>
+<button id="recordBtn" disabled>🎙️ 녹음 시작</button>
+<button id="stopBtn" disabled>⏹️ 녹음 중지</button>
+<button id="nextQuestionBtn" disabled>▶ 다음 질문 받기</button>
+<button id="saveEpisodeBtn" style="background:#4CAF50; color:white;">💾 에피소드 저장</button>
 
-<!--            const audioTrack = await createLocalAudioTrack();-->
-<!--            await room.localParticipant.publishTrack(audioTrack);-->
+<!-- 개발자 도구 -->
+<div style="margin:10px 0; padding:10px; background:#f0f8ff; border-radius:5px;">
+    <h4>🔧 개발자 도구</h4>
+    <div>세션 ID: <span id="sessionInfo"></span></div>
+    <div>상태: <span id="statusInfo">대기 중</span></div>
+    <button id="clearBtn" style="width:auto; padding:5px 10px; margin-right:5px;">메시지 지우기</button>
+    <button id="initDataBtn" style="width:auto; padding:5px 10px; background:#ff6b6b; color:white; margin-right:5px;">템플릿 새로고침</button>
+</div>
 
-<!--            // 비디오 트랙 퍼블리시-->
-<!--            const videoTrack = await createLocalVideoTrack();-->
-<!--            await room.localParticipant.publishTrack(videoTrack);-->
-<!--            videoTrack.attach(document.getElementById('localVideo'));-->
-<!--            document.getElementById('localOverlay').innerText = identity;-->
+<script>
+    const msgs = document.getElementById('messages');
+    const startBtn = document.getElementById('startBtn');
+    const recordBtn = document.getElementById('recordBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+    const saveEpisodeBtn = document.getElementById('saveEpisodeBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const initDataBtn = document.getElementById('initDataBtn');
+    const threshold = document.getElementById('threshold');
+    const thresholdValue = document.getElementById('thresholdValue');
+    const silenceTime = document.getElementById('silenceTime');
+    const silenceTimeValue = document.getElementById('silenceTimeValue');
+    const audioLevelBar = document.getElementById('audioLevelBar');
+    const sessionInfo = document.getElementById('sessionInfo');
+    const statusInfo = document.getElementById('statusInfo');
+    const progressInfo = document.getElementById('progressInfo');
+    const chapterInfo = document.getElementById('chapterInfo');
+    const stageInfo = document.getElementById('stageInfo');
+    const progressBar = document.getElementById('progressBar');
 
-<!--            // Subscribe existing participants-->
-<!--            room.participants.forEach(participant => {-->
-<!--                participant.tracks.forEach(publication => {-->
-<!--                    if (publication.isSubscribed && publication.track.kind === 'video') {-->
-<!--                        attachTrack(publication.track, 'remoteOverlay');-->
-<!--                        document.getElementById('remoteOverlay').innerText = participant.identity;-->
-<!--                    }-->
-<!--                });-->
-<!--            });-->
+    let sessionId = crypto.randomUUID();
+    const bookId = 1;  // 실제론 사용자 선택값 또는 URL 파라미터 사용
+    let chunkIndex = 0;
+    let source, mediaRecorder, stream, chunkTimer, audioContext, analyser;
+    let isRecording = false, voiceDetected = false, lastSpeechTime = 0, currentAudioLevel = 0;
 
-<!--            // Handle new tracks-->
-<!--            room.on('trackSubscribed', (track, publication, participant) => {-->
-<!--                if (track.kind === 'video') {-->
-<!--                    attachTrack(track, 'remoteOverlay');-->
-<!--                    document.getElementById('remoteOverlay').innerText = participant.identity;-->
-<!--                }-->
-<!--                if (track.kind === 'audio') { track.attach(); }-->
-<!--            });-->
+    sessionInfo.textContent = sessionId;
+    threshold.oninput = () => thresholdValue.textContent = threshold.value;
+    silenceTime.oninput = () => silenceTimeValue.textContent = silenceTime.value;
 
-<!--        } catch (err) {-->
-<!--            console.error('실행 오류:', err);-->
-<!--        }-->
-<!--    }-->
+    function append(txt, cls='ai') {
+        const d = document.createElement('div');
+        d.className = cls;
+        d.textContent = txt;
+        msgs.appendChild(d);
+        msgs.scrollTop = msgs.scrollHeight;
+    }
 
-<!--    document.getElementById('joinBtn').addEventListener('click', start);-->
-<!--</script>-->
-<!--</body>-->
-<!--</html>-->
+    clearBtn.onclick = () => {
+        msgs.innerHTML = '';
+        statusInfo.textContent = '메시지 지워짐';
+    };
+    initDataBtn.onclick = async () => {
+        initDataBtn.disabled = true;
+        statusInfo.textContent = '템플릿 업데이트 중…';
+        try {
+            await axios.post('http://localhost:8080/api/chapter/init');
+            append('✅ 템플릿 업데이트 완료!', 'system');
+            statusInfo.textContent = '업데이트 완료';
+        } catch (e) {
+            append('❌ 업데이트 실패: '+e.message,'error');
+        } finally { initDataBtn.disabled = false; }
+    };
+
+    startBtn.onclick = () => {
+        source = new EventSource(`http://localhost:8080/api/conversation/stream?sessionId=${sessionId}&useChapterMode=true`);
+        source.addEventListener('question', e => {
+            const data = JSON.parse(e.data);
+            append(`AI: ${data.text}`, 'ai');
+            if (data.currentChapter) {
+                progressInfo.style.display = 'block';
+                chapterInfo.textContent = `📖 ${data.currentChapter}`;
+                stageInfo.textContent = `📍 ${data.currentStage}`;
+                progressBar.style.width = (data.overallProgress||0)+'%';
+                if (data.isLastQuestion) append('🎉 인터뷰 완료!','system');
+            }
+            recordBtn.disabled = false;
+            nextQuestionBtn.disabled = false;
+            statusInfo.textContent = '질문 수신됨';
+        });
+        source.addEventListener('partialTranscript', e => {
+            const { chunkIndex, text } = JSON.parse(e.data);
+            append(`(${chunkIndex}) 음성 인식…${text}`, 'user');
+        });
+        source.addEventListener('finalTranscript', e => {
+            const { chunkIndex, text } = JSON.parse(e.data);
+            append(`✅ 최종 인식 (#${chunkIndex}): ${text}`, 'user');
+            nextQuestionBtn.disabled = false;
+            statusInfo.textContent = '답변 완료';
+        });
+        source.addEventListener('error', () => { append('❌ SSE 에러','error'); source.close(); });
+        append(`세션 열림: ${sessionId}`, 'system');
+        startBtn.disabled = true;
+    };
+
+    recordBtn.onclick = async () => {
+        stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+        audioContext = new (window.AudioContext||window.webkitAudioContext)();
+        const mic = audioContext.createMediaStreamSource(stream);
+        analyser = audioContext.createAnalyser(); mic.connect(analyser);
+        isRecording = true; voiceDetected = false; lastSpeechTime = Date.now();
+        startChunkRecorder(); analyzeAudio();
+        append('🎙️ 녹음 시작','system');
+        recordBtn.disabled = true; stopBtn.disabled = false;
+    };
+    stopBtn.onclick = () => {
+        isRecording = false; voiceDetected = false; clearTimeout(chunkTimer);
+        if (mediaRecorder?.state==='recording') mediaRecorder.stop();
+        stream.getTracks().forEach(t=>t.stop());
+        audioContext.close(); audioContext = analyser = null;
+        audioLevelBar.style.width = '0%';
+        append('🔊 녹음 중지','user');
+        stopBtn.disabled = true; recordBtn.disabled = false;
+    };
+
+    function analyzeAudio() {
+        if (!analyser) return;
+        const buf = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(buf);
+        const rms = Math.sqrt(buf.reduce((a,v)=>a+v*v,0)/buf.length);
+        currentAudioLevel = rms/255;
+        audioLevelBar.style.width = (currentAudioLevel*100)+'%';
+        const th = parseFloat(threshold.value), st = parseFloat(silenceTime.value)*1000;
+        if (currentAudioLevel>th) { lastSpeechTime=Date.now(); if(!voiceDetected){ voiceDetected=true; append('🎤 음성 감지','system'); } }
+        else if (voiceDetected && Date.now()-lastSpeechTime>st) { voiceDetected=false; append('🔇 음성 중단','system'); }
+        if (isRecording) requestAnimationFrame(analyzeAudio);
+    }
+
+    function startChunkRecorder() {
+        mediaRecorder = new MediaRecorder(stream,{ mimeType:'audio/webm;codecs=opus' });
+        mediaRecorder.ondataavailable = async e => {
+            if (!e.data||e.data.size<1000) { chunkIndex++; append(`🧹 무음 청크 무시 (size=${e.data.size})`,'system'); return; }
+            const form = new FormData();
+            form.append('sessionId', sessionId);
+            form.append('chunkIndex', chunkIndex++);
+            form.append('audio', e.data, 'audio.webm');
+            form.append('answer','true');
+            form.append('audioLevel', currentAudioLevel.toFixed(3));
+            if (document.getElementById('properInput').value.trim())
+                form.append('customProperNouns', document.getElementById('properInput').value.trim());
+            append(`📤 청크 #${chunkIndex-1} 전송…`,'system');
+            try { await axios.post('http://localhost:8080/api/stt/chunk', form, { timeout:60000 }); }
+            catch(err){ append('❌ STT 오류: '+err.message,'error'); }
+        };
+        mediaRecorder.onstop = () => { if (isRecording) startChunkRecorder(); };
+        mediaRecorder.start();
+        chunkTimer = setTimeout(()=>{ if(mediaRecorder.state==='recording') mediaRecorder.stop(); }, 60000);
+    }
+
+    nextQuestionBtn.onclick = async () => {
+        nextQuestionBtn.disabled = true;
+        statusInfo.textContent = '다음 질문 요청…';
+        try {
+            await axios.post('http://localhost:8080/api/conversation/next', null, { params:{ sessionId } });
+            statusInfo.textContent = '요청 완료';
+        } catch(e){ append('❌ 요청 실패: '+e.message,'error'); nextQuestionBtn.disabled=false; }
+    };
+
+    saveEpisodeBtn.onclick = async () => {
+        saveEpisodeBtn.disabled = true;
+        append('💾 에피소드 생성 요청…','system');
+        try {
+            const res = await axios.post(
+                `http://localhost:8080/api/v1/books/1/episodes`,
+                null,
+                { params:{ sessionId } }
+            );
+            const ep = res.data.data;
+            append(`✅ 에피소드 생성 성공! ID: ${ep.episodeId}`, 'system');
+        } catch(e) {
+            append('❌ 에피소드 생성 실패: '+(e.response?.data?.message||e.message),'error');
+        } finally { saveEpisodeBtn.disabled = false; }
+    };
+</script>
+</body>
+</html>

@@ -6,7 +6,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 
 public interface EpisodeService {
 
-    EpisodeResponse createEpisode(Long memberId, Long bookId, String sessionId) throws JsonProcessingException;
+    EpisodeResponse createEpisode(Long bookId, String sessionId) throws JsonProcessingException;
 
     EpisodeResponse getEpisode(Long episodeId);
 
