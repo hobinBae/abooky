@@ -52,7 +52,7 @@ public class GroupRtcController {
 
         String token = groupRoomService.generateToken(groupId, memberId.toString(), request.getUserName());
 
-        String url = "ws://localhost:7881";
+        String url = "ws://localhost:7880";
         RtcTokenResponse response = new RtcTokenResponse(url, token);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "토큰 발급 성공", response, httpRequest.getRequestURI()));
