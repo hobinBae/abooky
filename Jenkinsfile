@@ -9,7 +9,14 @@ pipeline {
     environment {
         DOCKER_BUILDKIT = '1'
 
-        GRADLE_OPTS = '-Dorg.gradle.daemon=true -Dorg.gradle.parallel=true'
+        GRADLE_OPTS = '''
+            -Dorg.gradle.daemon=true 
+            -Dorg.gradle.parallel=true 
+            -Dorg.gradle.caching=true
+            -Dorg.gradle.configureondemand=true
+            -Dorg.gradle.jvmargs=-Xmx2g
+            -Dorg.gradle.workers.max=4
+        '''
 
         BACKEND_IMAGE = 'autobiography-backend'
         FRONTEND_IMAGE = 'autobiography-frontend'
@@ -38,7 +45,7 @@ pipeline {
 
         // 캐시 경로
         NPM_CACHE_DIR = "${WORKSPACE}/.npm-cache"
-        GRADLE_CACHE_DIR = "${WORKSPACE}/.gradle-cache"
+        GRADLE_CACHE_DIR = "/var/jenkins_home/.gradle-cache"
     }
 
     options {
@@ -87,9 +94,13 @@ pipeline {
                             sh '''
                                 export GRADLE_USER_HOME=${GRADLE_CACHE_DIR}
                                 chmod +x gradlew
-                                ./gradlew build -x test --build-cache --parallel
+                                ./gradlew build -x test \
+                                    --build-cache \
+                                    --parallel \
+                                    --configure-on-demand \
+                                    --daemon \
+                                    --info
                             '''
-                            
                         }
                     }
                     post {
@@ -191,7 +202,7 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+           cleanWs()  // 간단하게 전체 워크스페이스 정리
             sh '''
                 docker image prune -f
                 docker container prune -f
