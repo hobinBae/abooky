@@ -7,6 +7,8 @@ pipeline {
     } 
 
     environment {
+        DOCKER_BUILDKIT = '1'
+
         BACKEND_IMAGE = 'autobiography-backend'
         FRONTEND_IMAGE = 'autobiography-frontend'
         BUILD_NUMBER_TAG = "${BUILD_NUMBER}"
@@ -108,8 +110,16 @@ pipeline {
                 stage('Build Backend Image') {
                     steps {
                         dir("${BACKEND_PATH}") {
+                            // sh '''
+                            //     docker build --cache-from ${BACKEND_IMAGE}:${LATEST_TAG} -t ${BACKEND_IMAGE}:${BUILD_NUMBER_TAG} .
+                            //     docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER_TAG} ${BACKEND_IMAGE}:${LATEST_TAG}
+                            // '''
                             sh '''
-                                docker build --cache-from ${BACKEND_IMAGE}:${LATEST_TAG} -t ${BACKEND_IMAGE}:${BUILD_NUMBER_TAG} .
+                                docker build \
+                                    --cache-from ${BACKEND_IMAGE}:${LATEST_TAG} \
+                                    --build-arg BUILDKIT_INLINE_CACHE=1 \
+                                    --progress=plain \
+                                    -t ${BACKEND_IMAGE}:${BUILD_NUMBER_TAG} .
                                 docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER_TAG} ${BACKEND_IMAGE}:${LATEST_TAG}
                             '''
                         }
@@ -119,8 +129,16 @@ pipeline {
                 stage('Build Frontend Image') {
                     steps {
                         dir("${FRONTEND_PATH}") {
+                            // sh '''
+                            //     docker build --cache-from ${FRONTEND_IMAGE}:${LATEST_TAG} -t ${FRONTEND_IMAGE}:${BUILD_NUMBER_TAG} .
+                            //     docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER_TAG} ${FRONTEND_IMAGE}:${LATEST_TAG}
+                            // '''
                             sh '''
-                                docker build --cache-from ${FRONTEND_IMAGE}:${LATEST_TAG} -t ${FRONTEND_IMAGE}:${BUILD_NUMBER_TAG} .
+                                docker build \
+                                    --cache-from ${FRONTEND_IMAGE}:${LATEST_TAG} \
+                                    --build-arg BUILDKIT_INLINE_CACHE=1 \
+                                    --progress=plain \
+                                    -t ${FRONTEND_IMAGE}:${BUILD_NUMBER_TAG} .
                                 docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER_TAG} ${FRONTEND_IMAGE}:${LATEST_TAG}
                             '''
                         }
