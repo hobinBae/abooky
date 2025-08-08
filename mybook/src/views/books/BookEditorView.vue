@@ -1,6 +1,5 @@
 <template>
   <div class="book-editor-page">
-    <!-- Step 1: Book Setup -->
     <section v-if="creationStep === 'setup'" class="setup-section">
       <h2 class="section-title">새로운 책 만들기</h2>
       <p class="section-subtitle">당신의 이야기를 시작하기 위한 기본 정보를 입력해주세요.</p>
@@ -30,7 +29,7 @@
           <label>장르 선택 (다중 선택 가능)</label>
           <div class="genre-toggle">
             <button v-for="genre in genres" :key="genre" @click="toggleGenre(genre)"
-              :class="{ active: currentBook.genres.includes(genre) }">
+              :class="{ active: bookGenres.includes(genre) }">
               {{ genre }}
             </button>
           </div>
@@ -43,7 +42,6 @@
       </div>
     </section>
 
-    <!-- Step 2: Workspace / Editor -->
     <section v-else-if="creationStep === 'editing'" class="workspace-section">
       <div class="workspace-header">
         <span class="editor-title-label">책 제목 </span>
@@ -67,7 +65,7 @@
         <div class="editor-area" v-if="currentStory">
           <div class="editor-main">
             <div class="editor-title-wrapper">
-              <span class="editor-title-label">소 제목</span>
+              <span class="editor-title-label">이야기 제목</span>
               <input type="text" v-model="currentStory.title" placeholder="이야기 제목"
                 class="story-title-input title-input-highlight">
             </div>
@@ -104,8 +102,8 @@
             <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
                 class="bi bi-stop-circle-fill"></i> 음성 답변 완료</button>
 
-            <button @click="getNextQuestion" :disabled="!isContentChanged" class="btn-sidebar"><i
-                class="bi bi-arrow-right-circle"></i> 다음 질문 받기</button>
+            <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged" class="btn-sidebar"><i
+                class="bi bi-check-circle"></i> 질문 답변완료</button>
             <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
                 class="bi bi-skip-end-circle"></i> 질문 건너뛰기</button>
             <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> AI 자동 교정</button>
@@ -128,7 +126,6 @@
       </div>
     </section>
 
-    <!-- Step 3: Publishing -->
     <section v-else-if="creationStep === 'publishing'" class="publish-section">
       <h2 class="section-title">책 발행하기</h2>
       <p class="section-subtitle">마지막으로 책의 정보를 확인하고, 멋진 표지를 선택해주세요.</p>
@@ -147,7 +144,7 @@
           <label>장르 선택 (다중 선택 가능)</label>
           <div class="genre-toggle">
             <button v-for="genre in genres" :key="genre" @click="toggleGenre(genre)"
-              :class="{ active: currentBook.genres.includes(genre) }">
+              :class="{ active: bookGenres.includes(genre) }">
               {{ genre }}
             </button>
           </div>
@@ -171,6 +168,9 @@
           <input id="cover-upload" type="file" @change="handleCoverUpload" class="form-control">
         </div>
         <div class="form-actions">
+          <button @click="finalizePublicationAsCopy" class="btn btn-outline btn-lg">
+            복사본으로 발행 <i class="bi bi-files"></i>
+          </button>
           <button @click="finalizePublication" class="btn btn-primary btn-lg">
             책 발행하기 <i class="bi bi-check-circle"></i>
           </button>
@@ -201,8 +201,11 @@ const route = useRoute();
 // --- Component State ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
 const currentBook = ref<Partial<Book>>({ title: '', summary: '', type: 'autobiography', genres: [], stories: [], tags: [] });
+
+// --- Computed Properties ---
+const bookGenres = computed(() => currentBook.value.genres || []);
 const currentStoryIndex = ref(-1);
-const aiQuestion = ref('당신의 어린 시절, 가장 기억에 남는 장소는 어디인가요? 그곳에서의 특별한 경험을 이야기해주세요.');
+const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');
 const isInterviewStarted = ref(false);
 const isRecording = ref(false);
 const isContentChanged = ref(false);
@@ -283,6 +286,7 @@ function stopRecording() {
     cancelAnimationFrame(animationFrameId);
     animationFrameId = null;
   }
+  isContentChanged.value = true;
 }
 
 function visualize() {
@@ -341,9 +345,21 @@ function selectStory(index: number) {
 }
 
 function saveStory() { alert('이야기가 저장되었습니다.'); isContentChanged.value = false; }
-function startAiInterview() { isInterviewStarted.value = true; }
-function getNextQuestion() { aiQuestion.value = '다음 질문입니다: 당신의 삶에 가장 큰 영향을 미친 사람은 누구이며, 그 이유는 무엇인가요?'; alert('다음 질문을 받았습니다.'); isContentChanged.value = false; }
-function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; alert('질문을 건너뛰었습니다.'); }
+function startAiInterview() {
+  isInterviewStarted.value = true;
+  isContentChanged.value = false;
+  aiQuestion.value = '당신의 어린 시절, 가장 기억에 남는 장소는 어디인가요? 그곳에서의 특별한 경험을 이야기해주세요.';
+}
+function submitAnswerAndGetFollowUp() {
+  if (currentStory.value && currentStory.value.content.trim() !== '') {
+    aiQuestion.value = `AI가 당신의 답변에 대한 꼬리 질문을 생성했습니다: ${currentStory.value.content.substring(0, 20)}...에 대해 더 자세히 이야기해주세요.`;
+    alert('질문 답변이 완료되었고, 꼬리 질문을 받았습니다.');
+    isContentChanged.value = false;
+  } else {
+    alert('답변 내용을 입력하거나 음성 녹음을 완료해주세요.');
+  }
+}
+function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; alert('질문을 건너뛰었습니다.'); isContentChanged.value = false; }
 function autoCorrect() { if (currentStory.value) { correctedContent.value = `(AI 교정됨) ${currentStory.value.content} - 문법과 문체가 ${currentBook.value.type} 스타일에 맞게 수정되었습니다.`; } }
 function applyCorrection() { if (currentStory.value && correctedContent.value) { currentStory.value.content = correctedContent.value; correctedContent.value = null; } }
 function cancelCorrection() { correctedContent.value = null; }
@@ -371,6 +387,8 @@ function handleCoverUpload(event: Event) {
 function finalizePublication() {
   if (!currentBook.value.title) { alert('책 제목을 입력해주세요.'); return; }
 
+  if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
+  
   if (currentBook.value) {
     currentBook.value.tags = tagInput.value
       .split(' ')
@@ -378,11 +396,44 @@ function finalizePublication() {
       .map(tag => tag.trim())
       .slice(0, 5);
   }
+  
+  // 실제 앱에서는 여기서 서버로 데이터를 전송합니다.
+  // DUMMY_BOOKS.push(currentBook.value as Book); // 시뮬레이션
 
-  if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
   alert('책이 성공적으로 발행되었습니다!');
   router.push(`/book-detail/${currentBook.value.id}`);
 }
+
+// [추가] 복사본으로 발행하는 함수
+function finalizePublicationAsCopy() {
+  if (!currentBook.value.title) { alert('책 제목을 입력해주세요.'); return; }
+
+  // 1. 사용자에게 확인 받기
+  if (!confirm('복사본으로 저장하시겠습니까? 현재 내용은 별개의 책으로 발행됩니다.')) return;
+
+  // 2. 현재 책 데이터 깊은 복사
+  const copiedBook: Partial<Book> = JSON.parse(JSON.stringify(currentBook.value));
+
+  // 3. 복사본 데이터 수정 (제목, ID 등)
+  copiedBook.title = `${copiedBook.title} - 복사본`;
+  copiedBook.id = `copy_of_${copiedBook.id}_${Date.now()}`; // 새로운 고유 ID 생성
+  copiedBook.createdAt = new Date();
+  copiedBook.updatedAt = new Date();
+  
+  // 태그 처리
+  copiedBook.tags = tagInput.value
+    .split(' ')
+    .filter(tag => tag.startsWith('#') && tag.length > 1)
+    .map(tag => tag.trim())
+    .slice(0, 5);
+  
+  // 실제 앱에서는 복사된 데이터를 서버로 전송합니다.
+  // DUMMY_BOOKS.push(copiedBook as Book); // 시뮬레이션
+
+  alert('책이 복사본으로 성공적으로 발행되었습니다!');
+  router.push(`/book-detail/${copiedBook.id}`); // 복사된 책의 상세 페이지로 이동
+}
+
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
@@ -390,10 +441,12 @@ onMounted(() => {
   loadOrCreateBook(bookId || null);
 });
 
-watch(currentStory, (newVal, oldVal) => {
-  if (oldVal && newVal?.content !== oldVal.content) { isContentChanged.value = true; }
-}, { deep: true });
-
+watch(() => currentStory.value?.content, (newContent) => {
+  if (isInterviewStarted.value) {
+    isContentChanged.value = newContent !== undefined && newContent.trim().length > 0;
+    console.log('Content changed, isContentChanged set to:', isContentChanged.value);
+  }
+});
 </script>
 
 <style scoped>
@@ -449,7 +502,7 @@ watch(currentStory, (newVal, oldVal) => {
 
 .btn.btn-primary {
   background-color: #8B4513;
-  border-color: #8B4513;
+  border: 1px solid #8B4513;
   color: #FFFFFF;
 }
 
@@ -465,8 +518,7 @@ watch(currentStory, (newVal, oldVal) => {
 }
 
 .btn-outline:hover {
-  background-color: #6a341a;
-  border-color: #6a341a;
+  background-color: #fff8f0;
 }
 
 .btn-lg {
@@ -611,6 +663,9 @@ textarea.form-control {
 .form-actions {
   text-align: center;
   margin-top: 3rem;
+  display: flex; /* [추가] 버튼을 옆으로 나열하기 위해 flex 사용 */
+  justify-content: center; /* [추가] 중앙 정렬 */
+  gap: 1rem; /* [추가] 버튼 사이 간격 */
 }
 
 /* --- Workspace Section --- */

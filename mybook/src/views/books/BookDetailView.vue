@@ -81,7 +81,7 @@
           </article>
 
           <section v-else class="other-episodes-section">
-            <h3>전체 에피소드</h3>
+            <h3>목차</h3>
             <ul class="other-episodes-list">
               <li v-for="(episode, index) in book.episodes" :key="index" @click="selectEpisode(index)"
                 :class="{ active: index === currentEpisodeIndex }">
