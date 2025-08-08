@@ -148,25 +148,17 @@ pipeline {
                     echo "1. 컨테이너 상태 확인"
                     docker ps | grep -E "(redis|backend)"
                     
-                    echo "2. 네트워크 확인"
-                    docker network ls
-                    docker network inspect $(docker network ls --filter name=autobiography --format "{{.Name}}") | grep -A5 -B5 "redis\\|backend"
-                    
-                    echo "3. Redis 컨테이너 직접 테스트"
+                    echo "2. Redis 컨테이너 직접 테스트"
                     docker exec redis-server redis-cli ping || echo "Redis ping 실패"
                     
-                    echo "4. 백엔드에서 Redis로 네트워크 연결 테스트"
-                    docker exec autobiography-backend ping -c 3 redis-server || echo "Ping 실패"
-                    docker exec autobiography-backend telnet redis-server 6379 || echo "Telnet 실패"
-                    
-                    echo "5. 백엔드 환경변수 확인"
+                    echo "3. 백엔드 환경변수 확인"
                     docker exec autobiography-backend env | grep -i redis
                     
-                    echo "6. 백엔드 로그에서 Redis 관련 오류 확인"
-                    docker logs autobiography-backend --tail=50 | grep -i redis || echo "Redis 관련 로그 없음"
+                    echo "4. Redis API 테스트 (실제 애플리케이션 레벨 테스트)"
+                    curl -f http://localhost:8081/cicd/test/redis || echo "Redis API 테스트 실패"
                     
-                    echo "7. DNS 해석 확인"
-                    docker exec autobiography-backend nslookup redis-server || echo "DNS 해석 실패"
+                    echo "5. Redis 데이터 확인"
+                    docker exec redis-server redis-cli keys "*" | head -10
                 '''
             }
         }
