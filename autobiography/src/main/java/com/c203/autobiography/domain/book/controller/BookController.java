@@ -12,6 +12,7 @@ import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.Getter;
@@ -30,6 +31,7 @@ import retrofit2.http.Path;
 
 import java.util.List;
 
+@Tag(name = "책 API", description = "책, 에피소드 관련 API")
 @RestController
 @RequestMapping("/api/v1/books")
 @RequiredArgsConstructor
