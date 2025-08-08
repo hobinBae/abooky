@@ -38,6 +38,11 @@ public class BookController {
     private final BookService bookService;
     private final EpisodeService episodeService;
 
+    public void test(){
+        System.out.println("merge test");
+        return;
+    }
+
     @Operation(summary = "책 생성", description = "책 정보 등록")
     @PostMapping
     public ResponseEntity<ApiResponse<BookResponse>> createBook(
