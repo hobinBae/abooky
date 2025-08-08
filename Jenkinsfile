@@ -130,36 +130,25 @@ pipeline {
         }
 
         stage('🚀 Deploy Application - Docker Compose V2') {
-            steps {
-                sh '''
-                    cd ${PROJECT_ROOT}
-                    export BACKEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
-                    export FRONTEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
-                    docker compose -f ${COMPOSE_FILE} up -d
-                '''
-            }
-        }
-
-        stage('🔍 Redis Connection Debug') {
-            steps {
-                sh '''
-                    echo "=== Redis 연결 디버깅 ==="
-                    
-                    echo "1. 컨테이너 상태 확인"
-                    docker ps | grep -E "(redis|backend)"
-                    
-                    echo "2. Redis 컨테이너 직접 테스트"
-                    docker exec redis-server redis-cli ping || echo "Redis ping 실패"
-                    
-                    echo "3. 백엔드 환경변수 확인"
-                    docker exec autobiography-backend env | grep -i redis
-                    
-                    echo "4. Redis API 테스트 (실제 애플리케이션 레벨 테스트)"
-                    curl -f http://i13c203.p.ssafy.io:8081/cicd/test/redis || echo "Redis API 테스트 실패"
-                    
-                    echo "5. Redis 데이터 확인"
-                    docker exec redis-server redis-cli keys "*" | head -10
-                '''
+            parallel{
+                stage('Depoly'){
+                    steps {
+                        sh '''
+                            cd ${PROJECT_ROOT}
+                            export BACKEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
+                            export FRONTEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
+                            docker compose -f ${COMPOSE_FILE} up -d
+                        '''
+                    }
+                }
+                stage('Cleanup'){
+                    steps {
+                        sh '''
+                            docker image prune -f || true
+                            docker container prune -f || true
+                        '''
+                    }
+                }
             }
         }
 
