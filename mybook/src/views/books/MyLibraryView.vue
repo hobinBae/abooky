@@ -54,7 +54,9 @@
             <template #item="{ element: book, index }">
               <router-link :to="`/book-detail/${book.id}`" class="book-item my-book"
                 :class="`book-color-${(index % 4) + 1}`" :title="book.title">
-                {{ book.title }}
+                <div class="book-title-text-wrapper">
+                  {{ truncateTitle(book.title) }}
+                </div>
                 <i v-if="isBookInAnyGroup(book.id)" class="bi bi-link-45deg group-link-icon"></i>
               </router-link>
             </template>
@@ -81,7 +83,9 @@
                 <div v-for="member in group.members" :key="member" class="book-item member-book"
                   :class="{ 'member-book-registered': isMemberRegistered(group, member), 'member-book-unregistered': !isMemberRegistered(group, member) }"
                   :title="member">
-                  {{ member }}
+                  <div class="book-title-text-wrapper">
+                    {{ truncateTitle(member) }}
+                  </div>
                 </div>
 
                 <draggable v-model="group.books" item-key="id"
@@ -91,7 +95,9 @@
                   @end="isDraggingBook = false">
                   <template #item="{ element: book, index }">
                     <div class="book-item my-book" :class="`book-color-${(index % 4) + 1}`" :title="book.title">
-                      {{ book.title }}
+                      <div class="book-title-text-wrapper">
+                        {{ truncateTitle(book.title) }}
+                      </div>
                       <button @click.stop="removeBookFromGroup(group.id, book.id)" class="remove-book-btn"
                         title="그룹에서 책 제거">
                         <i class="bi bi-x"></i>
@@ -307,6 +313,14 @@ function handleMouseMove(event: MouseEvent) {
 }
 function resetRotation() {
   repBookRotationY.value = 0;
+}
+
+function truncateTitle(title: string): string {
+  const maxLength = 13;
+  if (title.length > maxLength) {
+    return title.substring(0, maxLength) + '...';
+  }
+  return title;
 }
 </script>
 
@@ -698,7 +712,7 @@ function resetRotation() {
 }
 
 .book-shelf-container {
-  padding: 1rem;
+  padding: 2rem 1rem 0.3rem 0.8rem;
 }
 
 .my-books-container {
@@ -709,11 +723,13 @@ function resetRotation() {
 
 .book-shelf {
   display: flex;
-  gap: 0.75rem; /* 책 사이 간격 줄임 */
+  gap: 0.75rem;
+  /* 책 사이 간격 줄임 */
   overflow-x: auto;
   min-height: 240px;
   align-items: flex-end;
-  padding-bottom: 0; /* 책과 책꽂이 바닥 사이 여백 제거 */
+  padding-bottom: 0;
+  /* 책과 책꽂이 바닥 사이 여백 제거 */
 }
 
 .book-shelf::-webkit-scrollbar {
@@ -730,63 +746,98 @@ function resetRotation() {
   border: 1px solid #594C40;
 }
 
+
 .book-item {
   flex-shrink: 0;
   width: 45px;
-  height: 220px;
-  padding-top: 15px;
-  border-radius: 4px 2px 2px 4px; /* 모서리 둥글게 조정 */
-  box-shadow: inset 2px 0 5px rgba(0,0,0,0.1), 0 4px 8px rgba(0, 0, 0, 0.2); /* 안쪽 그림자로 입체감 */
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  text-align: center;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: grab;
-  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  height: 240px;
+
+  /* 심플한 단색 배경과 텍스트 색상 */
+  background-color: #a5eada;
+  /* 매우 밝은 회색 배경 */
+  color: #000000;
+  /* 어두운 회색 텍스트 */
+
+  /* 단순화된 테두리와 그림자 */
+  border: 1px solid #dee2e6;
+  border-radius: 4px 4px 4px 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  /* 그림자 약하게 */
+
+  /* 제목 표시 관련 스타일 */
   writing-mode: vertical-rl;
+  /* 세로쓰기 유지 */
   text-orientation: mixed;
-  text-decoration: none;
-  position: relative;
+  white-space: normal;
+  /* 제목이 길 경우 자연스럽게 다음 줄로 넘어가도록 변경 */
   overflow: hidden;
-  white-space: nowrap;
-  border: 1px solid rgba(0, 0, 0, 0.2); /* 테두리 색상 연하게 */
-  border-left: 3px solid rgba(0, 0, 0, 0.3); /* 책등 효과 */
+  /* 영역을 넘어가는 텍스트는 숨김 */
+  display: flex;
+  justify-content: flex-start; /* 상단 정렬 */
+  align-items: center; /* 좌우 중앙 정렬 */
+  text-align: center;
+  /* 텍스트 자체의 정렬 (필요시) */
+  padding: 0.5rem 0.3rem 1.5rem;
+  /* 제목이 위아래, 좌우 여백을 갖도록 조정 */
+  font-size: 0.9rem;
+  /* 폰트 크기를 살짝 줄여 가독성 확보 */
+  font-weight: 600;
+  line-height: 1.5;
+
+  /* 기타 스타일 */
+  position: relative;
+  cursor: grab;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.book-title-text-wrapper {
+  /* --- 크기 고정 --- */
+  width: 80%;
+  /* 책 너비의 80%로 고정 */
+  height: 85%;
+  /* 책 높이의 85%로 고정 (책 길이보다 약간 짧게) */
+
+  /* --- 위치 및 정렬 --- */
+  position: relative;
+  /* absolute에서 변경하여 flex-item으로 동작하게 함 */
+  top: auto;
+  /* absolute 관련 속성 제거 */
+  left: auto;
+  /* absolute 관련 속성 제거 */
+  transform: none;
+  /* absolute 관련 속성 제거 */
+  display: flex;
+  justify-content: flex-start; /* 상단 정렬 (main axis for vertical-rl content) */
+  align-items: center; /* 좌우 중앙 정렬 (cross axis for vertical-rl content) */ 
+  
+  /* --- 디자인 --- */
+  background-color: white;
+  padding: 0.2rem 0.4rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #dee2e6;
+  /* 빨간색 임시 테두리 대신 은은한 회색 테두리 적용 */
 }
 
 .book-item:hover {
-  transform: translateY(-8px) scale(1.05);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  transform: translateY(-5px);
+  /* 호버 시 살짝 위로 이동 */
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+  /* 그림자 약간 더 선명하게 */
+  border-color: #adb5bd;
+  /* 테두리 색상 강조 */
 }
 
+/* draggable 라이브러리에서 사용하는 클래스 */
 .sortable-ghost {
   opacity: 0.4;
 }
 
-.book-color-1 {
-  background: linear-gradient(to right, #7c5f48, #8E6E53 15%);
-  color: #fff;
-}
 
-.book-color-2 {
-  background: linear-gradient(to right, #d1b29a, #E4C5AF 15%);
-  color: #261E17;
-}
-
-.book-color-3 {
-  background: linear-gradient(to right, #5a5f61, #6D7275 15%);
-  color: #fff;
-}
-
-.book-color-4 {
-  background: linear-gradient(to right, #9d8f82, #B0A295 15%);
-  color: #261E17;
-}
 
 .member-book {
   cursor: default;
-  height: 210px;
+  height: 260px;
 }
 
 .member-book-registered {
@@ -891,7 +942,7 @@ function resetRotation() {
 .group-bookshelf-inner {
   background-color: #ffffff;
   box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
-  padding: 1rem 0.5rem;
+  padding: 2rem 1rem 0.3rem 0.8rem;
   /* border: 1px solid #000000; */
 }
 
@@ -905,10 +956,12 @@ function resetRotation() {
 .group-shelf-horizontal {
   display: flex;
   align-items: flex-end;
-  gap: 0.75rem; /* 책 사이 간격 줄임 */
+  gap: 0.75rem;
+  /* 책 사이 간격 줄임 */
   overflow-x: auto;
   min-height: 240px;
-  padding-bottom: 0; /* 책과 책꽂이 바닥 사이 여백 제거 */
+  padding-bottom: 0;
+  /* 책과 책꽂이 바닥 사이 여백 제거 */
 }
 
 .group-shelf-horizontal::-webkit-scrollbar {
@@ -927,10 +980,11 @@ function resetRotation() {
 
 .group-books-draggable-area {
   display: flex;
-  gap: 0.75rem; /* 책 사이 간격 줄임 */
+  gap: 0.75rem;
+  /* 책 사이 간격 줄임 */
   flex-grow: 1;
   min-width: 120px;
-  min-height: 230px;
+  min-height: 250px;
   border-radius: 6px;
   align-items: flex-end;
 }
