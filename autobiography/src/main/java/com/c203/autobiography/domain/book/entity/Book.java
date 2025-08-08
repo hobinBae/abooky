@@ -136,6 +136,8 @@ public class Book {
         this.likeCount++;
     }
 
+    public void decrementLike(){ this.likeCount--; }
+
     /** 조회 수를 1 증가시킵니다. */
     public void incrementView() {
         this.viewCount++;

@@ -1,103 +1,103 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LiveKit WebRTC Test</title>
-</head>
-<body>
-<h1>LiveKit WebRTC Test</h1>
-<button id="joinBtn" style="padding:10px 20px; font-size:16px;">Join Room</button>
-<div style="margin-top:20px; display:flex; gap:10px;">
-    <!-- Local Video Container -->
-    <div class="video-container" style="position:relative; width:300px;">
-        <video id="localVideo" autoplay muted playsinline style="width:100%; border:1px solid #ccc;"></video>
-        <div id="localOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Local</div>
-    </div>
-    <!-- Remote Video Container -->
-    <div class="video-container" style="position:relative; width:300px;">
-        <video id="remoteVideo" autoplay playsinline style="width:100%; border:1px solid #ccc;"></video>
-        <div id="remoteOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Remote</div>
-    </div>
-</div>
+<!--<!DOCTYPE html>-->
+<!--<html lang="en">-->
+<!--<head>-->
+<!--    <meta charset="UTF-8" />-->
+<!--    <meta http-equiv="X-UA-Compatible" content="IE=edge" />-->
+<!--    <meta name="viewport" content="width=device-width, initial-scale=1.0" />-->
+<!--    <title>LiveKit WebRTC Test</title>-->
+<!--</head>-->
+<!--<body>-->
+<!--<h1>LiveKit WebRTC Test</h1>-->
+<!--<button id="joinBtn" style="padding:10px 20px; font-size:16px;">Join Room</button>-->
+<!--<div style="margin-top:20px; display:flex; gap:10px;">-->
+<!--    &lt;!&ndash; Local Video Container &ndash;&gt;-->
+<!--    <div class="video-container" style="position:relative; width:300px;">-->
+<!--        <video id="localVideo" autoplay muted playsinline style="width:100%; border:1px solid #ccc;"></video>-->
+<!--        <div id="localOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Local</div>-->
+<!--    </div>-->
+<!--    &lt;!&ndash; Remote Video Container &ndash;&gt;-->
+<!--    <div class="video-container" style="position:relative; width:300px;">-->
+<!--        <video id="remoteVideo" autoplay playsinline style="width:100%; border:1px solid #ccc;"></video>-->
+<!--        <div id="remoteOverlay" style="position:absolute; bottom:5px; left:5px; background:rgba(0,0,0,0.5); color:#fff; padding:2px 4px; font-size:12px; border-radius:3px;">Remote</div>-->
+<!--    </div>-->
+<!--</div>-->
 
-<script src="https://unpkg.com/livekit-client@2.15.4/dist/livekit-client.umd.js"></script>
-<!-- ESM 모듈 방식으로 LiveKit SDK 가져오기 -->
-<script>
-    const lk = window.LivekitClient || window.LiveKitClient || window.livekitClient;
-    const Room = lk.Room;
-    const createLocalVideoTrack = lk.createLocalVideoTrack;
-    const createLocalAudioTrack = lk.createLocalAudioTrack;
+<!--<script src="https://unpkg.com/livekit-client@2.15.4/dist/livekit-client.umd.js"></script>-->
+<!--&lt;!&ndash; ESM 모듈 방식으로 LiveKit SDK 가져오기 &ndash;&gt;-->
+<!--<script>-->
+<!--    const lk = window.LivekitClient || window.LiveKitClient || window.livekitClient;-->
+<!--    const Room = lk.Room;-->
+<!--    const createLocalVideoTrack = lk.createLocalVideoTrack;-->
+<!--    const createLocalAudioTrack = lk.createLocalAudioTrack;-->
 
-    const params = new URLSearchParams(window.location.search);
-    let accessToken = params.get('token');
-    let identity = params.get('identity');
-    if (!accessToken || !identity) {
-        accessToken = prompt('Access Token을 입력하세요:', accessToken || '');
-        identity = prompt('Identity를 입력하세요 (예: userA, userB):', identity || '');
-    }
-    const groupId = params.get('groupId') || 5;
-    const livekitServerUrl = params.get('livekitUrl') || 'ws://localhost:7880';
+<!--    const params = new URLSearchParams(window.location.search);-->
+<!--    let accessToken = params.get('token');-->
+<!--    let identity = params.get('identity');-->
+<!--    if (!accessToken || !identity) {-->
+<!--        accessToken = prompt('Access Token을 입력하세요:', accessToken || '');-->
+<!--        identity = prompt('Identity를 입력하세요 (예: userA, userB):', identity || '');-->
+<!--    }-->
+<!--    const groupId = params.get('groupId') || 5;-->
+<!--    const livekitServerUrl = params.get('livekitUrl') || 'ws://localhost:7880';-->
 
-    async function getToken() {
-        const res = await fetch(`/api/v1/groups/${groupId}/rtc/token`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json','Authorization': `Bearer ${accessToken}`},
-            body: JSON.stringify({ userName: identity })
-        });
-        if (!res.ok) { console.error('토큰 요청 실패:', res.status); throw new Error(res.status); }
-        return (await res.json()).data.token;
-    }
+<!--    async function getToken() {-->
+<!--        const res = await fetch(`/api/v1/groups/${groupId}/rtc/token`, {-->
+<!--            method: 'POST',-->
+<!--            headers: {'Content-Type': 'application/json','Authorization': `Bearer ${accessToken}`},-->
+<!--            body: JSON.stringify({ userName: identity })-->
+<!--        });-->
+<!--        if (!res.ok) { console.error('토큰 요청 실패:', res.status); throw new Error(res.status); }-->
+<!--        return (await res.json()).data.token;-->
+<!--    }-->
 
-    function attachTrack(track, overlayId) {
-        track.attach(document.getElementById(overlayId.replace('Overlay', 'Video')));
-    }
+<!--    function attachTrack(track, overlayId) {-->
+<!--        track.attach(document.getElementById(overlayId.replace('Overlay', 'Video')));-->
+<!--    }-->
 
-    async function start() {
-        try {
-            const token = await getToken();
-            const room = new Room();
-            await room.connect(livekitServerUrl, token);
-            console.log('Connected to room:', room.name);
+<!--    async function start() {-->
+<!--        try {-->
+<!--            const token = await getToken();-->
+<!--            const room = new Room();-->
+<!--            await room.connect(livekitServerUrl, token);-->
+<!--            console.log('Connected to room:', room.name);-->
 
-            // Publish local tracks
-            // 첫 번째 클라이언트만 오디오 퍼블리시 (장치 충돌 방지)
+<!--            // Publish local tracks-->
+<!--            // 첫 번째 클라이언트만 오디오 퍼블리시 (장치 충돌 방지)-->
 
-            const audioTrack = await createLocalAudioTrack();
-            await room.localParticipant.publishTrack(audioTrack);
+<!--            const audioTrack = await createLocalAudioTrack();-->
+<!--            await room.localParticipant.publishTrack(audioTrack);-->
 
-            // 비디오 트랙 퍼블리시
-            const videoTrack = await createLocalVideoTrack();
-            await room.localParticipant.publishTrack(videoTrack);
-            videoTrack.attach(document.getElementById('localVideo'));
-            document.getElementById('localOverlay').innerText = identity;
+<!--            // 비디오 트랙 퍼블리시-->
+<!--            const videoTrack = await createLocalVideoTrack();-->
+<!--            await room.localParticipant.publishTrack(videoTrack);-->
+<!--            videoTrack.attach(document.getElementById('localVideo'));-->
+<!--            document.getElementById('localOverlay').innerText = identity;-->
 
-            // Subscribe existing participants
-            room.participants.forEach(participant => {
-                participant.tracks.forEach(publication => {
-                    if (publication.isSubscribed && publication.track.kind === 'video') {
-                        attachTrack(publication.track, 'remoteOverlay');
-                        document.getElementById('remoteOverlay').innerText = participant.identity;
-                    }
-                });
-            });
+<!--            // Subscribe existing participants-->
+<!--            room.participants.forEach(participant => {-->
+<!--                participant.tracks.forEach(publication => {-->
+<!--                    if (publication.isSubscribed && publication.track.kind === 'video') {-->
+<!--                        attachTrack(publication.track, 'remoteOverlay');-->
+<!--                        document.getElementById('remoteOverlay').innerText = participant.identity;-->
+<!--                    }-->
+<!--                });-->
+<!--            });-->
 
-            // Handle new tracks
-            room.on('trackSubscribed', (track, publication, participant) => {
-                if (track.kind === 'video') {
-                    attachTrack(track, 'remoteOverlay');
-                    document.getElementById('remoteOverlay').innerText = participant.identity;
-                }
-                if (track.kind === 'audio') { track.attach(); }
-            });
+<!--            // Handle new tracks-->
+<!--            room.on('trackSubscribed', (track, publication, participant) => {-->
+<!--                if (track.kind === 'video') {-->
+<!--                    attachTrack(track, 'remoteOverlay');-->
+<!--                    document.getElementById('remoteOverlay').innerText = participant.identity;-->
+<!--                }-->
+<!--                if (track.kind === 'audio') { track.attach(); }-->
+<!--            });-->
 
-        } catch (err) {
-            console.error('실행 오류:', err);
-        }
-    }
+<!--        } catch (err) {-->
+<!--            console.error('실행 오류:', err);-->
+<!--        }-->
+<!--    }-->
 
-    document.getElementById('joinBtn').addEventListener('click', start);
-</script>
-</body>
-</html>
+<!--    document.getElementById('joinBtn').addEventListener('click', start);-->
+<!--</script>-->
+<!--</body>-->
+<!--</html>-->
