@@ -1,5 +1,6 @@
 package com.c203.autobiography.cicdTest;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/cicd")
+@Slf4j
 public class CICDTestController {
 
 
@@ -66,12 +68,19 @@ public class CICDTestController {
         Map<String, Object> response = new HashMap<>();
 
         try {
+            log.info("Redis 연결 테스트 시작");
+
             // Redis에 테스트 데이터 저장
             String key = "test:connection";
             String value = "AUTOBIOGRAPHY Redis Test - " + System.currentTimeMillis();
 
+            log.info("Redis SET 명령 실행: key={}, value={}", key, value);
             redisTemplate.opsForValue().set(key, value);
+
+            log.info("Redis GET 명령 실행: key={}", key);
             String retrievedValue = redisTemplate.opsForValue().get(key);
+
+            log.info("Redis 테스트 완료: retrieved={}", retrievedValue);
 
             response.put("redis", "connected");
             response.put("stored", value);
@@ -79,8 +88,21 @@ public class CICDTestController {
             response.put("match", value.equals(retrievedValue));
 
         } catch (Exception e) {
+            // 상세한 예외 로깅
+            log.error("Redis 연결 테스트 실패", e);
+            log.error("Exception class: {}", e.getClass().getName());
+            log.error("Exception message: {}", e.getMessage());
+
             response.put("redis", "error");
             response.put("error", e.getMessage());
+            response.put("errorClass", e.getClass().getSimpleName());
+
+            // 원인 예외도 확인
+            if (e.getCause() != null) {
+                response.put("rootCause", e.getCause().getMessage());
+                response.put("rootCauseClass", e.getCause().getClass().getSimpleName());
+            }
+
             return ResponseEntity.internalServerError().body(response);
         }
 
