@@ -16,6 +16,7 @@ import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import com.c203.autobiography.domain.episode.template.service.QuestionTemplateService;
 import com.c203.autobiography.domain.episode.template.service.ChapterBasedQuestionService;
 import com.c203.autobiography.domain.episode.template.dto.NextQuestionDto;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+
+@Tag(name = "AI와 대화 기능 API", description = "책 생성 시 AI 관련 API")
 @RestController
 @RequestMapping("/api/conversation")
 @RequiredArgsConstructor
