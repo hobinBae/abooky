@@ -103,6 +103,11 @@
               <span>{{ isScreenSharing ? '화면공유 중지' : '화면 공유' }}</span>
             </button>
             
+            <button @click="goToBookEditor" class="btn btn-control btn-book">
+              <i class="bi bi-book-fill"></i>
+              <span>책 만들기</span>
+            </button>
+            
             <button @click="leaveRoom" class="btn btn-control btn-leave">
               <i class="bi bi-box-arrow-right"></i>
               <span>나가기</span>
@@ -543,6 +548,15 @@ async function toggleScreenShare() {
   } catch (error) {
     console.error('화면 공유 토글 실패:', error);
     connectionStatus.value = { type: 'error', message: '화면 공유를 시작할 수 없습니다.' };
+  }
+}
+
+function goToBookEditor() {
+  try {
+    // 책 에디터 페이지로 이동
+    router.push('/book-editor');
+  } catch (error) {
+    console.error('책 에디터로 이동 실패:', error);
   }
 }
 
@@ -989,6 +1003,17 @@ onUnmounted(() => {
 }
 
 .btn-control.active:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.btn-control.btn-book {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.btn-control.btn-book:hover {
   opacity: 0.9;
   transform: translateY(-1px);
 }
