@@ -9,11 +9,7 @@ import com.c203.autobiography.domain.auth.service.AuthService;
 import com.c203.autobiography.domain.auth.service.EmailService;
 import com.c203.autobiography.domain.auth.dto.RefreshTokenRequest;
 import com.c203.autobiography.domain.auth.dto.SocialLoginRequest;
-import com.c203.autobiography.domain.auth.service.AuthService;
-import com.c203.autobiography.domain.member.dto.AuthProvider;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
-import com.c203.autobiography.domain.member.entity.Member;
-import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import com.c203.autobiography.global.util.CookieUtil;
@@ -23,11 +19,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.apache.coyote.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
 
 @Tag(name = "인증 API", description = "로그인 관련 API")
 @RestController
@@ -113,8 +109,8 @@ public class AuthController {
     @Operation(summary = "소셜 로그인", description = "구글 계정으로 로그인할 수 있습니다.")
     @PostMapping("/oauth2")
     public ResponseEntity<ApiResponse<TokenResponse>> socialLogin(
-            @RequestBody @Valid SocialLoginRequest socialLoginRequest, HttpServletRequest httpRequest) throws Exception {
-        TokenResponse tokenResponse = authService.socialLogin(socialLoginRequest.getProvider(),  socialLoginRequest.getCode());
+            @RequestBody @Valid SocialLoginRequest socialLoginRequest, HttpServletRequest httpRequest, HttpServletResponse httpResponse) throws Exception {
+        TokenResponse tokenResponse = authService.socialLogin(socialLoginRequest.getProvider(),  socialLoginRequest.getCode(), httpResponse);
         return ResponseEntity.ok(ApiResponse.of(HttpStatus.OK, socialLoginRequest.getProvider() + " 로그인 성공", tokenResponse, httpRequest.getRequestURI()));
     }
 

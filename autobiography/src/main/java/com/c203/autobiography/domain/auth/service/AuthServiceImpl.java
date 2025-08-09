@@ -153,7 +153,7 @@ public class AuthServiceImpl implements AuthService {
     private final GoogleOAuth2Service googleService;
 
     @Override
-    public TokenResponse socialLogin(AuthProvider provider, String code) {
+    public TokenResponse socialLogin(AuthProvider provider, String code, HttpServletResponse httpResponse) {
         return switch (provider){
             case GOOGLE -> {
                 GoogleOAuth2Service.GoogleUserInfo googleUser = null;
@@ -162,7 +162,8 @@ public class AuthServiceImpl implements AuthService {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                yield processOAuth2Login(googleUser.getEmail(), googleUser.getName(), AuthProvider.GOOGLE, googleUser.getProviderId());
+                yield processOAuth2Login(googleUser.getEmail(), googleUser.getName(), AuthProvider.GOOGLE, googleUser.getProviderId(), httpResponse
+                        );
             }
             default -> throw new IllegalArgumentException("지원하지 않는 소셜 로그인");
         };

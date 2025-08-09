@@ -6,15 +6,16 @@ import org.springframework.http.ResponseCookie;
 import java.time.Duration;
 
 public class CookieUtil {
-    private static final String REFRESH_TOKEN_COOKIE = "refreshToken";
+    public static final String REFRESH_TOKEN_COOKIE = "refreshToken";
 
     public static void addRefreshTokenCookie(HttpServletResponse response, String token, long days) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
-//                .secure(true)
+                .secure(false)
                 .sameSite("None")
                 .path("/")
                 .maxAge(Duration.ofDays(days))
+//                .domain(".domain.com")
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
     }
@@ -22,7 +23,7 @@ public class CookieUtil {
     public static void deleteRefreshTokenCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .sameSite("None")
                 .path("/")
                 .maxAge(0).build();

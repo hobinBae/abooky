@@ -29,5 +29,5 @@ public interface AuthService {
     TokenResponse processOAuth2Login(String email, String name, AuthProvider provider, String providerId, HttpServletResponse response);
 
     /** 소셜 로그인 */
-    TokenResponse socialLogin(AuthProvider provider, String code);
+    TokenResponse socialLogin(AuthProvider provider, String code, HttpServletResponse response);
 }
