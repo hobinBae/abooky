@@ -31,7 +31,7 @@
 
       <hr class="divider">
 
-      <section class="form-section">
+      <!-- <section class="form-section">
         <h2 class="section-title">비밀번호 변경</h2>
         <form @submit.prevent="changePassword" class="form-layout">
           <div class="form-group">
@@ -50,7 +50,7 @@
             {{ isChangingPassword ? '변경 중...' : '비밀번호 변경' }}
           </button>
         </form>
-      </section>
+      </section> -->
 
       <div v-if="message" class="alert" :class="`alert-${messageType}`">
         {{ message }}
@@ -61,13 +61,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import apiClient from '@/api';
+import { useRouter } from 'vue-router';
+import { AxiosError } from 'axios';
 
-// --- Dummy Data ---
-const DUMMY_USER_PROFILE = {
-  nickname: '김작가',
-  bio: '세상과 소통하는 작가입니다.',
-  profilePicUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cfd293ae?q=80&w=1780',
-};
+const authStore = useAuthStore();
+const router = useRouter();
 
 // --- Reactive State ---
 const profile = ref({
@@ -75,6 +75,7 @@ const profile = ref({
   bio: '',
   profilePicUrl: '',
 });
+const newProfilePic = ref<File | null>(null);
 const password = ref({
   current: '',
   new: '',
@@ -90,9 +91,11 @@ const isChangingPassword = ref(false);
 
 // --- Functions ---
 function loadUserProfile() {
-  profile.value.nickname = DUMMY_USER_PROFILE.nickname;
-  profile.value.bio = DUMMY_USER_PROFILE.bio;
-  profile.value.profilePicUrl = DUMMY_USER_PROFILE.profilePicUrl;
+  if (authStore.user) {
+    profile.value.nickname = authStore.user.nickname;
+    profile.value.bio = authStore.user.intro || ''; // intro 필드가 없을 경우 대비
+    profile.value.profilePicUrl = authStore.user.profileImageUrl || '';
+  }
 }
 
 function triggerFileUpload() {
@@ -103,6 +106,7 @@ function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
     const file = target.files[0];
+    newProfilePic.value = file;
     profile.value.profilePicUrl = URL.createObjectURL(file);
   }
 }
@@ -111,13 +115,30 @@ async function updateProfileInfo() {
   isSaving.value = true;
   message.value = '';
   try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    DUMMY_USER_PROFILE.nickname = profile.value.nickname;
-    DUMMY_USER_PROFILE.bio = profile.value.bio;
+    const formData = new FormData();
+    formData.append('nickname', profile.value.nickname);
+    formData.append('intro', profile.value.bio);
+    if (newProfilePic.value) {
+      formData.append('file', newProfilePic.value);
+    }
+
+    await apiClient.patch('/api/v1/members/me', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    await authStore.fetchUserInfo(); // 스토어 정보 갱신
     showMessage('프로필 정보가 성공적으로 저장되었습니다.', 'success');
+    router.push('/mypage'); // 마이페이지로 이동
+
   } catch (error) {
     console.error("Error updating profile:", error);
-    showMessage('프로필 저장에 실패했습니다.', 'danger');
+    let errorMessage = '프로필 저장에 실패했습니다.';
+    if (error instanceof AxiosError && error.response) {
+      errorMessage = error.response.data.message || errorMessage;
+    }
+    showMessage(errorMessage, 'danger');
   } finally {
     isSaving.value = false;
   }

@@ -1,24 +1,32 @@
 <template>
   <div class="my-page-container">
-    <button @click="goToProfileEdit" class="btn-edit-profile-icon" title="프로필 수정">
-      <i class="bi bi-gear-fill"></i>
-    </button>
+    <div class="top-actions">
+      <button @click="goToProfileEdit" class="btn-top-action" title="프로필 수정">
+        <i class="bi bi-gear-fill"></i>
+      </button>
+      <button @click="handleLogout" class="btn-top-action" title="로그아웃">
+        <i class="bi bi-box-arrow-right"></i>
+      </button>
+    </div>
 
-    <section class="profile-section">
+    <section v-if="user" class="profile-section">
       <div class="profile-main-content">
         <div class="profile-left-section">
-          <img :src="userProfile.profilePic || 'https://via.placeholder.com/150'" alt="Profile Picture"
+          <img :src="user.profileImageUrl || 'https://via.placeholder.com/150'" alt="Profile Picture"
             class="profile-pic">
           <div class="user-info">
-            <h2 class="user-name">{{ userProfile.name }}</h2>
-            <p class="user-penname">@{{ userProfile.penName }}</p>
+            <h2 class="user-name">{{ user.name }}</h2>
+            <p class="user-penname">@{{ user.nickname }}</p>
           </div>
         </div>
-        <div v-if="userProfile.authorMessage" class="author-message-box">
+        <div v-if="user.intro" class="author-message-box">
           <p class="author-message-title">작가의 말</p>
-          <p class="author-message-content">{{ userProfile.authorMessage }}</p>
+          <p class="author-message-content">{{ user.intro }}</p>
         </div>
       </div>
+    </section>
+    <section v-else class="profile-section">
+      <p>사용자 정보를 불러오는 중입니다...</p>
     </section>
 
     <hr class="divider">
@@ -55,7 +63,7 @@
     <hr class="divider">
 
     <section class="content-section">
-      <h3 class="section-title">내가 단 댓글</h3>
+      <h3 class="section-title">내가 쓴 댓글</h3>
       <div v-if="paginatedComments.length > 0" class="comment-list-container">
         <div v-for="comment in paginatedComments" :key="comment.id" class="comment-item">
           <p class="comment-text">{{ comment.text }}</p>
@@ -81,12 +89,24 @@
         </button>
       </div>
     </section>
+
+    <hr class="divider">
+
+    <section class="danger-zone">
+      <h3 class="section-title danger-title">계정 관리</h3>
+      <div class="danger-content">
+        <p>계정을 삭제하면 모든 데이터가 영구적으로 사라지며 복구할 수 없습니다.</p>
+        <button @click="deleteAccount" class="btn btn-danger">회원 탈퇴</button>
+      </div>
+    </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+import apiClient from '@/api';
 
 interface Book {
   id: string;
@@ -106,145 +126,80 @@ interface Comment {
   createdAt: Date;
 }
 
-interface UserProfile {
-  id: string;
-  name: string;
-  penName: string;
-  profilePic?: string;
-  authorMessage?: string;
-}
-
 const router = useRouter();
+const authStore = useAuthStore();
 
-// Dummy Data
-const DUMMY_USER_PROFILE: UserProfile = {
-  id: 'dummyUser1',
-  name: '홍길동',
-  penName: '김작가',
-  profilePic: 'https://images.unsplash.com/photo-1535713875002-d1d0cfd293ae?q=80&w=1780&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
-  authorMessage: '안녕하세요! 글쓰기를 통해 세상과 소통하고 싶은 김작가입니다. 제 이야기가 여러분의 마음에 작은 울림이 되기를 바랍니다. 항상 새로운 영감을 찾아 헤매고 있으며, 독자분들과 함께 성장하는 작가가 되고 싶습니다. 많은 관심과 사랑 부탁드립니다!',
-};
+const user = computed(() => authStore.user);
 
-const DUMMY_LIKED_BOOKS: Book[] = [
-  { id: 'likedbook1', title: '별 헤는 밤', authorId: 'dummyUser2', authorName: '윤동주', coverUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=500' },
-  { id: 'likedbook2', title: '어린 왕자', authorId: 'dummyUser3', authorName: '생텍쥐페리', coverUrl: 'https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?w=500' },
-  { id: 'likedbook3', title: '가족의 발견', authorId: 'dummyUser4', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500' },
-  { id: 'likedbook4', title: '취미로 시작하는 코딩', authorId: 'dummyUser5', authorName: '이개발', coverUrl: 'https://images.unsplash.com/photo-1550063873-ab792950096b?w=500' },
-  { id: 'likedbook5', title: '사랑의 온도', authorId: 'dummyUser6', authorName: '박사랑', coverUrl: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=500' },
-  { id: 'likedbook6', title: '스포츠 심리학 개론', authorId: 'dummyUser7', authorName: '최건강', coverUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=500' },
-  { id: 'likedbook7', title: '드래곤의 유산', authorId: 'dummyUser8', authorName: '김판타', coverUrl: 'https://images.unsplash.com/photo-1523586044048-b7d32d5da502?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8JUVEJThDJThDJUVDJUI2JUE5JUVCJUE1JTk4fGVufDB8fDB8fHww' },
-  { id: 'likedbook8', title: '우주 탐사대의 기록', authorId: 'dummyUser9', authorName: '이공상', coverUrl: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=500' },
-  { id: 'likedbook9', title: '조선 왕조 실록 이야기', authorId: 'dummyUser10', authorName: '정역사', coverUrl: 'https://images.unsplash.com/photo-1448523183439-d2ac62aca997?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8JUVEJTk1JTlDJUVBJUI1JUFEfGVufDB8fDB8fHww' },
-  { id: 'likedbook10', title: '나는 오늘부터 성장한다', authorId: 'dummyUser11', authorName: '강성장', coverUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500' },
-  { id: 'likedbook11', title: '새로운 시작', authorId: 'dummyUser12', authorName: '최초', coverUrl: 'https://images.unsplash.com/photo-1507842217343-583fd046b7ea?w=500' },
-  { id: 'likedbook12', title: '시간 여행자의 일기', authorId: 'dummyUser13', authorName: '과거', coverUrl: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a724?w=500' },
-];
+// --- 좋아요 누른 책과 댓글 상태 (API 연동 보류) ---
+const likedBooks = ref<Book[]>([]);
+const myComments = ref<Comment[]>([]);
+const allBooks = ref<Book[]>([]); // getBookTitle 헬퍼 함수용
 
-const DUMMY_ALL_BOOKS: Book[] = [
-  { id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가' },
-  { id: 'mybook2', title: '꿈을 향한 도전', authorId: 'dummyUser1', authorName: '김작가' },
-  { id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가' },
-  { id: 'mybook4', title: '개발자의 삶', authorId: 'dummyUser1', authorName: '김작가' },
-  ...DUMMY_LIKED_BOOKS,
-];
-
-const DUMMY_MY_COMMENTS: Comment[] = [
-  { id: 'c1', bookId: 'mybook1', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '이 책 정말 감동적이에요! 작가님의 다음 작품이 기대됩니다.', createdAt: new Date('2024-07-29T10:00:00Z') },
-  { id: 'c2', bookId: 'likedbook1', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '윤동주 시인의 감성이 잘 느껴지는 아름다운 시집입니다. 여러 번 읽어도 좋네요.', createdAt: new Date('2024-07-29T11:00:00Z') },
-  { id: 'c3', bookId: 'mybook2', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '도전적인 내용이 인상 깊었습니다. 저도 용기를 얻어 새로운 시작을 해보려 합니다.', createdAt: new Date('2024-07-30T14:30:00Z') },
-  { id: 'c4', bookId: 'likedbook3', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '가족의 소중함을 다시 한번 깨닫게 해주는 책이었습니다. 따뜻한 내용에 마음이 편안해지네요.', createdAt: new Date('2024-07-31T09:15:00Z') },
-  { id: 'c5', bookId: 'mybook3', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '여행의 기록을 읽고 저도 떠나고 싶어졌어요. 다음 여행은 어디로 가실 건가요?', createdAt: new Date('2024-08-01T16:00:00Z') },
-  { id: 'c6', bookId: 'likedbook4', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '코딩 입문자에게 정말 유용한 책입니다. 설명이 쉽고 예제도 좋아서 따라하기 편했어요.', createdAt: new Date('2024-08-02T10:30:00Z') },
-  { id: 'c7', bookId: 'mybook4', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '개발자의 삶에 대한 솔직한 이야기가 좋았습니다. 공감되는 부분이 많았어요.', createdAt: new Date('2024-08-03T13:00:00Z') },
-  { id: 'c8', bookId: 'likedbook5', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '사랑의 온도, 정말 마음을 울리는 이야기였습니다. 여운이 오래 남네요.', createdAt: new Date('2024-08-04T18:00:00Z') },
-  { id: 'c9', bookId: 'likedbook6', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '스포츠 심리학에 관심이 많았는데, 이 책으로 많은 것을 배웠습니다. 감사합니다.', createdAt: new Date('2024-08-05T09:00:00Z') },
-  { id: 'c10', bookId: 'likedbook7', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '드래곤의 유산, 판타지 소설의 진수를 보여주는 작품입니다. 몰입해서 읽었어요!', createdAt: new Date('2024-08-06T11:45:00Z') },
-  { id: 'c11', bookId: 'likedbook8', episodeIndex: 0, authorId: 'dummyUser1', authorName: '김작가', text: '우주 탐사대의 기록, 상상력을 자극하는 멋진 SF였습니다. 다음 편이 기대됩니다.', createdAt: new Date('2024-08-07T15:20:00Z') },
-];
-
-const userProfile = ref<UserProfile>(DUMMY_USER_PROFILE);
-const likedBooks = ref<Book[]>(DUMMY_LIKED_BOOKS);
-const myComments = ref<Comment[]>(DUMMY_MY_COMMENTS);
-
-// Liked Books Pagination
+// 좋아요 누른 책 페이지네이션
 const likedBooksCurrentPage = ref(1);
 const likedBooksPerPage = 5;
-
 const paginatedLikedBooks = computed(() => {
   const start = (likedBooksCurrentPage.value - 1) * likedBooksPerPage;
   const end = start + likedBooksPerPage;
   return likedBooks.value.slice(start, end);
 });
+const totalLikedBooksPages = computed(() => Math.ceil(likedBooks.value.length / likedBooksPerPage));
+const goToLikedBookPage = (page: number) => { likedBooksCurrentPage.value = page; };
+const prevLikedBookPage = () => { if (likedBooksCurrentPage.value > 1) likedBooksCurrentPage.value--; };
+const nextLikedBookPage = () => { if (likedBooksCurrentPage.value < totalLikedBooksPages.value) likedBooksCurrentPage.value++; };
 
-const totalLikedBooksPages = computed(() => {
-  return Math.ceil(likedBooks.value.length / likedBooksPerPage);
-});
-
-const goToLikedBookPage = (page: number) => {
-  likedBooksCurrentPage.value = page;
-};
-
-const prevLikedBookPage = () => {
-  if (likedBooksCurrentPage.value > 1) {
-    likedBooksCurrentPage.value--;
-  }
-};
-
-const nextLikedBookPage = () => {
-  if (likedBooksCurrentPage.value < totalLikedBooksPages.value) {
-    likedBooksCurrentPage.value++;
-  }
-};
-
-// Comments Pagination
+// 댓글 페이지네이션
 const currentPage = ref(1);
 const commentsPerPage = 5;
-
 const paginatedComments = computed(() => {
   const start = (currentPage.value - 1) * commentsPerPage;
   const end = start + commentsPerPage;
   return myComments.value.slice(start, end);
 });
+const totalPages = computed(() => Math.ceil(myComments.value.length / commentsPerPage));
+const goToPage = (page: number) => { currentPage.value = page; };
+const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
+const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
 
-const totalPages = computed(() => {
-  return Math.ceil(myComments.value.length / commentsPerPage);
-});
-
-const goToPage = (page: number) => {
-  currentPage.value = page;
-};
-
-const prevPage = () => {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
-};
-
-const nextPage = () => {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++;
-  }
-};
-
-// Helper Functions
+// 헬퍼 함수
 const getBookTitle = (bookId: string) => {
-  const book = DUMMY_ALL_BOOKS.find(b => b.id === bookId);
+  const book = allBooks.value.find(b => b.id === bookId);
   return book ? book.title : '알 수 없는 책';
 };
+const formatDate = (date: Date) => new Intl.DateTimeFormat('ko-KR').format(date);
 
 const goToProfileEdit = () => {
   router.push('/profile-edit');
 };
 
-const formatDate = (date: Date) => {
-  return new Intl.DateTimeFormat('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  }).format(date);
+const handleLogout = async () => {
+  if (confirm('로그아웃 하시겠습니까?')) {
+    await authStore.logout();
+  }
 };
+
+const deleteAccount = async () => {
+  if (confirm('정말로 회원 탈퇴를 진행하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+    try {
+      await apiClient.delete('/api/v1/members/me');
+      alert('회원 탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.');
+      await authStore.logout();
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      alert('회원 탈퇴 중 오류가 발생했습니다.');
+    }
+  }
+};
+
+onMounted(() => {
+  if (!authStore.user) {
+    authStore.fetchUserInfo();
+  }
+  // TODO: API가 준비되면 더미 데이터 대신 실제 데이터를 호출합니다.
+  // fetchLikedBooks();
+  // fetchMyComments();
+});
 </script>
 
 <style scoped>
@@ -253,7 +208,7 @@ const formatDate = (date: Date) => {
 
 /* --- 기본 페이지 스타일 --- */
 .my-page-container {
-  padding: 8rem 2rem;
+  padding: 4rem 2rem;
   max-width: 900px;
   margin: 0 auto;
   font-family: 'Pretendard', sans-serif;
@@ -262,11 +217,16 @@ const formatDate = (date: Date) => {
   position: relative;
 }
 
-/* --- 프로필 수정 버튼 --- */
-.btn-edit-profile-icon {
+.top-actions {
   position: absolute;
-  top: 4rem;
-  right: 1rem;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  gap: 0.5rem;
+  z-index: 10;
+}
+
+.btn-top-action {
   background: none;
   border: none;
   color: #868e96;
@@ -274,9 +234,8 @@ const formatDate = (date: Date) => {
   cursor: pointer;
   transition: color 0.2s ease;
   padding: 0.5rem;
-  z-index: 10;
 }
-.btn-edit-profile-icon:hover {
+.btn-top-action:hover {
   color: #333;
 }
 
@@ -463,6 +422,40 @@ const formatDate = (date: Date) => {
 
 .comment-book-link:hover {
   text-decoration: underline;
+}
+
+.danger-zone {
+  background-color: #fff5f5;
+  border: 1px solid #ffc9c9;
+  border-radius: 8px;
+  padding: 2rem;
+}
+
+.danger-title {
+  color: #c92a2a;
+  border-bottom-color: #ffc9c9;
+}
+
+.danger-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.danger-content p {
+  margin: 0;
+  color: #555;
+}
+
+.btn-danger {
+  background-color: #e03131;
+  color: white;
+  border: none;
+  font-weight: 600;
+}
+
+.btn-danger:hover {
+  background-color: #c92a2a;
 }
 
 /* --- 공통 스타일 --- */

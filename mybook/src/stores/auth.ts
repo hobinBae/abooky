@@ -8,18 +8,20 @@ interface User {
   email: string;
   name: string;
   nickname: string;
+  intro?: string;
+  profileImageUrl?: string;
   // 필요에 따라 다른 사용자 정보 필드 추가
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  // State
+  // 상태(State)
   const accessToken = ref<string | null>(null)
   const user = ref<User | null>(null) // 사용자 정보를 저장할 상태
 
-  // Getters
+  // 게터(Getters)
   const isLoggedIn = computed(() => !!accessToken.value)
 
-  // Actions
+  // 액션(Actions)
   async function login(loginData: { email: string; password: string }) {
     const response = await apiClient.post('/api/v1/auth/login', loginData)
     accessToken.value = response.data.data.accessToken
