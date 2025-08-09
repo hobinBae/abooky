@@ -7,7 +7,6 @@ import com.c203.autobiography.domain.auth.dto.LoginRequest;
 import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.auth.service.AuthService;
 import com.c203.autobiography.domain.auth.service.EmailService;
-import com.c203.autobiography.domain.auth.dto.RefreshTokenRequest;
 import com.c203.autobiography.domain.auth.dto.SocialLoginRequest;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
 import com.c203.autobiography.global.dto.ApiResponse;
