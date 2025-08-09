@@ -586,7 +586,7 @@ async function leaveRoom() {
     participantVideoRefs.value.clear();
 
     // 라우터로 이동
-    router.push(`/group-book-lobby/${groupId}`);
+    router.push(`/group-book-lobby/`);
   } catch (error) {
     console.error('퇴장 중 오류:', error);
   }
@@ -1019,13 +1019,15 @@ onUnmounted(() => {
 }
 
 .btn-control.btn-leave {
-  background-color: var(--color-danger);
-  border-color: var(--color-danger);
-  color: white;
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
 }
 
 .btn-control.btn-leave:hover {
-  opacity: 0.9;
+  background-color: #ffe6e6;
+  border-color: #ffb3b3;
+  color: #c53030;
   transform: translateY(-1px);
 }
 
