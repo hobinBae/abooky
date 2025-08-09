@@ -4,7 +4,7 @@
       <h2 class="section-title">나의 대표 인생책</h2>
       <p class="section-subtitle">당신의 삶에 가장 큰 영감을 준 책을 설정해보세요.</p>
       <div class="rep-book-display-area">
-        <div v-if="currentRepBook" class="rep-book-container" @mousemove="handleMouseMove" @mouseleave="resetRotation">
+        <div v-if="currentRepBook" class="rep-book-container" @mousemove="handleMouseMove" @mouseleave="resetRotation" @click="selectShelfBook(currentRepBook)">
           <div class="rep-book-shadow"></div>
           <div class="book-3d-wrapper" :style="repBookStyle">
             <div class="book-3d">
@@ -93,14 +93,6 @@
           <div class="group-bookshelf-inner">
             <div class="shelf-book-container">
               <div class="shelf-book-list group-shelf-horizontal">
-                <div v-for="member in group.members" :key="member" class="book-item member-book"
-                  :class="{ 'member-book-registered': isMemberRegistered(group, member), 'member-book-unregistered': !isMemberRegistered(group, member) }"
-                  :title="member">
-                  <div class="book-title-text-wrapper">
-                    {{ truncateTitle(member) }}
-                  </div>
-                </div>
-
                 <draggable v-model="group.books" item-key="id"
                   :group="{ name: 'groupBooksTarget', pull: true, put: ['myBooksSource'] }"
                   class="group-books-draggable-area" tag="div" @add="handleBookDrop($event, group.id)"
@@ -120,6 +112,9 @@
                         </div>
                         <div class="shelf-book-face shelf-book-spine"
                           :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                          <div class="spine-title-box">
+                            <div class="spine-title">{{ book.title }}</div>
+                          </div>
                         </div>
                         <div class="shelf-book-face shelf-book-side-edge"></div>
                         <div class="shelf-book-face shelf-book-back-cover"></div>
@@ -158,11 +153,6 @@
             <input v-model="newGroupName" id="group-name-input" type="text" class="form-control"
               placeholder="예: 독서 모임 A">
           </div>
-          <div class="form-group">
-            <label for="group-members-input" class="form-label">그룹 멤버 (쉼표로 구분)</label>
-            <input v-model="newGroupMembers" id="group-members-input" type="text" class="form-control"
-              placeholder="예: 김철수, 이영희, 박지민">
-          </div>
           <button @click="createGroupHandler" class="btn btn-primary modal-action-btn">그룹 생성</button>
         </div>
         <div v-if="isMessageBoxVisible">
@@ -176,7 +166,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, nextTick } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
 
@@ -212,14 +202,12 @@ const isRepBookModalVisible = ref(false);
 const selectedRepBookIds = ref<string[]>([]);
 const isGroupModalVisible = ref(false);
 const newGroupName = ref('');
-const newGroupMembers = ref('');
 const isMessageBoxVisible = ref(false);
 const messageBoxTitle = ref('');
 const messageBoxContent = ref('');
 const repBookRotationY = ref(0);
 
 // --- Computed Properties ---
-const isBookInAnyGroup = computed(() => (bookId: string) => allGroups.value.some(group => group.books.some(book => book.id === bookId)));
 const currentRepBook = computed(() => (representativeBooks.value.length > 0 ? representativeBooks.value[0] : null));
 const repBookStyle = computed(() => ({ transform: `rotateY(${repBookRotationY.value}deg)`, transition: isDraggingBook.value ? 'none' : 'transform 0.1s ease-out' }));
 
@@ -228,18 +216,60 @@ const repBookStyle = computed(() => ({ transform: `rotateY(${repBookRotationY.va
 function selectShelfBook(book: Book) {
   router.push(`/book-detail/${book.id}`);
 }
-function closeAllModals() { isRepBookModalVisible.value = false; isGroupModalVisible.value = false; isMessageBoxVisible.value = false; }
+function closeAllModals() {
+  isRepBookModalVisible.value = false;
+  isGroupModalVisible.value = false;
+  isMessageBoxVisible.value = false;
+}
 function showMessageBox(message: string, title = '알림') { messageBoxTitle.value = title; messageBoxContent.value = message; isMessageBoxVisible.value = true; }
-function handleBookDrop(event: DraggableEvent, groupId: string) {
-  if (!event.added) return;
-  const bookTitle = event.added.element.title;
+
+async function handleBookDrop(event: DraggableEvent, groupId: string) {
+  if (!event || !event.added) {
+    return;
+  }
+
+  // vuedraggable이 DOM을 업데이트한 후, Vue가 반응성 데이터를 업데이트할 때까지 기다립니다.
+  await nextTick();
+
+  const { element: droppedBook, newIndex } = event.added;
   const group = allGroups.value.find(g => g.id === groupId);
-  if (group) {
-    const isAlreadyInGroup = group.books.filter(b => b.id === event.added!.element.id).length > 1;
-    if (!isAlreadyInGroup) { showMessageBox(`'${bookTitle}'을(를) '${group.groupName}' 그룹에 추가했습니다.`); }
+
+  if (!group || typeof newIndex !== 'number') {
+    return;
+  }
+
+  // vuedraggable이 책을 배열에 자동으로 추가한 후 이 함수가 호출됩니다.
+  // 따라서 중복 여부를 확인하기 위해 배열에 해당 책 ID가 몇 번 나타나는지 셉니다.
+  const occurrences = group.books.filter(b => b.id === droppedBook.id).length;
+
+  // 책을 배열에서 제거해야 할 때 사용할 함수입니다.
+  const removeBook = () => {
+    // newIndex가 유효한 범위 내에 있는지 확인합니다.
+    if (newIndex >= 0 && newIndex < group.books.length) {
+      const newBooks = [...group.books];
+      newBooks.splice(newIndex, 1);
+      group.books = newBooks;
+    }
+  };
+
+  if (occurrences > 1) {
+    // 중복인 경우, 사용자에게 알리고 드래그된 책을 배열에서 제거합니다.
+    showMessageBox(`'${droppedBook.title}'은(는) 이미 그룹에 있습니다.`, '중복 알림');
+    removeBook();
+    return;
+  }
+
+  // 중복이 아닌 경우, 사용자에게 추가할지 확인하는 대화상자를 띄웁니다.
+  if (confirm(`'${droppedBook.title}' 책을 '${group.groupName}' 그룹에 추가하시겠습니까?`)) {
+    // 사용자가 '확인'을 누르면, 책이 이미 배열에 있으므로 아무 작업도 하지 않습니다.
+  } else {
+    // 사용자가 '취소'를 누르면, 드래그된 책을 배열에서 제거합니다.
+    removeBook();
   }
 }
+
 function handleGroupBookChange(event: DraggableEvent, groupId: string) { }
+
 function removeBookFromGroup(groupId: string, bookId: string) {
   const group = allGroups.value.find(g => g.id === groupId);
   if (group) {
@@ -250,7 +280,6 @@ function removeBookFromGroup(groupId: string, bookId: string) {
     }
   }
 }
-function isMemberRegistered(group: Group, memberName: string): boolean { return group.members.includes(memberName); }
 function openRepBookModal() { selectedRepBookIds.value = representativeBooks.value.map(book => book.id); isRepBookModalVisible.value = true; }
 function saveRepresentativeBooksHandler() {
   representativeBooks.value = selectedRepBookIds.value.map(id => myBooks.value.find(book => book.id === id)).filter((book): book is Book => !!book);
@@ -259,13 +288,14 @@ function saveRepresentativeBooksHandler() {
 }
 function createGroupHandler() {
   const groupName = newGroupName.value.trim();
-  const members = newGroupMembers.value.split(',').map(m => m.trim()).filter(m => m);
-  if (!members.includes(currentUserNickname.value)) { members.unshift(currentUserNickname.value); }
   if (!groupName) { showMessageBox('그룹 이름을 입력해주세요.', '경고'); return; }
-  if (members.length === 0) { members.push(currentUserNickname.value); }
+
+  const members = [currentUserNickname.value]; // 현재 사용자만 멤버로 추가
+
   const newGroup: Group = { id: `group${Date.now()}`, groupName: groupName, ownerId: currentUserNickname.value, managers: [], members: members, books: [], createdAt: new Date() };
   allGroups.value.unshift(newGroup);
-  isGroupModalVisible.value = false; newGroupName.value = ''; newGroupMembers.value = '';
+  isGroupModalVisible.value = false;
+  newGroupName.value = '';
   showMessageBox('그룹이 성공적으로 생성되었습니다.');
 }
 function handleMouseMove(event: MouseEvent) {
@@ -417,6 +447,8 @@ function truncateTitle(title: string): string {
   position: relative;
   transform-style: preserve-3d;
   transform: translateZ(calc(var(--shelf-book-depth) / -2));
+  z-index: 1;
+  /* 그림자 위에 책이 오도록 설정 */
 }
 
 .shelf-book-face {
@@ -691,11 +723,18 @@ function truncateTitle(title: string): string {
   position: sticky;
   top: 56px;
   z-index: 100;
-  background-color: #e6e6e6;
+  background-color: #6B4F3A;
+  /* Fallback color */
+  background-image: url('https://plus.unsplash.com/premium_photo-1671612828903-dc019accc402?q=80&w=774&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+  background-size: cover;
+  background-position: center;
   padding: 1.5rem 3rem 1rem 3rem;
   margin: 0;
   border-radius: 10px 10px 0 0;
-  border: none;
+  border-top: 2px solid rgb(142, 142, 142);
+  border-right: 2px solid rgb(115, 115, 115);
+  border-left: 2px solid rgb(115, 115, 115);
+  border-bottom: none;
   box-shadow: none;
   box-sizing: border-box;
 
@@ -723,17 +762,21 @@ function truncateTitle(title: string): string {
 
 .my-books-container,
 .group-bookshelf-inner {
-  background-color: #ffffff;
-  box-shadow: inset 0 4px 8px rgba(0, 0, 0, 0.3);
+  background-color: #4b3d2a4f;
+  box-shadow: inset 0 0 15px 5px rgba(0, 0, 0, 0.6);
+  border: 2px solid rgb(115, 115, 115);
 }
 
 .shelf-book-list,
 .group-shelf-horizontal {
   display: flex;
   gap: 0.5rem;
-  min-height: auto; /* [수정] 최소 높이 제거 */
-  align-items: flex-end; /* [수정] 책을 아래쪽 기준으로 정렬 */
-  padding: 0rem 1rem 0rem 4rem; /* [수정] 아래쪽 여백(padding-bottom)을 0으로 설정 */
+  min-height: auto;
+  /* [수정] 최소 높이 제거 */
+  align-items: flex-end;
+  /* [수정] 책을 아래쪽 기준으로 정렬 */
+  padding: 0rem 1rem 0rem 4rem;
+  /* [수정] 아래쪽 여백(padding-bottom)을 0으로 설정 */
 }
 
 
@@ -745,7 +788,8 @@ function truncateTitle(title: string): string {
   cursor: grab;
   transform-style: preserve-3d;
   position: relative;
-  transform: rotateY(70deg) translateX(-30px); /* 시각적 오버랩 */
+  transform: rotateY(70deg) translateX(-30px);
+  /* 시각적 오버랩 */
   transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   margin-left: -60px;
   margin-right: -60px;
@@ -839,53 +883,6 @@ function truncateTitle(title: string): string {
   color: #333;
 }
 
-/* --- 2D 멤버 책 (복원) --- */
-.book-item.member-book {
-  width: 45px;
-  height: 250px;
-  background-color: #e9ecef;
-  color: #343a40;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  white-space: normal;
-  overflow: hidden;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  text-align: center;
-  padding: 0.5rem 0.3rem 1.5rem;
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.5;
-  cursor: default;
-}
-
-.book-title-text-wrapper {
-  width: 80%;
-  height: 85%;
-  position: relative;
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  background-color: white;
-  padding: 0.2rem 0.4rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #dee2e6;
-}
-
-.member-book-registered {
-  background-color: #D4A373;
-  color: #FFFFFF;
-}
-
-.member-book-unregistered {
-  background-color: #ccc;
-  color: #555;
-  opacity: 0.8;
-}
 
 /* --- UI & 그룹 --- */
 .remove-book-btn {
@@ -933,16 +930,23 @@ function truncateTitle(title: string): string {
 }
 
 .group-shelf-wrapper {
-  background-color: #e6e6e6;
+  background-color: #6B4F3A;
+  /* Fallback color */
+  background-image: url('https://plus.unsplash.com/premium_photo-1671612828903-dc019accc402?q=80&w=774&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
+  background-size: cover;
+  background-position: center;
   position: relative;
-  padding: 1rem 3rem 1rem 3rem;
+  padding: 0rem 3rem 1rem 3rem;
   margin: 0;
   box-shadow: none;
+  border-left: 2px solid rgb(115, 115, 115);
+  border-right: 2px solid rgb(115, 115, 115);
 }
 
 .group-shelf-wrapper:last-child {
   padding-bottom: 3rem;
   border-radius: 0 0 10px 10px;
+  border-bottom: 2px solid black;
 }
 
 .group-shelf-title-bar {
@@ -967,7 +971,7 @@ function truncateTitle(title: string): string {
 }
 
 .group-bookshelf-inner {
-  padding: 2rem 1rem 0.3rem 0.8rem;
+  padding: 2rem 1rem 0.8rem 0.8rem;
 }
 
 .group-shelf-wrapper .shelf-book-container {
@@ -1104,4 +1108,39 @@ function truncateTitle(title: string): string {
   margin-top: 0.5rem;
 }
 
+/* 책꽂이 책 아래 그림자 효과 (디버깅용) */
+.shelf-book-item-3d::after {
+  content: '';
+  position: absolute;
+  bottom: -11px;
+  /* 확실히 보이도록 아래로 이동 */
+  right: 20%;
+  /* 
+  transform: translateX(-30%); */
+  width: 100%;
+  height: 20px;
+  background-color: black;
+  /* 완전한 검은색 */
+  border-radius: 10%;
+  filter: blur(30px);
+  /* 흐림 효과 제거 */
+  opacity: 0.9;
+  /* 완전 불투명 */
+  transform: rotateX(100deg);
+  z-index: 0;
+}
+
+.shelf-book-item-3d:hover::after {
+  opacity: 0.9;
+  /* 호버 시 반투명하게 */
+  /* transition: opacity 0.3s ease-in-out; */
+  filter: blur(5px);
+  /* 호버 시 흐림 효과  */
+  bottom: -11px;
+  /* 호버 시 아래로 이동 */
+  right: 0%;
+  width: 100%;
+  transform: rotateX(20deg);
+  border-radius: 80%;
+}
 </style>
