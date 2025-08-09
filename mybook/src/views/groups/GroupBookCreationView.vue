@@ -121,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick, toRaw } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick, toRaw, type ComponentPublicInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
 
@@ -208,8 +208,8 @@ function getConnectionQualityText(quality: number): string {
   }
 }
 
-function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
-  if (el) {
+function setParticipantVideoRef(el: Element | ComponentPublicInstance | null, identity: string) {
+  if (el && el instanceof HTMLVideoElement) {
     participantVideoRefs.value.set(identity, el);
   }
 }
@@ -291,9 +291,9 @@ async function joinRoom() {
     connectionState.value = 'connected';
     connectionStatus.value = null;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('룸 입장 실패:', error);
-    connectionStatus.value = { type: 'error', message: `입장 실패: ${error.message || '알 수 없는 오류'}` };
+    connectionStatus.value = { type: 'error', message: `입장 실패: ${error?.message || '알 수 없는 오류'}` };
     connectionState.value = 'disconnected';
   } finally {
     isConnecting.value = false;
@@ -587,7 +587,7 @@ async function toggleScreenShare() {
             console.log('비디오 트랙 수동 연결 시도...');
             
             // LiveKit 트랙 찾기
-            const videoPublication = Array.from(livekitRoom.localParticipant.videoTracks.values())
+            const videoPublication: any = Array.from(livekitRoom.localParticipant.videoTracks.values())
               .find((pub: any) => pub.source === 'camera');
             
             if (videoPublication?.track && localVideoElement.value) {
