@@ -5,7 +5,7 @@
       <div class="lobby-card">
         <h1 class="lobby-title">화면 미리보기</h1>
         <p class="lobby-subtitle">입장하기 전, 카메라와 마이크 상태를 확인해 주세요.</p>
-        
+
         <div class="video-preview-container">
           <video ref="localVideo" autoplay muted playsinline class="video-preview"></video>
           <div class="media-controls">
@@ -17,11 +17,11 @@
             </button>
           </div>
         </div>
-        
+
         <div class="connection-status" v-if="connectionStatus">
           <span :class="`status-${connectionStatus.type}`">{{ connectionStatus.message }}</span>
         </div>
-        
+
         <button @click="joinRoom" class="btn btn-primary btn-join" :disabled="!canJoin || isConnecting">
           {{ isConnecting ? '입장 중...' : '그룹책 만들기 입장' }}
         </button>
@@ -39,16 +39,16 @@
             </span>
           </h3>
         </div>
-        
+
         <div class="video-grid-wrapper">
           <div class="video-grid" :class="`participants-${totalParticipants}`">
             <!-- 로컬 참여자 (나) -->
             <div class="video-participant local-participant">
-              <video 
+              <video
                 ref="localVideoElement"
-                autoplay 
-                muted 
-                playsinline 
+                autoplay
+                muted
+                playsinline
                 class="participant-video">
               </video>
               <div class="participant-info">
@@ -58,16 +58,16 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- 원격 참여자들 -->
-            <div 
-              v-for="participant in remoteParticipants" 
-              :key="participant.identity" 
+            <div
+              v-for="participant in remoteParticipants"
+              :key="participant.identity"
               class="video-participant remote-participant">
-              <video 
+              <video
                 :ref="el => setParticipantVideoRef(el, participant.identity)"
-                autoplay 
-                playsinline 
+                autoplay
+                playsinline
                 class="participant-video">
               </video>
               <div v-if="!participant.videoTrack" class="participant-video-placeholder">
@@ -85,29 +85,29 @@
             </div>
           </div>
         </div>
-        
+
         <div class="controls-section">
           <div class="main-controls">
             <button @click="toggleMicrophone" class="btn btn-control" :class="{ 'is-muted': !isAudioEnabled }">
               <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
               <span>{{ isAudioEnabled ? '음소거' : '음소거 해제' }}</span>
             </button>
-            
+
             <button @click="toggleCamera" class="btn btn-control" :class="{ 'is-muted': !isVideoEnabled }">
               <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
               <span>{{ isVideoEnabled ? '비디오 중지' : '비디오 시작' }}</span>
             </button>
-            
+
             <button @click="toggleScreenShare" class="btn btn-control" :class="{ 'active': isScreenSharing }">
               <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-share-fill'"></i>
               <span>{{ isScreenSharing ? '화면공유 중지' : '화면 공유' }}</span>
             </button>
-            
+
             <button @click="goToBookEditor" class="btn btn-control btn-book">
               <i class="bi bi-book-fill"></i>
               <span>책 만들기</span>
             </button>
-            
+
             <button @click="leaveRoom" class="btn btn-control btn-leave">
               <i class="bi bi-box-arrow-right"></i>
               <span>나가기</span>
@@ -218,7 +218,7 @@ async function getAccessToken(): Promise<{ url: string, token: string}> {
     const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
       userName
     });
-    
+
     const data = response.data.data ?? response.data;
     if(!data?.token || !data?.url) throw new Error('응답에 url/token 없음');
     return { url: data.url, token: data.token };
@@ -250,7 +250,7 @@ async function setupLocalMedia() {
 
 async function joinRoom() {
   if (isConnecting.value) return;
-  
+
   isConnecting.value = true;
   connectionState.value = 'connecting';
 
@@ -324,7 +324,7 @@ function setupRoomEventListeners() {
         stream.getTracks().forEach(track => track.stop());
         localVideo.value.srcObject = null;
       }
-      
+
       // 비디오 엘리먼트에 연결 (여러 번 시도)
       const attachVideoTrack = () => {
         if (publication.track && localVideoElement.value) {
@@ -339,7 +339,7 @@ function setupRoomEventListeners() {
         }
         return false;
       };
-      
+
       // 즉시 시도
       if (!attachVideoTrack()) {
         // 100ms 후 재시도
@@ -455,7 +455,7 @@ function handleTrackSubscribed(track: any, participant: any) {
 
   if (track.kind === 'video') {
     participantData.videoTrack = track;
-    
+
     // 비디오 엘리먼트에 연결
     nextTick(() => {
       const videoElement = participantVideoRefs.value.get(participant.identity);
@@ -531,7 +531,7 @@ async function toggleCamera() {
     const enabled = !isVideoEnabled.value;
     await livekitRoom.localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
-    
+
     console.log('카메라 토글:', enabled ? '오톱' : '오프');
   } catch (error) {
     console.error('카메라 토글 실패:', error);
@@ -1034,26 +1034,26 @@ onUnmounted(() => {
   .page-container {
     padding: 1rem;
   }
-  
+
   .lobby-card {
     padding: 2rem;
   }
-  
+
   .main-controls {
     flex-wrap: wrap;
     gap: 0.5rem;
   }
-  
+
   .btn-control {
     min-width: 70px;
     padding: 0.5rem 0.75rem;
     font-size: 0.75rem;
   }
-  
+
   .video-grid {
     gap: 0.5rem;
   }
-  
+
   /* 모바일에서 그리드 최적화 */
   .participants-3,
   .participants-4,
@@ -1061,11 +1061,11 @@ onUnmounted(() => {
   .participants-6 {
     grid-template-columns: repeat(2, 1fr);
   }
-  
+
   .participants-3 .video-participant:first-child {
     grid-column: auto;
   }
-  
+
   .participants-7,
   .participants-8,
   .participants-9,
@@ -1081,17 +1081,17 @@ onUnmounted(() => {
     grid-template-columns: repeat(2, 1fr);
     display: grid;
   }
-  
+
   .btn-control {
     min-width: auto;
   }
-  
+
   /* 작은 화면에서는 모든 참여자를 1열로 */
   .video-grid {
     grid-template-columns: 1fr !important;
     grid-template-rows: auto !important;
   }
-  
+
   .participants-3 .video-participant:first-child {
     grid-column: auto !important;
   }
