@@ -86,11 +86,6 @@ pipeline {
                 stage('Backend Test & Build (with Cache)') {
                     steps {
                         dir("${BACKEND_PATH}") {
-                            // sh '''
-                            //     export GRADLE_USER_HOME=${GRADLE_CACHE_DIR}
-                            //     chmod +x gradlew
-                            //     ./gradlew build -x test
-                            // '''
                             sh '''
                                 export GRADLE_USER_HOME=${GRADLE_CACHE_DIR}
                                 chmod +x gradlew
@@ -143,10 +138,6 @@ pipeline {
                 stage('Build Backend Image') {
                     steps {
                         dir("${BACKEND_PATH}") {
-                            // sh '''
-                            //     docker build --cache-from ${BACKEND_IMAGE}:${LATEST_TAG} -t ${BACKEND_IMAGE}:${BUILD_NUMBER_TAG} .
-                            //     docker tag ${BACKEND_IMAGE}:${BUILD_NUMBER_TAG} ${BACKEND_IMAGE}:${LATEST_TAG}
-                            // '''
                             sh '''
                                 docker build \
                                     --cache-from ${BACKEND_IMAGE}:${LATEST_TAG} \
@@ -162,10 +153,6 @@ pipeline {
                 stage('Build Frontend Image') {
                     steps {
                         dir("${FRONTEND_PATH}") {
-                            // sh '''
-                            //     docker build --cache-from ${FRONTEND_IMAGE}:${LATEST_TAG} -t ${FRONTEND_IMAGE}:${BUILD_NUMBER_TAG} .
-                            //     docker tag ${FRONTEND_IMAGE}:${BUILD_NUMBER_TAG} ${FRONTEND_IMAGE}:${LATEST_TAG}
-                            // '''
                             sh '''
                                 docker build \
                                     --cache-from ${FRONTEND_IMAGE}:${LATEST_TAG} \
@@ -224,11 +211,6 @@ pipeline {
 
         stage('🏥 Health Check & Verification') {
             steps {
-                // sh '''
-                //     sleep 20
-                //     curl -f http://i13c203.p.ssafy.io:8081/actuator/health
-                //     curl -f http://i13c203.p.ssafy.io:3000/health
-                // '''
                 sh '''
                     sleep 20
                     curl -f https://i13c203.p.ssafy.io/actuator/health
