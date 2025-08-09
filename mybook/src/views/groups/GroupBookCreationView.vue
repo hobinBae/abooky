@@ -586,7 +586,7 @@ async function leaveRoom() {
     participantVideoRefs.value.clear();
 
     // 라우터로 이동
-    router.push(`/group-book-lobby/`);
+    router.push(`/group-book-lobby`);
   } catch (error) {
     console.error('퇴장 중 오류:', error);
   }
