@@ -188,7 +188,26 @@ pipeline {
                             cd ${PROJECT_ROOT}
                             export BACKEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
                             export FRONTEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
+                            
+                            echo "=== 기존 애플리케이션 배포 ==="
                             docker compose -f ${COMPOSE_FILE} up -d
+                            
+                            echo "=== SSL 프록시 배포 ==="
+                            # 기존 80포트 사용 컨테이너가 있으면 중지
+                            docker stop nginx-ssl-proxy || true
+                            docker rm nginx-ssl-proxy || true
+                            
+                            # SSL 프록시 시작
+                            docker run -d --name nginx-ssl-proxy \
+                                -p 80:80 -p 443:443 \
+                                --restart unless-stopped \
+                                -v /home/ubuntu/nginx-ssl/nginx.conf:/etc/nginx/nginx.conf:ro \
+                                -v /home/ubuntu/certbot/www:/var/www/certbot:ro \
+                                -v /home/ubuntu/certbot/conf:/etc/letsencrypt:ro \
+                                nginx:alpine
+                            
+                            echo "=== 배포 완료 ==="
+                            docker ps
                         '''
                     }
                 }
