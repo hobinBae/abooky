@@ -44,7 +44,8 @@ export const useAuthStore = defineStore('auth', () => {
   async function refreshUserToken() {
     try {
       // 백엔드에 /refresh-token 요청 시 브라우저가 자동으로 HttpOnly 쿠키를 포함하여 보냄
-      const response = await apiClient.post('/api/v1/auth/refresh-token')
+      // @RequestBody가 있는 API와의 호환성을 위해 Content-Type을 JSON으로 명시하고 빈 객체를 전송
+      const response = await apiClient.post('/api/v1/auth/refresh-token', {});
       accessToken.value = response.data.data.accessToken
       await fetchUserInfo() // 토큰 재발급 후 사용자 정보도 갱신
       return accessToken.value

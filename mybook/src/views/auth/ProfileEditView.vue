@@ -130,7 +130,7 @@ async function updateProfileInfo() {
 
     await authStore.fetchUserInfo(); // 스토어 정보 갱신
     showMessage('프로필 정보가 성공적으로 저장되었습니다.', 'success');
-    router.push('/mypage'); // 마이페이지로 이동
+    router.push('/my-page'); // 마이페이지로 이동
 
   } catch (error) {
     console.error("Error updating profile:", error);

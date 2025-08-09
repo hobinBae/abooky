@@ -6,6 +6,9 @@
     <div v-else-if="authorProfile" class="profile-header">
       <img :src="authorProfile.profileImageUrl || 'https://via.placeholder.com/150'" alt="Profile Picture" class="profile-pic">
       <h2 class="author-penname">{{ authorProfile.nickname }}</h2>
+      <div v-if="authorProfile.intro" class="author-intro">
+        <p>{{ authorProfile.intro }}</p>
+      </div>
     </div>
     <div v-else class="loading-message">
       <p>해당 작가를 찾을 수 없습니다.</p>
@@ -121,6 +124,17 @@ watch(authorId, fetchAuthorData);
   font-size: 2rem;
   font-weight: bold;
   margin-bottom: 1rem;
+}
+
+.author-intro {
+  text-align: center;
+  color: #5C4033;
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: #fdfdf5;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px;
 }
 
 .section-subtitle {
