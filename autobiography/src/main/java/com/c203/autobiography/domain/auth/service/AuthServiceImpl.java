@@ -67,7 +67,6 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public TokenResponse reissueToken(String refreshToken, HttpServletResponse response) {
-        log.debug("[reissueToken] called. cookieRT.len={}", refreshToken == null ? null : refreshToken.length());
 
         if (refreshToken == null || refreshToken.isBlank()) {
             log.warn("[reissueToken] missing refreshToken (cookie null/blank)");
@@ -114,31 +113,29 @@ public class AuthServiceImpl implements AuthService {
                 member.getMemberId(), member.getEmail(), String.valueOf(member.getRole()));
         String newRefreshToken = jwtTokenProvider.createRefreshToken(member.getMemberId());
 
-        // 5) TTL 동기화: RT 만료와 동일하게 설정(권장)
-        long secondsLeft;
-        try {
-            Date exp = jwtTokenProvider.parseToken(newRefreshToken).getExpiration();
-            secondsLeft = Math.max(0, (exp.getTime() - System.currentTimeMillis()) / 1000);
-        } catch (Exception e) {
-            // 실패 시 fallback: 7일
-            secondsLeft = TimeUnit.DAYS.toSeconds(7);
-        }
+//        // 5) TTL 동기화: RT 만료와 동일하게 설정(권장)
+//        long secondsLeft;
+//        try {
+//            Date exp = jwtTokenProvider.parseToken(newRefreshToken).getExpiration();
+//            secondsLeft = Math.max(0, (exp.getTime() - System.currentTimeMillis()) / 1000);
+//        } catch (Exception e) {
+//            // 실패 시 fallback: 7일
+//            secondsLeft = TimeUnit.DAYS.toSeconds(7);
+//        }
 
         // 6) Redis 갱신(로테이션)
-        redisTemplate.opsForValue().set(key, newRefreshToken, secondsLeft, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("RT:" + memberId, newRefreshToken, 7, TimeUnit.DAYS);
 
         // 7) 쿠키 갱신
         try {
-            CookieUtil.addRefreshTokenCookie(response, newRefreshToken, TimeUnit.SECONDS.toDays(secondsLeft));
+            CookieUtil.addRefreshTokenCookie(response, newRefreshToken, 7);
         } catch (Exception e) {
             log.error("[reissueToken] failed to set RT cookie: {}", e.toString());
             throw new ApiException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
-        log.debug("[reissueToken] success. memberId={}, ttlSec={}", memberId, secondsLeft);
         return TokenResponse.builder().accessToken(newAccessToken).build();
     }
-
 
     /** 비밀번호 재발급 */
     @Override

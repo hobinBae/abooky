@@ -74,15 +74,15 @@ public class AuthController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse
     ) {
-        log.info("[refresh] hit. rtCookie param={}", rtCookie);
-        if(httpRequest.getCookies() != null) {
-            for (var c : httpRequest.getCookies()) {
-                log.info("[refresh] req cookie {}={}", c.getName(), c.getValue());
-            }
-        } else {
-            log.info("[refresh] req has NO cookies");
-        }
-        if (rtCookie == null && rtCookie.isBlank()) {
+//        log.info("[refresh] hit. rtCookie param={}", rtCookie);
+//        if(httpRequest.getCookies() != null) {
+//            for (var c : httpRequest.getCookies()) {
+//                log.info("[refresh] req cookie {}={}", c.getName(), c.getValue());
+//            }
+//        } else {
+//            log.info("[refresh] req has NO cookies");
+//        }
+        if (rtCookie == null && rtCookie.isEmpty()) {
             throw new ApiException(ErrorCode.INVALID_TOKEN);
         }
         TokenResponse token = authService.reissueToken(rtCookie, httpResponse);
