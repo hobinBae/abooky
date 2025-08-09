@@ -38,7 +38,7 @@ const fetchFromBackend = async (): Promise<void> => {
   
   try {
     // 백엔드 API 호출 (/cicd/ahyoon → "ahyoon" 반환)
-    const response = await axios.get<string>('http://i13c203.p.ssafy.io:8081/cicd/ahyoon')
+    const response = await axios.get<string>('https://i13c203.p.ssafy.io/cicd/ahyoon')
     const backendData = response.data // 백엔드에서 "ahyoon" 문자열 받아옴
     
     // 받은 데이터에 "hello " 붙이기
