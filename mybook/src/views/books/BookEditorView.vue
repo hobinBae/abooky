@@ -875,10 +875,7 @@ textarea.form-control {
   border-color: #ff8a8a;
 }
 
-.btn-sidebar.btn-primary-sidebar,
-.btn-sidebar.btn-outline-sidebar {
-  /* These already inherit width and margin from .btn-sidebar */
-}
+
 
 .sidebar-divider {
   margin: 3.5rem 0;
