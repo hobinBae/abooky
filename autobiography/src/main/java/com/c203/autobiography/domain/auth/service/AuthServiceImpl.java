@@ -17,14 +17,17 @@ import com.c203.autobiography.global.util.CookieUtil;
 import io.jsonwebtoken.Claims;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthServiceImpl implements AuthService {
 
     private final MemberRepository memberRepository;
@@ -61,39 +64,77 @@ public class AuthServiceImpl implements AuthService {
         redisTemplate.delete("RT:" + memberId);
     }
 
-    /** 토큰 재발급 */
+
     @Override
     public TokenResponse reissueToken(String refreshToken, HttpServletResponse response) {
-        // RefreshToken -> 파싱해서 memberId 추출하기
-        Claims claims = jwtTokenProvider.parseToken(refreshToken);
+
+        if (refreshToken == null || refreshToken.isBlank()) {
+            log.warn("[reissueToken] missing refreshToken (cookie null/blank)");
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
+
+        // 1) 파싱/검증
+        Claims claims;
+        try {
+            claims = jwtTokenProvider.parseToken(refreshToken);
+        } catch (Exception ex) {
+            log.warn("[reissueToken] parseToken failed: {}", ex.toString());
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
+
         Long memberId;
         try {
             memberId = Long.valueOf(claims.getSubject());
         } catch (NumberFormatException e) {
+            log.warn("[reissueToken] invalid subject: {}", claims.getSubject());
             throw new ApiException(ErrorCode.INVALID_TOKEN);
         }
 
-        // Redis에서 저장된 refreshToken 비교하기
-        String storedToken = redisTemplate.opsForValue().get("RT:" + memberId);
-        if(storedToken == null || !storedToken.equals(refreshToken)) {
+        // 2) Redis에서 RT 조회 및 재사용/불일치 탐지
+        String key = "RT:" + memberId;
+        String storedToken = redisTemplate.opsForValue().get(key);
+        if (storedToken == null) {
+            log.warn("[reissueToken] redis missing. key={}", key);
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
+        if (!storedToken.equals(refreshToken)) {
+            // 토큰 재사용 의심 → 세션 강제 종료(키 삭제) 등 방어
+            redisTemplate.delete(key);
+            log.warn("[reissueToken] RT mismatch detected. key={} (possible reuse/hijack)", key);
             throw new ApiException(ErrorCode.INVALID_TOKEN);
         }
 
-        // 회원 정보 조회
+        // 3) 회원 확인
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        // 새 토큰 발급
-        String newAccessToken = jwtTokenProvider.createAccessToken(member.getMemberId(), member.getEmail(), String.valueOf(member.getRole()));
+        // 4) 새 토큰 발급
+        String newAccessToken = jwtTokenProvider.createAccessToken(
+                member.getMemberId(), member.getEmail(), String.valueOf(member.getRole()));
         String newRefreshToken = jwtTokenProvider.createRefreshToken(member.getMemberId());
 
-        // Redis에 Refresh 토큰 갱신
-        redisTemplate.opsForValue().set("RT:" + member.getMemberId(), newRefreshToken, 7, TimeUnit.DAYS);
+//        // 5) TTL 동기화: RT 만료와 동일하게 설정(권장)
+//        long secondsLeft;
+//        try {
+//            Date exp = jwtTokenProvider.parseToken(newRefreshToken).getExpiration();
+//            secondsLeft = Math.max(0, (exp.getTime() - System.currentTimeMillis()) / 1000);
+//        } catch (Exception e) {
+//            // 실패 시 fallback: 7일
+//            secondsLeft = TimeUnit.DAYS.toSeconds(7);
+//        }
 
-        CookieUtil.addRefreshTokenCookie(response, newRefreshToken, 7);
-        return TokenResponse.builder()
-                .accessToken(newAccessToken)
-                .build();
+        // 6) Redis 갱신(로테이션)
+        redisTemplate.opsForValue().set("RT:" + memberId, newRefreshToken, 7, TimeUnit.DAYS);
+
+        // 7) 쿠키 갱신
+        try {
+            CookieUtil.addRefreshTokenCookie(response, newRefreshToken, 7);
+        } catch (Exception e) {
+            log.error("[reissueToken] failed to set RT cookie: {}", e.toString());
+            throw new ApiException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+
+        return TokenResponse.builder().accessToken(newAccessToken).build();
     }
 
     /** 비밀번호 재발급 */
