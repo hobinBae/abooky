@@ -98,7 +98,7 @@
             <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> AI 인터뷰 시작</button>
 
             <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i> 음성
-              녹음 시작</button>
+              답변 시작</button>
             <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
                 class="bi bi-stop-circle-fill"></i> 음성 답변 완료</button>
 
@@ -388,7 +388,7 @@ function finalizePublication() {
   if (!currentBook.value.title) { alert('책 제목을 입력해주세요.'); return; }
 
   if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
-  
+
   if (currentBook.value) {
     currentBook.value.tags = tagInput.value
       .split(' ')
@@ -396,7 +396,7 @@ function finalizePublication() {
       .map(tag => tag.trim())
       .slice(0, 5);
   }
-  
+
   // 실제 앱에서는 여기서 서버로 데이터를 전송합니다.
   // DUMMY_BOOKS.push(currentBook.value as Book); // 시뮬레이션
 
@@ -419,14 +419,14 @@ function finalizePublicationAsCopy() {
   copiedBook.id = `copy_of_${copiedBook.id}_${Date.now()}`; // 새로운 고유 ID 생성
   copiedBook.createdAt = new Date();
   copiedBook.updatedAt = new Date();
-  
+
   // 태그 처리
   copiedBook.tags = tagInput.value
     .split(' ')
     .filter(tag => tag.startsWith('#') && tag.length > 1)
     .map(tag => tag.trim())
     .slice(0, 5);
-  
+
   // 실제 앱에서는 복사된 데이터를 서버로 전송합니다.
   // DUMMY_BOOKS.push(copiedBook as Book); // 시뮬레이션
 
@@ -875,10 +875,7 @@ textarea.form-control {
   border-color: #ff8a8a;
 }
 
-.btn-sidebar.btn-primary-sidebar,
-.btn-sidebar.btn-outline-sidebar {
-  /* These already inherit width and margin from .btn-sidebar */
-}
+
 
 .sidebar-divider {
   margin: 3.5rem 0;

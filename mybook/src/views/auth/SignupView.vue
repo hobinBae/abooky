@@ -96,8 +96,8 @@ async function handleSignup() {
     return;
   }
   // 비밀번호 정책은 백엔드에서 검증하므로 프론트에서는 최소한의 검증만 수행
-  if (form.value.password.length < 4) {
-    errorMessage.value = '비밀번호는 4자리 이상이어야 합니다.';
+  if (form.value.password.length < 8 || form.value.password.length > 20) {
+    errorMessage.value = '비밀번호는 8자 이상, 20자 이하이어야 합니다.';
     return;
   }
 
