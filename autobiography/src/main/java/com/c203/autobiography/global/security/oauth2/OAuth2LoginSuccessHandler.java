@@ -70,7 +70,6 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // 4. 응답 작성
         TokenResponse tokenResponse = TokenResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .build();
 
         ApiResponse<TokenResponse> responseBody = ApiResponse.of(

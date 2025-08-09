@@ -13,7 +13,9 @@ import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.security.jwt.JwtTokenProvider;
 import com.c203.autobiography.global.security.oauth2.GoogleOAuth2Service;
+import com.c203.autobiography.global.util.CookieUtil;
 import io.jsonwebtoken.Claims;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -32,7 +34,7 @@ public class AuthServiceImpl implements AuthService {
 
     /** 로그인 */
     @Override
-    public TokenResponse login(LoginRequest loginRequest) {
+    public TokenResponse login(LoginRequest loginRequest, HttpServletResponse response) {
         Member member = memberRepository.findByEmail(loginRequest.getEmail())
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
@@ -45,9 +47,10 @@ public class AuthServiceImpl implements AuthService {
 
         redisTemplate.opsForValue().set("RT:" + member.getMemberId(), refreshToken, 7, TimeUnit.DAYS);
 
+        // 쿠키 추가
+        CookieUtil.addRefreshTokenCookie(response, refreshToken, 7);
         return TokenResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .build();
 
     }
@@ -60,7 +63,7 @@ public class AuthServiceImpl implements AuthService {
 
     /** 토큰 재발급 */
     @Override
-    public TokenResponse reissueToken(String refreshToken) {
+    public TokenResponse reissueToken(String refreshToken, HttpServletResponse response) {
         // RefreshToken -> 파싱해서 memberId 추출하기
         Claims claims = jwtTokenProvider.parseToken(refreshToken);
         Long memberId;
@@ -87,9 +90,9 @@ public class AuthServiceImpl implements AuthService {
         // Redis에 Refresh 토큰 갱신
         redisTemplate.opsForValue().set("RT:" + member.getMemberId(), newRefreshToken, 7, TimeUnit.DAYS);
 
+        CookieUtil.addRefreshTokenCookie(response, newRefreshToken, 7);
         return TokenResponse.builder()
                 .accessToken(newAccessToken)
-                .refreshToken(newRefreshToken)
                 .build();
     }
 
@@ -119,7 +122,7 @@ public class AuthServiceImpl implements AuthService {
 
 
     @Override
-    public TokenResponse processOAuth2Login(String email, String name, AuthProvider provider, String providerId) {
+    public TokenResponse processOAuth2Login(String email, String name, AuthProvider provider, String providerId, HttpServletResponse response) {
         Member member = memberRepository.findByEmail(email)
                 .orElseGet(()-> memberRepository.save(Member.builder()
                         .email(email)
@@ -137,10 +140,12 @@ public class AuthServiceImpl implements AuthService {
         // Redis 저장
         redisTemplate.opsForValue().set("RT:" + member.getMemberId(), refreshToken, 7, TimeUnit.DAYS);
 
+        // 쿠키 저장
+        CookieUtil.addRefreshTokenCookie(response, refreshToken, 7);
+
         // TokenResponse 생성
         return TokenResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
                 .build();
 
     }
@@ -148,7 +153,7 @@ public class AuthServiceImpl implements AuthService {
     private final GoogleOAuth2Service googleService;
 
     @Override
-    public TokenResponse socialLogin(AuthProvider provider, String code) {
+    public TokenResponse socialLogin(AuthProvider provider, String code, HttpServletResponse httpResponse) {
         return switch (provider){
             case GOOGLE -> {
                 GoogleOAuth2Service.GoogleUserInfo googleUser = null;
@@ -157,7 +162,8 @@ public class AuthServiceImpl implements AuthService {
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
-                yield processOAuth2Login(googleUser.getEmail(), googleUser.getName(), AuthProvider.GOOGLE, googleUser.getProviderId());
+                yield processOAuth2Login(googleUser.getEmail(), googleUser.getName(), AuthProvider.GOOGLE, googleUser.getProviderId(), httpResponse
+                        );
             }
             default -> throw new IllegalArgumentException("지원하지 않는 소셜 로그인");
         };
