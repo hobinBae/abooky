@@ -15,10 +15,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, RouterView } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
-import { useAuthStore } from './stores/auth'
 
 const route = useRoute()
-const authStore = useAuthStore()
 
 // 현재 경로가 인트로('/')인지 여부
 const isIntro = computed(() => route.path === '/')
@@ -38,12 +36,8 @@ const onIntroFinished = () => {
   hasIntroBeenFinished.value = true
 }
 
-onMounted(async () => {
-  // 앱 시작 시 토큰 재발급 시도하여 로그인 상태 복원
-  // 단, accessToken이 이미 있는 경우는 제외 (예: 로그인 직후)
-  if (!authStore.accessToken) {
-    await authStore.refreshUserToken()
-  }
+onMounted(() => {
+  // 앱 초기화 로직은 main.ts로 이동되었습니다.
 })
 </script>
 

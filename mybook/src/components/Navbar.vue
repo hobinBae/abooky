@@ -2,7 +2,7 @@
   <nav class="navbar navbar-expand-lg fixed-top"
        :class="{ 'navbar-content-hidden': isIntroActive, 'navbar-dark': isHome, 'navbar-light': !isHome }">
     <div class="container-fluid">
-      <router-link class="navbar-brand" to="/?from=home">
+      <router-link class="navbar-brand" to="/">
         <span style="font-size: 1.5rem; font-weight: bold;">MyBook</span>
       </router-link>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,8 +32,8 @@
           <template v-else>
             <li class="nav-item notification-item">
               <a class="nav-link" href="#" @click.prevent="toggleNotificationModal">
-                <i class="fas fa-bell"></i>
-                <span v-if="unreadNotifications.length > 0" class="badge">{{ unreadNotifications.length }}</span>
+                <i class="bi bi-bell-fill"></i>
+                <span v-if="myInvites.length > 0" class="badge">{{ myInvites.length }}</span>
               </a>
             </li>
             <li class="nav-item">
@@ -56,22 +56,32 @@
         <button @click="toggleNotificationModal" class="close-button">&times;</button>
       </div>
       <div class="modal-body">
-        <ul v-if="unreadNotifications.length > 0">
-          <li v-for="notification in unreadNotifications" :key="notification.id">
-            <span>{{ notification.message }}</span>
-            <button @click="markAsRead(notification)" class="confirm-button">확인</button>
+        <ul v-if="myInvites.length > 0">
+          <li v-for="invite in myInvites" :key="invite.groupApplyId">
+            <span>'{{ invite.groupTitle }}' 그룹에서 초대했습니다.</span>
+            <div class="invite-actions">
+              <button @click="handleInvite(invite, 'ACCEPT')" class="btn-invite btn-accept">수락</button>
+              <button @click="handleInvite(invite, 'REJECT')" class="btn-invite btn-reject">거절</button>
+            </div>
           </li>
         </ul>
-        <p v-else>새로운 알림이 없습니다.</p>
+        <p v-else>새로운 초대가 없습니다.</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { storeToRefs } from 'pinia';
+import apiClient from '@/api';
+
+interface Invite {
+  groupApplyId: number;
+  groupId: number;
+  groupTitle: string;
+}
 
 const authStore = useAuthStore();
 const { isLoggedIn } = storeToRefs(authStore);
@@ -81,31 +91,49 @@ defineProps({
   isIntroActive: Boolean,
   isHome: Boolean
 });
+
 const showNotificationModal = ref(false);
-
-const notifications = ref([
-  { id: 1, message: "'코드 마스터' 그룹에서 당신을 초대했습니다.", read: false },
-  { id: 2, message: "'Vue 정복' 그룹에서 당신을 초대했습니다.", read: false },
-  { id: 3, message: "'타입스크립트 고수' 그룹에서 당신을 초대했습니다.", read: false },
-]);
-
-const unreadNotifications = computed(() => {
-  return notifications.value.filter(n => !n.read);
-});
+const myInvites = ref<Invite[]>([]);
 
 const toggleNotificationModal = () => {
   showNotificationModal.value = !showNotificationModal.value;
+  if (showNotificationModal.value) {
+    fetchMyInvites();
+  }
 };
 
-interface Notification {
-  id: number;
-  message: string;
-  read: boolean;
-}
-
-const markAsRead = (notification: Notification) => {
-  notification.read = true;
+const fetchMyInvites = async () => {
+  if (!isLoggedIn.value) return;
+  try {
+    const response = await apiClient.get('/api/v1/members/me/invites');
+    myInvites.value = response.data.data;
+  } catch (error) {
+    console.error('Failed to fetch invites:', error);
+  }
 };
+
+const handleInvite = async (invite: Invite, status: 'ACCEPT' | 'REJECT') => {
+  try {
+    await apiClient.patch(`/api/v1/groups/${invite.groupId}/invites/${invite.groupApplyId}`, { status });
+    alert(`초대를 ${status === 'ACCEPT' ? '수락' : '거절'}했습니다.`);
+    fetchMyInvites(); // 목록 새로고침
+  } catch (error) {
+    console.error('Failed to handle invite:', error);
+    alert('초대 처리 중 오류가 발생했습니다.');
+  }
+};
+
+watch(isLoggedIn, (newValue) => {
+  if (newValue) {
+    fetchMyInvites();
+  } else {
+    myInvites.value = [];
+  }
+});
+
+onMounted(() => {
+  fetchMyInvites();
+});
 </script>
 
 <style scoped>
@@ -202,13 +230,36 @@ const markAsRead = (notification: Notification) => {
   border-bottom: none;
 }
 
-.confirm-button {
-  background: none;
-  border: none;
-  color: #8B4513; /* Brown color */
-  cursor: pointer;
-  padding: 5px;
-  font-weight: bold;
+.invite-actions {
+  display: flex;
+  gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.btn-invite {
+  background: none;
+  border: 1px solid;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-accept {
+  color: #28a745;
+  border-color: #28a745;
+}
+.btn-accept:hover {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-reject {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+.btn-reject:hover {
+  background-color: #dc3545;
+  color: white;
 }
 </style>

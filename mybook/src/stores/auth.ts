@@ -8,18 +8,20 @@ interface User {
   email: string;
   name: string;
   nickname: string;
+  intro?: string;
+  profileImageUrl?: string;
   // 필요에 따라 다른 사용자 정보 필드 추가
 }
 
 export const useAuthStore = defineStore('auth', () => {
-  // State
+  // 상태(State)
   const accessToken = ref<string | null>(null)
   const user = ref<User | null>(null) // 사용자 정보를 저장할 상태
 
-  // Getters
+  // 게터(Getters)
   const isLoggedIn = computed(() => !!accessToken.value)
 
-  // Actions
+  // 액션(Actions)
   async function login(loginData: { email: string; password: string }) {
     const response = await apiClient.post('/api/v1/auth/login', loginData)
     accessToken.value = response.data.data.accessToken
@@ -42,7 +44,8 @@ export const useAuthStore = defineStore('auth', () => {
   async function refreshUserToken() {
     try {
       // 백엔드에 /refresh-token 요청 시 브라우저가 자동으로 HttpOnly 쿠키를 포함하여 보냄
-      const response = await apiClient.post('/api/v1/auth/refresh-token')
+      // @RequestBody가 있는 API와의 호환성을 위해 Content-Type을 JSON으로 명시하고 빈 객체를 전송
+      const response = await apiClient.post('/api/v1/auth/refresh-token', {});
       accessToken.value = response.data.data.accessToken
       await fetchUserInfo() // 토큰 재발급 후 사용자 정보도 갱신
       return accessToken.value
