@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Tag(name="커뮤니티 책 API", description = "커뮤니티 책 관련 API")
 @RestController
-@RequestMapping("/api/v1/community-book")
+@RequestMapping("/api/v1/communities/community-book")
 @RequiredArgsConstructor
 public class CommunityBookController {
 
@@ -22,14 +22,14 @@ public class CommunityBookController {
 
 
     @Operation(summary = "커뮤니티 책 삭제", description = "커뮤니티 책을 삭제합니다")
-    @DeleteMapping("/{bookId}")
+    @DeleteMapping("/{communityBookId}")
     public ResponseEntity<ApiResponse<Void>> deleteCommunityBook(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long bookId,
+            @PathVariable Long communityBookId,
             HttpServletRequest httpRequest
     ) {
         Long memberId = userDetails.getMemberId();
-        communityBookService.deleteCommunityBook(memberId, bookId);
+        communityBookService.deleteCommunityBook(memberId, communityBookId);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 삭제 성공", null, httpRequest.getRequestURI()));
     }
