@@ -41,6 +41,16 @@ public class ConversationSessionResponse {
     @Schema(description = "수정일시")
     private LocalDateTime updatedAt;
 
+    @Schema(description = "이번 에피소드 시작 messageNo(포함)", example = "1")
+    private Integer episodeStartMessageNo;
+
+    // (선택) 진행 상황 모니터링용
+    private String currentChapterId;
+    private String currentTemplateId;
+    private Integer currentChapterOrder;
+    private Integer currentTemplateOrder;
+    private Integer followUpQuestionIndex;
+
     public static ConversationSessionResponse from(ConversationSession c){
         return ConversationSessionResponse.builder()
                 .sessionId(c.getSessionId())
@@ -52,6 +62,11 @@ public class ConversationSessionResponse {
                 .lastMessageAt(c.getLastMessageAt())
                 .createdAt(c.getCreatedAt())
                 .updatedAt(c.getUpdatedAt())
+                .currentChapterId(c.getCurrentChapterId())
+                .currentTemplateId(c.getCurrentTemplateId())
+                .currentChapterOrder(c.getCurrentChapterOrder())
+                .currentTemplateOrder(c.getCurrentTemplateOrder())
+                .followUpQuestionIndex(c.getFollowUpQuestionIndex())
                 .build();
     }
 }

@@ -16,7 +16,9 @@
         .settings { background: #f9f9f9; padding: 1rem; border-radius: 5px; margin: 1rem 0; }
         .settings label { display: block; margin: .5rem 0; }
         #progressInfo { background: #e7f3ff; padding: 10px; border-radius: 5px; margin: 10px 0; display: none; }
+        #progressBarWrap { background:#fff; border-radius:10px; height:8px; margin:5px 0; overflow:hidden; }
         #progressBar { background: #4CAF50; height: 100%; width: 0%; transition: width 0.3s; }
+        .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; background:#eef7ee; color:#2a6f2a; margin-left:6px; }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 </head>
@@ -27,9 +29,7 @@
 <div id="progressInfo">
     <div id="chapterInfo" style="font-weight:bold; color:#0066cc;"></div>
     <div id="stageInfo" style="color:#666; font-size:0.9em;"></div>
-    <div style="background:#fff; border-radius:10px; height:8px; margin:5px 0; overflow:hidden;">
-        <div id="progressBar"></div>
-    </div>
+    <div id="progressBarWrap"><div id="progressBar"></div></div>
 </div>
 
 <!-- 대화 로그 -->
@@ -57,7 +57,7 @@
 <button id="recordBtn" disabled>🎙️ 녹음 시작</button>
 <button id="stopBtn" disabled>⏹️ 녹음 중지</button>
 <button id="nextQuestionBtn" disabled>▶ 다음 질문 받기</button>
-<button id="saveEpisodeBtn" style="background:#4CAF50; color:white;">💾 에피소드 저장</button>
+<button id="saveEpisodeBtn" style="background:#4CAF50; color:white;">💾 지금까지 에피소드로 저장</button>
 
 <!-- 개발자 도구 -->
 <div style="margin:10px 0; padding:10px; background:#f0f8ff; border-radius:5px;">
@@ -107,38 +107,53 @@
         msgs.scrollTop = msgs.scrollHeight;
     }
 
+    function banner(text) {
+        append(text, 'system');
+    }
+
+    function setProgress(payload = {}) {
+        if (!payload.currentChapter && !payload.currentStage) return;
+        progressInfo.style.display = 'block';
+        if (payload.currentChapter) chapterInfo.innerHTML = `📖 ${payload.currentChapter}`;
+        if (payload.currentStage) stageInfo.innerHTML = `📍 ${payload.currentStage}`;
+        if (typeof payload.overallProgress === 'number') {
+            progressBar.style.width = (payload.overallProgress || 0) + '%';
+        }
+    }
+
     clearBtn.onclick = () => {
         msgs.innerHTML = '';
         statusInfo.textContent = '메시지 지워짐';
     };
+
     initDataBtn.onclick = async () => {
         initDataBtn.disabled = true;
         statusInfo.textContent = '템플릿 업데이트 중…';
         try {
             await axios.post('http://localhost:8080/api/chapter/init');
-            append('✅ 템플릿 업데이트 완료!', 'system');
+            banner('✅ 템플릿 업데이트 완료!');
             statusInfo.textContent = '업데이트 완료';
         } catch (e) {
             append('❌ 업데이트 실패: '+e.message,'error');
         } finally { initDataBtn.disabled = false; }
     };
 
+    // === SSE 연결 ===
     startBtn.onclick = () => {
         source = new EventSource(`http://localhost:8080/api/conversation/stream?sessionId=${sessionId}&useChapterMode=true`);
+
+        // 다음 질문
         source.addEventListener('question', e => {
             const data = JSON.parse(e.data);
             append(`AI: ${data.text}`, 'ai');
-            if (data.currentChapter) {
-                progressInfo.style.display = 'block';
-                chapterInfo.textContent = `📖 ${data.currentChapter}`;
-                stageInfo.textContent = `📍 ${data.currentStage}`;
-                progressBar.style.width = (data.overallProgress||0)+'%';
-                if (data.isLastQuestion) append('🎉 인터뷰 완료!','system');
-            }
+            setProgress(data);
+            if (data.isLastQuestion) banner('🎉 인터뷰 완료!');
             recordBtn.disabled = false;
             nextQuestionBtn.disabled = false;
             statusInfo.textContent = '질문 수신됨';
         });
+
+        // 부분/최종 STT
         source.addEventListener('partialTranscript', e => {
             const { chunkIndex, text } = JSON.parse(e.data);
             append(`(${chunkIndex}) 음성 인식…${text}`, 'user');
@@ -149,11 +164,35 @@
             nextQuestionBtn.disabled = false;
             statusInfo.textContent = '답변 완료';
         });
-        source.addEventListener('error', () => { append('❌ SSE 에러','error'); source.close(); });
-        append(`세션 열림: ${sessionId}`, 'system');
+
+        // 🔔 자동 에피소드 저장 알림 (백엔드에서 pushQuestion 대신 별도 이벤트를 보낸다고 가정)
+        // payload 예시: { episodeId: 42, title: "유년기", startNo: 1, endNo: 37 }
+        source.addEventListener('episodeSaved', e => {
+            try {
+                const data = JSON.parse(e.data);
+                banner(`💾 에피소드 저장됨 (ID: ${data.episodeId})`);
+                if (data.title) append(`제목: ${data.title}`, 'system');
+                if (typeof data.startNo === 'number' && typeof data.endNo === 'number') {
+                    append(`구간: #${data.startNo} ~ #${data.endNo}`, 'system');
+                }
+            } catch {
+                banner('💾 에피소드가 저장되었습니다.');
+            }
+        });
+
+        source.addEventListener('error', () => {
+            append('❌ SSE 에러','error');
+            source.close();
+        });
+
+        banner(`세션 열림: ${sessionId}`);
         startBtn.disabled = true;
     };
 
+    // 페이지 이탈 시 SSE 정리
+    window.addEventListener('beforeunload', () => { try { source && source.close(); } catch(_){} });
+
+    // === 녹음 컨트롤 ===
     recordBtn.onclick = async () => {
         stream = await navigator.mediaDevices.getUserMedia({ audio:true });
         audioContext = new (window.AudioContext||window.webkitAudioContext)();
@@ -161,9 +200,10 @@
         analyser = audioContext.createAnalyser(); mic.connect(analyser);
         isRecording = true; voiceDetected = false; lastSpeechTime = Date.now();
         startChunkRecorder(); analyzeAudio();
-        append('🎙️ 녹음 시작','system');
+        banner('🎙️ 녹음 시작');
         recordBtn.disabled = true; stopBtn.disabled = false;
     };
+
     stopBtn.onclick = () => {
         isRecording = false; voiceDetected = false; clearTimeout(chunkTimer);
         if (mediaRecorder?.state==='recording') mediaRecorder.stop();
@@ -182,52 +222,58 @@
         currentAudioLevel = rms/255;
         audioLevelBar.style.width = (currentAudioLevel*100)+'%';
         const th = parseFloat(threshold.value), st = parseFloat(silenceTime.value)*1000;
-        if (currentAudioLevel>th) { lastSpeechTime=Date.now(); if(!voiceDetected){ voiceDetected=true; append('🎤 음성 감지','system'); } }
-        else if (voiceDetected && Date.now()-lastSpeechTime>st) { voiceDetected=false; append('🔇 음성 중단','system'); }
+        if (currentAudioLevel>th) { lastSpeechTime=Date.now(); if(!voiceDetected){ voiceDetected=true; banner('🎤 음성 감지'); } }
+        else if (voiceDetected && Date.now()-lastSpeechTime>st) { voiceDetected=false; banner('🔇 음성 중단'); }
         if (isRecording) requestAnimationFrame(analyzeAudio);
     }
 
     function startChunkRecorder() {
         mediaRecorder = new MediaRecorder(stream,{ mimeType:'audio/webm;codecs=opus' });
         mediaRecorder.ondataavailable = async e => {
-            if (!e.data||e.data.size<1000) { chunkIndex++; append(`🧹 무음 청크 무시 (size=${e.data.size})`,'system'); return; }
+            if (!e.data||e.data.size<1000) { chunkIndex++; banner(`🧹 무음 청크 무시 (size=${e.data.size})`); return; }
             const form = new FormData();
             form.append('sessionId', sessionId);
             form.append('chunkIndex', chunkIndex++);
             form.append('audio', e.data, 'audio.webm');
             form.append('answer','true');
             form.append('audioLevel', currentAudioLevel.toFixed(3));
-            if (document.getElementById('properInput').value.trim())
-                form.append('customProperNouns', document.getElementById('properInput').value.trim());
-            append(`📤 청크 #${chunkIndex-1} 전송…`,'system');
+            const proper = document.getElementById('properInput').value.trim();
+            if (proper) form.append('customProperNouns', proper);
+            banner(`📤 청크 #${chunkIndex-1} 전송…`);
             try { await axios.post('http://localhost:8080/api/stt/chunk', form, { timeout:60000 }); }
-            catch(err){ append('❌ STT 오류: '+err.message,'error'); }
+            catch(err){ append('❌ STT 오류: '+(err.response?.data?.message||err.message),'error'); }
         };
         mediaRecorder.onstop = () => { if (isRecording) startChunkRecorder(); };
         mediaRecorder.start();
         chunkTimer = setTimeout(()=>{ if(mediaRecorder.state==='recording') mediaRecorder.stop(); }, 60000);
     }
 
+    // 다음 질문
     nextQuestionBtn.onclick = async () => {
         nextQuestionBtn.disabled = true;
         statusInfo.textContent = '다음 질문 요청…';
         try {
             await axios.post('http://localhost:8080/api/conversation/next', null, { params:{ sessionId } });
             statusInfo.textContent = '요청 완료';
-        } catch(e){ append('❌ 요청 실패: '+e.message,'error'); nextQuestionBtn.disabled=false; }
+        } catch(e){
+            append('❌ 요청 실패: '+(e.response?.data?.message||e.message),'error');
+            nextQuestionBtn.disabled=false;
+        }
     };
 
+    // 수동 저장 (현재 구간을 에피소드로 저장)
     saveEpisodeBtn.onclick = async () => {
         saveEpisodeBtn.disabled = true;
-        append('💾 에피소드 생성 요청…','system');
+        banner('💾 에피소드 생성 요청…');
         try {
+            // 서버에서 createEpisodeFromCurrentWindow로 라우팅되어 있다면 동일 엔드포인트로 동작
             const res = await axios.post(
-                `http://localhost:8080/api/v1/books/1/episodes`,
+                `http://localhost:8080/api/v1/books/${bookId}/episodes`,
                 null,
                 { params:{ sessionId } }
             );
             const ep = res.data.data;
-            append(`✅ 에피소드 생성 성공! ID: ${ep.episodeId}`, 'system');
+            banner(`✅ 에피소드 생성 성공! ID: ${ep.episodeId}`);
         } catch(e) {
             append('❌ 에피소드 생성 실패: '+(e.response?.data?.message||e.message),'error');
         } finally { saveEpisodeBtn.disabled = false; }

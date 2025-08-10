@@ -10,6 +10,7 @@ import com.c203.autobiography.domain.episode.dto.ConversationSessionResponse;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionUpdateRequest;
 import com.c203.autobiography.domain.episode.dto.MessageType;
 import com.c203.autobiography.domain.episode.entity.ConversationSession;
+import com.c203.autobiography.domain.episode.repository.ConversationMessageRepository;
 import com.c203.autobiography.domain.episode.service.ConversationService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
@@ -19,6 +20,7 @@ import com.c203.autobiography.domain.episode.template.dto.NextQuestionDto;
 import jakarta.validation.Valid;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
@@ -35,26 +37,35 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 @RestController
 @RequestMapping("/api/conversation")
 @RequiredArgsConstructor
+@Slf4j
 @Validated
 public class ConversationController {
     private final ConversationService convService;
     private final SseService sseService;
     private final QuestionTemplateService templateService;
     private final ChapterBasedQuestionService chapterBasedService;
+    private final ConversationMessageRepository conversationMessageRepository;
 
     /**
      * 에피소드 시작 및 SSE 연결
      */
     @GetMapping(value = "/stream", produces = TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(@RequestParam String sessionId, 
-                            @RequestParam(value = "useChapterMode", defaultValue = "true") boolean useChapterMode) {
-        convService.createSession(new ConversationSessionRequest(sessionId, null));
+    public SseEmitter stream(@RequestParam String sessionId,
+                             @RequestParam(value = "useChapterMode", defaultValue = "true") boolean useChapterMode) {
+
+        Integer startNo = computeEpisodeStartNo(sessionId);
+        convService.createSession(
+                ConversationSessionRequest.builder()
+                        .sessionId(sessionId)
+                        .episodeId(null)
+                        .episodeStartMessageNo(startNo)   // ★ 핵심
+                        .build()
+        );
         SseEmitter emitter = new SseEmitter(0L);
         emitter.onTimeout(() -> sseService.remove(sessionId));
         emitter.onCompletion(() -> sseService.remove(sessionId));
         emitter.onError(e -> sseService.remove(sessionId));
         sseService.register(sessionId, emitter);
-        
         String first = null;
         NextQuestionDto firstQuestion = null;
         if (useChapterMode) {
@@ -62,15 +73,19 @@ public class ConversationController {
             try {
                 firstQuestion = chapterBasedService.initializeSession(sessionId);
                 first = firstQuestion.getQuestionText();
+                log.info(String.valueOf(firstQuestion) + "챕터 초기화");
+                log.info(first + "챕터 생성");
             } catch (Exception e) {
                 // 챕터 기반 서비스 실패시 레거시 모드로 fallback
                 first = convService.getNextQuestion(sessionId);
             }
         } else {
             // 레거시 모드
+
             first = convService.getNextQuestion(sessionId);
+            log.info(first + "레거시 모드");
         }
-        
+
         if (first != null) {
             // DB 저장(QUESTION 메시지)도 여기서 해주면 추적이 명확해집니다.
             convService.createMessage(
@@ -80,11 +95,11 @@ public class ConversationController {
                             .content(first)
                             .build()
             );
-            
+
             // QuestionResponse 생성 (챕터 정보 포함)
             QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
                     .text(first);
-            
+
             if (firstQuestion != null) {
                 responseBuilder
                         .currentChapter(firstQuestion.getCurrentChapterName())
@@ -94,7 +109,7 @@ public class ConversationController {
                         .chapterProgress(firstQuestion.getChapterProgress())
                         .isLastQuestion(firstQuestion.isLastQuestion());
             }
-            
+
             sseService.pushQuestion(sessionId, responseBuilder.build());
         }
 
@@ -145,13 +160,14 @@ public class ConversationController {
             @PathVariable String sessionId) {
         return ResponseEntity.ok(convService.getHistory(sessionId));
     }
+
     @PostMapping("/next")
     public ResponseEntity<Void> nextQuestion(@RequestParam String sessionId) {
         // 1) 서비스에서 다음 질문 꺼내기 - 챕터 기반 모드 우선 시도
         ConversationSession session = convService.getSessionEntity(sessionId);
         NextQuestionDto nextQuestionDto = null;
         String next = null;
-        
+
         if (session != null && session.getCurrentChapterId() != null) {
             // 챕터 기반 모드
             try {
@@ -166,7 +182,7 @@ public class ConversationController {
             // 레거시 모드
             next = convService.getNextQuestion(sessionId);
         }
-        
+
         if (next != null) {
             // 2) DB에 QUESTION 메시지 저장
             convService.createMessage(
@@ -176,11 +192,11 @@ public class ConversationController {
                             .content(next)
                             .build()
             );
-            
+
             // 3) SSE로 클라이언트에 푸시 (챕터 정보 포함)
             QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
                     .text(next);
-            
+
             if (nextQuestionDto != null) {
                 responseBuilder
                         .currentChapter(nextQuestionDto.getCurrentChapterName())
@@ -190,9 +206,15 @@ public class ConversationController {
                         .chapterProgress(nextQuestionDto.getChapterProgress())
                         .isLastQuestion(nextQuestionDto.isLastQuestion());
             }
-            
+
             sseService.pushQuestion(sessionId, responseBuilder.build());
         }
         return ResponseEntity.ok().build();
+    }
+
+    private Integer computeEpisodeStartNo(String sessionId) {
+        // 세션 시작 시점에 포함할 구간 시작점: 현재 최대 messageNo + 1 (기록이 없으면 1)
+        Integer maxNo = conversationMessageRepository.findMaxMessageNo(sessionId);
+        return (maxNo == null) ? 1 : (maxNo + 1);
     }
 }

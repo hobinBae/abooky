@@ -8,7 +8,19 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "chapter_template")
+@Table(
+        name = "chapter_template",
+        uniqueConstraints = {
+                // 같은 챕터 안에서 template_order가 1개만 존재
+                @UniqueConstraint(name = "uk_ct__chapter_template_order", columnNames = {"chapter_id","template_order"}),
+                // (선택) 같은 챕터 안에서 stage_level 유일 보장
+                @UniqueConstraint(name = "uk_ct__chapter_stage_level", columnNames = {"chapter_id","stage_level"})
+        },
+        indexes = {
+                @Index(name = "idx_ct__chapter_order", columnList = "chapter_id, template_order"),
+                @Index(name = "idx_ct__chapter_stage", columnList = "chapter_id, stage_level")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -43,7 +55,7 @@ public class ChapterTemplate {
     @JoinColumn(name = "chapter_id", nullable = false)
     private Chapter chapter;
     
-    @OneToMany(mappedBy = "chapterTemplate", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "chapterTemplate", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<FollowUpQuestion> staticFollowUpQuestions;
     
     @Column(name = "created_at", updatable = false, nullable = false)

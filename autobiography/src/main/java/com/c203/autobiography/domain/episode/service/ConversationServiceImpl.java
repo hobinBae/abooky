@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.stream.Collectors;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * ConversationService 구현체: 세션과 메시지를 관리하며,
@@ -44,20 +45,25 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConcurrentHashMap<String, Deque<String>> questionQueueMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> lastQuestionMap = new ConcurrentHashMap<>();
 
+
     @Override
+    @Transactional
     public ConversationSessionResponse createSession(ConversationSessionRequest request) {
         // 여기 에러 코드 추가
         ConversationSession existing = sessionRepo.findById(request.getSessionId()).orElse(null);
         if(existing != null){
             return ConversationSessionResponse.from(existing);
         }
+        Integer startNo = request.getEpisodeStartMessageNo() != null ? request.getEpisodeStartMessageNo() : 1;
         ConversationSession session = ConversationSession.builder()
                 .sessionId(request.getSessionId())
-                .bookId(null)
+                //여기 나중에 바꿔야함
+                .bookId(1L)
                 .episodeId(request.getEpisodeId())
                 .status(SessionStatus.OPEN)
                 .tokenCount(0L)
                 .templateIndex(0)
+                .episodeStartMessageNo(startNo)
                 .build();
         sessionRepo.save(session);
         // 템플릿 전체를 순서대로 큐에 담기
@@ -75,24 +81,36 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
+    @Transactional
     public ConversationSessionResponse updateSession(ConversationSessionUpdateRequest request) {
         ConversationSession session = sessionRepo.findById(request.getSessionId())
                 .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + request.getSessionId()));
-        session = ConversationSession.builder()
-                .sessionId(session.getSessionId())
-                .bookId(session.getBookId())
-                .episodeId(session.getEpisodeId())
-                .status(request.getStatus())
-                .tokenCount(session.getTokenCount())
-                .templateIndex(request.getTemplateIndex())
-                .build();
-        sessionRepo.save(session);
-        // 큐 재초기화
-        List<String> allTemplates = templateService.getAllInorder();
-        questionQueueMap.put(request.getSessionId(), new ConcurrentLinkedDeque<>(allTemplates));
-        return ConversationSessionResponse.from(session);
-    }
 
+        ConversationSession updated = session.toBuilder()
+                .status(request.getStatus() != null ? request.getStatus() : session.getStatus())
+                .templateIndex(request.getTemplateIndex() != null ? request.getTemplateIndex() : session.getTemplateIndex())
+                .episodeStartMessageNo(
+                        request.getEpisodeStartMessageNo() != null
+                                ? request.getEpisodeStartMessageNo()
+                                : session.getEpisodeStartMessageNo()
+                )
+                .build();
+
+        sessionRepo.save(updated);
+
+        if (request.getTemplateIndex() != null) {
+            List<String> allTemplates = templateService.getAllInorder();
+            questionQueueMap.put(request.getSessionId(), new ConcurrentLinkedDeque<>(allTemplates));
+        }
+
+        // 상태가 CLOSED면 레거시 큐 정리(권장)
+        if (request.getStatus() == SessionStatus.CLOSE) {
+            questionQueueMap.remove(request.getSessionId());
+            lastQuestionMap.remove(request.getSessionId());
+        }
+
+        return ConversationSessionResponse.from(updated);
+    }
     @Override
     public ConversationSessionResponse getSession(String sessionId) {
         ConversationSession session = sessionRepo.findById(sessionId)
@@ -119,6 +137,7 @@ public class ConversationServiceImpl implements ConversationService {
                 
                 if (next != null) {
                     lastQuestionMap.put(sessionId, next);
+                    log.info("라스트 퀘스천");
                 }
                 return next;
             } catch (Exception e) {
@@ -175,10 +194,12 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
+    @Transactional
     public ConversationMessageResponse createMessage(ConversationMessageRequest request) {
         int lastNo = messageRepo.findTopBySessionIdOrderByMessageNoDesc(request.getSessionId())
                 .map(ConversationMessage::getMessageNo)
                 .orElse(0);
+
         ConversationMessage msg = ConversationMessage.builder()
                 .sessionId(request.getSessionId())
                 .messageType(request.getMessageType())
@@ -187,24 +208,13 @@ public class ConversationServiceImpl implements ConversationService {
                 .messageNo(lastNo + 1)
                 .build();
         messageRepo.save(msg);
+
         if (request.getMessageType() == MessageType.ANSWER) {
             long add = estimateTokens(request.getContent());
             sessionRepo.findById(request.getSessionId()).ifPresent(s -> {
-                ConversationSession updated = ConversationSession.builder()
-                        .sessionId(s.getSessionId())
-                        .bookId(s.getBookId())
-                        .episodeId(s.getEpisodeId())
-                        .status(s.getStatus())
+                ConversationSession updated = s.toBuilder()
                         .tokenCount((s.getTokenCount() == null ? 0L : s.getTokenCount()) + add)
-                        .templateIndex(s.getTemplateIndex())
-                        .lastMessageAt(s.getLastMessageAt())
-                        .createdAt(s.getCreatedAt())
-                        .updatedAt(s.getUpdatedAt())
-                        .currentChapterId(s.getCurrentChapterId())
-                        .currentTemplateId(s.getCurrentTemplateId())
-                        .followUpQuestionIndex(s.getFollowUpQuestionIndex())
-                        .currentChapterOrder(s.getCurrentChapterOrder())
-                        .currentTemplateOrder(s.getCurrentTemplateOrder())
+                        // toBuilder가 알아서  복제
                         .build();
                 sessionRepo.save(updated);
             });

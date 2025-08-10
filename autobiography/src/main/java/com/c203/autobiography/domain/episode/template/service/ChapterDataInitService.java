@@ -40,9 +40,9 @@ public class ChapterDataInitService {
         lv = createChapter6(lv);
         lv = createChapter7(lv);
 
-
         log.info("고품질 챕터 기반 질문 데이터 초기화 완료");
     }
+
     private int createChapter1(int lv) {
         Chapter chapter = Chapter.builder()
                 .chapterId("chapter1")
@@ -55,21 +55,40 @@ public class ChapterDataInitService {
         ChapterTemplate intro = ChapterTemplate.builder()
                 .templateId("intro_profile")
                 .stageName("나는 누구인가")
-                .mainQuestion("지금의 당신을 한 문장으로 소개한다면요? 이름(또는 호칭), 현재 하고 있는 일, 자신을 설명하는 표현을 포함해 자유롭게 소개해주세요.")
+                .mainQuestion("처음 뵙겠습니다. 호칭은 어떻게 불러드리면 좋을까요? " +
+                        "이름(또는 별명), 태어난 해와 계절·출생지, 지금 하고 계신 일이나 역할, " +
+                        "그리고 이번 기록을 남기려는 이유까지 간단히 소개해 주시겠어요?")
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                // 섹션 키워드를 앞에 붙여 저장해 둠
                 .dynamicPromptTemplate("INTRO")
                 .chapter(chapter)
                 .build();
         templateRepo.save(intro);
 
+        //여기 좀 수정해야할듯
+        ChapterTemplate introScene = ChapterTemplate.builder()
+                .templateId("intro_identity_scene")
+                .stageName("나를 보여주는 장면")
+                .mainQuestion(
+                        "지금의 당신을 가장 잘 보여주는 ‘하루의 한 장면’을 떠올려 묘사해 주세요. " +
+                                "언제·어디서·누구와·무엇을 하고 있었나요? " +
+                                "그 순간의 감정과 몸의 감각(소리/냄새/빛/온도)까지 가능하면 구체적으로 들려주세요."
+                )
+                .templateOrder(2)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                // 장면의 시간/장소/인물/행동 중 실제 언급 요소를 깊게 파는 후속 질문
+                .dynamicPromptTemplate("INTRO_SCENE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(introScene);
+
         ChapterTemplate introStatic = ChapterTemplate.builder()
                 .templateId("intro_static")
-                .stageName("생활 맥락")
-                .mainQuestion("요즘의 생활을 가장 잘 보여주는 장면을 하나만 꼽는다면 언제인가요?")
-                .templateOrder(2)
+                .stageName("기록의 방향")
+                .mainQuestion("  \"이 책을 다 읽고 난 뒤, 독자가 한 줄로 당신을 어떻게 기억하길 바라시나요?\"")
+                .templateOrder(3)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
@@ -77,9 +96,10 @@ public class ChapterDataInitService {
         templateRepo.save(introStatic);
 
         saveStaticFollowUps(introStatic, Arrays.asList(
-                "현재 거주하는 곳과 그곳을 선택한 이유가 있나요?",
-                "이번 기록에서 꼭 남기고 싶은 주제나 메시지가 있나요?",
-                "하루 일과 중 자신을 가장 잘 드러내는 순간은 언제인가요?"
+                "이번 기록에서 반드시 남기고 싶은 사건(사람/장소/전환점)이 있다면 무엇인가요?",
+                "반대로 지금은 다루고 싶지 않거나 조심하고 싶은 주제가 있을까요? 있다면 이유도 알려주세요.",
+                "현재 거주지는 어디이며, 그곳을 선택한 이유가 있나요?",
+                "하루 일과에서 ‘나’를 가장 잘 드러내는 순간(또는 전환점)은 언제인가요?"
         ));
 
         return lv;
@@ -90,15 +110,63 @@ public class ChapterDataInitService {
                 .chapterId("chapter2")
                 .chapterName("유년기")
                 .chapterOrder(2)
-                .description("출생 배경, 가족 분위기, 초기 성격/기질")
+                .description("출생 배경, 가족 분위기, 초기 성격/기질을 구체 장면과 감정으로 수집")
                 .build();
         chapterRepo.save(chapter);
+
+        // 집/동네/일상 환경 — 공간/리듬/규칙을 파악
+        ChapterTemplate homeEnv = ChapterTemplate.builder()
+                .templateId("childhood_home_env")
+                .stageName("집과 동네의 공기")
+                .mainQuestion(
+                        "어린 시절 살던 집과 동네는 어떤 분위기였나요? 집 안의 소리·빛·냄새, " +
+                                "하루의 리듬(식사/잠/놀이/학원)과 지켜야 했던 규칙이 기억난다면 들려주세요."
+                )
+                .templateOrder(1)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("CHILDHOOD_HOME")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(homeEnv);
+
+        // 돌봄자/가족 역할 — 말투·관계·가치의 씨앗
+        ChapterTemplate caregivers = ChapterTemplate.builder()
+                .templateId("childhood_caregivers")
+                .stageName("나를 키운 말과 손길")
+                .mainQuestion(
+                        "당시 당신을 주로 돌봐주던 사람은 누구였나요? 그들의 말투, 자주 하던 말, " +
+                                "기억나는 몸짓이나 습관, 그리고 가족 내에서의 각자 역할을 이야기해 주세요."
+                )
+                .templateOrder(2)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("CHILDHOOD_CAREGIVER")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(caregivers);
+
+        // 생생한 한 장면 — 감각·감정의 첫 기억(장면 집중)
+        ChapterTemplate vividScene = ChapterTemplate.builder()
+                .templateId("childhood_vivid_scene")
+                .stageName("선명한 한 장면")
+                .mainQuestion(
+                        "지금도 또렷한 유년기의 한 장면이 있다면 묘사해 주세요. " +
+                                "그때의 장소·시간·함께 있던 사람·당신의 행동, 그리고 감각(소리/냄새/빛/온도)을 포함해 들려주세요."
+                )
+                .templateOrder(3)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("CHILDHOOD_SCENE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(vividScene);
 
         ChapterTemplate birthFamily = ChapterTemplate.builder()
                 .templateId("childhood_family")
                 .stageName("뿌리와 시작")
                 .mainQuestion("당신이 태어나고 자란 곳, 그리고 가족에 대해 이야기해주세요. 어떤 분위기의 집에서 자라셨나요?")
-                .templateOrder(1)
+                .templateOrder(4)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
                 .dynamicPromptTemplate("CHILDHOOD")
@@ -106,21 +174,32 @@ public class ChapterDataInitService {
                 .build();
         templateRepo.save(birthFamily);
 
-        ChapterTemplate childhoodStatic = ChapterTemplate.builder()
-                .templateId("childhood_static")
-                .stageName("어린 시절의 기억들")
-                .mainQuestion("지금도 선명한 어린 시절의 장면이 있다면 하나만 묘사해 주세요.")
-                .templateOrder(2)
+        // 2-4) 정리(Static) — 가치/기질/지금의 나와의 연결 이건 좀 수정해야함
+        ChapterTemplate wrapUp = ChapterTemplate.builder()
+                .templateId("childhood_wrapup_static")
+                .stageName("씨앗과 연결")
+                .mainQuestion(
+                        "어린 시절의 경험 중에서, 지금의 성격이나 생각, 가치관에까지 영향을 준 일이 있다면 무엇인가요? " +
+                                "그 경험이 오늘날의 당신에게 어떤 모습으로 남아 있는지도 이야기해 주세요."
+                )
+                .templateOrder(5)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
                 .build();
-        templateRepo.save(childhoodStatic);
+        templateRepo.save(wrapUp);
 
-        saveStaticFollowUps(childhoodStatic, Arrays.asList(
-                "어린 시절에 자주 듣던 말이나 가훈이 있었나요?",
-                "가족 중 당신에게 가장 큰 영향을 준 사람은 누구이며, 이유는 무엇인가요?",
-                "그 장면에서 떠오르는 냄새, 소리, 색감 같은 디테일이 있다면요?"
+        saveStaticFollowUps(wrapUp, Arrays.asList(
+                // 1) 시기와 상황
+                "그 일은 몇 살 때 있었나요? 그때 상황을 조금만 더 이야기해 주실 수 있나요?",
+                // 2) 기억에 남는 장면
+                "그때 기억 속에 가장 선명하게 남아 있는 장면은 어떤 모습인가요?",
+                // 3) 지금과의 연결
+                "그 일이 있어서 지금도 하고 있는 행동이나 습관이 있나요?",
+                // 4) 감정 변화
+                "그 일을 겪고 난 뒤, 마음가짐이나 생각이 달라진 점이 있나요?",
+                // 5) 어린 시절의 나에게
+                "그때의 나에게 한마디 해줄 수 있다면, 어떤 말을 해주고 싶나요?"
         ));
 
         return lv;

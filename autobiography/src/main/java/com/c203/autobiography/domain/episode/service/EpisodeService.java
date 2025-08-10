@@ -14,5 +14,6 @@ public interface EpisodeService {
 
     Void deleteEpisode(Long memberId, Long bookId, Long episodeId);
 
+    EpisodeResponse createEpisodeFromCurrentWindow(Long bookId, String sessionId) throws JsonProcessingException;
 
 }
