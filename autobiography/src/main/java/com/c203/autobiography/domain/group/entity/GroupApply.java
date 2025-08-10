@@ -18,8 +18,9 @@ public class GroupApply {
     @Column(name = "group_apply_id")
     private Long groupApplyId;
 
-    @Column(name = "group_id", nullable = false)
-    private Long groupId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "group_id", nullable = false)
+    private Group group;
 
     @Column(name = "receiver_id", nullable = false)
     private Long receiverId;
@@ -31,6 +32,11 @@ public class GroupApply {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ApplyStatus status;
+
+    /** 편의 getter **/
+    public Long getGroupId() {
+        return group.getGroupId();
+    }
 
     /** 초대 상태 변경 메서드 **/
     public void changeStatus(ApplyStatus newStatus) {

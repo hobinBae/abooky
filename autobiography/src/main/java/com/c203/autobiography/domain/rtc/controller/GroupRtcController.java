@@ -7,6 +7,7 @@ import com.c203.autobiography.domain.rtc.service.GroupRoomService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+
+@Tag(name = "그룹 화상채팅방 API", description = "WebRTC 관련 API")
 @RestController
 @RequestMapping("/api/v1/groups/{groupId}/rtc")
 @RequiredArgsConstructor
@@ -52,7 +55,7 @@ public class GroupRtcController {
 
         String token = groupRoomService.generateToken(groupId, memberId.toString(), request.getUserName());
 
-        String url = "ws://localhost:7881";
+        String url = "ws://localhost:7880";
         RtcTokenResponse response = new RtcTokenResponse(url, token);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "토큰 발급 성공", response, httpRequest.getRequestURI()));

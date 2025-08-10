@@ -9,6 +9,7 @@ import com.c203.autobiography.domain.group.service.GroupService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
+
+@Tag(name = "그룹 API", description = "그룹 CRUD 관련 API")
 @RestController
 @RequestMapping("/api/v1/groups")
 @RequiredArgsConstructor
@@ -47,8 +50,8 @@ public class GroupController {
     @GetMapping("/{groupId}")
     public ResponseEntity<ApiResponse<GroupResponse>> getGroup(@PathVariable Long groupId, HttpServletRequest httpRequest) {
         GroupResponse response =  groupService.getGroup(groupId);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.of(HttpStatus.CREATED, "그룹 정보 조회 성공", response, httpRequest.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹 정보 조회 성공", response, httpRequest.getRequestURI()));
     }
 
     @Operation(summary = "그룹 정보 수정", description = "현재 로그인한 사용자가 그룹의 리더라면 그룹 정보를 수정합니다.")
@@ -61,8 +64,8 @@ public class GroupController {
             HttpServletRequest httpRequest
             ) {
         GroupResponse response = groupService.updateGroup(currentUserId.getMemberId(), groupId, request, imageFile);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.of(HttpStatus.CREATED, "그룹 정보 수정 성공", response, httpRequest.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹 정보 수정 성공", response, httpRequest.getRequestURI()));
     }
 
     @Operation(summary = "그룹 삭제", description = "현재 로그인한 사용자가 그룹의 리더라면 그룹을 삭제(soft delete)합니다.")
@@ -71,16 +74,18 @@ public class GroupController {
             @AuthenticationPrincipal CustomUserDetails currentUserId,
             @PathVariable Long groupId, HttpServletRequest httpRequest) {
         groupService.deleteGroup(currentUserId.getMemberId(), groupId);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.of(HttpStatus.CREATED, "그룹 삭제가 완료되었습니다.", null, httpRequest.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.NO_CONTENT)
+                .body(ApiResponse.of(HttpStatus.NO_CONTENT, "그룹 삭제가 완료되었습니다.", null, httpRequest.getRequestURI()));
     }
 
     @Operation(summary = "그룹원 조회", description = "현재 그룹의 그룹원들을 조회합니다.")
     @GetMapping("/{groupId}/members")
     public ResponseEntity<ApiResponse<List<GroupMemberResponse>>> listMembers(
             @PathVariable Long groupId,
+            @AuthenticationPrincipal CustomUserDetails currentUserId,
             HttpServletRequest httpRequest
     ) {
+        groupMemberService.verifyMember(groupId, currentUserId.getMemberId());
         List<GroupMemberResponse> response = groupMemberService.listGroupMembers(groupId);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "그룹원 목록 조회 성공", response, httpRequest.getRequestURI()));

@@ -12,6 +12,7 @@ import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.Getter;
@@ -30,6 +31,7 @@ import retrofit2.http.Path;
 
 import java.util.List;
 
+@Tag(name = "책 API", description = "책, 에피소드 관련 API")
 @RestController
 @RequestMapping("/api/v1/books")
 @RequiredArgsConstructor
@@ -37,6 +39,11 @@ public class BookController {
 
     private final BookService bookService;
     private final EpisodeService episodeService;
+
+    public void test(){
+        System.out.println("merge test");
+        return;
+    }
 
     @Operation(summary = "책 생성", description = "책 정보 등록")
     @PostMapping
@@ -213,6 +220,33 @@ public class BookController {
         episodeService.deleteEpisode(memberId, bookId, episodeId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "에피소드 삭제 성공", null, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "책 평점 등록/수정", description = "한 유저당 한 책의 평점 한 개만 가질 수 있습니다. (재요청 시 갱신)")
+    @PostMapping("/{bookId}/ratings")
+    public ResponseEntity<ApiResponse<BookRatingResponse>> rateBook(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long bookId,
+            @RequestBody @Valid BookRatingRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = user.getMemberId();
+        BookRatingResponse response = bookService.rateBook(memberId, bookId, request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "평점 등록/수정 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "책 평점 조회", description = "내 평점, 평균 평점(소수점 한자리), 총 평점 수를 조회합니다.")
+    @GetMapping("/{bookId}/ratings")
+    public ResponseEntity<ApiResponse<BookRatingResponse>> getBookRating(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long bookId,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = user.getMemberId();
+        BookRatingResponse response = bookService.getBookRating(memberId, bookId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "평점 조회 성공", response, httpRequest.getRequestURI()));
     }
 
 }
