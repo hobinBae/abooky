@@ -13,6 +13,4 @@ public class TokenResponse {
     @Schema(description = "Access Token(JWT)", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
     private String accessToken;
 
-    @Schema(description = "Refresh Token(JWT)", example = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
-    private String refreshToken;
 }

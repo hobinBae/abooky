@@ -11,7 +11,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, RouterView } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
@@ -35,6 +35,10 @@ const isIntroActive = computed(() => {
 const onIntroFinished = () => {
   hasIntroBeenFinished.value = true
 }
+
+onMounted(() => {
+  // 앱 초기화 로직은 main.ts로 이동되었습니다.
+})
 </script>
 
 <style>

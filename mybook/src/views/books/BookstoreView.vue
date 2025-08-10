@@ -2,7 +2,7 @@
   <div class="bookstore-page">
     <h2 class="section-title">지금 가장 인기있는 책 TOP 10</h2>
     <p class="section-subtitle">독자들이 가장 많이 찾고 사랑하는 책들을 만나보세요.</p>
-    
+
     <section class="carousel-section">
       <div class="perspective-carousel-container">
         <div class="perspective-carousel" :style="carouselStyle" @mousedown.prevent="onMouseDown"
@@ -30,13 +30,16 @@
           </div>
         </div>
       </div>
-      <button @click="prevBook" class="carousel-control-btn prev-btn"><i class="bi bi-chevron-compact-left"></i></button>
-      <button @click="nextBook" class="carousel-control-btn next-btn"><i class="bi bi-chevron-compact-right"></i></button>
+      <button @click="prevBook" class="carousel-control-btn prev-btn"><i
+          class="bi bi-chevron-compact-left"></i></button>
+      <button @click="nextBook" class="carousel-control-btn next-btn"><i
+          class="bi bi-chevron-compact-right"></i></button>
     </section>
 
     <section class="search-section">
       <div class="search-input-wrapper">
-        <input type="text" v-model="searchTerm" class="form-control search-input" placeholder="책 제목, 작가, 장르, #태그 로 검색...">
+        <input type="text" v-model="searchTerm" class="form-control search-input"
+          placeholder="책 제목, 작가, 장르, #태그 로 검색...">
         <i class="bi bi-search search-icon"></i>
       </div>
     </section>
@@ -69,7 +72,8 @@
         </div>
         <div v-else class="book-list-container">
           <div v-for="book in filteredBooks" :key="book.id" class="book-list-item" @click="goToBookDetail(book.id)">
-            <div class="book-cover-image" :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+            <div class="book-cover-image"
+              :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
               <div class="list-title-box">
                 <p class="list-title-box-title">{{ book.title }}</p>
                 <p class="list-title-box-author">{{ book.authorName }}</p>
@@ -145,7 +149,7 @@ const searchTerm = ref('');
 const currentSortOption = ref<SortOption>('latest');
 const activeGenre = ref<string | null>(null);
 const likedBookIds = ref<Set<string>>(new Set(['b1', 'b3']));
-const genres = ['자서전', '여행', '스포츠','소설/시', '에세이', '자기계발', '경제/경영', '사회/정치', '문화/예술','역사', '종교', '청소년','어린이/동화',];
+const genres = ['자서전', '여행', '스포츠', '소설/시', '에세이', '자기계발', '경제/경영', '사회/정치', '문화/예술', '역사', '종교', '청소년', '어린이/동화',];
 const sortOptions = [
   { value: 'latest', text: '최신순' },
   { value: 'popular', text: '인기순' },
@@ -160,7 +164,7 @@ const topBooks = computed(() => {
 const filteredBooks = computed(() => {
   const books = allBooks.value.filter(book => {
     const search = searchTerm.value.toLowerCase();
-    
+
     const matchesGenres = !activeGenre.value || (book.genres && book.genres.includes(activeGenre.value));
 
     let matchesSearch = true;
@@ -316,17 +320,20 @@ function toggleLike(book: Book) {
   --book-height: 310px;
   --book-depth: 20px;
 }
+
 .bookstore-page .book-model {
   width: 100%;
   height: 100%;
   transform-style: preserve-3d;
 }
+
 .bookstore-page .book-face {
   position: absolute;
   box-sizing: border-box;
   background-color: #e7e2d8;
   backface-visibility: hidden;
 }
+
 .bookstore-page .book-cover {
   width: var(--book-width);
   height: var(--book-height);
@@ -339,6 +346,7 @@ function toggleLike(book: Book) {
   background-size: cover;
   background-position: center;
 }
+
 .bookstore-page .vertical-line-front-bright-effect {
   position: absolute;
   left: 8px;
@@ -347,6 +355,7 @@ function toggleLike(book: Book) {
   width: 8px;
   background: linear-gradient(to right, rgba(255, 255, 255, 0.441), transparent);
 }
+
 .bookstore-page .book-back-cover {
   width: var(--book-width);
   height: var(--book-height);
@@ -358,6 +367,7 @@ function toggleLike(book: Book) {
   filter: brightness(0.4) blur(3px);
   transform: rotateY(180deg) translateZ(calc(var(--book-depth) / 2)) scaleX(-1);
 }
+
 .bookstore-page .book-back-cover .barcode-placeholder {
   position: absolute;
   bottom: 15px;
@@ -367,6 +377,7 @@ function toggleLike(book: Book) {
   background-color: white;
   opacity: 0.9;
 }
+
 .bookstore-page .book-spine {
   width: var(--book-depth);
   height: var(--book-height);
@@ -376,6 +387,7 @@ function toggleLike(book: Book) {
   background-position: center;
   filter: brightness(0.7) blur(0.5px);
 }
+
 .bookstore-page .book-side-edge {
   width: var(--book-depth);
   height: var(--book-height);
@@ -544,7 +556,7 @@ function toggleLike(book: Book) {
   border-radius: 8px;
   background-color: #FFFFFF;
   font-size: 1rem;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .search-icon {
@@ -628,7 +640,7 @@ function toggleLike(book: Book) {
 }
 
 .book-list-item {
-  position: relative; 
+  position: relative;
   display: flex;
   gap: 1.5rem;
   padding: 1.5rem;
@@ -641,7 +653,7 @@ function toggleLike(book: Book) {
 .book-list-item:hover {
   background-color: #ffffff;
   transform: scale(1.02);
-  box-shadow: 0 8px 25px rgba(0,0,0,0.07);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
   z-index: 10;
 }
 
@@ -650,7 +662,7 @@ function toggleLike(book: Book) {
   height: 180px;
   object-fit: cover;
   border-radius: 4px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
   /* [추가] 캐러셀과 동일하게 flex 속성 추가 */
   display: flex;
@@ -658,7 +670,8 @@ function toggleLike(book: Book) {
   justify-content: center;
   background-size: cover;
   background-position: center;
-  position: relative; /* 자식 요소 position absolute를 위해 추가 */
+  position: relative;
+  /* 자식 요소 position absolute를 위해 추가 */
 }
 
 /* [추가] 목록 내 표지 위의 제목/작가 박스 스타일 */
@@ -675,6 +688,7 @@ function toggleLike(book: Book) {
   color: #333;
   border-radius: 2px;
 }
+
 .list-title-box-title {
   font-family: 'Noto Serif KR', serif;
   font-size: 13px;
@@ -685,9 +699,11 @@ function toggleLike(book: Book) {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  /* 표준 속성으로 변경 */
   -webkit-box-orient: vertical;
 }
+
 .list-title-box-author {
   font-size: 10px;
   font-weight: 500;
@@ -731,7 +747,8 @@ function toggleLike(book: Book) {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  line-clamp: 3;
+  /* 표준 속성으로 변경 */
   -webkit-box-orient: vertical;
 }
 
@@ -759,7 +776,10 @@ function toggleLike(book: Book) {
   color: #aaa;
   padding-top: 1rem;
 }
-.book-stats i { margin-right: 0.2rem; }
+
+.book-stats i {
+  margin-right: 0.2rem;
+}
 
 .no-books-message {
   text-align: center;
@@ -770,7 +790,8 @@ function toggleLike(book: Book) {
   border-radius: 8px;
 }
 
-.filter-section, .book-list-section {
+.filter-section,
+.book-list-section {
   display: none;
 }
 </style>

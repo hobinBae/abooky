@@ -62,6 +62,11 @@
 import { ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import apiClient from '@/api';
+import { useAuthStore } from '@/stores/auth';
+import { AxiosError } from 'axios';
+
+// --- Store ---
+const authStore = useAuthStore();
 
 // --- Router ---
 const router = useRouter();
@@ -91,8 +96,8 @@ async function handleSignup() {
     return;
   }
   // 비밀번호 정책은 백엔드에서 검증하므로 프론트에서는 최소한의 검증만 수행
-  if (form.value.password.length < 4) {
-    errorMessage.value = '비밀번호는 4자리 이상이어야 합니다.';
+  if (form.value.password.length < 8 || form.value.password.length > 20) {
+    errorMessage.value = '비밀번호는 8자 이상, 20자 이하이어야 합니다.';
     return;
   }
 
@@ -119,14 +124,22 @@ async function handleSignup() {
       },
     });
 
-    alert('회원가입에 성공했습니다! 로그인 페이지로 이동합니다.');
-    router.push('/login');
+    // 회원가입 성공 후 바로 로그인 처리
+    await authStore.login({
+      email: form.value.email,
+      password: form.value.password,
+    });
 
-  } catch (error: any) {
-    if (error.response && error.response.data && error.response.data.message) {
-      errorMessage.value = error.response.data.message;
+    alert('회원가입에 성공했습니다! 메인 페이지로 이동합니다.');
+    router.push('/');
+
+  } catch (error) {
+    if (error instanceof AxiosError && error.response) {
+      errorMessage.value = error.response.data.message || '회원가입 중 오류가 발생했습니다.';
+    } else if (error instanceof Error) {
+      errorMessage.value = error.message;
     } else {
-      errorMessage.value = '회원가입에 실패했습니다. 서버에 문제가 발생했을 수 있습니다.';
+      errorMessage.value = '회원가입 중 알 수 없는 오류가 발생했습니다.';
     }
   } finally {
     isLoading.value = false;
