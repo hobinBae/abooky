@@ -113,6 +113,17 @@ interface TestModule {
   testRoutes: RouteRecordRaw[]
 }
 
+// 개발(DEV) 단계에서만 /test 라우트 등록
+// let allRoutes = mainRoutes
+// if (import.meta.env.DEV) {
+//   const testRouteFiles = import.meta.glob('./test.ts', { eager: true })
+//   const testModule = testRouteFiles['./test.ts']
+//   if (testModule && typeof testModule === 'object' && 'testRoutes' in testModule) {
+//     allRoutes = [...mainRoutes, ...(testModule as TestModule).testRoutes]
+//   }
+// }
+
+
 let allRoutes = mainRoutes
 if (import.meta.env.DEV) {
   const testRouteFiles = import.meta.glob('./test.ts', { eager: true })
@@ -121,6 +132,7 @@ if (import.meta.env.DEV) {
     allRoutes = [...mainRoutes, ...(testModule as TestModule).testRoutes]
   }
 }
+
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
