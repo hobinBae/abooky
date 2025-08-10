@@ -13,10 +13,10 @@
 
       <aside class="left-panel">
         <div class="flipper-container">
+          <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" />
           <div class="flipper" :class="{ 'is-flipped': isCoverFlipped }">
             <div class="flipper-front" @click="flipCover">
               <div class="book-cover-design" :style="{ backgroundImage: `url(${coverImageUrl})` }">
-                <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" />
                 <div class="title-box">
                   <h1>{{ book.title }}</h1>
                   <p class="author-in-box">{{ book.authorName }}</p>
@@ -65,7 +65,7 @@
         <button v-if="isAuthor" @click="editBook" class="btn btn-edit">
           <i class="bi bi-pencil-square"></i> 책 편집하기
         </button>
-        <button v-if="isAuthor && !isPublished" @click="publishToBookstore" class="btn btn-edit">
+        <button v-if="isAuthor && !isPublished" @click="publishToBookstore" class="btn btn-edit btn-publish">
           <i class="bi bi-book"></i> 서점에 출판하기
         </button>
         <button v-if="isAuthor && isPublished" @click="unpublishFromBookstore" class="btn btn-edit btn-unpublish">
@@ -357,20 +357,30 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 8px; }
 
-.btn-unpublish {
-  background-color: #a9a9a9;
+.btn-publish {
+  background-color: #28a745;
   color: white;
-  border-color: #a9a9a9;
+  border-color: #28a745;
+}
+.btn-publish:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.btn-unpublish {
+  background-color: #dc3545;
+  color: white;
+  border-color: #dc3545;
 }
 .btn-unpublish:hover {
-  background-color: #808080;
-  border-color: #808080;
+  background-color: #c82333;
+  border-color: #bd2130;
 }
 
 .published-sticker {
   position: absolute;
-  bottom: 10px;
-  right: 5px;
+  bottom: 20px;
+  right: -10px;
   width: 100px;
   height: 100px;
   z-index: 15;
