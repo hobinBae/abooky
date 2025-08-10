@@ -6,7 +6,16 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "followup_question")
+@Table(
+        name = "followup_question",
+        uniqueConstraints = {
+                // 같은 템플릿 안에서 question_order 유일
+                @UniqueConstraint(name = "uk_fu__template_question_order", columnNames = {"template_id","question_order"})
+        },
+        indexes = {
+                @Index(name = "idx_fu__template_order", columnList = "template_id, question_order")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor

@@ -8,14 +8,21 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ChapterTemplateRepository extends JpaRepository<ChapterTemplate, String> {
-    
+
     List<ChapterTemplate> findByChapterChapterIdOrderByTemplateOrderAsc(String chapterId);
-    
-    @Query("SELECT ct FROM ChapterTemplate ct JOIN FETCH ct.staticFollowUpQuestions f WHERE ct.templateId = :templateId ORDER BY f.questionOrder")
+
+
+    @Query("""
+      SELECT DISTINCT ct
+        FROM ChapterTemplate ct 
+   LEFT JOIN FETCH ct.staticFollowUpQuestions f 
+       WHERE ct.templateId = :templateId
+    ORDER BY f.questionOrder
+    """)
     Optional<ChapterTemplate> findByTemplateIdWithFollowUps(String templateId);
-    
+
     @Query("SELECT ct FROM ChapterTemplate ct " +
-           "JOIN ct.chapter c " +
-           "WHERE c.chapterOrder = :chapterOrder AND ct.templateOrder = :templateOrder")
+            "JOIN ct.chapter c " +
+            "WHERE c.chapterOrder = :chapterOrder AND ct.templateOrder = :templateOrder")
     Optional<ChapterTemplate> findByChapterOrderAndTemplateOrder(int chapterOrder, int templateOrder);
 } 

@@ -28,4 +28,8 @@ public class ConversationSessionUpdateRequest {
     private Integer templateIndex;
 
 
+    @Schema(description = "이번 에피소드에 포함할 메시지 시작 messageNo(포함)", example = "42")
+    private Integer episodeStartMessageNo; // Optional
+
+
 }
