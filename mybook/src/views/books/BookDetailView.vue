@@ -16,6 +16,7 @@
           <div class="flipper" :class="{ 'is-flipped': isCoverFlipped }">
             <div class="flipper-front" @click="flipCover">
               <div class="book-cover-design" :style="{ backgroundImage: `url(${coverImageUrl})` }">
+                <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" />
                 <div class="title-box">
                   <h1>{{ book.title }}</h1>
                   <p class="author-in-box">{{ book.authorName }}</p>
@@ -42,7 +43,6 @@
               <p class="summary">{{ book.summary }}</p>
             </div>
           </div>
-          
           <div class="cover-adornment">
             <i v-if="!isCoverFlipped" class="bi bi-hand-index flip-indicator"></i>
             <div v-if="isCoverFlipped" class="vertical-publish-date">
@@ -64,6 +64,12 @@
 
         <button v-if="isAuthor" @click="editBook" class="btn btn-edit">
           <i class="bi bi-pencil-square"></i> 책 편집하기
+        </button>
+        <button v-if="isAuthor && !isPublished" @click="publishToBookstore" class="btn btn-edit">
+          <i class="bi bi-book"></i> 서점에 출판하기
+        </button>
+        <button v-if="isAuthor && isPublished" @click="unpublishFromBookstore" class="btn btn-edit btn-unpublish">
+          <i class="bi bi-book-half"></i> 출판 취소하기
         </button>
       </aside>
 
@@ -154,7 +160,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 // --- Interfaces ---
 interface Episode { title: string; content: string; }
-interface Book { id: string; title: string; authorId: string; authorName?: string; summary?: string; coverUrl?: string; genres?: string[]; tags?: string[]; episodes: Episode[]; likes: number; views: number; publicationDate?: Date; }
+interface Book { id: string; title: string; authorId: string; authorName?: string; summary?: string; coverUrl?: string; genres?: string[]; tags?: string[]; episodes: Episode[]; likes: number; views: number; publicationDate?: Date; isPublished?: boolean; }
 interface Comment { id: string; bookId: string; authorId: string; authorName?: string; text: string; createdAt: Date; }
 
 // --- Dummy Data ---
@@ -173,7 +179,7 @@ const DUMMY_BOOKS: Book[] = [{
     { title: '할머니의 손맛', content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다.\n할머니 댁에 가면 언제나 구수한 된장찌개 냄새가 나를 반겼다. 할머니는 내가 좋아하는 반찬들을 한가득 차려주셨고, 나는 할머니의 사랑이 담긴 밥상을 마주할 때마다 세상에서 가장 행복한 아이가 되었다.' }, 
     { title: '우리들의 운동장', content: '친구들과 함께 뛰어놀던 운동장은 우리만의 작은 세상이었다.\n학교가 끝나면 우리는 약속이라도 한 듯 운동장으로 달려갔다. 축구공 하나만 있으면 시간 가는 줄 모르고 뛰어놀았고, 해가 져서 어두워질 때까지 운동장을 떠나지 않았다.' }
   ], 
-  likes: 20, views: 150,
+  likes: 20, views: 150, isPublished: false,
 },];
 const DUMMY_COMMENTS: Comment[] = [{ id: 'c1', bookId: 'mybook1', authorId: 'dummyUser1', authorName: '독서광', text: '정말 재미있게 읽었습니다! 다음 에피소드도 기대됩니다.', createdAt: new Date('2024-07-28T10:00:00Z') }, { id: 'c2', bookId: 'mybook1', authorId: 'user_dummy_4', authorName: '여행자', text: '저도 어릴 적 생각이 많이 나네요. 글이 참 따뜻합니다.', createdAt: new Date('2024-07-28T11:30:00Z') }, { id: 'c3', bookId: 'mybook1', authorId: 'user_dummy_5', authorName: '음유시인', text: '할머니의 사랑이 느껴지는 글입니다. 감동받았어요.', createdAt: new Date('2024-07-27T14:00:00Z') }];
 
@@ -194,11 +200,12 @@ const currentUserId = ref('dummyUser1');
 const areCommentsVisible = ref(false);
 const editingCommentId = ref<string | null>(null);
 const editingCommentText = ref('');
+const isPublished = ref(false);
 const coverImageUrl = computed(() => { return book.value?.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'; });
 // [수정] 발행일 형식 변경 (YYYY.MM.DD)
 const formattedPublicationDate = computed(() => { 
   if (!book.value?.publicationDate) return '';
-  const date = book.value.publicationDate;
+  const date = new Date(book.value.publicationDate);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -209,10 +216,69 @@ const isAuthor = computed(() => book.value && book.value.authorId === currentUse
 const formattedContent = (content: string) => content.replace(/\n/g, '<br />');
 function openBook() { initialCoverMode.value = false; setTimeout(() => { bookIsOpened.value = true; }, 10); }
 function goBackToList() { currentEpisodeIndex.value = null; }
-function fetchBookData() { const foundBook = DUMMY_BOOKS.find(b => b.id === bookId.value); if (foundBook) { book.value = { ...foundBook }; likeCount.value = book.value.likes || 0; } else { book.value = null; } }
-function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); }
+function fetchBookData() {
+  const publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
+  const foundPublishedBook = publishedBooks.find((b: Book) => b.id === bookId.value);
+
+  if (foundPublishedBook) {
+    book.value = foundPublishedBook;
+    isPublished.value = true;
+  } else {
+    const foundBook = DUMMY_BOOKS.find(b => b.id === bookId.value);
+    if (foundBook) {
+      book.value = { ...foundBook };
+      isPublished.value = false;
+    } else {
+      book.value = null;
+    }
+  }
+  if (book.value) {
+    likeCount.value = book.value.likes || 0;
+  }
+}
+function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); }
 function toggleLike() { isLiked.value = !isLiked.value; likeCount.value += isLiked.value ? 1 : -1; }
 function editBook() { if (book.value) { router.push({ name: 'BookEditor', params: { bookId: book.value.id } }); } }
+
+function publishToBookstore() {
+  if (book.value && confirm(`'${book.value.title}'을(를) 서점에 출판하시겠습니까?`)) {
+    const publishedBook = { ...book.value, isPublished: true, publicationDate: new Date() };
+    
+    let publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
+    
+    const existingBookIndex = publishedBooks.findIndex((b: Book) => b.id === publishedBook.id);
+    if (existingBookIndex > -1) {
+      publishedBooks[existingBookIndex] = publishedBook;
+    } else {
+      publishedBooks.push(publishedBook);
+    }
+    
+    localStorage.setItem('publishedBooks', JSON.stringify(publishedBooks));
+    
+    isPublished.value = true;
+    if (book.value) {
+      book.value.isPublished = true;
+      book.value.publicationDate = publishedBook.publicationDate;
+    }
+
+    alert('서점에 성공적으로 출판되었습니다.');
+  }
+}
+
+function unpublishFromBookstore() {
+  if (book.value && confirm(`'${book.value.title}'의 출판을 취소하시겠습니까?`)) {
+    let publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
+    publishedBooks = publishedBooks.filter((b: Book) => b.id !== book.value?.id);
+    localStorage.setItem('publishedBooks', JSON.stringify(publishedBooks));
+
+    isPublished.value = false;
+    if (book.value) {
+      book.value.isPublished = false;
+    }
+    alert('출판이 취소되었습니다.');
+  }
+}
+
 function selectEpisode(index: number) { if (book.value && index >= 0 && index < book.value.episodes.length) { currentEpisodeIndex.value = index; document.querySelector('.right-panel-scroller')?.scrollTo(0, 0); } }
 function toggleCommentsVisibility() { areCommentsVisible.value = !areCommentsVisible.value; }
 function addComment() { if (!newComment.value.trim() || !book.value) return; const comment: Comment = { id: `c${Date.now()}`, bookId: book.value.id, authorId: currentUserId.value, authorName: '현재 사용자', text: newComment.value, createdAt: new Date() }; comments.value.unshift(comment); newComment.value = ''; areCommentsVisible.value = true; }
@@ -290,6 +356,27 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .btn-edit { background: none; border: 1px solid #ddd; color: #333; font-size: 14px; padding: 10px 16px; border-radius: 4px; cursor: pointer; transition: all 0.2s; margin-top: 16px; flex-shrink: 0; }
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 8px; }
+
+.btn-unpublish {
+  background-color: #a9a9a9;
+  color: white;
+  border-color: #a9a9a9;
+}
+.btn-unpublish:hover {
+  background-color: #808080;
+  border-color: #808080;
+}
+
+.published-sticker {
+  position: absolute;
+  bottom: 10px;
+  right: 5px;
+  width: 100px;
+  height: 100px;
+  z-index: 15;
+  transform: rotate(15deg);
+  pointer-events: none;
+}
 
 /* [추가] 아이콘과 날짜를 감싸는 컨테이너 */
 .cover-adornment {
