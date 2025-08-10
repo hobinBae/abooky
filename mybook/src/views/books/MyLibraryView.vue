@@ -47,13 +47,14 @@
         </h3>
         <div class="shelf-book-container my-books-container">
           <draggable v-model="myBooks" item-key="id" :group="{ name: 'myBooksSource', pull: 'clone' }"
-            class="shelf-book-list" tag="div" @start="isDraggingBook = true" @end="isDraggingBook = false">
+            class="shelf-book-list" tag="div" @start="startDrag" @end="endDrag">
             <template #item="{ element: book }">
               <div class="shelf-book-item-3d" @click="selectShelfBook(book)" :title="book.title">
 
                 <div class="shelf-book-model">
                   <div class="shelf-book-face shelf-book-cover"
                     :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                    <img v-if="book.isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker-shelf" />
                     <div class="shelf-bright-edge-effect"></div>
                     <div class="shelf-book-title-overlay">
                       <div class="shelf-book-title">{{ book.title }}</div>
@@ -77,26 +78,22 @@
         </div>
       </div>
 
-      <div v-if="allGroups.length === 0" class="no-groups-message">
-        <p>아직 생성된 그룹이 없습니다.</p>
-        <span>'그룹 추가' 버튼을 눌러 새로운 그룹을 만들어보세요.</span>
-      </div>
-
-      <div v-else class="group-shelves-container">
-        <div v-for="group in allGroups" :key="group.id" class="group-shelf-wrapper">
+      <div class="group-shelves-container">
+        <div v-for="group in displayedGroups" :key="group.id" class="group-shelf-wrapper">
           <div class="group-shelf-title-bar">
-            <router-link :to="`/group-timeline/${group.id}`" class="group-shelf-title"
+            <router-link v-if="group.id" :to="`/group-timeline/${group.id}`" class="group-shelf-title"
               :title="`${group.groupName} 타임라인으로 이동`">
               {{ group.groupName }}
             </router-link>
+            <span v-else class="group-shelf-title-placeholder">{{ group.groupName }}</span>
           </div>
-          <div class="group-bookshelf-inner">
+          <div v-for="(bookChunk, chunkIndex) in chunkedBooks(group.books)" :key="chunkIndex" class="group-bookshelf-inner">
             <div class="shelf-book-container">
               <div class="shelf-book-list group-shelf-horizontal">
-                <draggable v-model="group.books" item-key="id"
+                <draggable :list="bookChunk" item-key="id"
                   :group="{ name: 'groupBooksTarget', pull: true, put: ['myBooksSource'] }"
                   class="group-books-draggable-area" tag="div" @add="handleBookDrop($event, group.id)"
-                  @change="handleGroupBookChange($event, group.id)" @start="isDraggingBook = true"
+                  @change="(event: any) => handleGroupBookChange(event, group.id, chunkIndex)" @start="isDraggingBook = true"
                   @end="isDraggingBook = false">
                   <template #item="{ element: book }">
                     <div class="shelf-book-item-3d" @click="selectShelfBook(book)" :title="book.title">
@@ -140,11 +137,15 @@
         <button @click="closeAllModals" class="close-button" title="닫기"><i class="bi bi-x-lg"></i></button>
         <div v-if="isRepBookModalVisible">
           <h2 class="modal-title">대표 인생책 선택</h2>
-          <p class="modal-description">Ctrl/Cmd 키를 누른 채 여러 책을 선택할 수 있습니다.</p>
-          <select v-model="selectedRepBookIds" multiple class="form-select modal-select">
-            <option v-for="book in myBooks" :key="book.id" :value="book.id">{{ book.title }}</option>
-          </select>
-          <button @click="saveRepresentativeBooksHandler" class="btn btn-primary modal-action-btn">저장하기</button>
+          <p class="modal-description">나의 대표 인생책을 한권 선택해주세요.</p>
+          <div class="book-selection-list">
+            <label v-for="book in myBooks" :key="book.id" class="book-selection-item">
+              <input type="radio" :value="book.id" v-model="selectedRepBookId" name="rep-book" />
+              <img :src="book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'" alt="Book Cover" class="book-cover-thumbnail" />
+              <span class="book-title-radio">{{ book.title }}</span>
+            </label>
+          </div>
+          <button @click="saveRepresentativeBookHandler" class="btn btn-primary modal-action-btn">저장하기</button>
         </div>
         <div v-if="isGroupModalVisible">
           <h2 class="modal-title">새 그룹 만들기</h2>
@@ -166,14 +167,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
 
 const router = useRouter();
 
 // --- Interfaces & Types ---
-interface Book { id: string; title: string; authorId: string; authorName?: string; coverUrl?: string; }
+interface Book { id: string; title: string; authorId: string; authorName?: string; coverUrl?: string; isPublished?: boolean; }
 interface Group { id: string; groupName: string; ownerId: string; managers: string[]; members: string[]; books: Book[]; createdAt: Date; }
 interface DraggableEvent { added?: { element: Book; newIndex: number }; removed?: { element: Book; oldIndex: number }; moved?: { element: Book; newIndex: number; oldIndex: number }; }
 
@@ -195,11 +196,12 @@ const DUMMY_GROUPS: Group[] = [
 
 // --- Reactive State ---
 const representativeBooks = ref<Book[]>([DUMMY_MY_BOOKS[0]]);
-const myBooks = ref<Book[]>(DUMMY_MY_BOOKS);
+const myBooks = ref<Book[]>([]);
 const allGroups = ref<Group[]>(DUMMY_GROUPS);
 const isDraggingBook = ref(false);
+let scrollInterval: number | null = null;
 const isRepBookModalVisible = ref(false);
-const selectedRepBookIds = ref<string[]>([]);
+const selectedRepBookId = ref<string | null>(null);
 const isGroupModalVisible = ref(false);
 const newGroupName = ref('');
 const isMessageBoxVisible = ref(false);
@@ -210,8 +212,38 @@ const repBookRotationY = ref(0);
 // --- Computed Properties ---
 const currentRepBook = computed(() => (representativeBooks.value.length > 0 ? representativeBooks.value[0] : null));
 const repBookStyle = computed(() => ({ transform: `rotateY(${repBookRotationY.value}deg)`, transition: isDraggingBook.value ? 'none' : 'transform 0.1s ease-out' }));
+const displayedGroups = computed(() => {
+  if (allGroups.value.length === 0) {
+    return [{
+      id: '',
+      groupName: '그룹추가를 눌러 그룹을 만들어 보세요.',
+      ownerId: '',
+      managers: [],
+      members: [],
+      books: [],
+      createdAt: new Date(),
+    }];
+  }
+  return allGroups.value;
+});
+
+const chunkedBooks = (books: Book[]) => {
+  const chunkSize = 13;
+  const chunks = [];
+  for (let i = 0; i < books.length; i += chunkSize) {
+    chunks.push(books.slice(i, i + chunkSize));
+  }
+  return chunks.length > 0 ? chunks : [[]];
+};
 
 // --- Functions ---
+function loadMyBooks() {
+  const publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]') as Book[];
+  myBooks.value = DUMMY_MY_BOOKS.map(book => {
+    const publishedBook = publishedBooks.find(pb => pb.id === book.id);
+    return { ...book, isPublished: !!publishedBook };
+  });
+}
 // 클릭 시 바로 상세 페이지로 이동하도록 변경
 function selectShelfBook(book: Book) {
   router.push(`/book-detail/${book.id}`);
@@ -268,7 +300,28 @@ async function handleBookDrop(event: DraggableEvent, groupId: string) {
   }
 }
 
-function handleGroupBookChange(event: DraggableEvent, groupId: string) { }
+function handleGroupBookChange(event: DraggableEvent, groupId: string, chunkIndex: number) {
+  const group = allGroups.value.find(g => g.id === groupId);
+  if (!group) return;
+
+  if (event.added) {
+    const { element, newIndex } = event.added;
+    const originalIndex = chunkIndex * 13 + newIndex;
+    group.books.splice(originalIndex, 0, element);
+  } else if (event.removed) {
+  } else if (event.removed) {
+    const { element, oldIndex } = event.removed;
+    const originalIndex = chunkIndex * 13 + oldIndex;
+    group.books.splice(originalIndex, 1);
+  } else if (event.moved) {
+  } else if (event.moved) {
+    const { element, oldIndex, newIndex } = event.moved;
+    const originalOldIndex = chunkIndex * 13 + oldIndex;
+    const originalNewIndex = chunkIndex * 13 + newIndex;
+    group.books.splice(originalOldIndex, 1);
+    group.books.splice(originalNewIndex, 0, element);
+  }
+}
 
 function removeBookFromGroup(groupId: string, bookId: string) {
   const group = allGroups.value.find(g => g.id === groupId);
@@ -280,23 +333,47 @@ function removeBookFromGroup(groupId: string, bookId: string) {
     }
   }
 }
-function openRepBookModal() { selectedRepBookIds.value = representativeBooks.value.map(book => book.id); isRepBookModalVisible.value = true; }
-function saveRepresentativeBooksHandler() {
-  representativeBooks.value = selectedRepBookIds.value.map(id => myBooks.value.find(book => book.id === id)).filter((book): book is Book => !!book);
-  isRepBookModalVisible.value = false;
-  showMessageBox('대표책이 저장되었습니다.');
+function openRepBookModal() {
+  selectedRepBookId.value = representativeBooks.value.length > 0 ? representativeBooks.value[0].id : null;
+  isRepBookModalVisible.value = true;
 }
-function createGroupHandler() {
+function saveRepresentativeBookHandler() {
+  if (selectedRepBookId.value) {
+    const selectedBook = myBooks.value.find(book => book.id === selectedRepBookId.value);
+    if (selectedBook) {
+      representativeBooks.value = [selectedBook];
+      isRepBookModalVisible.value = false;
+      showMessageBox('대표책이 저장되었습니다.');
+    }
+  }
+}
+async function createGroupHandler() {
   const groupName = newGroupName.value.trim();
-  if (!groupName) { showMessageBox('그룹 이름을 입력해주세요.', '경고'); return; }
+  if (!groupName) {
+    showMessageBox('그룹 이름을 입력해주세요.', '경고');
+    return;
+  }
 
-  const members = [currentUserNickname.value]; // 현재 사용자만 멤버로 추가
-
-  const newGroup: Group = { id: `group${Date.now()}`, groupName: groupName, ownerId: currentUserNickname.value, managers: [], members: members, books: [], createdAt: new Date() };
-  allGroups.value.unshift(newGroup);
+  const members = [currentUserNickname.value];
+  const newGroup: Group = {
+    id: `group${Date.now()}`,
+    groupName: groupName,
+    ownerId: currentUserNickname.value,
+    managers: [],
+    members: members,
+    books: [],
+    createdAt: new Date()
+  };
+  allGroups.value.push(newGroup);
   isGroupModalVisible.value = false;
   newGroupName.value = '';
   showMessageBox('그룹이 성공적으로 생성되었습니다.');
+
+  await nextTick();
+  const newGroupElement = document.getElementById(`group-${newGroup.id}`);
+  if (newGroupElement) {
+    newGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
 }
 function handleMouseMove(event: MouseEvent) {
   const target = event.currentTarget as HTMLElement;
@@ -313,6 +390,65 @@ function truncateTitle(title: string): string {
   if (title.length > maxLength) { return title.substring(0, maxLength) + '...'; }
   return title;
 }
+
+function startDrag() {
+  isDraggingBook.value = true;
+  document.addEventListener('dragover', handleDragOver);
+}
+
+function endDrag() {
+  isDraggingBook.value = false;
+  document.removeEventListener('dragover', handleDragOver);
+  if (scrollInterval) {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+  }
+}
+
+function handleDragOver(event: MouseEvent) {
+  // 현재 마우스 커서의 Y 좌표를 가져옵니다.
+  const { clientY } = event;
+  // 브라우저 창의 전체 높이를 가져옵니다.
+  const windowHeight = window.innerHeight;
+  // 스크롤이 시작될 화면 가장자리로부터의 거리(px)입니다.
+  const scrollZone = 500;
+  // 스크롤의 최대 속도입니다.
+  const maxScrollSpeed = 300;
+
+  // 이전에 설정된 스크롤 인터벌이 있다면 초기화합니다.
+  // 이렇게 하지 않으면 스크롤이 여러 번 중복 실행될 수 있습니다.
+  if (scrollInterval) {
+    clearInterval(scrollInterval);
+    scrollInterval = null;
+  }
+
+  // 마우스 커서가 위쪽 스크롤 영역에 있는지 확인합니다.
+  if (clientY < scrollZone) {
+    // 커서가 스크롤 영역 내에서 얼마나 위쪽에 있는지 비율을 계산합니다 (0.0 ~ 1.0).
+    // 가장 위쪽에 가까울수록 1.0에 가까워집니다.
+    const speedFactor = 1 - (clientY / scrollZone);
+    // 스크롤 영역의 80% 이상을 차지하는 부분에서는 최대 속도를, 그 외에는 비율에 따라 속도를 조절합니다.
+    const speed = speedFactor > 0.3 ? maxScrollSpeed : maxScrollSpeed * speedFactor;
+    // 설정된 속도로 위로 스크롤하는 인터벌을 시작합니다.
+    scrollInterval = setInterval(() => {
+      window.scrollBy(0, -speed);
+    }, 10);
+  }
+  // 마우스 커서가 아래쪽 스크롤 영역에 있는지 확인합니다.
+  else if (clientY > windowHeight - scrollZone) {
+    // 커서가 스크롤 영역 내에서 얼마나 아래쪽에 있는지 비율을 계산합니다 (0.0 ~ 1.0).
+    // 가장 아래쪽에 가까울수록 1.0에 가까워집니다.
+    const speedFactor = (clientY - (windowHeight - scrollZone)) / scrollZone;
+    // 스크롤 영역의 80% 이상을 차지하는 부분에서는 최대 속도를, 그 외에는 비율에 따라 속도를 조절합니다.
+    const speed = speedFactor > 0.3 ? maxScrollSpeed : maxScrollSpeed * speedFactor;
+    // 설정된 속도로 아래로 스크롤하는 인터벌을 시작합니다.
+    scrollInterval = setInterval(() => {
+      window.scrollBy(0, speed);
+    }, 10);
+  }
+}
+
+onMounted(loadMyBooks);
 </script>
 
 <style>
@@ -578,14 +714,14 @@ function truncateTitle(title: string): string {
 }
 
 .content-section {
-  padding: 2.5rem;
+  padding: 0 2.5rem 2.5rem 2.5rem;
   margin: 0 auto 3rem auto;
   max-width: 1200px;
 }
 
 .section-title {
   font-family: 'Noto Serif KR', serif;
-  font-size: 2rem;
+  font-size: 2.8rem;
   font-weight: 700;
   margin-bottom: 0.75rem;
   text-align: center;
@@ -602,7 +738,10 @@ function truncateTitle(title: string): string {
   text-align: center;
 }
 
-.representative-book-section .section-title,
+.representative-book-section .section-title {
+  color: #26250F;
+}
+
 .book-shelves-section .section-title {
   color: #000000;
 }
@@ -720,9 +859,6 @@ function truncateTitle(title: string): string {
 }
 
 .my-books-shelf-wrapper {
-  position: sticky;
-  top: 56px;
-  z-index: 100;
   background-color: #6B4F3A;
   /* Fallback color */
   background-image: url('https://plus.unsplash.com/premium_photo-1671612828903-dc019accc402?q=80&w=774&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
@@ -966,8 +1102,17 @@ function truncateTitle(title: string): string {
 }
 
 .group-shelf-title:hover {
-  color: #D4A373;
-  text-decoration: underline;
+  transform: scale(1.05);
+  color: #333;
+  text-decoration: none;
+}
+
+.group-shelf-title-placeholder {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #888;
+  font-style: italic;
 }
 
 .group-bookshelf-inner {
@@ -1062,14 +1207,45 @@ function truncateTitle(title: string): string {
   line-height: 1.6;
 }
 
-.modal-select {
-  background-color: #F5F5F3;
+.book-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 1.5rem;
   border: 1px solid #E0E0E0;
   border-radius: 8px;
+  padding: 0.75rem;
+}
+
+.book-selection-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.5rem;
-  width: 100%;
-  height: 180px;
-  margin-bottom: 1.5rem;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.book-selection-item:hover {
+  background-color: #f5f5f5;
+}
+
+.book-selection-item input[type="radio"] {
+  margin-right: 0.5rem;
+}
+
+.book-cover-thumbnail {
+  width: 40px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 2px;
+}
+
+.book-title-radio {
+  font-weight: 500;
 }
 
 .modal-select:focus,
@@ -1142,5 +1318,15 @@ function truncateTitle(title: string): string {
   width: 100%;
   transform: rotateX(20deg);
   border-radius: 80%;
+}
+
+.published-sticker-shelf {
+  position: absolute;
+  bottom: 5px;
+  right: 5px;
+  width: 60px;
+  height: 60px;
+  z-index: 10;
+  transform: rotate(15deg);
 }
 </style>
