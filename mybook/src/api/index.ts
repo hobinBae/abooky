@@ -1,8 +1,18 @@
 import axios from 'axios';
 import { useAuthStore } from '@/stores/auth';
 
+const getBaseURL = () => {
+  if (import.meta.env.DEV) {
+    // 개발 환경: 직접 백엔드 포트
+    return 'http://localhost:8080'
+  } else {
+    // 프로덕션 환경: 현재 도메인 사용 (Nginx 프록시 경유)
+    return ''  // 빈 문자열 = 현재 도메인 기준 상대 경로
+  }
+}
+
 const apiClient = axios.create({
-  baseURL: 'http://localhost:8080',
+  baseURL: getBaseURL(),
   withCredentials: true, // 쿠키를 포함하여 요청
   headers: {
     'Content-Type': 'application/json',
