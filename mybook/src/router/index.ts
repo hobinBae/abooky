@@ -123,16 +123,13 @@ interface TestModule {
 //   }
 // }
 
-
+// DEV 제한 제거
+const testRouteFiles = import.meta.glob('./test.ts', { eager: true })
+const testModule = testRouteFiles['./test.ts']
 let allRoutes = mainRoutes
-if (import.meta.env.DEV) {
-  const testRouteFiles = import.meta.glob('./test.ts', { eager: true })
-  const testModule = testRouteFiles['./test.ts']
-  if (testModule && typeof testModule === 'object' && 'testRoutes' in testModule) {
-    allRoutes = [...mainRoutes, ...(testModule as TestModule).testRoutes]
-  }
+if (testModule && typeof testModule === 'object' && 'testRoutes' in testModule) {
+  allRoutes = [...mainRoutes, ...(testModule as TestModule).testRoutes]
 }
-
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
