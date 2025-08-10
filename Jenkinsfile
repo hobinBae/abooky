@@ -198,14 +198,6 @@ pipeline {
                         '''
                     }
                 }
-                stage('Cleanup'){
-                    steps {
-                        sh '''
-                            docker image prune -f || true
-                            docker container prune -f || true
-                        '''
-                    }
-                }
             }
         }
 
@@ -223,13 +215,16 @@ pipeline {
     post {
         always {
            cleanWs()  // 간단하게 전체 워크스페이스 정리
-            sh '''
-                docker image prune -f
-                docker container prune -f
-            '''
         }
         success {
             script {
+                // Docker 정리
+                sh '''
+                    docker image prune -f
+                    docker container prune -f
+                '''
+
+                // 성공 메시지
                 def duration = currentBuild.durationString.replace(' and counting', '')
                 echo """
                 🎉 Build & Deploy 성공!
