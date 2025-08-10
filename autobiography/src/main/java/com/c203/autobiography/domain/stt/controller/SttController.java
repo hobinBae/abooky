@@ -60,33 +60,8 @@ public class SttController {
                 .chunkIndex(chunkIndex)
                 .text(sttResp.getText())
                 .build();
-        log.info(partialDto.getText() + "see");
-        sseService.pushPartialTranscript(sessionId, partialDto);
-//
-//        // 4) 대답 청크일 경우
-//        if (answer) {
-//
-//            conversationService.createMessage(
-//                    ConversationMessageRequest.builder()
-//                            .sessionId(sessionId)
-//                            .messageType(MessageType.ANSWER)
-//                            .chunkIndex(chunkIndex)
-//                            .content(sttResp.getText())
-//                            .build()
-//            );
-//
-//            // SSE로 최종 인식 결과 푸시
-//            // (b) 최종 스트림 푸시
-//            String fullText = conversationService.getHistory(sessionId).stream()
-//                    .map(ConversationMessageResponse::getContent)
-//                    .collect(Collectors.joining(" "));
-//            sseService.pushFinalTranscript(sessionId,
-//                    TranscriptResponse.builder()
-//                            .chunkIndex(chunkIndex)
-//                            .text(fullText)
-//                            .build()
-//            );
 
+        sseService.pushPartialTranscript(sessionId, partialDto);
 
             // 3) 다음 질문 준비 완료 알림만
             sseService.pushQuestion(

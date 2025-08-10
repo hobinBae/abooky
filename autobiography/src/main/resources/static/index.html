@@ -89,7 +89,7 @@
     const stageInfo = document.getElementById('stageInfo');
     const progressBar = document.getElementById('progressBar');
 
-    let sessionId = crypto.randomUUID();
+    let sessionId = null;
     const bookId = 1;  // 실제론 사용자 선택값 또는 URL 파라미터 사용
     let chunkIndex = 0;
     let source, mediaRecorder, stream, chunkTimer, audioContext, analyser;
@@ -139,56 +139,59 @@
     };
 
     // === SSE 연결 ===
-    startBtn.onclick = () => {
-        source = new EventSource(`http://localhost:8080/api/conversation/stream?sessionId=${sessionId}&useChapterMode=true`);
-
-        // 다음 질문
-        source.addEventListener('question', e => {
-            const data = JSON.parse(e.data);
-            append(`AI: ${data.text}`, 'ai');
-            setProgress(data);
-            if (data.isLastQuestion) banner('🎉 인터뷰 완료!');
-            recordBtn.disabled = false;
-            nextQuestionBtn.disabled = false;
-            statusInfo.textContent = '질문 수신됨';
-        });
-
-        // 부분/최종 STT
-        source.addEventListener('partialTranscript', e => {
-            const { chunkIndex, text } = JSON.parse(e.data);
-            append(`(${chunkIndex}) 음성 인식…${text}`, 'user');
-        });
-        source.addEventListener('finalTranscript', e => {
-            const { chunkIndex, text } = JSON.parse(e.data);
-            append(`✅ 최종 인식 (#${chunkIndex}): ${text}`, 'user');
-            nextQuestionBtn.disabled = false;
-            statusInfo.textContent = '답변 완료';
-        });
-
-        // 🔔 자동 에피소드 저장 알림 (백엔드에서 pushQuestion 대신 별도 이벤트를 보낸다고 가정)
-        // payload 예시: { episodeId: 42, title: "유년기", startNo: 1, endNo: 37 }
-        source.addEventListener('episodeSaved', e => {
-            try {
-                const data = JSON.parse(e.data);
-                banner(`💾 에피소드 저장됨 (ID: ${data.episodeId})`);
-                if (data.title) append(`제목: ${data.title}`, 'system');
-                if (typeof data.startNo === 'number' && typeof data.endNo === 'number') {
-                    append(`구간: #${data.startNo} ~ #${data.endNo}`, 'system');
-                }
-            } catch {
-                banner('💾 에피소드가 저장되었습니다.');
-            }
-        });
-
-        source.addEventListener('error', () => {
-            append('❌ SSE 에러','error');
-            source.close();
-        });
-
-        banner(`세션 열림: ${sessionId}`);
+    startBtn.onclick = async () => {
         startBtn.disabled = true;
-    };
+        statusInfo.textContent = '새로운 대화 세션 생성 중...';
 
+        try {
+            // 1단계: POST /api/conversation API를 호출하여 세션을 "생성"합니다.
+            const response = await axios.post('http://localhost:8080/api/v1/conversation');
+
+            // 서버로부터 받은 sessionId를 전역 변수에 저장합니다.
+            sessionId = response.data.data.sessionId;
+            sessionInfo.textContent = sessionId;
+            banner(`✅ 세션 생성 성공: ${sessionId}`);
+            statusInfo.textContent = '세션 생성 완료. SSE 연결 중...';
+
+            // 2단계: 발급받은 sessionId로 SSE 스트림에 "연결"합니다.
+            source = new EventSource(`http://localhost:8080/api/v1/conversation/${sessionId}/stream`);
+
+            // 이제 모든 질문(첫 질문 포함)은 이 SSE 리스너를 통해 일관되게 수신됩니다.
+            source.addEventListener('question', e => {
+                const data = JSON.parse(e.data);
+                append(`AI: ${data.text}`, 'ai');
+                setProgress(data);
+                if (data.isLastQuestion) {
+                    banner('🎉 모든 인터뷰가 완료되었습니다!');
+                    recordBtn.disabled = true;
+                    stopBtn.disabled = true;
+                    nextQuestionBtn.disabled = true;
+                } else {
+                    recordBtn.disabled = false;
+                    nextQuestionBtn.disabled = true; // 답변을 해야 다음 질문 버튼이 활성화되도록
+                }
+                statusInfo.textContent = '질문 수신됨';
+            });
+
+            source.addEventListener('partialTranscript', e => {
+                const { chunkIndex, text } = JSON.parse(e.data);
+                append(`(${chunkIndex}) 음성 인식… ${text}`, 'user');
+            });
+
+            // 재연결 시 마지막 질문을 받은 후 녹음 및 다음 질문 버튼 상태를 조정할 수 있습니다.
+            // (이 부분은 UX에 따라 커스터마이징 가능)
+
+            source.addEventListener('error', () => {
+                append('❌ SSE 연결 오류. 페이지를 새로고침 해주세요.','error');
+                if (source) source.close();
+            });
+
+        } catch (error) {
+            append('❌ 세션 시작 실패: ' + (error.response?.data?.message || error.message), 'error');
+            startBtn.disabled = false;
+            statusInfo.textContent = '시작 실패';
+        }
+    };
     // 페이지 이탈 시 SSE 정리
     window.addEventListener('beforeunload', () => { try { source && source.close(); } catch(_){} });
 
@@ -202,6 +205,7 @@
         startChunkRecorder(); analyzeAudio();
         banner('🎙️ 녹음 시작');
         recordBtn.disabled = true; stopBtn.disabled = false;
+        nextQuestionBtn.disabled = true;
     };
 
     stopBtn.onclick = () => {
@@ -212,6 +216,7 @@
         audioLevelBar.style.width = '0%';
         append('🔊 녹음 중지','user');
         stopBtn.disabled = true; recordBtn.disabled = false;
+        nextQuestionBtn.disabled = false;
     };
 
     function analyzeAudio() {
@@ -248,16 +253,21 @@
         chunkTimer = setTimeout(()=>{ if(mediaRecorder.state==='recording') mediaRecorder.stop(); }, 60000);
     }
 
-    // 다음 질문
+    // === 다음 질문 버튼 로직 (변경 없음) ===
+    // 이 로직은 이미 새로운 API 구조와 완벽하게 호환됩니다.
     nextQuestionBtn.onclick = async () => {
         nextQuestionBtn.disabled = true;
+        recordBtn.disabled = true; // 다음 질문을 기다리는 동안 녹음 비활성화
         statusInfo.textContent = '다음 질문 요청…';
         try {
-            await axios.post('http://localhost:8080/api/conversation/next', null, { params:{ sessionId } });
-            statusInfo.textContent = '요청 완료';
+            // ★ 변경점 3: URL 파라미터 방식을 POST 본문으로 보내는 방식으로 변경할 수 있습니다. (서버 컨트롤러 수정 필요)
+            // 현재는 @RequestParam을 사용하므로 그대로 둡니다.
+            await axios.post(`http://localhost:8080/api/v1/conversation/next?sessionId=${sessionId}`);
+            statusInfo.textContent = '요청 완료. 응답 대기 중...';
         } catch(e){
-            append('❌ 요청 실패: '+(e.response?.data?.message||e.message),'error');
-            nextQuestionBtn.disabled=false;
+            append('❌ 요청 실패: ' + (e.response?.data?.message || e.message),'error');
+            nextQuestionBtn.disabled = false; // 실패 시 다시 활성화
+            recordBtn.disabled = false;
         }
     };
 
