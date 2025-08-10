@@ -195,13 +195,13 @@ public class EpisodeServiceImpl implements EpisodeService{
                 .build();
         episodeRepository.save(episode);
 
-        // 세션에 연결(선택) + 다음 에피소드 구간 시작점 갱신
-        // 다음 장부터는 다음 메시지부터 새 에피소드로 묶임
-        ConversationSession updated = session.toBuilder()
-                .episodeId(episode.getEpisodeId()) // 필요 없으면 제거 가능
-                .episodeStartMessageNo(endNo + 1)  // ✅ 다음 구간 시작점 점프
-                .build();
-        conversationSessionRepository.save(updated);
+//        // 세션에 연결(선택) + 다음 에피소드 구간 시작점 갱신
+//        // 다음 장부터는 다음 메시지부터 새 에피소드로 묶임
+//        ConversationSession updated = session.toBuilder()
+//                .episodeId(episode.getEpisodeId()) // 필요 없으면 제거 가능
+//                .episodeStartMessageNo(endNo + 1)  // ✅ 다음 구간 시작점 점프
+//                .build();
+//        conversationSessionRepository.save(updated);
 
         return EpisodeResponse.of(episode);
     }
