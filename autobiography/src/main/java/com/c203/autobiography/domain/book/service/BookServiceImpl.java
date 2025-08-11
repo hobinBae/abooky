@@ -147,7 +147,7 @@ public class BookServiceImpl implements BookService {
 
         // 4) 태그 설정 (null/empty 스킵)
         if (tags != null && !tags.isEmpty()) {
-            book.getTags().clear();
+            book.clearTags();
             tags.stream().distinct().forEach(name -> {
                 Tag tag = tagRepository.findByTagName(name)
                         .orElseGet(() -> tagRepository.save(

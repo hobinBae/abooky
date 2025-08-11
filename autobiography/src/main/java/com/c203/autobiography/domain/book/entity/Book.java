@@ -107,7 +107,11 @@ public class Book {
      * 태그 추가
      *
      */
-    @OneToMany(mappedBy="book")
+    @OneToMany(
+            mappedBy = "book",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
     private List<BookTag> tags = new ArrayList<>();
 
 
@@ -163,11 +167,19 @@ public class Book {
 //    }
 
     /**
+     * 태그 전체 초기화
+     */
+    public void clearTags() {
+        tags.clear();
+    }
+
+    /**
      * 태그를 추가합니다.
      */
     public void addTag(Tag tag) {
-        BookTag link = BookTag.of(this, tag);
-        tags.add(link);
+        boolean exists = tags.stream().anyMatch(bt -> bt.getTag().equals(tag));
+        if (exists) return;
+        tags.add(BookTag.of(this, tag));
     }
     /**
      * 태그를 제거합니다.
