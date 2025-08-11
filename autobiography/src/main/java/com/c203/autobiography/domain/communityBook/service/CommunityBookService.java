@@ -17,4 +17,6 @@ public interface CommunityBookService {
     CommunityBookCommentDeleteResponse deleteCommunityBookComment(Long communityBookId, Long communityBookCommentId, Long memberId);
 
     CommunityBookDetailResponse getCommunityBookDetail(Long memberId, Long communityBookId);
+
+    CommunityBookListResponse getCommunityBookList(Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy);
 }
