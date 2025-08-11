@@ -17,6 +17,7 @@ import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import com.c203.autobiography.domain.episode.template.dto.NextQuestionDto;
 import com.c203.autobiography.global.dto.ApiResponse;
+import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -36,6 +38,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import retrofit2.http.Path;
 
 @RestController
 @RequestMapping("/api/v1/conversation")
@@ -52,9 +55,14 @@ public class ConversationController {
      *
      * @return 생성된 세션 ID
      */
-    @PostMapping
-    public ResponseEntity<ApiResponse<Map<String, String>>> startConversation(HttpServletRequest httpRequest) {
-        String sessionId = conversationService.startNewConversation();
+    @PostMapping("{bookId}/episodes/{episodeId}/sessions")
+    public ResponseEntity<ApiResponse<Map<String, String>>> startConversation(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            @PathVariable Long episodeId,
+            HttpServletRequest httpRequest) {
+        Long memberId = userDetails.getMemberId();
+        String sessionId = conversationService.startNewConversation(memberId, bookId, episodeId);
         Map<String, String> response = Map.of("sessionId", sessionId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "새로운 대화 세션이 생성되었습니다.", response, httpRequest.getRequestURI()));
@@ -65,9 +73,9 @@ public class ConversationController {
      * @param sessionId 대화 세션 ID
      * @return SseEmitter 객체
      */
-    @GetMapping(value = "/{sessionId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(@PathVariable String sessionId) {
-        return conversationService.establishConversationStream(sessionId);
+    @GetMapping(value = "{bookId}/{sessionId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@PathVariable String sessionId, @PathVariable Long bookId) {
+        return conversationService.establishConversationStream(sessionId, bookId);
     }
 
     /**
@@ -107,18 +115,24 @@ public class ConversationController {
         return ResponseEntity.ok(conversationService.getHistory(sessionId));
     }
 
-    @PostMapping("/next")
-    public ResponseEntity<Void> nextQuestion(@RequestParam String sessionId) {
+    @PostMapping("{bookId}/episodes/{episodeId}/next")
+    public ResponseEntity<Void> nextQuestion(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            @PathVariable Long episodeId,
+            @RequestParam String sessionId
+    ) {
         // 1) 서비스에서 다음 질문 꺼내기 - 챕터 기반 모드 우선 시도
         ConversationSession session = conversationService.getSessionEntity(sessionId);
         NextQuestionDto nextQuestionDto = null;
         String next = null;
+        Long memberId = userDetails.getMemberId();
 
         if (session != null && session.getCurrentChapterId() != null) {
             // 챕터 기반 모드
             try {
                 String lastAnswer = conversationService.getLastAnswer(sessionId);
-                nextQuestionDto = conversationService.getNextQuestion(sessionId, lastAnswer);
+                nextQuestionDto = conversationService.getNextQuestion(memberId, bookId, episodeId ,sessionId, lastAnswer);
                 next = nextQuestionDto.getQuestionText();
             } catch (Exception e) {
                 // 오류시 레거시 모드로 fallback

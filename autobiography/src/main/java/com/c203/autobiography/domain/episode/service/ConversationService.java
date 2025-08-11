@@ -30,17 +30,17 @@ public interface ConversationService {
     /**
      * 챕터 기반 대화 세션을 초기화하고 첫 번째 질문을 반환합니다.
      */
-    NextQuestionDto initializeSession(String sessionId);
+    NextQuestionDto initializeSession(String sessionId, Long bookId);
 
     /**
      * 사용자 답변을 기반으로 다음 질문을 생성하고 반환합니다.
      */
-    NextQuestionDto getNextQuestion(String sessionId, String userAnswer);
+    NextQuestionDto getNextQuestion(Long memberId, Long bookId, Long episodeId, String sessionId, String userAnswer);
 
-    String startNewConversation();
+    String startNewConversation(Long memberId, Long bookId, Long episodeId);
 
     // 기존 대화 재연결
-    SseEmitter establishConversationStream(String sessionId);
+    SseEmitter establishConversationStream(String sessionId, Long bookId);
 
 
 }

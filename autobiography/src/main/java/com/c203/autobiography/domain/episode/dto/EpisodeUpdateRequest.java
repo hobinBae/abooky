@@ -17,7 +17,6 @@ import lombok.NoArgsConstructor;
 @Schema(description = "에피소드 수정 요청 dto")
 public class EpisodeUpdateRequest {
 
-    @NotBlank(message = "제목은 필수입니다.")
     @Size(max = 100, message = "제목은 최대 100자까지 가능합니다.")
     private String title;
 

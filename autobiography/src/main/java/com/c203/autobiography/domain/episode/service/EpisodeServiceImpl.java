@@ -44,60 +44,40 @@ public class EpisodeServiceImpl implements EpisodeService{
      * 에피소드 생성
      * @param memberId
      * @param bookId
-     * @param sessionId
      * @return
      */
     @Override
     @Transactional
-    public EpisodeResponse createEpisode( Long bookId, String sessionId) throws JsonProcessingException {
-//        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
-//                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+    public EpisodeResponse createEpisode(Long memberId, Long bookId) {
+        // 1) 사용자 확인
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
+        // 2) 책 확인
         Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
 
-        List<ConversationMessage> history = conversationMessageRepository
-                .findBySessionIdOrderByMessageNo(sessionId);
-
-        // 2) 메시지를 하나의 텍스트로 합치기
-        StringBuilder dialog = new StringBuilder();
-        for (ConversationMessage m : history) {
-            dialog.append(m.getMessageType())
-                    .append(": ")
-                    .append(m.getContent())
-                    .append("\n");
+        // 3) 권한 체크: 책 소유자만 생성 가능
+        if (!book.getMember().getMemberId().equals(member.getMemberId())) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
         }
 
-        // 3) AI에게 “정돈된 에피소드 본문” 생성 요청
-        String prompt = String.format("""
-        다음 JSON 포맷으로 응답해주세요:
-        {
-          "title": "여기에 에피소드 제목을 적어주세요",
-          "content": "여기에 에피소드 본문을 적어주세요"
-        }
-        위와 같은 형태로, 아래 대화 내용을 바탕으로 에피소드 제목과 본문을 작성해 주세요:
+        // 4) 다음 순서 계산 (soft-delete 제외)
+        long count = episodeRepository.countByBookBookIdAndDeletedAtIsNull(bookId);
+        int nextOrder = (int) count + 1;
 
-        %s
-        """, dialog);
-        String episodeJsonContent = aiClient.generateEpisode(prompt);
-        log.info(episodeJsonContent);
-
-        // 2) JSON 파싱 (예: Jackson ObjectMapper)
-        ObjectMapper om = new ObjectMapper();
-        JsonNode node = om.readTree(episodeJsonContent);
-        String title   = node.get("title").asText();
-        String content = node.get("content").asText();
-
+        // 5) "빈 에피소드" 생성: 제목 기본값, 본문/오디오/날짜는 비워둠
         Episode episode = Episode.builder()
                 .book(book)
-                .title(title)
-                .content(content)
-                .createdAt(LocalDateTime.now())
+                .title(nextOrder + "번째 이야기")  // 기본 제목
+                .content("")                      // 비어 있는 상태
+                .episodeOrder(nextOrder)          // 정렬 순서
+                .episodeDate(null)                // 날짜 미지정
+                .audioUrl(null)                   // 오디오 미지정
                 .build();
-        episodeRepository.save(episode);
-        conversationSessionRepository.updateEpisodeId(sessionId, episode.getEpisodeId());
 
-        return EpisodeResponse.of(episode);
+        Episode saved = episodeRepository.save(episode);
+        return EpisodeResponse.of(saved);
     }
 
     @Override
@@ -143,11 +123,9 @@ public class EpisodeServiceImpl implements EpisodeService{
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public EpisodeResponse createEpisodeFromCurrentWindow(Long bookId, String sessionId)
+    public EpisodeResponse createEpisodeFromCurrentWindow(Episode episode, String sessionId)
             throws JsonProcessingException {
 
-        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
-                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
 
         var session = conversationSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ApiException(ErrorCode.INVALID_INPUT_VALUE));
@@ -187,12 +165,13 @@ public class EpisodeServiceImpl implements EpisodeService{
         String title   = node.get("title").asText();
         String content = node.get("content").asText();
 
-        Episode episode = Episode.builder()
-                .book(book)
-                .title(title)
-                .content(content)
-                .createdAt(LocalDateTime.now())
-                .build();
+         episode.updateEpisode(
+                 title,
+                 episode.getEpisodeDate(),
+                 episode.getEpisodeOrder(),
+                 content,
+                 episode.getAudioUrl()
+         );
         episodeRepository.save(episode);
 
 //        // 세션에 연결(선택) + 다음 에피소드 구간 시작점 갱신
