@@ -135,11 +135,11 @@
             :key="message.id"
             class="chat-message"
             :class="{ 'chat-message--own': message.isOwn }">
-            <div class="message-header">
-              <span class="message-sender">{{ message.sender }}</span>
-              <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+            <div class="message-sender-name">{{ message.sender }}</div>
+            <div class="message-bubble">
+              <div class="message-content">{{ message.content }}</div>
+              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
             </div>
-            <div class="message-content">{{ message.content }}</div>
           </div>
           <div v-if="chatMessages.length === 0" class="chat-empty">
             아직 메시지가 없습니다. 첫 번째 메시지를 보내보세요!
@@ -155,11 +155,8 @@
               class="chat-input"
               placeholder="메시지를 입력하세요..."
               maxlength="500">
-            <button 
-              @click="sendMessage"
-              :disabled="!newMessage.trim()"
-              class="btn-send-message">
-              <i class="bi bi-send-fill"></i>
+            <button @click="sendMessage" class="btn-send-message">
+              전송
             </button>
           </div>
         </div>
@@ -727,8 +724,15 @@ async function leaveRoom() {
 // --- Chat Functions ---
 
 async function sendMessage() {
+  console.log('sendMessage 함수 호출됨');
   const message = newMessage.value.trim();
-  if (!message || !livekitRoom) return;
+  console.log('메시지 내용:', message);
+  console.log('livekitRoom 상태:', !!livekitRoom);
+  
+  if (!message || !livekitRoom) {
+    console.log('메시지가 비어있거나 livekitRoom이 없음');
+    return;
+  }
 
   try {
     // 메시지 객체 생성
