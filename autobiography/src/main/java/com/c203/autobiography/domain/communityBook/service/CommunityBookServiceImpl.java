@@ -3,7 +3,9 @@ package com.c203.autobiography.domain.communityBook.service;
 import com.c203.autobiography.domain.communityBook.dto.*;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookComment;
+import com.c203.autobiography.domain.communityBook.entity.CommunityBookEpisode;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookCommentRepository;
+import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
@@ -16,6 +18,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 
@@ -27,7 +30,49 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
     private final MemberRepository memberRepository;
     private final CommunityBookRepository communityBookRepository;
+    private final CommunityBookEpisodeRepository communityBookEpisodeRepository;
     private final CommunityBookCommentRepository communityBookCommentRepository;
+
+    @Transactional
+    @Override
+    public CommunityBookDetailResponse getCommunityBookDetail(Long memberId, Long communityBookId) {
+        // 1. 탈퇴한 회원인 경우
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 아예 존재하지 않는 책인 경우 (테이블 자체에 데이터가 없는 경우)
+        if (communityBookRepository.findByIdIgnoreDeleted(communityBookId).isEmpty()) {
+            throw new ApiException(ErrorCode.COMMUNITY_BOOK_NOT_FOUND);
+        }
+
+        // 3. 커뮤니티 책이 존재하지 않는 경우 & 책 조회
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMUNITY_BOOK_ALREADY_DELETED));
+
+        // 에피소드 조회 (삭제되지 않은 것만, 순서대로)
+        List<CommunityBookEpisode> episodes = communityBookEpisodeRepository
+                .findByCommunityBookCommunityBookIdAndDeletedAtIsNullOrderByEpisodeOrderAsc(communityBookId);
+
+        // 조회수 증가
+        incrementViewCount(communityBook);
+
+        // 응답 객체 생성
+        return CommunityBookDetailResponse.of(communityBook, episodes);
+    }
+
+    /**
+     * 조회수 증가 (더티 체킹으로 자동 저장)
+     */
+    private void incrementViewCount(CommunityBook communityBook) {
+        try {
+            communityBook.incrementViewCount();
+            log.debug("Incremented view count for community book: {}", communityBook.getCommunityBookId());
+        } catch (Exception e) {
+            log.error("Failed to increment view count for community book: {}",
+                    communityBook.getCommunityBookId(), e);
+            // 조회수 증가 실패는 전체 조회를 실패시키지 않음
+        }
+    }
 
     @Transactional
     @Override
