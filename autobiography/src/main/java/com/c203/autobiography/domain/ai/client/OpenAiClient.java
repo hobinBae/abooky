@@ -3,6 +3,7 @@ package com.c203.autobiography.domain.ai.client;
 import com.c203.autobiography.domain.ai.dto.ChatCompletionRequest;
 import com.c203.autobiography.domain.ai.dto.ChatMessage;
 import com.c203.autobiography.domain.ai.service.OpenAiService;
+import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Component
@@ -24,32 +27,51 @@ public class OpenAiClient implements AiClient {
     private final OpenAiService openAiService;
     private final OpenAiProperties props;
 
+    private Map<String, Function<OpenAiProperties, String>> promptMapping;
 
+    @PostConstruct
+    public void init() {
+        promptMapping = Map.ofEntries(
+                Map.entry("INTRO", OpenAiProperties::getDynUserIntro),
+                Map.entry("INTRO_SCENE", OpenAiProperties::getDynUserIntroScene),
+                Map.entry("CHILDHOOD_HOME", OpenAiProperties::getDynUserChildhoodHome),
+                Map.entry("CHILDHOOD_CAREGIVER", OpenAiProperties::getDynUserChildhoodCaregiver),
+                Map.entry("CHILDHOOD_PERSONALITY", OpenAiProperties::getDynUserChildhoodPersonality),
+                Map.entry("CHILDHOOD_PLAY", OpenAiProperties::getDynUserChildhoodPlay),
+                Map.entry("CHILDHOOD_FAVORITES", OpenAiProperties::getDynUserChildhoodFavorites),
+                Map.entry("CHILDHOOD_DREAM_JOB", OpenAiProperties::getDynUserChildhoodDreamJob),
+                Map.entry("CHILDHOOD_SCENE", OpenAiProperties::getDynUserChildhoodScene),
+                Map.entry("UPPER_ELEM_SCHOOL", OpenAiProperties::getDynUserUpperElemSchool),
+                Map.entry("UPPER_ELEM_PEOPLE", OpenAiProperties::getDynUserUpperElemPeople),
+                Map.entry("UPPER_ELEM", OpenAiProperties::getDynUserUpperElem),
+                Map.entry("UPPER_ELEM_EVENT", OpenAiProperties::getDynUserUpperElemEvent),
+                Map.entry("MIDDLE_PUBERTY", OpenAiProperties::getDynUserMiddlePuberty),
+                Map.entry("MIDDLE_MEDIA", OpenAiProperties::getDynUserMiddleMedia),
+                Map.entry("MIDDLE_PEOPLE", OpenAiProperties::getDynUserMiddlePeople),
+                Map.entry("MIDDLE_ACADEMICS", OpenAiProperties::getDynUserMiddleAcademics),
+                Map.entry("MIDDLE_GROWTH", OpenAiProperties::getDynUserMiddleGrowth),
+                Map.entry("HIGH_ACADEMICS", OpenAiProperties::getDynUserHighAcademics),
+                Map.entry("HIGH_HOBBY", OpenAiProperties::getDynUserHighHobby),
+                Map.entry("HIGH_FRIEND", OpenAiProperties::getDynUserHighFriend),
+                Map.entry("HIGH_EVENT", OpenAiProperties::getDynUserHighEvent),
+                Map.entry("HIGH_GROWTH", OpenAiProperties::getDynUserHighGrowth),
+                Map.entry("TRANSITION", OpenAiProperties::getDynUserTransition),
+                Map.entry("COLLEGE_OR_WORK", OpenAiProperties::getDynUserCollegeOrWork)
+        );
+    }
 
     @Override
     public String generateDynamicFollowUpBySection(String sectionKey, String userAnswer) {
-        log.info("다이나믹 후속 질문 선택");
-        String ua = safe(userAnswer); // 안전 가드
-        String userPrompt;
-        switch (sectionKey) {
-            case "INTRO" -> userPrompt = String.format(props.getDynUserIntro(), ua);
-            case "INTRO_SCENE" -> userPrompt = String.format(props.getDynUserIntroScene(), ua);
-            case "CHILDHOOD_HOME" -> userPrompt = String.format(props.getDynUserChildhoodHome(), ua);
-            case "CHILDHOOD_CAREGIVER" -> userPrompt = String.format(props.getDynUserChildhoodCaregiver(), ua);
-            case "CHILDHOOD_SCENE" -> userPrompt = String.format(props.getDynUserChildhoodScene(), ua);
-            case "UPPER_ELEM" -> userPrompt = String.format(props.getDynUserUpperElem(), ua);
-            case "MIDDLE" -> userPrompt = String.format(props.getDynUserMiddle(), ua);
-            case "HIGH" -> userPrompt = String.format(props.getDynUserHigh(), ua);
-            case "TRANSITION" -> userPrompt = String.format(props.getDynUserTransition(), ua);
-            case "COLLEGE_OR_WORK" -> userPrompt = String.format(props.getDynUserCollegeOrWork(), ua);
-            default -> {
-                log.warn("Unknown sectionKey: {}. Falling back to INTRO.", sectionKey);
-                userPrompt = String.format(props.getDynUserIntro(), ua);
-            }
-        }
+        log.info("다이나믹 후속 질문 생성. Key: {}", sectionKey);
+        String ua = safe(userAnswer);
+
+        // Map에서 프롬프트 템플릿을 가져옴. 키가 없으면 기본값(INTRO)으로 대체
+        String promptTemplate = promptMapping.getOrDefault(sectionKey, OpenAiProperties::getDynUserIntro).apply(props);
+        String userPrompt = String.format(promptTemplate, ua);
+
         ChatMessage system = ChatMessage.of("system", props.getDynamicFollowUpSystem());
         ChatMessage user = ChatMessage.of("user", userPrompt);
-        log.info("지점 체크 1");
+
         ChatCompletionRequest request = ChatCompletionRequest.builder()
                 .model(props.getModel())
                 .messages(List.of(system, user))
@@ -57,19 +79,13 @@ public class OpenAiClient implements AiClient {
                 .temperature(props.getTemperature())
                 .build();
 
-        log.info(props.getApiKey());
-        log.info("지점 체크 2" + " " + request.getMessages() + " ** " + request.getMaxTokens() + " ** " + request.getModel()
-                + " ** "
-                + request.getTemperature());
         String response = openAiService.createChatCompletion(request)
-                .getChoices()
-                .get(0)
-                .getMessage()
-                .getContent()
-                .trim();
+                .getChoices().get(0).getMessage().getContent().trim();
+
         log.info("DynamicFollowUp 응답: {}", response);
         return response.isBlank() ? null : response;
     }
+
 
     private String safe(String s) {
         return s == null ? "" : s.trim();

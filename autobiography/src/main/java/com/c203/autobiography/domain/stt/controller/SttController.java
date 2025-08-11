@@ -27,7 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 @Tag(name = "STT API", description = "STT 관련 API")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/stt")
+@RequestMapping("/api/v1/stt")
 @CrossOrigin(origins = "*")
 @Slf4j
 public class SttController {
@@ -42,7 +42,6 @@ public class SttController {
             @RequestParam("chunkIndex") @Min(0) int chunkIndex,
             @RequestPart("audio") MultipartFile audio,
             @RequestParam(value = "customProperNouns", required = false) String customProperNouns,
-            @RequestParam(value = "answer", defaultValue = "false") boolean answer,
             HttpServletRequest httpRequest
 
     ) {
@@ -66,13 +65,13 @@ public class SttController {
 
         sseService.pushPartialTranscript(sessionId, partialDto);
 
-            // 3) 다음 질문 준비 완료 알림만
-            sseService.pushQuestion(
-                    sessionId,
-                    QuestionResponse.builder()
-                            .text("🔔 다음 질문이 준비되었습니다. 버튼을 눌러주세요.")
-                            .build()
-            );
+//            // 3) 다음 질문 준비 완료 알림만
+//            sseService.pushQuestion(
+//                    sessionId,
+//                    QuestionResponse.builder()
+//                            .text("🔔 다음 질문이 준비되었습니다. 버튼을 눌러주세요.")
+//                            .build()
+//            );
 
 
         return ResponseEntity.status(HttpStatus.CREATED)
