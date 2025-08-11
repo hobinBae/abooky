@@ -24,54 +24,7 @@ public class OpenAiClient implements AiClient {
     private final OpenAiService openAiService;
     private final OpenAiProperties props;
 
-    @Override
-    public String generateFollowUp(String lastAnswer) {
-        // 시스템 프롬프트: 후속 질문을 만들어 달라고 지시
-        log.info("후속 질문");
-        ChatMessage system = ChatMessage.of("system", props.getFollowupSystem());
 
-        ChatMessage user = ChatMessage.of("user", String.format(props.getFollowupUserTemplate(), lastAnswer)
-        );
-
-        ChatCompletionRequest request = ChatCompletionRequest.builder()
-                .model(props.getModel())
-                .messages(List.of(system, user))
-                .maxTokens(props.getMaxTokensFollowup())
-                .temperature(props.getTemperature())
-                .build();
-
-        String followUp = openAiService.createChatCompletion(request)
-                .getChoices()
-                .get(0)
-                .getMessage()
-                .getContent()
-                .trim();
-
-        return followUp.isBlank() ? null : followUp;
-
-    }
-
-    @Override
-    public String generateDynamicFollowUp(String promptTemplate, String userAnswer) {
-        ChatMessage system = ChatMessage.of("system", props.getDynamicFollowUpSystem());
-        ChatMessage user = ChatMessage.of("user", String.format(promptTemplate, userAnswer));
-        log.info("다이나믹 후속 질문");
-        ChatCompletionRequest request = ChatCompletionRequest.builder()
-                .model(props.getModel())
-                .messages(List.of(system, user))
-                .maxTokens(props.getMaxTokensNext())
-                .temperature(props.getTemperature())
-                .build();
-
-        String response = openAiService.createChatCompletion(request)
-                .getChoices()
-                .get(0)
-                .getMessage()
-                .getContent()
-                .trim();
-
-        return response.isBlank() ? null : response;
-    }
 
     @Override
     public String generateDynamicFollowUpBySection(String sectionKey, String userAnswer) {
@@ -167,21 +120,6 @@ public class OpenAiClient implements AiClient {
                 .trim();
 
         return analysis.isBlank() ? null : analysis;
-    }
-
-    // 추가: JSON 강제 포맷 에피소드
-    public String generateEpisodeJson(String instructionAndDialog) {
-        ChatMessage system = ChatMessage.of("system", "너는 JSON 포맷을 정확히 지키는 도우미이다. 키는 title, content만 사용.");
-        ChatMessage user = ChatMessage.of("user", instructionAndDialog);
-        ChatCompletionRequest request = ChatCompletionRequest.builder()
-                .model(props.getModel())
-                .messages(List.of(system, user))
-                .maxTokens(700)
-                .temperature(0.5)
-                .build();
-        String content = openAiService.createChatCompletion(request)
-                .getChoices().get(0).getMessage().getContent().trim();
-        return content.isBlank() ? null : content;
     }
 
 
