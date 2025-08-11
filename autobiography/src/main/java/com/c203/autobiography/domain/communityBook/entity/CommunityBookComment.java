@@ -2,22 +2,16 @@ package com.c203.autobiography.domain.communityBook.entity;
 
 // JPA 표준 API
 
-import com.c203.autobiography.domain.book.entity.BookCategory;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookType;
 import com.c203.autobiography.domain.member.entity.Member;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.Where;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "community_book_comment")

@@ -1,8 +1,8 @@
 package com.c203.autobiography.domain.communityBook.entity;
 
 // JPA 표준 API
+import com.c203.autobiography.domain.book.dto.BookType;
 import com.c203.autobiography.domain.book.entity.BookCategory;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookType;
 import com.c203.autobiography.domain.member.entity.Member;
 import jakarta.persistence.*;
 
@@ -15,7 +15,6 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.UpdateTimestamp;
 import org.hibernate.annotations.Where;
-import org.springframework.cglib.core.Local;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -59,7 +58,7 @@ public class CommunityBook {
     @Enumerated(EnumType.STRING)
     @Column(name = "book_type", nullable = false, length = 20)
     @Builder.Default
-    private CommunityBookType bookType = CommunityBookType.FREE_FORM;
+    private BookType bookType = BookType.FREE_FORM;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
