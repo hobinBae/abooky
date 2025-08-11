@@ -18,8 +18,10 @@
           </div>
         </div>
         
-        <div class="connection-status" v-if="connectionStatus">
-          <span :class="`status-${connectionStatus.type}`">{{ connectionStatus.message }}</span>
+        <!-- 수정된 연결 상태 표시 부분 -->
+        <div v-if="connectionStatus" class="connection-status" :class="`connection-status--${connectionStatus.type}`">
+          <i class="connection-status__icon" :class="getStatusIcon(connectionStatus.type)"></i>
+          <span class="connection-status__message">{{ connectionStatus.message }}</span>
         </div>
         
         <button @click="joinRoom" class="btn btn-primary btn-join" :disabled="!canJoin || isConnecting">
@@ -30,87 +32,131 @@
 
     <!-- 비디오 통화 화면 -->
     <div v-else class="workspace-container">
-      <div class="video-section">
-        <div class="video-header">
-          <h3 class="video-title">
-            참여자 ({{ totalParticipants }}명)
-            <span class="connection-indicator" :class="`status-${connectionState}`">
-              {{ getConnectionStatusText }}
-            </span>
-          </h3>
-        </div>
-        
-        <div class="video-grid-wrapper">
-          <div class="video-grid" :class="`participants-${totalParticipants}`">
-            <!-- 로컬 참여자 (나) -->
-            <div class="video-participant local-participant">
-              <video 
-                ref="localVideoElement"
-                autoplay 
-                muted 
-                playsinline 
-                class="participant-video">
-              </video>
-              <div class="participant-info">
-                <div class="participant-name">
-                  <i class="bi me-1" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                  나 (You)
+      <div class="main-content">
+        <div class="video-section">
+          <div class="video-header">
+            <h3 class="video-title">
+              참여자 ({{ totalParticipants }}명)
+              <span class="connection-indicator" :class="`connection-indicator--${connectionState}`">
+                {{ getConnectionStatusText }}
+              </span>
+            </h3>
+          </div>
+          
+          <div class="video-grid-wrapper">
+            <div class="video-grid" :class="`participants-${totalParticipants}`">
+              <!-- 로컬 참여자 (나) -->
+              <div class="video-participant local-participant">
+                <video 
+                  ref="localVideoElement"
+                  autoplay 
+                  muted 
+                  playsinline 
+                  class="participant-video">
+                </video>
+                <div class="participant-info">
+                  <div class="participant-name">
+                    <i class="bi me-1" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                    나 (You)
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <!-- 원격 참여자들 -->
-            <div 
-              v-for="participant in remoteParticipants" 
-              :key="participant.identity" 
-              class="video-participant remote-participant">
-              <video 
-                :ref="el => setParticipantVideoRef(el, participant.identity)"
-                autoplay 
-                playsinline 
-                class="participant-video">
-              </video>
-              <div v-if="!participant.videoTrack" class="participant-video-placeholder">
-                {{ participant.identity.charAt(0).toUpperCase() }}
-              </div>
-              <div class="participant-info">
-                <div class="participant-name">
-                  <i class="bi me-1" :class="participant.isMicrophoneEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                  {{ participant.identity }}
-                  <span v-if="participant.connectionQuality !== undefined" class="connection-quality">
-                    {{ getConnectionQualityText(participant.connectionQuality) }}
-                  </span>
+              
+              <!-- 원격 참여자들 -->
+              <div 
+                v-for="participant in remoteParticipants" 
+                :key="participant.identity" 
+                class="video-participant remote-participant">
+                <video 
+                  :ref="el => setParticipantVideoRef(el, participant.identity)"
+                  autoplay 
+                  playsinline 
+                  class="participant-video">
+                </video>
+                <div v-if="!participant.videoTrack" class="participant-video-placeholder">
+                  {{ participant.identity.charAt(0).toUpperCase() }}
+                </div>
+                <div class="participant-info">
+                  <div class="participant-name">
+                    <i class="bi me-1" :class="participant.isMicrophoneEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                    {{ participant.identity }}
+                    <span v-if="participant.connectionQuality !== undefined" class="connection-quality">
+                      {{ getConnectionQualityText(participant.connectionQuality) }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+          
+          <div class="controls-section">
+            <div class="main-controls">
+              <button @click="toggleMicrophone" class="btn btn-control" :class="{ 'is-muted': !isAudioEnabled }">
+                <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                <span>{{ isAudioEnabled ? '음소거' : '음소거 해제' }}</span>
+              </button>
+              
+              <button @click="toggleCamera" class="btn btn-control" :class="{ 'is-muted': !isVideoEnabled }">
+                <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
+                <span>{{ isVideoEnabled ? '비디오 중지' : '비디오 시작' }}</span>
+              </button>
+              
+              <button @click="toggleScreenShare" class="btn btn-control" :class="{ 'active': isScreenSharing }">
+                <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-share-fill'"></i>
+                <span>{{ isScreenSharing ? '화면공유 중지' : '화면 공유' }}</span>
+              </button>
+              
+              <button @click="goToBookEditor" class="btn btn-control btn-book">
+                <i class="bi bi-book-fill"></i>
+                <span>책 만들기</span>
+              </button>
+              
+              <button @click="leaveRoom" class="btn btn-control btn-leave">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>나가기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 채팅 섹션 (항상 표시) -->
+      <div class="chat-section">
+        <div class="chat-header">
+          <h4 class="chat-title">
+            <i class="bi bi-chat-dots-fill me-2"></i>
+            그룹 채팅
+          </h4>
         </div>
         
-        <div class="controls-section">
-          <div class="main-controls">
-            <button @click="toggleMicrophone" class="btn btn-control" :class="{ 'is-muted': !isAudioEnabled }">
-              <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-              <span>{{ isAudioEnabled ? '음소거' : '음소거 해제' }}</span>
-            </button>
-            
-            <button @click="toggleCamera" class="btn btn-control" :class="{ 'is-muted': !isVideoEnabled }">
-              <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
-              <span>{{ isVideoEnabled ? '비디오 중지' : '비디오 시작' }}</span>
-            </button>
-            
-            <button @click="toggleScreenShare" class="btn btn-control" :class="{ 'active': isScreenSharing }">
-              <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-share-fill'"></i>
-              <span>{{ isScreenSharing ? '화면공유 중지' : '화면 공유' }}</span>
-            </button>
-            
-            <button @click="goToBookEditor" class="btn btn-control btn-book">
-              <i class="bi bi-book-fill"></i>
-              <span>책 만들기</span>
-            </button>
-            
-            <button @click="leaveRoom" class="btn btn-control btn-leave">
-              <i class="bi bi-box-arrow-right"></i>
-              <span>나가기</span>
+        <div class="chat-messages" ref="chatMessagesContainer">
+          <div 
+            v-for="message in chatMessages" 
+            :key="message.id"
+            class="chat-message"
+            :class="{ 'chat-message--own': message.isOwn }">
+            <div class="message-sender-name">{{ message.sender }}</div>
+            <div class="message-bubble">
+              <div class="message-content">{{ message.content }}</div>
+              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+            </div>
+          </div>
+          <div v-if="chatMessages.length === 0" class="chat-empty">
+            아직 메시지가 없습니다. 첫 번째 메시지를 보내보세요!
+          </div>
+        </div>
+        
+        <div class="chat-input-section">
+          <div class="chat-input-wrapper">
+            <input
+              v-model="newMessage"
+              @keyup.enter="sendMessage"
+              type="text"
+              class="chat-input"
+              placeholder="메시지를 입력하세요..."
+              maxlength="500">
+            <button @click="sendMessage" class="btn-send-message">
+              전송
             </button>
           </div>
         </div>
@@ -120,11 +166,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick, toRaw } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
 
-// LiveKit 타입 정의 (실제 환경에서는 npm install livekit-client 후 import 사용)
+// LiveKit 타입 정의
 declare global {
   interface Window {
     LivekitClient: any;
@@ -146,10 +192,18 @@ interface ConnectionStatus {
   message: string;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: string;
+  content: string;
+  timestamp: number;
+  isOwn: boolean;
+}
+
 // --- Router ---
 const route = useRoute();
 const router = useRouter();
-const groupId = route.query.groupId as string || 'default-room';
+const groupId = (route.query.groupId as string) || 'default-room';
 
 // --- Reactive State ---
 const hasJoined = ref(false);
@@ -175,8 +229,10 @@ let localMediaStream: MediaStream | null = null;
 const remoteParticipants = ref<RemoteParticipant[]>([]);
 const participantVideoRefs = ref<Map<string, HTMLVideoElement>>(new Map());
 
-// --- LiveKit Configuration ---
-const LIVEKIT_URL = 'ws://localhost:7880'; // 백엔드 LiveKit 서버 URL (application.properties에서 관리)
+// 채팅 상태
+const newMessage = ref('');
+const chatMessages = ref<ChatMessage[]>([]);
+const chatMessagesContainer = ref<HTMLElement | null>(null);
 
 // --- Computed Properties ---
 const totalParticipants = computed(() => {
@@ -205,8 +261,19 @@ function getConnectionQualityText(quality: number): string {
   }
 }
 
-function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
-  if (el) {
+// 상태 아이콘 반환 함수
+function getStatusIcon(type: string): string {
+  switch (type) {
+    case 'info': return 'bi bi-info-circle-fill';
+    case 'success': return 'bi bi-check-circle-fill';
+    case 'warning': return 'bi bi-exclamation-triangle-fill';
+    case 'error': return 'bi bi-x-circle-fill';
+    default: return 'bi bi-info-circle-fill';
+  }
+}
+
+function setParticipantVideoRef(el: any, identity: string) {
+  if (el && el instanceof HTMLVideoElement) {
     participantVideoRefs.value.set(identity, el);
   }
 }
@@ -220,7 +287,9 @@ async function getAccessToken(): Promise<{ url: string, token: string}> {
     });
     
     const data = response.data.data ?? response.data;
-    if(!data?.token || !data?.url) throw new Error('응답에 url/token 없음');
+    if (!data?.token || !data?.url) {
+      throw new Error('응답에 url/token 없음');
+    }
     return { url: data.url, token: data.token };
   } catch (error) {
     console.error('토큰 발급 오류:', error);
@@ -230,6 +299,12 @@ async function getAccessToken(): Promise<{ url: string, token: string}> {
 
 async function setupLocalMedia() {
   try {
+    // 초기 로딩 상태 표시
+    connectionStatus.value = { 
+      type: 'info', 
+      message: '카메라와 마이크 권한을 확인하고 있습니다...' 
+    };
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: 1280, height: 720 },
       audio: { echoCancellation: true, noiseSuppression: true }
@@ -240,10 +315,16 @@ async function setupLocalMedia() {
     }
 
     canJoin.value = true;
-    connectionStatus.value = { type: 'success', message: '카메라와 마이크가 준비되었습니다.' };
+    connectionStatus.value = { 
+      type: 'success', 
+      message: '카메라와 마이크가 준비되었습니다.' 
+    };
   } catch (error) {
     console.error('미디어 접근 실패:', error);
-    connectionStatus.value = { type: 'warning', message: '카메라/마이크에 접근할 수 없습니다.' };
+    connectionStatus.value = { 
+      type: 'warning', 
+      message: '카메라/마이크에 접근할 수 없습니다. 오디오만으로 참여할 수 있습니다.' 
+    };
     canJoin.value = true; // 미디어 없이도 입장 허용
   }
 }
@@ -260,9 +341,9 @@ async function joinRoom() {
       throw new Error('LiveKit SDK가 로드되지 않았습니다.');
     }
 
-    const { Room, RoomEvent, Track, RemoteTrack, ConnectionQuality } = window.LivekitClient;
+    const { Room } = window.LivekitClient;
 
-    // Room 인스턴스 생성 - non-reactive
+    // Room 인스턴스 생성
     livekitRoom = new Room({
       adaptiveStream: true,
       dynacast: true,
@@ -288,9 +369,12 @@ async function joinRoom() {
     connectionState.value = 'connected';
     connectionStatus.value = null;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('룸 입장 실패:', error);
-    connectionStatus.value = { type: 'error', message: `입장 실패: ${error.message || '알 수 없는 오류'}` };
+    connectionStatus.value = { 
+      type: 'error', 
+      message: `입장 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}` 
+    };
     connectionState.value = 'disconnected';
   } finally {
     isConnecting.value = false;
@@ -300,7 +384,7 @@ async function joinRoom() {
 function setupRoomEventListeners() {
   if (!livekitRoom || !window.LivekitClient) return;
 
-  const { RoomEvent, TrackEvent, ConnectionQuality, Track } = window.LivekitClient;
+  const { RoomEvent } = window.LivekitClient;
 
   // 참여자 연결 이벤트
   livekitRoom.on(RoomEvent.ParticipantConnected, (participant: any) => {
@@ -315,7 +399,7 @@ function setupRoomEventListeners() {
   });
 
   // 로컬 트랙 발행 이벤트
-  livekitRoom.on(RoomEvent.LocalTrackPublished, (publication: any, participant: any) => {
+  livekitRoom.on(RoomEvent.LocalTrackPublished, (publication: any) => {
     console.log('로컬 트랙 발행:', publication.kind);
     if (publication.kind === 'video') {
       // 로비 비디오 스트림을 중단하고 LiveKit 트랙으로 교체
@@ -325,7 +409,7 @@ function setupRoomEventListeners() {
         localVideo.value.srcObject = null;
       }
       
-      // 비디오 엘리먼트에 연결 (여러 번 시도)
+      // 비디오 엘리먼트에 연결
       const attachVideoTrack = () => {
         if (publication.track && localVideoElement.value) {
           try {
@@ -376,15 +460,50 @@ function setupRoomEventListeners() {
     connectionState.value = state;
   });
 
+  // 데이터 메시지 수신 이벤트 (채팅)
+  livekitRoom.on(RoomEvent.DataReceived, (payload: any, participant: any) => {
+    try {
+      const decoder = new TextDecoder();
+      const messageStr = decoder.decode(payload);
+      const messageData = JSON.parse(messageStr);
+
+      if (messageData.type === 'chat') {
+        // 채팅 메시지 수신
+        const chatMessage: ChatMessage = {
+          id: messageData.id,
+          sender: participant.identity,
+          content: messageData.content,
+          timestamp: messageData.timestamp,
+          isOwn: false
+        };
+
+        chatMessages.value.push(chatMessage);
+        scrollToBottom();
+      }
+    } catch (error) {
+      console.error('데이터 메시지 파싱 실패:', error);
+    }
+  });
+
   // 재연결 이벤트
   livekitRoom.on(RoomEvent.Reconnecting, () => {
     connectionState.value = 'reconnecting';
-    connectionStatus.value = { type: 'warning', message: '연결이 끊어져 재연결 중입니다...' };
+    connectionStatus.value = { 
+      type: 'warning', 
+      message: '연결이 불안정합니다. 재연결을 시도하고 있습니다...' 
+    };
   });
 
   livekitRoom.on(RoomEvent.Reconnected, () => {
     connectionState.value = 'connected';
-    connectionStatus.value = null;
+    connectionStatus.value = { 
+      type: 'success', 
+      message: '연결이 복구되었습니다.' 
+    };
+    // 3초 후 메시지 자동 숨김
+    setTimeout(() => {
+      connectionStatus.value = null;
+    }, 3000);
   });
 }
 
@@ -392,14 +511,14 @@ async function publishLocalMedia() {
   if (!livekitRoom) return;
 
   try {
-    // 카메라 퍼블리시 - 이벤트로 트랙 연결 처리
+    // 카메라 퍼블리시
     if (isVideoEnabled.value) {
       await livekitRoom.localParticipant.enableCameraAndMicrophone();
     } else {
       await livekitRoom.localParticipant.enableMicrophone();
     }
 
-    console.log('로컬 미디어 퍼블리시 완료 - 트랙은 LocalTrackPublished 이벤트에서 처리됨');
+    console.log('로컬 미디어 퍼블리시 완료');
 
     // 대안: 직접 비디오 스트림 연결 시도
     if (localVideo.value?.srcObject && localVideoElement.value) {
@@ -532,7 +651,7 @@ async function toggleCamera() {
     await livekitRoom.localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
     
-    console.log('카메라 토글:', enabled ? '오톱' : '오프');
+    console.log('카메라 토글:', enabled ? '온' : '오프');
   } catch (error) {
     console.error('카메라 토글 실패:', error);
   }
@@ -543,11 +662,33 @@ async function toggleScreenShare() {
 
   try {
     const enabled = !isScreenSharing.value;
-    await livekitRoom.localParticipant.setScreenShareEnabled(enabled);
+    
+    if (enabled) {
+      // 화면 공유 시작 시 카메라 끄기
+      await livekitRoom.localParticipant.setScreenShareEnabled(true);
+      await livekitRoom.localParticipant.setCameraEnabled(false);
+    } else {
+      // 화면 공유 종료 시 카메라 다시 켜기
+      await livekitRoom.localParticipant.setScreenShareEnabled(false);
+      if (isVideoEnabled.value) {
+        await livekitRoom.localParticipant.setCameraEnabled(true);
+      }
+    }
+    
     isScreenSharing.value = enabled;
+    console.log('화면 공유:', enabled ? '시작' : '종료');
   } catch (error) {
     console.error('화면 공유 토글 실패:', error);
-    connectionStatus.value = { type: 'error', message: '화면 공유를 시작할 수 없습니다.' };
+    connectionStatus.value = { 
+      type: 'error', 
+      message: '화면 공유를 시작할 수 없습니다. 권한을 확인해주세요.' 
+    };
+    // 5초 후 오류 메시지 자동 숨김
+    setTimeout(() => {
+      if (connectionStatus.value?.type === 'error') {
+        connectionStatus.value = null;
+      }
+    }, 5000);
   }
 }
 
@@ -593,6 +734,84 @@ async function leaveRoom() {
   }
 }
 
+// --- Chat Functions ---
+
+async function sendMessage() {
+  console.log('sendMessage 함수 호출됨');
+  const message = newMessage.value.trim();
+  console.log('메시지 내용:', message);
+  console.log('livekitRoom 상태:', !!livekitRoom);
+  
+  if (!message || !livekitRoom) {
+    console.log('메시지가 비어있거나 livekitRoom이 없음');
+    return;
+  }
+
+  try {
+    // 메시지 객체 생성
+    const chatMessage: ChatMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sender: livekitRoom.localParticipant.identity,
+      content: message,
+      timestamp: Date.now(),
+      isOwn: true
+    };
+
+    // 로컬에 메시지 추가
+    chatMessages.value.push(chatMessage);
+
+    // DataChannel을 통해 다른 참여자들에게 전송
+    const encoder = new TextEncoder();
+    const data = encoder.encode(JSON.stringify({
+      type: 'chat',
+      ...chatMessage,
+      isOwn: false // 수신자에게는 isOwn을 false로 설정
+    }));
+
+    await livekitRoom.localParticipant.publishData(data, 'chat');
+
+    // 입력 필드 초기화
+    newMessage.value = '';
+
+    // 채팅 스크롤을 아래로 이동
+    scrollToBottom();
+
+  } catch (error) {
+    console.error('메시지 전송 실패:', error);
+  }
+}
+
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return '방금 전';
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes}분 전`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours}시간 전`;
+  } else {
+    return date.toLocaleDateString('ko-KR', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (chatMessagesContainer.value) {
+      chatMessagesContainer.value.scrollTop = chatMessagesContainer.value.scrollHeight;
+    }
+  });
+}
+
 // --- Lifecycle Hooks ---
 onMounted(async () => {
   // LiveKit SDK 로드
@@ -605,7 +824,10 @@ onMounted(async () => {
     };
     script.onerror = () => {
       console.error('LiveKit SDK 로드 실패');
-      connectionStatus.value = { type: 'error', message: 'LiveKit SDK를 로드할 수 없습니다.' };
+      connectionStatus.value = { 
+        type: 'error', 
+        message: 'LiveKit SDK를 로드할 수 없습니다. 페이지를 새로고침해주세요.' 
+      };
     };
     document.head.appendChild(script);
   } else {
@@ -633,470 +855,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
-@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
-
-:root {
-  --font-main: 'Pretendard', sans-serif;
-  --font-title: 'Noto Serif KR', serif;
-  --color-bg: #f8f9fa;
-  --color-text: #212529;
-  --color-primary: #343a40;
-  --color-success: #28a745;
-  --color-warning: #ffc107;
-  --color-danger: #fa5252;
-  --color-info: #17a2b8;
-  --color-surface: #ffffff;
-  --color-border: #dee2e6;
-  --color-muted-text: #868e96;
-}
-
-/* 페이지 기본 스타일 */
-.page-container {
-  padding: 2rem;
-  background-color: var(--color-bg);
-  min-height: 100vh;
-  color: var(--color-text);
-  font-family: var(--font-main);
-}
-
-/* 로비 스타일 */
-.lobby-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: calc(100vh - 4rem);
-}
-
-.lobby-card {
-  width: 100%;
-  max-width: 500px;
-  background-color: var(--color-surface);
-  padding: 2.5rem;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-}
-
-.lobby-title {
-  font-family: var(--font-main);
-  font-size: 2rem;
-  font-weight: 700;
-  text-align: center;
-  color: var(--color-text);
-  margin-bottom: 0.75rem;
-}
-
-.lobby-subtitle {
-  text-align: center;
-  color: var(--color-muted-text);
-  margin-bottom: 2rem;
-  font-size: 1rem;
-}
-
-.video-preview-container {
-  position: relative;
-  width: 100%;
-  padding-top: 56.25%;
-  margin-bottom: 2rem;
-  background: #f1f3f5;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.video-preview {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.media-controls {
-  position: absolute;
-  bottom: 1rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 1rem;
-  z-index: 10;
-}
-
-.btn-media {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: rgba(0, 0, 0, 0.4);
-  color: #fff;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  border: none;
-  font-size: 1.5rem;
-  transition: all 0.2s ease-in-out;
-  cursor: pointer;
-}
-
-.btn-media:hover {
-  background-color: rgba(0, 0, 0, 0.6);
-}
-
-.btn-media.is-muted {
-  background-color: var(--color-danger);
-}
-
-.btn-join {
-  width: 100%;
-  background-color: #555;
-  color: white;
-  font-weight: 600;
-  font-size: 1rem;
-  padding: 0.8rem;
-  border-radius: 8px;
-  border: none;
-  transition: background-color 0.2s ease;
-}
-
-.btn-join:hover:not(:disabled) {
-  opacity: 0.8;
-}
-
-.btn-join:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* 연결 상태 스타일 */
-.connection-status {
-  text-align: center;
-  padding: 0.5rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-}
-
-.status-info { color: var(--color-info); }
-.status-success { color: var(--color-success); }
-.status-warning { color: var(--color-warning); }
-.status-error { color: var(--color-danger); }
-
-.connection-indicator {
-  font-size: 0.8rem;
-  float: right;
-  padding: 0.2rem 0.5rem;
-  border-radius: 10px;
-  background: var(--color-bg);
-}
-
-.connection-quality {
-  font-size: 0.7rem;
-  opacity: 0.8;
-}
-
-/* 워크스페이스 스타일 */
-.workspace-container {
-  display: flex;
-  flex-direction: column;
-  height: calc(100vh - 4rem);
-  max-width: 1200px;
-  margin: 0 auto;
-}
-
-.video-section {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  background-color: var(--color-surface);
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-  overflow: hidden;
-}
-
-.video-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid var(--color-border);
-  background-color: var(--color-surface);
-}
-
-.video-title {
-  font-family: var(--font-main);
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0;
-  color: var(--color-text);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.video-grid-wrapper {
-  flex: 1;
-  padding: 1rem;
-  overflow-y: auto;
-  background-color: #f8f9fa;
-}
-
-.video-grid {
-  display: grid;
-  gap: 1rem;
-  width: 100%;
-  height: 100%;
-  grid-auto-rows: 1fr;
-}
-
-/* 참여자 수에 따른 그리드 레이아웃 */
-.participants-1 {
-  grid-template-columns: 1fr;
-  max-width: 600px;
-  margin: 0 auto;
-}
-
-.participants-2 {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.participants-3 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: 1fr 1fr;
-}
-
-.participants-3 .video-participant:first-child {
-  grid-column: 1 / 3;
-}
-
-.participants-4 {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-
-.participants-5,
-.participants-6 {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-
-.participants-7,
-.participants-8,
-.participants-9 {
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-}
-
-.participants-10,
-.participants-11,
-.participants-12 {
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-}
-
-.video-participant {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #e9ecef;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 2px solid #dee2e6;
-  transition: all 0.2s ease;
-}
-
-.video-participant:hover {
-  border-color: var(--color-info);
-  transform: scale(1.02);
-}
-
-.video-participant.local-participant {
-  border-color: var(--color-primary);
-}
-
-.participant-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.participant-video-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 2rem;
-  font-weight: bold;
-  color: var(--color-muted-text);
-  background: linear-gradient(135deg, #e9ecef 0%, #f8f9fa 100%);
-}
-
-.participant-info {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
-  padding: 0.5rem;
-}
-
-.participant-name {
-  color: #fff;
-  font-size: 0.85rem;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-.controls-section {
-  border-top: 1px solid var(--color-border);
-  background-color: var(--color-surface);
-}
-
-.main-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem;
-}
-
-.btn-control {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  background-color: var(--color-surface);
-  color: var(--color-muted-text);
-  border: 1px solid var(--color-border);
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  font-size: 0.8rem;
-  min-width: 80px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-control:hover {
-  background-color: var(--color-bg);
-  border-color: #ced4da;
-  transform: translateY(-1px);
-}
-
-.btn-control i {
-  font-size: 1.25rem;
-}
-
-.btn-control:not(.is-muted):not(.btn-leave):not(.active) {
-  color: var(--color-text);
-}
-
-.btn-control.is-muted {
-  color: var(--color-danger);
-  border-color: var(--color-danger);
-  background-color: rgba(250, 82, 82, 0.1);
-}
-
-.btn-control.active {
-  background-color: var(--color-success);
-  border-color: var(--color-success);
-  color: white;
-}
-
-.btn-control.active:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.btn-control.btn-book {
-  background-color: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
-}
-
-.btn-control.btn-book:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
-}
-
-.btn-control.btn-leave {
-  background-color: var(--color-surface);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
-}
-
-.btn-control.btn-leave:hover {
-  background-color: #ffe6e6;
-  border-color: #ffb3b3;
-  color: #c53030;
-  transform: translateY(-1px);
-}
-
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .page-container {
-    padding: 1rem;
-  }
-  
-  .lobby-card {
-    padding: 2rem;
-  }
-  
-  .main-controls {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
-  
-  .btn-control {
-    min-width: 70px;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.75rem;
-  }
-  
-  .video-grid {
-    gap: 0.5rem;
-  }
-  
-  /* 모바일에서 그리드 최적화 */
-  .participants-3,
-  .participants-4,
-  .participants-5,
-  .participants-6 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  
-  .participants-3 .video-participant:first-child {
-    grid-column: auto;
-  }
-  
-  .participants-7,
-  .participants-8,
-  .participants-9,
-  .participants-10,
-  .participants-11,
-  .participants-12 {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 480px) {
-  .main-controls {
-    grid-template-columns: repeat(2, 1fr);
-    display: grid;
-  }
-  
-  .btn-control {
-    min-width: auto;
-  }
-  
-  /* 작은 화면에서는 모든 참여자를 1열로 */
-  .video-grid {
-    grid-template-columns: 1fr !important;
-    grid-template-rows: auto !important;
-  }
-  
-  .participants-3 .video-participant:first-child {
-    grid-column: auto !important;
-  }
-}
+@import '../../styles/group-book-creation.css';
 </style>

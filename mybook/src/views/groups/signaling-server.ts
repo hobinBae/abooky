@@ -40,7 +40,7 @@ const rooms: Map<string, Room> = new Map();
 const users: Map<string, User> = new Map();
 
 // WebSocket 서버 설정
-const wss = new WebSocket.Server({ 
+const wss = new (WebSocket as any).Server({ 
   port: 3001,
   clientTracking: true 
 });
@@ -382,7 +382,7 @@ setInterval(() => {
 process.on('SIGINT', () => {
   console.log('\n🛑 서버를 종료합니다...');
   
-  wss.clients.forEach((ws) => {
+  wss.clients.forEach((ws: any) => {
     ws.close();
   });
   
