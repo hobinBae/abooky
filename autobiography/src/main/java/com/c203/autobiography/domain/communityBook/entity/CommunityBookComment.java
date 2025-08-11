@@ -64,4 +64,12 @@ public class CommunityBookComment {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    // — 도메인 행위 메서드 —
+
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
+    }
 }

@@ -39,8 +39,10 @@ public enum ErrorCode {
 
     // CommunityBook 관련 에러
     COMMUNITY_BOOK_NOT_FOUND("COMMUNITY_BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "커뮤니티 책을 찾을 수 없습니다."),
-    COMMUNITY_BOOK_ALREADY_DELETED("COMMUNITY_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 커뮤니티 책입니다.");
+    COMMUNITY_BOOK_ALREADY_DELETED("COMMUNITY_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 커뮤니티 책입니다."),
 
+    COMMENT_NOT_FOUND("COMMENT_NOT_FOUND", HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다."),
+    COMMENT_ACCESS_DENIED("COMMENT_ACCESS_DENIED", HttpStatus.FORBIDDEN,"댓글에 대한 권한이 없습니다");
 
     //
     // 필요한 에러 코드 계속 추가
