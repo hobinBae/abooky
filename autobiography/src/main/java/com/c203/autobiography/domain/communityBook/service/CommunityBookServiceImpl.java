@@ -139,6 +139,69 @@ public class CommunityBookServiceImpl implements CommunityBookService {
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
     }
 
+
+    @Transactional
+    @Override
+    public CommunityBookListResponse getMemberCommunityBooks(Long userId, Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy) {
+        // 1. 탈퇴한 회원인 경우
+        memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 작가 존재 여부 확인
+        validateMemberExists(memberId);
+
+        // 정렬 기준 적용
+        Pageable sortedPageable = applySorting(pageable, sortBy);
+
+        // 필터링 조건에 따른 조회
+        Page<CommunityBook> communityBooks = getMemberCommunityBooksWithFilters(
+                memberId, sortedPageable, categoryId, bookType);
+
+        // DTO 변환
+        Page<CommunityBookSummaryResponse> responsePage = communityBooks.map(CommunityBookSummaryResponse::of);
+
+        return CommunityBookListResponse.of(responsePage);
+    }
+
+    /**
+     * 작가 존재 여부 검증
+     */
+    private void validateMemberExists(Long memberId) {
+        boolean exists = memberRepository.existsByMemberIdAndDeletedAtIsNull(memberId);
+        if (!exists) {
+            throw new ApiException(ErrorCode.USER_NOT_FOUND);
+        }
+    }
+
+    /**
+     * 작가별 필터링 조건에 따른 커뮤니티 책 조회
+     */
+    private Page<CommunityBook> getMemberCommunityBooksWithFilters(Long memberId, Pageable pageable, Long categoryId, String bookType) {
+        // BookType enum 변환
+        BookType bookTypeEnum = null;
+        if (bookType != null && !bookType.trim().isEmpty()) {
+            try {
+                bookTypeEnum = BookType.valueOf(bookType.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND);
+            }
+        }
+
+        // 필터링 조건에 따른 조회
+        if (categoryId != null && bookTypeEnum != null) {
+            return communityBookRepository.findByMemberMemberIdAndCategoryIdAndBookTypeAndDeletedAtIsNull(
+                    memberId, categoryId, bookTypeEnum, pageable);
+        } else if (categoryId != null) {
+            return communityBookRepository.findByMemberMemberIdAndCategoryIdAndDeletedAtIsNull(
+                    memberId, categoryId, pageable);
+        } else if (bookTypeEnum != null) {
+            return communityBookRepository.findByMemberMemberIdAndBookTypeAndDeletedAtIsNull(
+                    memberId, bookTypeEnum, pageable);
+        } else {
+            return communityBookRepository.findByMemberMemberIdAndDeletedAtIsNull(memberId, pageable);
+        }
+    }
+
     @Transactional
     @Override
     public void deleteCommunityBook(Long memberId, Long communityBookId) {
