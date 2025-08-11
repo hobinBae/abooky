@@ -1,17 +1,12 @@
 <template>
-  <div v-if="isVisible" class="modal-overlay" @click="handleOverlayClick">
-    <div class="modal-content" @click.stop>
-      <div class="modal-header">
+  <div v-show="isVisible" class="simple-modal-overlay" @click="handleOverlayClick">
+    <div class="simple-modal-content" @click.stop>
+      <div class="simple-modal-header">
         <h2>{{ title }}</h2>
-        <button class="close-button" @click="handleCloseClick" type="button">
-          <i class="bi bi-x"></i>
-        </button>
+        <span class="simple-close-btn" @click="handleClose">&times;</span>
       </div>
-      <div class="modal-body">
+      <div class="simple-modal-body">
         <slot></slot>
-      </div>
-      <div v-if="$slots.footer" class="modal-footer">
-        <slot name="footer"></slot>
       </div>
     </div>
   </div>
@@ -32,25 +27,19 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const close = () => {
+const handleClose = () => {
   emit('close');
-};
-
-const handleCloseClick = (event: Event) => {
-  event.preventDefault();
-  event.stopPropagation();
-  close();
 };
 
 const handleOverlayClick = () => {
   if (props.closeOnOverlay) {
-    close();
+    handleClose();
   }
 };
 </script>
 
 <style scoped>
-.modal-overlay {
+.simple-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -63,7 +52,7 @@ const handleOverlayClick = () => {
   z-index: 1000;
 }
 
-.modal-content {
+.simple-modal-content {
   background-color: white;
   border-radius: 15px;
   width: 90%;
@@ -71,21 +60,9 @@ const handleOverlayClick = () => {
   max-height: 80vh;
   overflow: hidden;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  animation: modalSlideIn 0.3s ease-out;
 }
 
-@keyframes modalSlideIn {
-  from {
-    transform: translateY(-50px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.modal-header {
+.simple-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -93,51 +70,41 @@ const handleOverlayClick = () => {
   border-bottom: 1px solid #e0e0e0;
 }
 
-.modal-header h2 {
+.simple-modal-header h2 {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
   color: #333;
 }
 
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer !important;
+.simple-close-btn {
+  font-size: 2rem;
+  cursor: pointer;
   color: #666;
-  padding: 0.25rem;
-  border-radius: 50%;
+  line-height: 1;
+  user-select: none;
   width: 2rem;
   height: 2rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 50%;
   transition: background-color 0.2s ease;
-  pointer-events: auto !important;
-  z-index: 1001;
-  position: relative;
 }
 
-.close-button:hover {
+.simple-close-btn:hover {
   background-color: #f0f0f0;
   color: #333;
 }
 
-.modal-body {
+.simple-modal-body {
   padding: 0;
-}
-
-.modal-footer {
-  padding: 1rem 1.5rem;
-  border-top: 1px solid #e0e0e0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  overflow-y: auto;
+  max-height: calc(80vh - 100px);
 }
 
 @media (max-width: 768px) {
-  .modal-content {
+  .simple-modal-content {
     width: 95%;
     margin: 1rem;
   }

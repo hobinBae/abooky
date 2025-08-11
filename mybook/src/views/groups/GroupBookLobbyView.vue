@@ -18,22 +18,25 @@
     </div>
 
     <!-- 그룹 선택 모달 -->
-    <BaseModal 
+    <SimpleModal 
       :is-visible="showGroupModal" 
       title="내가 속한 그룹 선택" 
-      @close="closeModal"
+      @close="closeGroupModal"
     >
-      <LoadingSpinner v-if="loading" message="그룹 목록을 불러오는 중..." />
+      <div v-if="loading" style="padding: 2rem; text-align: center;">
+        <LoadingSpinner message="그룹 목록을 불러오는 중..." />
+      </div>
       
-      <EmptyState 
-        v-else-if="myGroups.length === 0"
-        icon-class="bi bi-people"
-        title="참여한 그룹이 없습니다"
-        description="먼저 '나의 서재'에서 그룹을 생성하거나 다른 그룹에 참여해보세요."
-        action-text="나의 서재로 이동"
-        action-class="btn-secondary"
-        @action="goToMyLibrary"
-      />
+      <div v-else-if="myGroups.length === 0" style="padding: 2rem;">
+        <EmptyState 
+          icon-class="bi bi-people"
+          title="참여한 그룹이 없습니다"
+          description="먼저 '나의 서재'에서 그룹을 생성하거나 다른 그룹에 참여해보세요."
+          action-text="나의 서재로 이동"
+          action-class="btn-secondary"
+          @action="goToMyLibrary"
+        />
+      </div>
       
       <div v-else class="group-list">
         <GroupItem 
@@ -44,25 +47,28 @@
           @select="selectGroup"
         />
       </div>
-    </BaseModal>
+    </SimpleModal>
 
     <!-- 그룹책 참여 모달 -->
-    <BaseModal 
+    <SimpleModal 
       :is-visible="showJoinModal" 
       title="활성화된 그룹책 만들기" 
-      @close="closeModal"
+      @close="closeJoinModal"
     >
-      <LoadingSpinner v-if="loadingSessions" message="활성화된 세션을 불러오는 중..." />
+      <div v-if="loadingSessions" style="padding: 2rem; text-align: center;">
+        <LoadingSpinner message="활성화된 세션을 불러오는 중..." />
+      </div>
       
-      <EmptyState 
-        v-else-if="availableGroupBookSessions.length === 0"
-        icon-class="bi bi-book"
-        title="참여할 수 있는 그룹책 만들기가 없습니다"
-        description="현재 진행 중인 그룹책 만들기가 없습니다.\n직접 그룹책 방을 만들어보세요."
-        action-text="그룹책 방 만들기"
-        action-class="btn-primary"
-        @action="closeModal"
-      />
+      <div v-else-if="availableGroupBookSessions.length === 0" style="padding: 2rem;">
+        <EmptyState 
+          icon-class="bi bi-book"
+          title="참여할 수 있는 그룹책 만들기가 없습니다"
+          description="현재 진행 중인 그룹책 만들기가 없습니다.\n직접 그룹책 방을 만들어보세요."
+          action-text="그룹책 방 만들기"
+          action-class="btn-primary"
+          @action="closeJoinModal"
+        />
+      </div>
       
       <div v-else class="session-list">
         <SessionItem 
@@ -72,14 +78,14 @@
           @join="joinGroupBookSession"
         />
       </div>
-    </BaseModal>
+    </SimpleModal>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import BaseModal from '@/components/common/BaseModal.vue';
+import SimpleModal from '@/components/common/SimpleModal.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
 import EmptyState from '@/components/common/EmptyState.vue';
 import GroupItem from '@/components/groups/GroupItem.vue';
@@ -96,8 +102,11 @@ const showJoinModal = ref(false);
 const loading = ref(false);
 const loadingSessions = ref(false);
 
-// 현재 사용자 정보 (실제로는 인증 상태에서 가져와야 함)
-const currentUserId = ref(1001);
+// 현재 사용자 정보 (localStorage에서 가져오기)
+const currentUserId = computed(() => {
+  const userId = localStorage.getItem('userId');
+  return userId ? parseInt(userId) : 1001;
+});
 
 // 그룹 데이터
 const myGroups = ref<Group[]>([]);
@@ -137,15 +146,23 @@ const fetchAllActiveGroupBookSessions = async () => {
 };
 
 // 이벤트 핸들러들
-const closeModal = () => {
+const closeGroupModal = () => {
   showGroupModal.value = false;
-  showJoinModal.value = false;
+  loading.value = false;
 };
 
-const selectGroup = (group: Group) => {
+const closeJoinModal = () => {
+  showJoinModal.value = false;
+  loadingSessions.value = false;
+};
+
+const selectGroup = async (group: Group) => {
   console.log('선택된 그룹:', group);
   
   try {
+    // 그룹책 세션 시작
+    await groupService.startGroupBookSession(group.groupId, group.groupName);
+    
     router.push({
       path: '/group-book-creation',
       query: { 
@@ -153,7 +170,7 @@ const selectGroup = (group: Group) => {
         groupName: group.groupName 
       }
     });
-    closeModal();
+    closeGroupModal();
   } catch (error) {
     console.error('라우터 네비게이션 오류:', error);
     window.location.href = `/group-book-creation?groupId=${group.groupId}&groupName=${encodeURIComponent(group.groupName)}`;
@@ -177,7 +194,7 @@ const joinGroupBookSession = (session: ActiveSession) => {
         mode: 'join'
       }
     });
-    closeModal();
+    closeJoinModal();
   } catch (error) {
     console.error('그룹책 세션 참여 오류:', error);
     window.location.href = `/group-book-creation?groupId=${session.groupId}&groupName=${encodeURIComponent(session.groupName)}&mode=join`;
@@ -185,7 +202,7 @@ const joinGroupBookSession = (session: ActiveSession) => {
 };
 
 const goToMyLibrary = () => {
-  closeModal();
+  closeGroupModal();
   router.push({ path: '/my-library' });
 };
 
