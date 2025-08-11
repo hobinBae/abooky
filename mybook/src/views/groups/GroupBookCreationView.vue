@@ -123,7 +123,6 @@
 import { ref, onMounted, onUnmounted, computed, nextTick, toRaw } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
-import { useAuthStore } from '@/stores/auth';
 
 // LiveKit 타입 정의 (실제 환경에서는 npm install livekit-client 후 import 사용)
 declare global {
@@ -171,7 +170,6 @@ const connectionStatus = ref<ConnectionStatus | null>(null);
 // LiveKit 관련 - non-reactive storage for WebRTC objects
 let livekitRoom: any = null;
 let localMediaStream: MediaStream | null = null;
-let videoStateBeforeScreenShare: boolean = false; // 화면 공유 시작 전 비디오 상태
 
 // UI state only (reactive)
 const remoteParticipants = ref<RemoteParticipant[]>([]);
@@ -216,12 +214,6 @@ function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
 // --- LiveKit Functions ---
 async function getAccessToken(): Promise<{ url: string, token: string}> {
   try {
-    const authStore = useAuthStore();
-    
-    if (!authStore.isLoggedIn) {
-      throw new Error('로그인이 필요합니다');
-    }
-
     const userName = `User_${Date.now()}`;
     const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
       userName
@@ -551,56 +543,11 @@ async function toggleScreenShare() {
 
   try {
     const enabled = !isScreenSharing.value;
-    
-    if (enabled) {
-      // 화면 공유 시작
-      console.log('화면 공유 시작...');
-      await livekitRoom.localParticipant.setScreenShareEnabled(true);
-      isScreenSharing.value = true;
-    } else {
-      // 화면 공유 종료
-      console.log('화면 공유 종료 - 비디오 상태:', isVideoEnabled.value);
-      await livekitRoom.localParticipant.setScreenShareEnabled(false);
-      isScreenSharing.value = false;
-      
-      // 화면 공유 종료 후 반드시 카메라 재설정
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      if (isVideoEnabled.value) {
-        // 원래 비디오가 켜져있던 상태 - 새로운 카메라 트랙 생성
-        console.log('카메라 트랙 재생성...');
-        try {
-          // 기존 카메라 트랙 완전 제거 후 새로 생성
-          await livekitRoom.localParticipant.unpublishTrack(
-            livekitRoom.localParticipant.videoTracks.values().next().value?.track
-          );
-          await new Promise(resolve => setTimeout(resolve, 100));
-          
-          // 새 카메라 트랙 생성 및 발행
-          const stream = await navigator.mediaDevices.getUserMedia({ 
-            video: { width: 1280, height: 720 }, 
-            audio: false 
-          });
-          const videoTrack = stream.getVideoTracks()[0];
-          
-          if (videoTrack && livekitRoom.localParticipant) {
-            await livekitRoom.localParticipant.publishTrack(videoTrack, { name: 'camera' });
-            console.log('새 카메라 트랙 발행 완료');
-          }
-        } catch (cameraError) {
-          console.error('카메라 재생성 실패:', cameraError);
-          // fallback: 기본 카메라 활성화 시도
-          await livekitRoom.localParticipant.setCameraEnabled(true);
-        }
-      } else {
-        // 원래 비디오가 꺼져있던 상태 - 카메라 비활성화
-        console.log('카메라 비활성화 상태 유지');
-        await livekitRoom.localParticipant.setCameraEnabled(false);
-      }
-    }
+    await livekitRoom.localParticipant.setScreenShareEnabled(enabled);
+    isScreenSharing.value = enabled;
   } catch (error) {
     console.error('화면 공유 토글 실패:', error);
-    connectionStatus.value = { type: 'error', message: '화면 공유 처리 중 오류가 발생했습니다.' };
+    connectionStatus.value = { type: 'error', message: '화면 공유를 시작할 수 없습니다.' };
   }
 }
 
