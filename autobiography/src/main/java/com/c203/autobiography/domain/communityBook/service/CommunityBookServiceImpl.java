@@ -1,7 +1,7 @@
 package com.c203.autobiography.domain.communityBook.service;
 
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentRequest;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentResponse;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateRequest;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateResponse;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookComment;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookCommentRepository;
@@ -52,7 +52,7 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
     @Transactional
     @Override
-    public CommunityBookCommentResponse createCommunityBookComment(Long memberId, CommunityBookCommentRequest request) {
+    public CommunityBookCommentCreateResponse createCommunityBookComment(Long memberId, CommunityBookCommentCreateRequest request) {
         // 1. 탈퇴한 회원인 경우
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
@@ -75,7 +75,7 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
         // 댓글 저장
         CommunityBookComment savedComment = communityBookCommentRepository.save(comment);
-        return CommunityBookCommentResponse.of(savedComment);
+        return CommunityBookCommentCreateResponse.of(savedComment);
     }
 
 }
