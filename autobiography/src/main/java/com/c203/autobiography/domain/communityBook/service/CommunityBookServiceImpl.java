@@ -80,6 +80,10 @@ public class CommunityBookServiceImpl implements CommunityBookService {
     @Transactional
     @Override
     public CommunityBookListResponse getCommunityBookList(Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy) {
+        // 탈퇴한 회원인 경우
+        memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
         // 1. 정렬 기준 적용
         Pageable sortedPageable = applySorting(pageable, sortBy);
 
