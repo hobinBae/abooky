@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 @Schema(description = "커뮤니티 책 댓글 응답 DTO")
-public class CommunityBookCommentResponse {
+public class CommunityBookCommentCreateResponse {
     @Schema(description = "커뮤니티 책 댓글 ID", example = "501")
     private Long communityBookCommentId;
 
@@ -31,8 +31,8 @@ public class CommunityBookCommentResponse {
     private LocalDateTime updatedAt;
 
     // Entity -> DTO 변환 메서드 (팀 컨벤션에 맞춰 of 사용)
-    public static CommunityBookCommentResponse of(CommunityBookComment comment) {
-        return CommunityBookCommentResponse.builder()
+    public static CommunityBookCommentCreateResponse of(CommunityBookComment comment) {
+        return CommunityBookCommentCreateResponse.builder()
                 .communityBookCommentId(comment.getCommunityBookCommentId())
                 .communityBookId(comment.getCommunityBook().getCommunityBookId())
                 .content(comment.getContent())
