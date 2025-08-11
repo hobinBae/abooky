@@ -1,7 +1,12 @@
 package com.c203.autobiography.domain.communityBook.service;
 
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentRequest;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentResponse;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
+import com.c203.autobiography.domain.communityBook.entity.CommunityBookComment;
+import com.c203.autobiography.domain.communityBook.repository.CommunityBookCommentRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
+import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
@@ -19,6 +24,7 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
     private final MemberRepository memberRepository;
     private final CommunityBookRepository communityBookRepository;
+    private final CommunityBookCommentRepository communityBookCommentRepository;
 
     @Transactional
     @Override
@@ -43,4 +49,33 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
         communityBook.softDelete();
     }
+
+    @Transactional
+    @Override
+    public CommunityBookCommentResponse createCommunityBookComment(Long memberId, CommunityBookCommentRequest request) {
+        // 1. 탈퇴한 회원인 경우
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 아예 존재하지 않는 책인 경우 (테이블 자체에 데이터가 없는 경우)
+        if (communityBookRepository.findByIdIgnoreDeleted(request.getCommunityBookId()).isEmpty()) {
+            throw new ApiException(ErrorCode.COMMUNITY_BOOK_NOT_FOUND);
+        }
+
+        // 3. 커뮤니티 책이 존재하지 않는 경우
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(request.getCommunityBookId())
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMUNITY_BOOK_ALREADY_DELETED));
+
+        // 댓글 엔티티 생성
+        CommunityBookComment comment = CommunityBookComment.builder()
+                .content(request.getContent())
+                .communityBook(communityBook)
+                .member(member)
+                .build();
+
+        // 댓글 저장
+        CommunityBookComment savedComment = communityBookCommentRepository.save(comment);
+        return CommunityBookCommentResponse.of(savedComment);
+    }
+
 }
