@@ -84,7 +84,7 @@ public class CommunityBook {
 
     @Builder.Default
     @Column(name = "view_count", nullable = false)
-    private int viewCount = 0;
+    private Integer viewCount = 0;
 
     @Builder.Default
     @Column(name = "like_count", nullable = false)
@@ -103,5 +103,9 @@ public class CommunityBook {
 
     public void softDelete() {
         this.deletedAt = LocalDateTime.now();
+    }
+
+    public void incrementViewCount() {
+        this.viewCount = (this.viewCount == null ? 0 : this.viewCount) + 1;
     }
 }

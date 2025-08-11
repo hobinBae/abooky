@@ -1,9 +1,6 @@
 package com.c203.autobiography.domain.communityBook.controller;
 
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateRequest;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateResponse;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentDeleteResponse;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentListResponse;
+import com.c203.autobiography.domain.communityBook.dto.*;
 import com.c203.autobiography.domain.communityBook.service.CommunityBookService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
@@ -31,6 +28,18 @@ public class CommunityBookController {
 
     private final CommunityBookService communityBookService;
 
+    @Operation(summary = "커뮤니티 책 조회(읽기)", description = "커뮤니티 책을 상세 조회합니다.(첵 읽기) ")
+    @GetMapping("/community-books/{communityBookId}")
+    public ResponseEntity<ApiResponse<CommunityBookDetailResponse>> getCommunityBook(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long communityBookId,
+            HttpServletRequest httpRequest) {
+        Long memberId = userDetails.getMemberId();
+        CommunityBookDetailResponse response = communityBookService.getCommunityBookDetail(memberId, communityBookId);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 조회(읽기) 성공", response, httpRequest.getRequestURI()));
+    }
 
     @Operation(summary = "커뮤니티 책 삭제", description = "커뮤니티 책을 삭제합니다")
     @DeleteMapping("/{communityBookId}")

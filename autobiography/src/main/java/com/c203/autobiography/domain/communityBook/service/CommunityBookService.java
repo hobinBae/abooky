@@ -1,9 +1,6 @@
 package com.c203.autobiography.domain.communityBook.service;
 
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateRequest;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateResponse;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentDeleteResponse;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentListResponse;
+import com.c203.autobiography.domain.communityBook.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
 
@@ -18,4 +15,6 @@ public interface CommunityBookService {
     CommunityBookCommentListResponse getCommunityCookComments(Long memberId, Long communityBookId, Pageable pageable);
 
     CommunityBookCommentDeleteResponse deleteCommunityBookComment(Long communityBookId, Long communityBookCommentId, Long memberId);
+
+    CommunityBookDetailResponse getCommunityBookDetail(Long memberId, Long communityBookId);
 }
