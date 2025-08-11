@@ -7,7 +7,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "chapter")
+@Table(
+        name = "chapter",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_chapter__chapter_order", columnNames = {"chapter_order"})
+        },
+        indexes = {
+                @Index(name = "idx_chapter__chapter_order", columnList = "chapter_order")
+        }
+)
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
@@ -30,7 +38,7 @@ public class Chapter {
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
     
-    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "chapter", cascade = CascadeType.ALL, fetch = FetchType.LAZY,  orphanRemoval = true)
     private List<ChapterTemplate> templates;
     
     @PrePersist
