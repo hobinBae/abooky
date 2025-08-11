@@ -18,8 +18,10 @@
           </div>
         </div>
         
-        <div class="connection-status" v-if="connectionStatus">
-          <span :class="`status-${connectionStatus.type}`">{{ connectionStatus.message }}</span>
+        <!-- 수정된 연결 상태 표시 부분 -->
+        <div v-if="connectionStatus" class="connection-status" :class="`connection-status--${connectionStatus.type}`">
+          <i class="connection-status__icon" :class="getStatusIcon(connectionStatus.type)"></i>
+          <span class="connection-status__message">{{ connectionStatus.message }}</span>
         </div>
         
         <button @click="joinRoom" class="btn btn-primary btn-join" :disabled="!canJoin || isConnecting">
@@ -34,7 +36,7 @@
         <div class="video-header">
           <h3 class="video-title">
             참여자 ({{ totalParticipants }}명)
-            <span class="connection-indicator" :class="`status-${connectionState}`">
+            <span class="connection-indicator" :class="`connection-indicator--${connectionState}`">
               {{ getConnectionStatusText }}
             </span>
           </h3>
@@ -120,11 +122,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick, toRaw } from 'vue';
+import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
 
-// LiveKit 타입 정의 (실제 환경에서는 npm install livekit-client 후 import 사용)
+// LiveKit 타입 정의
 declare global {
   interface Window {
     LivekitClient: any;
@@ -149,7 +151,7 @@ interface ConnectionStatus {
 // --- Router ---
 const route = useRoute();
 const router = useRouter();
-const groupId = route.query.groupId as string || 'default-room';
+const groupId = (route.query.groupId as string) || 'default-room';
 
 // --- Reactive State ---
 const hasJoined = ref(false);
@@ -174,9 +176,6 @@ let localMediaStream: MediaStream | null = null;
 // UI state only (reactive)
 const remoteParticipants = ref<RemoteParticipant[]>([]);
 const participantVideoRefs = ref<Map<string, HTMLVideoElement>>(new Map());
-
-// --- LiveKit Configuration ---
-const LIVEKIT_URL = 'ws://localhost:7880'; // 백엔드 LiveKit 서버 URL (application.properties에서 관리)
 
 // --- Computed Properties ---
 const totalParticipants = computed(() => {
@@ -205,6 +204,17 @@ function getConnectionQualityText(quality: number): string {
   }
 }
 
+// 상태 아이콘 반환 함수
+function getStatusIcon(type: string): string {
+  switch (type) {
+    case 'info': return 'bi bi-info-circle-fill';
+    case 'success': return 'bi bi-check-circle-fill';
+    case 'warning': return 'bi bi-exclamation-triangle-fill';
+    case 'error': return 'bi bi-x-circle-fill';
+    default: return 'bi bi-info-circle-fill';
+  }
+}
+
 function setParticipantVideoRef(el: any, identity: string) {
   if (el && el instanceof HTMLVideoElement) {
     participantVideoRefs.value.set(identity, el);
@@ -220,7 +230,9 @@ async function getAccessToken(): Promise<{ url: string, token: string}> {
     });
     
     const data = response.data.data ?? response.data;
-    if(!data?.token || !data?.url) throw new Error('응답에 url/token 없음');
+    if (!data?.token || !data?.url) {
+      throw new Error('응답에 url/token 없음');
+    }
     return { url: data.url, token: data.token };
   } catch (error) {
     console.error('토큰 발급 오류:', error);
@@ -230,6 +242,12 @@ async function getAccessToken(): Promise<{ url: string, token: string}> {
 
 async function setupLocalMedia() {
   try {
+    // 초기 로딩 상태 표시
+    connectionStatus.value = { 
+      type: 'info', 
+      message: '카메라와 마이크 권한을 확인하고 있습니다...' 
+    };
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { width: 1280, height: 720 },
       audio: { echoCancellation: true, noiseSuppression: true }
@@ -240,10 +258,16 @@ async function setupLocalMedia() {
     }
 
     canJoin.value = true;
-    connectionStatus.value = { type: 'success', message: '카메라와 마이크가 준비되었습니다.' };
+    connectionStatus.value = { 
+      type: 'success', 
+      message: '카메라와 마이크가 준비되었습니다.' 
+    };
   } catch (error) {
     console.error('미디어 접근 실패:', error);
-    connectionStatus.value = { type: 'warning', message: '카메라/마이크에 접근할 수 없습니다.' };
+    connectionStatus.value = { 
+      type: 'warning', 
+      message: '카메라/마이크에 접근할 수 없습니다. 오디오만으로 참여할 수 있습니다.' 
+    };
     canJoin.value = true; // 미디어 없이도 입장 허용
   }
 }
@@ -260,9 +284,9 @@ async function joinRoom() {
       throw new Error('LiveKit SDK가 로드되지 않았습니다.');
     }
 
-    const { Room, RoomEvent, Track, RemoteTrack, ConnectionQuality } = window.LivekitClient;
+    const { Room } = window.LivekitClient;
 
-    // Room 인스턴스 생성 - non-reactive
+    // Room 인스턴스 생성
     livekitRoom = new Room({
       adaptiveStream: true,
       dynacast: true,
@@ -290,7 +314,10 @@ async function joinRoom() {
 
   } catch (error: any) {
     console.error('룸 입장 실패:', error);
-    connectionStatus.value = { type: 'error', message: `입장 실패: ${error?.message || '알 수 없는 오류'}` };
+    connectionStatus.value = { 
+      type: 'error', 
+      message: `입장 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}` 
+    };
     connectionState.value = 'disconnected';
   } finally {
     isConnecting.value = false;
@@ -300,7 +327,7 @@ async function joinRoom() {
 function setupRoomEventListeners() {
   if (!livekitRoom || !window.LivekitClient) return;
 
-  const { RoomEvent, TrackEvent, ConnectionQuality, Track } = window.LivekitClient;
+  const { RoomEvent } = window.LivekitClient;
 
   // 참여자 연결 이벤트
   livekitRoom.on(RoomEvent.ParticipantConnected, (participant: any) => {
@@ -315,7 +342,7 @@ function setupRoomEventListeners() {
   });
 
   // 로컬 트랙 발행 이벤트
-  livekitRoom.on(RoomEvent.LocalTrackPublished, (publication: any, participant: any) => {
+  livekitRoom.on(RoomEvent.LocalTrackPublished, (publication: any) => {
     console.log('로컬 트랙 발행:', publication.kind);
     if (publication.kind === 'video') {
       // 로비 비디오 스트림을 중단하고 LiveKit 트랙으로 교체
@@ -325,7 +352,7 @@ function setupRoomEventListeners() {
         localVideo.value.srcObject = null;
       }
       
-      // 비디오 엘리먼트에 연결 (여러 번 시도)
+      // 비디오 엘리먼트에 연결
       const attachVideoTrack = () => {
         if (publication.track && localVideoElement.value) {
           try {
@@ -379,12 +406,22 @@ function setupRoomEventListeners() {
   // 재연결 이벤트
   livekitRoom.on(RoomEvent.Reconnecting, () => {
     connectionState.value = 'reconnecting';
-    connectionStatus.value = { type: 'warning', message: '연결이 끊어져 재연결 중입니다...' };
+    connectionStatus.value = { 
+      type: 'warning', 
+      message: '연결이 불안정합니다. 재연결을 시도하고 있습니다...' 
+    };
   });
 
   livekitRoom.on(RoomEvent.Reconnected, () => {
     connectionState.value = 'connected';
-    connectionStatus.value = null;
+    connectionStatus.value = { 
+      type: 'success', 
+      message: '연결이 복구되었습니다.' 
+    };
+    // 3초 후 메시지 자동 숨김
+    setTimeout(() => {
+      connectionStatus.value = null;
+    }, 3000);
   });
 }
 
@@ -392,14 +429,14 @@ async function publishLocalMedia() {
   if (!livekitRoom) return;
 
   try {
-    // 카메라 퍼블리시 - 이벤트로 트랙 연결 처리
+    // 카메라 퍼블리시
     if (isVideoEnabled.value) {
       await livekitRoom.localParticipant.enableCameraAndMicrophone();
     } else {
       await livekitRoom.localParticipant.enableMicrophone();
     }
 
-    console.log('로컬 미디어 퍼블리시 완료 - 트랙은 LocalTrackPublished 이벤트에서 처리됨');
+    console.log('로컬 미디어 퍼블리시 완료');
 
     // 대안: 직접 비디오 스트림 연결 시도
     if (localVideo.value?.srcObject && localVideoElement.value) {
@@ -532,7 +569,7 @@ async function toggleCamera() {
     await livekitRoom.localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
     
-    console.log('카메라 토글:', enabled ? '오톱' : '오프');
+    console.log('카메라 토글:', enabled ? '온' : '오프');
   } catch (error) {
     console.error('카메라 토글 실패:', error);
   }
@@ -547,7 +584,16 @@ async function toggleScreenShare() {
     isScreenSharing.value = enabled;
   } catch (error) {
     console.error('화면 공유 토글 실패:', error);
-    connectionStatus.value = { type: 'error', message: '화면 공유를 시작할 수 없습니다.' };
+    connectionStatus.value = { 
+      type: 'error', 
+      message: '화면 공유를 시작할 수 없습니다. 권한을 확인해주세요.' 
+    };
+    // 5초 후 오류 메시지 자동 숨김
+    setTimeout(() => {
+      if (connectionStatus.value?.type === 'error') {
+        connectionStatus.value = null;
+      }
+    }, 5000);
   }
 }
 
@@ -605,7 +651,10 @@ onMounted(async () => {
     };
     script.onerror = () => {
       console.error('LiveKit SDK 로드 실패');
-      connectionStatus.value = { type: 'error', message: 'LiveKit SDK를 로드할 수 없습니다.' };
+      connectionStatus.value = { 
+        type: 'error', 
+        message: 'LiveKit SDK를 로드할 수 없습니다. 페이지를 새로고침해주세요.' 
+      };
     };
     document.head.appendChild(script);
   } else {
@@ -638,7 +687,6 @@ onUnmounted(() => {
 
 :root {
   --font-main: 'Pretendard', sans-serif;
-  --font-title: 'Noto Serif KR', serif;
   --color-bg: #f8f9fa;
   --color-text: #212529;
   --color-primary: #343a40;
@@ -767,26 +815,88 @@ onUnmounted(() => {
   cursor: not-allowed;
 }
 
-/* 연결 상태 스타일 */
+/* 수정된 연결 상태 스타일 */
 .connection-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   text-align: center;
-  padding: 0.5rem;
-  border-radius: 6px;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  transition: all 0.3s ease;
 }
 
-.status-info { color: var(--color-info); }
-.status-success { color: var(--color-success); }
-.status-warning { color: var(--color-warning); }
-.status-error { color: var(--color-danger); }
+.connection-status__icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
 
+.connection-status__message {
+  line-height: 1.4;
+}
+
+/* 상태별 색상 적용 */
+.connection-status--info {
+  background-color: rgba(23, 162, 184, 0.1);
+  color: var(--color-info);
+  border-color: rgba(23, 162, 184, 0.2);
+}
+
+.connection-status--success {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: var(--color-success);
+  border-color: rgba(40, 167, 69, 0.2);
+}
+
+.connection-status--warning {
+  background-color: rgba(255, 193, 7, 0.1);
+  color: var(--color-warning);
+  border-color: rgba(255, 193, 7, 0.2);
+}
+
+.connection-status--error {
+  background-color: rgba(250, 82, 82, 0.1);
+  color: var(--color-danger);
+  border-color: rgba(250, 82, 82, 0.2);
+}
+
+/* 연결 상태 인디케이터 (비디오 통화 화면용) */
 .connection-indicator {
   font-size: 0.8rem;
-  float: right;
-  padding: 0.2rem 0.5rem;
-  border-radius: 10px;
+  padding: 0.3rem 0.6rem;
+  border-radius: 12px;
+  font-weight: 500;
   background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.connection-indicator--connected {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: var(--color-success);
+  border-color: rgba(40, 167, 69, 0.2);
+}
+
+.connection-indicator--connecting {
+  background-color: rgba(23, 162, 184, 0.1);
+  color: var(--color-info);
+  border-color: rgba(23, 162, 184, 0.2);
+}
+
+.connection-indicator--reconnecting {
+  background-color: rgba(255, 193, 7, 0.1);
+  color: var(--color-warning);
+  border-color: rgba(255, 193, 7, 0.2);
+}
+
+.connection-indicator--disconnected {
+  background-color: rgba(250, 82, 82, 0.1);
+  color: var(--color-danger);
+  border-color: rgba(250, 82, 82, 0.2);
 }
 
 .connection-quality {
@@ -987,7 +1097,7 @@ onUnmounted(() => {
   font-size: 1.25rem;
 }
 
-.btn-control:not(.is-muted):not(.btn-leave):not(.active) {
+.btn-control:not(.is-muted):not(.btn-leave):not(.active):not(.btn-book) {
   color: var(--color-text);
 }
 
@@ -1099,4 +1209,5 @@ onUnmounted(() => {
     grid-column: auto !important;
   }
 }
+
 </style>
