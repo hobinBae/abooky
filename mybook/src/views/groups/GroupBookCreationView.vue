@@ -32,87 +32,134 @@
 
     <!-- 비디오 통화 화면 -->
     <div v-else class="workspace-container">
-      <div class="video-section">
-        <div class="video-header">
-          <h3 class="video-title">
-            참여자 ({{ totalParticipants }}명)
-            <span class="connection-indicator" :class="`connection-indicator--${connectionState}`">
-              {{ getConnectionStatusText }}
-            </span>
-          </h3>
-        </div>
-        
-        <div class="video-grid-wrapper">
-          <div class="video-grid" :class="`participants-${totalParticipants}`">
-            <!-- 로컬 참여자 (나) -->
-            <div class="video-participant local-participant">
-              <video 
-                ref="localVideoElement"
-                autoplay 
-                muted 
-                playsinline 
-                class="participant-video">
-              </video>
-              <div class="participant-info">
-                <div class="participant-name">
-                  <i class="bi me-1" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                  나 (You)
+      <div class="main-content">
+        <div class="video-section">
+          <div class="video-header">
+            <h3 class="video-title">
+              참여자 ({{ totalParticipants }}명)
+              <span class="connection-indicator" :class="`connection-indicator--${connectionState}`">
+                {{ getConnectionStatusText }}
+              </span>
+            </h3>
+          </div>
+          
+          <div class="video-grid-wrapper">
+            <div class="video-grid" :class="`participants-${totalParticipants}`">
+              <!-- 로컬 참여자 (나) -->
+              <div class="video-participant local-participant">
+                <video 
+                  ref="localVideoElement"
+                  autoplay 
+                  muted 
+                  playsinline 
+                  class="participant-video">
+                </video>
+                <div class="participant-info">
+                  <div class="participant-name">
+                    <i class="bi me-1" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                    나 (You)
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <!-- 원격 참여자들 -->
-            <div 
-              v-for="participant in remoteParticipants" 
-              :key="participant.identity" 
-              class="video-participant remote-participant">
-              <video 
-                :ref="el => setParticipantVideoRef(el, participant.identity)"
-                autoplay 
-                playsinline 
-                class="participant-video">
-              </video>
-              <div v-if="!participant.videoTrack" class="participant-video-placeholder">
-                {{ participant.identity.charAt(0).toUpperCase() }}
-              </div>
-              <div class="participant-info">
-                <div class="participant-name">
-                  <i class="bi me-1" :class="participant.isMicrophoneEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                  {{ participant.identity }}
-                  <span v-if="participant.connectionQuality !== undefined" class="connection-quality">
-                    {{ getConnectionQualityText(participant.connectionQuality) }}
-                  </span>
+              
+              <!-- 원격 참여자들 -->
+              <div 
+                v-for="participant in remoteParticipants" 
+                :key="participant.identity" 
+                class="video-participant remote-participant">
+                <video 
+                  :ref="el => setParticipantVideoRef(el, participant.identity)"
+                  autoplay 
+                  playsinline 
+                  class="participant-video">
+                </video>
+                <div v-if="!participant.videoTrack" class="participant-video-placeholder">
+                  {{ participant.identity.charAt(0).toUpperCase() }}
+                </div>
+                <div class="participant-info">
+                  <div class="participant-name">
+                    <i class="bi me-1" :class="participant.isMicrophoneEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                    {{ participant.identity }}
+                    <span v-if="participant.connectionQuality !== undefined" class="connection-quality">
+                      {{ getConnectionQualityText(participant.connectionQuality) }}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+          
+          <div class="controls-section">
+            <div class="main-controls">
+              <button @click="toggleMicrophone" class="btn btn-control" :class="{ 'is-muted': !isAudioEnabled }">
+                <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                <span>{{ isAudioEnabled ? '음소거' : '음소거 해제' }}</span>
+              </button>
+              
+              <button @click="toggleCamera" class="btn btn-control" :class="{ 'is-muted': !isVideoEnabled }">
+                <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
+                <span>{{ isVideoEnabled ? '비디오 중지' : '비디오 시작' }}</span>
+              </button>
+              
+              <button @click="toggleScreenShare" class="btn btn-control" :class="{ 'active': isScreenSharing }">
+                <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-share-fill'"></i>
+                <span>{{ isScreenSharing ? '화면공유 중지' : '화면 공유' }}</span>
+              </button>
+              
+              <button @click="goToBookEditor" class="btn btn-control btn-book">
+                <i class="bi bi-book-fill"></i>
+                <span>책 만들기</span>
+              </button>
+              
+              <button @click="leaveRoom" class="btn btn-control btn-leave">
+                <i class="bi bi-box-arrow-right"></i>
+                <span>나가기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 채팅 섹션 (항상 표시) -->
+      <div class="chat-section">
+        <div class="chat-header">
+          <h4 class="chat-title">
+            <i class="bi bi-chat-dots-fill me-2"></i>
+            그룹 채팅
+          </h4>
         </div>
         
-        <div class="controls-section">
-          <div class="main-controls">
-            <button @click="toggleMicrophone" class="btn btn-control" :class="{ 'is-muted': !isAudioEnabled }">
-              <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-              <span>{{ isAudioEnabled ? '음소거' : '음소거 해제' }}</span>
-            </button>
-            
-            <button @click="toggleCamera" class="btn btn-control" :class="{ 'is-muted': !isVideoEnabled }">
-              <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
-              <span>{{ isVideoEnabled ? '비디오 중지' : '비디오 시작' }}</span>
-            </button>
-            
-            <button @click="toggleScreenShare" class="btn btn-control" :class="{ 'active': isScreenSharing }">
-              <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-share-fill'"></i>
-              <span>{{ isScreenSharing ? '화면공유 중지' : '화면 공유' }}</span>
-            </button>
-            
-            <button @click="goToBookEditor" class="btn btn-control btn-book">
-              <i class="bi bi-book-fill"></i>
-              <span>책 만들기</span>
-            </button>
-            
-            <button @click="leaveRoom" class="btn btn-control btn-leave">
-              <i class="bi bi-box-arrow-right"></i>
-              <span>나가기</span>
+        <div class="chat-messages" ref="chatMessagesContainer">
+          <div 
+            v-for="message in chatMessages" 
+            :key="message.id"
+            class="chat-message"
+            :class="{ 'chat-message--own': message.isOwn }">
+            <div class="message-header">
+              <span class="message-sender">{{ message.sender }}</span>
+              <span class="message-time">{{ formatTime(message.timestamp) }}</span>
+            </div>
+            <div class="message-content">{{ message.content }}</div>
+          </div>
+          <div v-if="chatMessages.length === 0" class="chat-empty">
+            아직 메시지가 없습니다. 첫 번째 메시지를 보내보세요!
+          </div>
+        </div>
+        
+        <div class="chat-input-section">
+          <div class="chat-input-wrapper">
+            <input
+              v-model="newMessage"
+              @keyup.enter="sendMessage"
+              type="text"
+              class="chat-input"
+              placeholder="메시지를 입력하세요..."
+              maxlength="500">
+            <button 
+              @click="sendMessage"
+              :disabled="!newMessage.trim()"
+              class="btn-send-message">
+              <i class="bi bi-send-fill"></i>
             </button>
           </div>
         </div>
@@ -148,6 +195,14 @@ interface ConnectionStatus {
   message: string;
 }
 
+interface ChatMessage {
+  id: string;
+  sender: string;
+  content: string;
+  timestamp: number;
+  isOwn: boolean;
+}
+
 // --- Router ---
 const route = useRoute();
 const router = useRouter();
@@ -176,6 +231,11 @@ let localMediaStream: MediaStream | null = null;
 // UI state only (reactive)
 const remoteParticipants = ref<RemoteParticipant[]>([]);
 const participantVideoRefs = ref<Map<string, HTMLVideoElement>>(new Map());
+
+// 채팅 상태
+const newMessage = ref('');
+const chatMessages = ref<ChatMessage[]>([]);
+const chatMessagesContainer = ref<HTMLElement | null>(null);
 
 // --- Computed Properties ---
 const totalParticipants = computed(() => {
@@ -401,6 +461,31 @@ function setupRoomEventListeners() {
   livekitRoom.on(RoomEvent.ConnectionStateChanged, (state: any) => {
     console.log('연결 상태 변경:', state);
     connectionState.value = state;
+  });
+
+  // 데이터 메시지 수신 이벤트 (채팅)
+  livekitRoom.on(RoomEvent.DataReceived, (payload: any, participant: any) => {
+    try {
+      const decoder = new TextDecoder();
+      const messageStr = decoder.decode(payload);
+      const messageData = JSON.parse(messageStr);
+
+      if (messageData.type === 'chat') {
+        // 채팅 메시지 수신
+        const chatMessage: ChatMessage = {
+          id: messageData.id,
+          sender: participant.identity,
+          content: messageData.content,
+          timestamp: messageData.timestamp,
+          isOwn: false
+        };
+
+        chatMessages.value.push(chatMessage);
+        scrollToBottom();
+      }
+    } catch (error) {
+      console.error('데이터 메시지 파싱 실패:', error);
+    }
   });
 
   // 재연결 이벤트
@@ -637,6 +722,77 @@ async function leaveRoom() {
   } catch (error) {
     console.error('퇴장 중 오류:', error);
   }
+}
+
+// --- Chat Functions ---
+
+async function sendMessage() {
+  const message = newMessage.value.trim();
+  if (!message || !livekitRoom) return;
+
+  try {
+    // 메시지 객체 생성
+    const chatMessage: ChatMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      sender: livekitRoom.localParticipant.identity,
+      content: message,
+      timestamp: Date.now(),
+      isOwn: true
+    };
+
+    // 로컬에 메시지 추가
+    chatMessages.value.push(chatMessage);
+
+    // DataChannel을 통해 다른 참여자들에게 전송
+    const encoder = new TextEncoder();
+    const data = encoder.encode(JSON.stringify({
+      type: 'chat',
+      ...chatMessage,
+      isOwn: false // 수신자에게는 isOwn을 false로 설정
+    }));
+
+    await livekitRoom.localParticipant.publishData(data, 'chat');
+
+    // 입력 필드 초기화
+    newMessage.value = '';
+
+    // 채팅 스크롤을 아래로 이동
+    scrollToBottom();
+
+  } catch (error) {
+    console.error('메시지 전송 실패:', error);
+  }
+}
+
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return '방금 전';
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes}분 전`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours}시간 전`;
+  } else {
+    return date.toLocaleDateString('ko-KR', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  }
+}
+
+function scrollToBottom() {
+  nextTick(() => {
+    if (chatMessagesContainer.value) {
+      chatMessagesContainer.value.scrollTop = chatMessagesContainer.value.scrollHeight;
+    }
+  });
 }
 
 // --- Lifecycle Hooks ---
