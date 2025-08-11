@@ -3,6 +3,7 @@ package com.c203.autobiography.domain.communityBook.controller;
 import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateRequest;
 import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateResponse;
 import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentDeleteResponse;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentListResponse;
 import com.c203.autobiography.domain.communityBook.service.CommunityBookService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
@@ -12,10 +13,15 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Optional;
 
 @Tag(name="커뮤니티 책 API", description = "커뮤니티 책 관련 API")
 @RestController
@@ -50,6 +56,20 @@ public class CommunityBookController {
         CommunityBookCommentCreateResponse response= communityBookService.createCommunityBookComment(memberId, request);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 댓글 생성 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "커뮤니티 책 댓글 목록 조회", description = "특정 커뮤니티 책의 댓글 목록을 조회합니다")
+    @GetMapping("/{communityBookId}/comments")
+    public ResponseEntity<ApiResponse<CommunityBookCommentListResponse>> getComments(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "커뮤니티 책 ID") @PathVariable Long communityBookId,
+            @PageableDefault(size = 5, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        CommunityBookCommentListResponse response = communityBookService.getCommunityCookComments(memberId, communityBookId, pageable);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 댓글 리스트 조회 성공", response, httpRequest.getRequestURI()));
     }
 
     @Operation(summary = "커뮤니티 책 댓글 삭제", description = "커뮤니티 책에 대한 댓글을 생성합니다")
