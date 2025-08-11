@@ -40,9 +40,9 @@ const rooms: Map<string, Room> = new Map();
 const users: Map<string, User> = new Map();
 
 // WebSocket 서버 설정
-const wss = new (WebSocket as any).Server({
+const wss = new WebSocket.Server({ 
   port: 3001,
-  clientTracking: true
+  clientTracking: true 
 });
 
 console.log('🚀 WebRTC 시그널링 서버가 포트 3001에서 실행 중입니다.');
@@ -74,22 +74,22 @@ function removeRoom(roomId: string): void {
 
 function addUserToRoom(user: User, roomId: string): boolean {
   let room = rooms.get(roomId);
-
+  
   if (!room) {
     room = createRoom(roomId);
   }
-
+  
   if (room.users.size >= room.maxUsers) {
     return false; // 방이 가득참
   }
-
+  
   // 첫 번째 사용자는 호스트로 설정
   user.isHost = room.users.size === 0;
-
+  
   room.users.set(user.id, user);
   users.set(user.id, user);
   user.roomId = roomId;
-
+  
   console.log(`👤 사용자 입장: ${user.name} -> ${roomId} (호스트: ${user.isHost})`);
   return true;
 }
@@ -97,15 +97,15 @@ function addUserToRoom(user: User, roomId: string): boolean {
 function removeUserFromRoom(userId: string): void {
   const user = users.get(userId);
   if (!user) return;
-
+  
   const room = rooms.get(user.roomId);
   if (!room) return;
-
+  
   room.users.delete(userId);
   users.delete(userId);
-
+  
   console.log(`👋 사용자 퇴장: ${user.name} <- ${user.roomId}`);
-
+  
   // 방이 비어있으면 삭제
   if (room.users.size === 0) {
     removeRoom(room.id);
@@ -132,12 +132,12 @@ function removeUserFromRoom(userId: string): void {
 function broadcastToRoom(roomId: string, message: MessageData, excludeUserId?: string): void {
   const room = rooms.get(roomId);
   if (!room) return;
-
+  
   const messageStr = JSON.stringify(message);
-
+  
   room.users.forEach((user, userId) => {
     if (excludeUserId && userId === excludeUserId) return;
-
+    
     if (user.ws.readyState === WebSocket.OPEN) {
       user.ws.send(messageStr);
     }
@@ -159,7 +159,7 @@ function getUsersInRoom(roomId: string): User[] {
 // WebSocket 연결 처리
 wss.on('connection', (ws: WebSocketWithUser, request: IncomingMessage) => {
   console.log('🔌 새로운 WebSocket 연결');
-
+  
   ws.on('message', (data: WebSocket.Data) => {
     try {
       const message: MessageData = JSON.parse(data.toString());
@@ -172,7 +172,7 @@ wss.on('connection', (ws: WebSocketWithUser, request: IncomingMessage) => {
       }));
     }
   });
-
+  
   ws.on('close', () => {
     console.log('🔌 WebSocket 연결 종료');
     if (ws.userId) {
@@ -182,7 +182,7 @@ wss.on('connection', (ws: WebSocketWithUser, request: IncomingMessage) => {
         broadcastToRoom(user.roomId, {
           type: 'leave',
           userId: user.id,
-          payload: {
+          payload: { 
             userName: user.name,
             users: getUsersInRoom(user.roomId).filter(u => u.id !== user.id).map(u => ({
               id: u.id,
@@ -191,12 +191,12 @@ wss.on('connection', (ws: WebSocketWithUser, request: IncomingMessage) => {
             }))
           }
         }, user.id);
-
+        
         removeUserFromRoom(ws.userId);
       }
     }
   });
-
+  
   ws.on('error', (error: Error) => {
     console.error('❌ WebSocket 오류:', error);
   });
@@ -205,22 +205,22 @@ wss.on('connection', (ws: WebSocketWithUser, request: IncomingMessage) => {
 // 메시지 처리 함수
 function handleMessage(ws: WebSocketWithUser, message: MessageData): void {
   const { type, roomId, userId, userName, payload, targetUserId } = message;
-
+  
   switch (type) {
     case 'join':
       handleJoinRoom(ws, roomId!, userName || '익명');
       break;
-
+      
     case 'leave':
       handleLeaveRoom(ws);
       break;
-
+      
     case 'offer':
     case 'answer':
     case 'ice-candidate':
       handleWebRTCMessage(ws, message);
       break;
-
+      
     default:
       console.warn('⚠️ 알 수 없는 메시지 타입:', type);
       ws.send(JSON.stringify({
@@ -239,7 +239,7 @@ function handleJoinRoom(ws: WebSocketWithUser, roomId: string, userName: string)
     }));
     return;
   }
-
+  
   const userId = uuidv4();
   const user: User = {
     id: userId,
@@ -248,7 +248,7 @@ function handleJoinRoom(ws: WebSocketWithUser, roomId: string, userName: string)
     name: userName,
     isHost: false
   };
-
+  
   // 방에 사용자 추가
   if (!addUserToRoom(user, roomId)) {
     ws.send(JSON.stringify({
@@ -257,12 +257,12 @@ function handleJoinRoom(ws: WebSocketWithUser, roomId: string, userName: string)
     }));
     return;
   }
-
+  
   // WebSocket에 사용자 정보 저장
   ws.userId = userId;
   ws.roomId = roomId;
   ws.userName = userName;
-
+  
   // 입장 성공 응답
   ws.send(JSON.stringify({
     type: 'join',
@@ -278,7 +278,7 @@ function handleJoinRoom(ws: WebSocketWithUser, roomId: string, userName: string)
       }))
     }
   }));
-
+  
   // 다른 사용자들에게 입장 알림
   broadcastToRoom(roomId, {
     type: 'user-list',
@@ -302,7 +302,7 @@ function handleLeaveRoom(ws: WebSocketWithUser): void {
   if (!ws.userId) {
     return;
   }
-
+  
   const user = users.get(ws.userId);
   if (user) {
     // 다른 사용자들에게 퇴장 알림
@@ -318,10 +318,10 @@ function handleLeaveRoom(ws: WebSocketWithUser): void {
         }))
       }
     }, user.id);
-
+    
     removeUserFromRoom(ws.userId);
   }
-
+  
   ws.userId = undefined;
   ws.roomId = undefined;
   ws.userName = undefined;
@@ -329,7 +329,7 @@ function handleLeaveRoom(ws: WebSocketWithUser): void {
 
 function handleWebRTCMessage(ws: WebSocketWithUser, message: MessageData): void {
   const { targetUserId, payload } = message;
-
+  
   if (!targetUserId) {
     // 타겟이 없으면 같은 방의 모든 사용자에게 브로드캐스트
     if (ws.roomId) {
@@ -351,10 +351,10 @@ function handleWebRTCMessage(ws: WebSocketWithUser, message: MessageData): void 
 setInterval(() => {
   const roomCount = rooms.size;
   const userCount = users.size;
-
+  
   if (roomCount > 0 || userCount > 0) {
     console.log(`📊 서버 상태 - 방: ${roomCount}개, 사용자: ${userCount}명`);
-
+    
     // 상세 정보
     rooms.forEach((room, roomId) => {
       console.log(`  📋 ${roomId}: ${room.users.size}명 (최대: ${room.maxUsers}명)`);
@@ -365,14 +365,14 @@ setInterval(() => {
 // 연결 끊어진 WebSocket 정리
 setInterval(() => {
   let cleanedCount = 0;
-
+  
   users.forEach((user, userId) => {
     if (user.ws.readyState === WebSocket.CLOSED) {
       removeUserFromRoom(userId);
       cleanedCount++;
     }
   });
-
+  
   if (cleanedCount > 0) {
     console.log(`🧹 정리된 연결: ${cleanedCount}개`);
   }
@@ -381,11 +381,11 @@ setInterval(() => {
 // 프로세스 종료 처리
 process.on('SIGINT', () => {
   console.log('\n🛑 서버를 종료합니다...');
-
-  wss.clients.forEach((ws: WebSocket) => {
+  
+  wss.clients.forEach((ws) => {
     ws.close();
   });
-
+  
   wss.close(() => {
     console.log('✅ 서버가 안전하게 종료되었습니다.');
     process.exit(0);
