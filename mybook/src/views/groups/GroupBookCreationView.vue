@@ -662,8 +662,21 @@ async function toggleScreenShare() {
 
   try {
     const enabled = !isScreenSharing.value;
-    await livekitRoom.localParticipant.setScreenShareEnabled(enabled);
+    
+    if (enabled) {
+      // 화면 공유 시작 시 카메라 끄기
+      await livekitRoom.localParticipant.setScreenShareEnabled(true);
+      await livekitRoom.localParticipant.setCameraEnabled(false);
+    } else {
+      // 화면 공유 종료 시 카메라 다시 켜기
+      await livekitRoom.localParticipant.setScreenShareEnabled(false);
+      if (isVideoEnabled.value) {
+        await livekitRoom.localParticipant.setCameraEnabled(true);
+      }
+    }
+    
     isScreenSharing.value = enabled;
+    console.log('화면 공유:', enabled ? '시작' : '종료');
   } catch (error) {
     console.error('화면 공유 토글 실패:', error);
     connectionStatus.value = { 
