@@ -1,11 +1,13 @@
 package com.c203.autobiography.domain.communityBook.controller;
 
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentRequest;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentResponse;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateRequest;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateResponse;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentDeleteResponse;
 import com.c203.autobiography.domain.communityBook.service.CommunityBookService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -39,15 +41,28 @@ public class CommunityBookController {
 
     @Operation(summary = "커뮤니티 책 댓글 생성", description = "커뮤니티 책에 대한 댓글을 생성합니다")
     @PostMapping("/{communityBookId}/comments")
-    public ResponseEntity<ApiResponse<CommunityBookCommentResponse>> createCommunityBookComment(
+    public ResponseEntity<ApiResponse<CommunityBookCommentCreateResponse>> createCommunityBookComment(
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody CommunityBookCommentRequest request,
+            @Valid @RequestBody CommunityBookCommentCreateRequest request,
             HttpServletRequest httpRequest
     ) {
         Long memberId = userDetails.getMemberId();
-        CommunityBookCommentResponse response= communityBookService.createCommunityBookComment(memberId, request);
+        CommunityBookCommentCreateResponse response= communityBookService.createCommunityBookComment(memberId, request);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 댓글 생성 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "커뮤니티 책 댓글 삭제", description = "커뮤니티 책에 대한 댓글을 생성합니다")
+    @DeleteMapping("/{communityBookId}/comments/{communityBookCommentId}")
+    public ResponseEntity<ApiResponse<CommunityBookCommentDeleteResponse>> deleteCommunityBookComment(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "커뮤니티 책 ID") @PathVariable Long communityBookId,
+            @Parameter(description = "커뮤니티 책 댓글 ID") @PathVariable Long communityBookCommentId,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        CommunityBookCommentDeleteResponse response= communityBookService.deleteCommunityBookComment(communityBookId, communityBookCommentId, memberId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 댓글 삭제 성공", response, httpRequest.getRequestURI()));
+    }
 }

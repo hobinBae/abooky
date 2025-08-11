@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 @Schema(description = "커뮤니티 책 댓글 생성 요청 DTO")
-public class CommunityBookCommentRequest {
+public class CommunityBookCommentCreateRequest {
     @NotNull(message = "커뮤니티 책 ID는 필수입니다")
     @Schema(description = "커뮤니티 책 ID", example = "1001", required = true)
     private Long communityBookId;

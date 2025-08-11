@@ -1,7 +1,8 @@
 package com.c203.autobiography.domain.communityBook.service;
 
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentRequest;
-import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentResponse;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateRequest;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentCreateResponse;
+import com.c203.autobiography.domain.communityBook.dto.CommunityBookCommentDeleteResponse;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookComment;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookCommentRepository;
@@ -52,7 +53,7 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
     @Transactional
     @Override
-    public CommunityBookCommentResponse createCommunityBookComment(Long memberId, CommunityBookCommentRequest request) {
+    public CommunityBookCommentCreateResponse createCommunityBookComment(Long memberId, CommunityBookCommentCreateRequest request) {
         // 1. 탈퇴한 회원인 경우
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
@@ -75,7 +76,39 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
         // 댓글 저장
         CommunityBookComment savedComment = communityBookCommentRepository.save(comment);
-        return CommunityBookCommentResponse.of(savedComment);
+        return CommunityBookCommentCreateResponse.of(savedComment);
+    }
+
+    @Transactional
+    @Override
+    public CommunityBookCommentDeleteResponse deleteCommunityBookComment(Long communityBookId, Long communityBookCommentId, Long memberId) {
+        // 1. 탈퇴한 회원인 경우
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 아예 존재하지 않는 책인 경우 (테이블 자체에 데이터가 없는 경우)
+        if (communityBookRepository.findByIdIgnoreDeleted(communityBookId).isEmpty()) {
+            throw new ApiException(ErrorCode.COMMUNITY_BOOK_NOT_FOUND);
+        }
+
+        // 3. 커뮤니티 책이 존재하지 않는 경우
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMUNITY_BOOK_ALREADY_DELETED));
+
+        //  댓글 조회하기
+        CommunityBookComment comment = communityBookCommentRepository
+                .findByCommunityBookCommentIdAndCommunityBookCommunityBookId(communityBookCommentId, communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.COMMENT_NOT_FOUND));
+
+        // 4. 댓글 작성자가 아닌 경우
+        if (!comment.getMember().getMemberId().equals(member.getMemberId())) {
+            throw new ApiException(ErrorCode.COMMENT_ACCESS_DENIED);
+        }
+
+        // 댓글 삭제하기 (소프트 삭제)
+        comment.softDelete();
+
+        return CommunityBookCommentDeleteResponse.of(communityBookCommentId);
     }
 
 }
