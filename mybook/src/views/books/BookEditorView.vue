@@ -299,7 +299,7 @@ async function moveToEditingStep() {
     currentBook.value.stories = newBook.episodes || [];
 
     creationStep.value = 'editing';
-    if (currentBook.value.stories.length === 0) {
+    if (currentBook.value.stories?.length === 0) {
       addStory();
     }
   } catch (error) {
