@@ -13,10 +13,10 @@
 
       <aside class="left-panel">
         <div class="flipper-container">
-          <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" />
           <div class="flipper" :class="{ 'is-flipped': isCoverFlipped }">
             <div class="flipper-front" @click="flipCover">
               <div class="book-cover-design" :style="{ backgroundImage: `url(${coverImageUrl})` }">
+                <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" />
                 <div class="title-box">
                   <h1>{{ book.title }}</h1>
                   <p class="author-in-box">{{ book.authorName }}</p>
@@ -83,7 +83,17 @@
               <h2>{{ currentEpisode.title }}</h2>
               <p>{{ book.title }}</p>
             </header>
-            <div class="content-body" v-html="formattedContent(currentEpisode.content)"></div>
+            <div class="content-body" v-html="formattedContent(truncatedContent)"></div>
+            
+            <div class="episode-navigation">
+              <button v-if="hasPreviousEpisode" @click="goToPreviousEpisode" class="btn-nav prev">
+                <i class="bi bi-arrow-left-circle"></i> 이전 이야기
+              </button>
+              <div v-else></div>
+              <button v-if="hasNextEpisode" @click="goToNextEpisode" class="btn-nav next">
+                다음 이야기 <i class="bi bi-arrow-right-circle"></i>
+              </button>
+            </div>
           </article>
 
           <section v-else class="other-episodes-section">
@@ -213,9 +223,37 @@ const formattedPublicationDate = computed(() => {
 });
 const currentEpisode = computed(() => { if (book.value && currentEpisodeIndex.value !== null) { return book.value.episodes[currentEpisodeIndex.value]; } return null; });
 const isAuthor = computed(() => book.value && book.value.authorId === currentUserId.value);
+
+const truncatedContent = computed(() => {
+  if (currentEpisode.value) {
+    return currentEpisode.value.content.substring(0, 1000);
+  }
+  return '';
+});
+
+const hasNextEpisode = computed(() => {
+  return book.value && currentEpisodeIndex.value !== null && currentEpisodeIndex.value < book.value.episodes.length - 1;
+});
+
+const hasPreviousEpisode = computed(() => {
+  return currentEpisodeIndex.value !== null && currentEpisodeIndex.value > 0;
+});
+
 const formattedContent = (content: string) => content.replace(/\n/g, '<br />');
 function openBook() { initialCoverMode.value = false; setTimeout(() => { bookIsOpened.value = true; }, 10); }
 function goBackToList() { currentEpisodeIndex.value = null; }
+
+function goToNextEpisode() {
+  if (hasNextEpisode.value) {
+    selectEpisode(currentEpisodeIndex.value! + 1);
+  }
+}
+
+function goToPreviousEpisode() {
+  if (hasPreviousEpisode.value) {
+    selectEpisode(currentEpisodeIndex.value! - 1);
+  }
+}
 function fetchBookData() {
   const publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
   const foundPublishedBook = publishedBooks.find((b: Book) => b.id === bookId.value);
@@ -323,7 +361,7 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .left-panel, .right-panel { height: 85vh; max-height: 750px; background-color: #fff; transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); }
 .left-panel { position: relative; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; transform: translateX(-150%); opacity: 0; }
 .book-wrapper.is-open .left-panel { transform: translateX(0); opacity: 1; }
-.right-panel { transform: translateX(150%); opacity: 0; }
+.right-panel { transform: translateX(150%); opacity: 0; overflow-y: auto; }
 .book-wrapper.is-open .right-panel { transform: translateX(0); opacity: 1; transition-delay: 0.1s; }
 
 /* --- 책 뒤집기(Flip) 스타일 --- */
@@ -357,30 +395,20 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 8px; }
 
-.btn-publish {
-  background-color: #28a745;
-  color: white;
-  border-color: #28a745;
-}
-.btn-publish:hover {
-  background-color: #218838;
-  border-color: #1e7e34;
-}
-
 .btn-unpublish {
-  background-color: #dc3545;
+  background-color: #6c757d;
   color: white;
-  border-color: #dc3545;
+  border-color: #6c757d;
 }
 .btn-unpublish:hover {
-  background-color: #c82333;
-  border-color: #bd2130;
+  background-color: #5a6268;
+  border-color: #545b62;
 }
 
 .published-sticker {
   position: absolute;
-  bottom: 20px;
-  right: -10px;
+  bottom: 8px;
+  right: 8px;
   width: 100px;
   height: 100px;
   z-index: 15;
@@ -417,7 +445,7 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 }
 
 /* --- 오른쪽 패널 내부 스타일 --- */
-.right-panel-scroller { height: 100%; overflow-y: auto; padding: 40px 8%; }
+.right-panel-scroller { padding: 40px 8%; }
 .btn-back { background: none; border: 1px solid #ddd; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 32px; transition: all 0.2s ease; }
 .btn-back:hover { background-color: #f8f8f8; border-color: #ccc; transform: scale(1.03); }
 hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
@@ -425,6 +453,35 @@ hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
 .episode-header h2 { font-family: 'Noto Serif KR', serif; font-size: 32px; font-weight: 700; margin-bottom: 4px; }
 .episode-header p { font-size: 15px; color: #999; }
 .content-body { font-family: 'Noto Serif KR', serif; font-size: 16px; line-height: 2.0; color: #333; padding-bottom: 60px; text-align: justify; }
+
+.episode-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.btn-nav {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-nav:hover {
+  background-color: #f8f8f8;
+  border-color: #ccc;
+  transform: scale(1.03);
+}
+
 .other-episodes-section { padding-top: 40px; }
 .other-episodes-section:first-child { padding-top: 0; border-top: none; }
 .other-episodes-section h3 { font-size: 18px; font-weight: 700; margin-bottom: 24px; }
