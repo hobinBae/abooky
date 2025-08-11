@@ -5,6 +5,7 @@ import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.entity.BookCategory;
 import com.c203.autobiography.domain.group.entity.Group;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
+import com.c203.autobiography.domain.groupbook.entity.GroupType;
 import com.c203.autobiography.domain.member.entity.Member;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
@@ -31,6 +32,8 @@ public class GroupBookCreateRequest {
     @NotNull(message = "bookType은 필수입니다.")
     private BookType bookType;
 
+    private GroupType groupType;
+
     private String coverImageUrl;
 
     /** null 허용: 카테고리를 지정하지 않을 수도 있습니다. */
@@ -38,7 +41,10 @@ public class GroupBookCreateRequest {
 
 
     // 필요 시 서비스 계층에서 사용
-    public GroupBook toEntity(Member member, Group group, BookCategory category, String coverImageUrl) {
+    public GroupBook toEntity(Member member, Group group, BookCategory category) {
+
+        GroupType resolvedType = (groupType != null) ? groupType : GroupType.OTHER;
+
         return GroupBook.builder()
             .member(member)
             .group(group)
@@ -46,6 +52,7 @@ public class GroupBookCreateRequest {
             .coverImageUrl(coverImageUrl)
             .summary(summary)
             .bookType(bookType)
+            .groupType(resolvedType)
             .category(category)
             .build();
     }

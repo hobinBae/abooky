@@ -69,6 +69,10 @@ public class GroupBook {
     @Column(name = "book_type", nullable = false, length = 20)
     private BookType bookType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "group_type", nullable = false, length = 20)
+    private GroupType groupType;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "category_id",
