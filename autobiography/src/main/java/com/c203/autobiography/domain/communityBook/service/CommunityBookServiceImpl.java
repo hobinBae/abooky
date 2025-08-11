@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.communityBook.service;
 
+import com.c203.autobiography.domain.book.dto.BookType;
 import com.c203.autobiography.domain.communityBook.dto.*;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookComment;
@@ -14,7 +15,9 @@ import com.c203.autobiography.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,6 +75,64 @@ public class CommunityBookServiceImpl implements CommunityBookService {
                     communityBook.getCommunityBookId(), e);
             // 조회수 증가 실패는 전체 조회를 실패시키지 않음
         }
+    }
+
+    @Transactional
+    @Override
+    public CommunityBookListResponse getCommunityBookList(Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy) {
+        // 1. 정렬 기준 적용
+        Pageable sortedPageable = applySorting(pageable, sortBy);
+
+        // 2. 필터링 조건에 따른 조회
+        Page<CommunityBook> communityBooks = getCommunityBooksWithFilters(sortedPageable, categoryId, bookType);
+
+        // 3. DTO 변환
+        Page<CommunityBookSummaryResponse> responsePage = communityBooks.map(CommunityBookSummaryResponse::of);
+
+        return CommunityBookListResponse.of(responsePage);
+    }
+
+    /**
+     * 필터링 조건에 따른 커뮤니티 책 조회
+     */
+    private Page<CommunityBook> getCommunityBooksWithFilters(Pageable pageable, Long categoryId, String bookType) {
+        // BookType enum 변환
+        BookType bookTypeEnum = null;
+        if (bookType != null && !bookType.trim().isEmpty()) {
+            try {
+                bookTypeEnum = BookType.valueOf(bookType.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND);
+            }
+        }
+
+        // 필터링 조건에 따른 조회
+        if (categoryId != null && bookTypeEnum != null) {
+            return communityBookRepository.findByCategoryIdAndBookTypeAndDeletedAtIsNull(
+                    categoryId, bookTypeEnum, pageable);
+        } else if (categoryId != null) {
+            return communityBookRepository.findByCategoryIdAndDeletedAtIsNull(categoryId, pageable);
+        } else if (bookTypeEnum != null) {
+            return communityBookRepository.findByBookTypeAndDeletedAtIsNull(bookTypeEnum, pageable);
+        } else {
+            return communityBookRepository.findByDeletedAtIsNull(pageable);
+        }
+    }
+
+    /**
+     * 정렬 기준 적용
+     */
+    private Pageable applySorting(Pageable pageable, String sortBy) {
+        Sort sort = switch (sortBy.toLowerCase()) {
+            case "recent" -> Sort.by(Sort.Direction.DESC, "createdAt");
+            case "popular" -> Sort.by(Sort.Direction.DESC, "viewCount");
+            case "liked" -> Sort.by(Sort.Direction.DESC, "likeCount");
+            case "rating" -> Sort.by(Sort.Direction.DESC, "averageRating");
+            case "title" -> Sort.by(Sort.Direction.ASC, "title");
+            default -> Sort.by(Sort.Direction.DESC, "createdAt");
+        };
+
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
     }
 
     @Transactional
