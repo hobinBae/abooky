@@ -205,8 +205,8 @@ function getConnectionQualityText(quality: number): string {
   }
 }
 
-function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
-  if (el) {
+function setParticipantVideoRef(el: any, identity: string) {
+  if (el && el instanceof HTMLVideoElement) {
     participantVideoRefs.value.set(identity, el);
   }
 }
@@ -288,9 +288,9 @@ async function joinRoom() {
     connectionState.value = 'connected';
     connectionStatus.value = null;
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('룸 입장 실패:', error);
-    connectionStatus.value = { type: 'error', message: `입장 실패: ${error.message || '알 수 없는 오류'}` };
+    connectionStatus.value = { type: 'error', message: `입장 실패: ${error?.message || '알 수 없는 오류'}` };
     connectionState.value = 'disconnected';
   } finally {
     isConnecting.value = false;
