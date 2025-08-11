@@ -42,7 +42,10 @@ public enum ErrorCode {
     COMMUNITY_BOOK_ALREADY_DELETED("COMMUNITY_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 커뮤니티 책입니다."),
 
     COMMENT_NOT_FOUND("COMMENT_NOT_FOUND", HttpStatus.NOT_FOUND, "댓글을 찾을 수 없습니다."),
-    COMMENT_ACCESS_DENIED("COMMENT_ACCESS_DENIED", HttpStatus.FORBIDDEN,"댓글에 대한 권한이 없습니다");
+    COMMENT_ACCESS_DENIED("COMMENT_ACCESS_DENIED", HttpStatus.FORBIDDEN,"댓글에 대한 권한이 없습니다"),
+
+    BOOK_HAS_NO_EPISODES("BOOK_HAS_NO_EPISODES", HttpStatus.BAD_REQUEST, "에피소드가 없는 책은 커뮤니티로 보낼 수 없습니다."),
+    BOOK_NOT_COMPLETED("BOOK_NOT_COMPLETED", HttpStatus.BAD_REQUEST, "완료되지 않은 책은 커뮤니티로 내보낼 수 없습니다");
 
     //
     // 필요한 에러 코드 계속 추가
