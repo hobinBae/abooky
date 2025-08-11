@@ -123,6 +123,7 @@
 import { ref, onMounted, onUnmounted, computed, nextTick, toRaw } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
+import { useAuthStore } from '@/stores/auth';
 
 // LiveKit 타입 정의 (실제 환경에서는 npm install livekit-client 후 import 사용)
 declare global {
@@ -215,6 +216,12 @@ function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
 // --- LiveKit Functions ---
 async function getAccessToken(): Promise<{ url: string, token: string}> {
   try {
+    const authStore = useAuthStore();
+    
+    if (!authStore.isLoggedIn) {
+      throw new Error('로그인이 필요합니다');
+    }
+
     const userName = `User_${Date.now()}`;
     const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
       userName
