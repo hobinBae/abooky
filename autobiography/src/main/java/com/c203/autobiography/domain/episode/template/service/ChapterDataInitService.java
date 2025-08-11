@@ -38,7 +38,6 @@ public class ChapterDataInitService {
         lv = createChapter4(lv); // 개인 생활
         lv = createChapter5(lv); // 성찰 및 유산
         lv = createChapter6(lv);
-        lv = createChapter7(lv);
 
         log.info("고품질 챕터 기반 질문 데이터 초기화 완료");
     }
@@ -52,55 +51,87 @@ public class ChapterDataInitService {
                 .build();
         chapterRepo.save(chapter);
 
-        ChapterTemplate intro = ChapterTemplate.builder()
-                .templateId("intro_profile")
-                .stageName("나는 누구인가")
-                .mainQuestion("처음 뵙겠습니다. 호칭은 어떻게 불러드리면 좋을까요? " +
-                        "이름(또는 별명), 태어난 해와 계절·출생지, 지금 하고 계신 일이나 역할, " +
-                        "그리고 이번 기록을 남기려는 이유까지 간단히 소개해 주시겠어요?")
+        // 딱딱한 정보 질문 전에, 부드러운 감정 질문으로 대화의 문을 엽니다.
+        ChapterTemplate currentFeeling = ChapterTemplate.builder()
+                .templateId("prologue_current_feeling") // 신규
+                .stageName("오늘의 나를 비추는 창")
+                .mainQuestion("당신의 자서전, 그 첫 페이지를 함께 열게 되어 기쁩니다. 본격적인 이야기에 앞서, 요즘 당신의 하루를 채우고 있는 가장 익숙한 감정이나 생각은 무엇인가요?")
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
                 .dynamicPromptTemplate("INTRO")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(intro);
+        templateRepo.save(currentFeeling);
 
-        //여기 좀 수정해야할듯
-        ChapterTemplate introScene = ChapterTemplate.builder()
-                .templateId("intro_identity_scene")
-                .stageName("나를 보여주는 장면")
-                .mainQuestion(
-                        "지금의 당신을 가장 잘 보여주는 ‘하루의 한 장면’을 떠올려 묘사해 주세요. " +
-                                "언제·어디서·누구와·무엇을 하고 있었나요? " +
-                                "그 순간의 감정과 몸의 감각(소리/냄새/빛/온도)까지 가능하면 구체적으로 들려주세요."
-                )
+        // 기존의 길었던 자기소개 질문을 '역할'과 '출생'으로 명확히 나눕니다.
+        ChapterTemplate nameAndRole = ChapterTemplate.builder()
+                .templateId("prologue_name_and_role") // 신규 (intro_profile 분리)
+                .stageName("나의 이름과 역할")
+                .mainQuestion("이야기 속에서 당신을 어떻게 부르면 좋을까요? 그리고 현재 당신의 삶에서 스스로 가장 중요하다고 생각하는 역할이 있다면 무엇인지 들려주세요.")
                 .templateOrder(2)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                // 장면의 시간/장소/인물/행동 중 실제 언급 요소를 깊게 파는 후속 질문
-                .dynamicPromptTemplate("INTRO_SCENE")
+                .dynamicPromptTemplate("INTRO")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(introScene);
+        templateRepo.save(nameAndRole);
 
-        ChapterTemplate introStatic = ChapterTemplate.builder()
-                .templateId("intro_static")
-                .stageName("기록의 방향")
-                .mainQuestion("  \"이 책을 다 읽고 난 뒤, 독자가 한 줄로 당신을 어떻게 기억하길 바라시나요?\"")
+        ChapterTemplate birthInfo = ChapterTemplate.builder()
+                .templateId("prologue_birth_info") // 신규 (intro_profile 분리)
+                .stageName("나의 시작점")
+                .mainQuestion("당신은 어떤 계절에, 어디에서 태어나셨나요? 태어난 곳에 대한 어렴풋한 기억이나, 부모님께 전해 들은 이야기가 있다면 궁금합니다.")
                 .templateOrder(3)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("INTRO")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(birthInfo);
+
+        // 기록의 동기를 묻는 질문을 구체화하고 Static 후속 질문으로 방향을 명확히 합니다.
+        ChapterTemplate motivation = ChapterTemplate.builder()
+                .templateId("prologue_motivation_static") // 기존 intro_static 대체
+                .stageName("기록의 이유")
+                .mainQuestion("이번 자서전을 기록하기로 마음먹은 특별한 계기가 있으신가요?")
+                .templateOrder(4)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
                 .build();
-        templateRepo.save(introStatic);
+        templateRepo.save(motivation);
 
-        saveStaticFollowUps(introStatic, Arrays.asList(
-                "이번 기록에서 반드시 남기고 싶은 사건(사람/장소/전환점)이 있다면 무엇인가요?",
-                "반대로 지금은 다루고 싶지 않거나 조심하고 싶은 주제가 있을까요? 있다면 이유도 알려주세요.",
-                "현재 거주지는 어디이며, 그곳을 선택한 이유가 있나요?",
-                "하루 일과에서 ‘나’를 가장 잘 드러내는 순간(또는 전환점)은 언제인가요?"
+        saveStaticFollowUps(motivation, Arrays.asList(
+                "이 기록을 통해 가장 보여주고 싶은 자신의 모습은 무엇인가요?",
+                "이 기록을 가장 읽어주었으면 하는 사람이 있나요? (가족, 친구, 혹은 미래의 나 자신 등)",
+                "반대로, 이번 이야기에서는 잠시 덮어두고 싶은 주제가 있으신가요?"
         ));
+
+        ChapterTemplate expectation = ChapterTemplate.builder()
+                .templateId("prologue_expectation") // 신규
+                .stageName("기록의 여정")
+                .mainQuestion("이 자서전을 써 내려가는 과정 자체에 기대하는 것이 있으신가요? 예를 들어, 잊었던 나를 발견하는 즐거움이나, 누군가에게 나의 이야기를 들려주는 보람 같은 것들이요.")
+                .templateOrder(5) // 순서 조정
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("INTRO") // 기존 프롬프트 활용 가능
+                .chapter(chapter)
+                .build();
+        templateRepo.save(expectation);
+
+        // 프롤로그의 마지막을 장식하는 강력한 '첫 장면'으로, 이야기의 시작을 알립니다.
+        ChapterTemplate openingScene = ChapterTemplate.builder()
+                .templateId("prologue_opening_scene") // 기존 intro_identity_scene 대체
+                .stageName("이야기의 첫 장면")
+                .mainQuestion("자, 이제 당신의 이야기를 시작해볼까요? 지금의 당신을 가장 잘 보여주는 '하루의 한 장면'을 생생하게 묘사해주시면서, 이야기의 문을 열어주세요.")
+                .templateOrder(6)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("INTRO_SCENE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(openingScene);
+
 
         return lv;
     }
@@ -117,10 +148,10 @@ public class ChapterDataInitService {
         // 집/동네/일상 환경 — 공간/리듬/규칙을 파악
         ChapterTemplate homeEnv = ChapterTemplate.builder()
                 .templateId("childhood_home_env")
-                .stageName("집과 동네의 공기")
+                .stageName("기억의 풍경: 집과 동네")
                 .mainQuestion(
-                        "어린 시절 살던 집과 동네는 어떤 분위기였나요? 집 안의 소리·빛·냄새, " +
-                                "하루의 리듬(식사/잠/놀이/학원)과 지켜야 했던 규칙이 기억난다면 들려주세요."
+                        "가장 먼저, 어린 시절 당신이 살던 집과 동네의 모습을 떠올려볼까요? " +
+                                "집 안에서 들리던 소리, 창문으로 들어오던 빛, 특별한 냄새 같은 기억이 있다면 들려주세요."
                 )
                 .templateOrder(1)
                 .stageLevel(lv++)
@@ -130,13 +161,11 @@ public class ChapterDataInitService {
                 .build();
         templateRepo.save(homeEnv);
 
-        // 돌봄자/가족 역할 — 말투·관계·가치의 씨앗
         ChapterTemplate caregivers = ChapterTemplate.builder()
                 .templateId("childhood_caregivers")
-                .stageName("나를 키운 말과 손길")
+                .stageName("풍경 속 사람들")
                 .mainQuestion(
-                        "당시 당신을 주로 돌봐주던 사람은 누구였나요? 그들의 말투, 자주 하던 말, " +
-                                "기억나는 몸짓이나 습관, 그리고 가족 내에서의 각자 역할을 이야기해 주세요."
+                        "그 풍경 속에는 주로 누가 함께 있었나요? 당시 당신을 돌봐주셨던 분들의 말투, 자주 하던 말, 기억나는 손길이나 습관이 있다면 이야기해주세요."
                 )
                 .templateOrder(2)
                 .stageLevel(lv++)
@@ -146,15 +175,54 @@ public class ChapterDataInitService {
                 .build();
         templateRepo.save(caregivers);
 
+        ChapterTemplate personality = ChapterTemplate.builder()
+                .templateId("childhood_personality") // 신규
+                .stageName("어른들 눈에 비친 아이")
+                .mainQuestion("그 시절, 주변 어른들은 당신을 보통 어떤 아이라고 이야기하셨나요? 혹시 스스로 생각하는 '어린 시절의 나'는 다른 모습이었는지도 궁금합니다. (예: 겉으로는 조용했지만 속으로는 호기심이 많았다 등)")
+                .templateOrder(3)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("CHILDHOOD_PERSONALITY") // 프롬프트 키 신규
+                .chapter(chapter)
+                .build();
+        templateRepo.save(personality);
+
+
+        // '구체적인 놀이와 일상'을 물어 기억을 쉽게 이끌어냅니다.
+        ChapterTemplate playtime = ChapterTemplate.builder()
+                .templateId("childhood_playtime") // dailyLife를 세분화
+                .stageName("하루의 조각: 놀이와 장난감")
+                .mainQuestion("혼자 있거나, 혹은 형제나 친구와 함께일 때, 주로 무엇을 하고 놀았나요? 가장 아끼던 장난감이나, 닳도록 읽었던 동화책이 있었나요?")
+                .templateOrder(4)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("CHILDHOOD_PLAY")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(playtime);
+
+        ChapterTemplate favorites = ChapterTemplate.builder()
+                .templateId("childhood_favorites") // 신규
+                .stageName("하루의 조각: 나의 우상")
+                .mainQuestion("그 시절 당신의 마음을 사로잡았던 '최애' 캐릭터가 있었나요? 만화, 영화, 게임 속 주인공이나, 좋아했던 연예인도 좋습니다. 왜 그 캐릭터를 특별히 좋아했는지 기억나시나요?")
+                .templateOrder(5)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("CHILDHOOD_FAVORITES") // 프롬프트 키 신규
+                .chapter(chapter)
+                .build();
+        templateRepo.save(favorites);
+
+
         // 생생한 한 장면 — 감각·감정의 첫 기억(장면 집중)
         ChapterTemplate vividScene = ChapterTemplate.builder()
                 .templateId("childhood_vivid_scene")
                 .stageName("선명한 한 장면")
                 .mainQuestion(
-                        "지금도 또렷한 유년기의 한 장면이 있다면 묘사해 주세요. " +
-                                "그때의 장소·시간·함께 있던 사람·당신의 행동, 그리고 감각(소리/냄새/빛/온도)을 포함해 들려주세요."
+                        "이번에는 유년기 기억 중 가장 선명하게 남아있는 '한 장면'을 들려주세요. " +
+                                "아주 기뻤던 순간도, 슬펐던 순간도 좋습니다. 그때 어디서 무엇을 하고 있었고, 왜 그 장면이 특별하게 기억에 남았나요?"
                 )
-                .templateOrder(3)
+                .templateOrder(6)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
                 .dynamicPromptTemplate("CHILDHOOD_SCENE")
@@ -162,27 +230,15 @@ public class ChapterDataInitService {
                 .build();
         templateRepo.save(vividScene);
 
-        ChapterTemplate birthFamily = ChapterTemplate.builder()
-                .templateId("childhood_family")
-                .stageName("뿌리와 시작")
-                .mainQuestion("당신이 태어나고 자란 곳, 그리고 가족에 대해 이야기해주세요. 어떤 분위기의 집에서 자라셨나요?")
-                .templateOrder(4)
-                .stageLevel(lv++)
-                .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("CHILDHOOD")
-                .chapter(chapter)
-                .build();
-        templateRepo.save(birthFamily);
-
         // 2-4) 정리(Static) — 가치/기질/지금의 나와의 연결 이건 좀 수정해야함
         ChapterTemplate wrapUp = ChapterTemplate.builder()
                 .templateId("childhood_wrapup_static")
                 .stageName("씨앗과 연결")
                 .mainQuestion(
-                        "어린 시절의 경험 중에서, 지금의 성격이나 생각, 가치관에까지 영향을 준 일이 있다면 무엇인가요? " +
-                                "그 경험이 오늘날의 당신에게 어떤 모습으로 남아 있는지도 이야기해 주세요."
+                        "유년기의 경험들이 모여 지금의 당신이 되었을 겁니다. 어린 시절을 되돌아볼 때, " +
+                                "현재 당신의 모습에 가장 큰 영향을 주었다고 생각되는 점은 무엇인가요?"
                 )
-                .templateOrder(5)
+                .templateOrder(7)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
@@ -190,17 +246,11 @@ public class ChapterDataInitService {
         templateRepo.save(wrapUp);
 
         saveStaticFollowUps(wrapUp, Arrays.asList(
-                // 1) 시기와 상황
-                "그 일은 몇 살 때 있었나요? 그때 상황을 조금만 더 이야기해 주실 수 있나요?",
-                // 2) 기억에 남는 장면
-                "그때 기억 속에 가장 선명하게 남아 있는 장면은 어떤 모습인가요?",
-                // 3) 지금과의 연결
-                "그 일이 있어서 지금도 하고 있는 행동이나 습관이 있나요?",
-                // 4) 감정 변화
-                "그 일을 겪고 난 뒤, 마음가짐이나 생각이 달라진 점이 있나요?",
-                // 5) 어린 시절의 나에게
-                "그때의 나에게 한마디 해줄 수 있다면, 어떤 말을 해주고 싶나요?"
+                "그 시절, 당신은 스스로를 어떤 아이라고 생각했나요? (예: 활발한, 조용한, 호기심 많은 등)",
+                "어린 시절의 경험 중, 어른이 된 지금도 당신을 웃게 하거나 혹은 마음 아프게 하는 것이 있다면 무엇인가요?",
+                "만약 타임머신을 타고 그때의 나에게 돌아가 딱 한 가지를 선물할 수 있다면, 무엇을 주고 싶으신가요? (물건이 아니어도 좋습니다)"
         ));
+
 
         return lv;
     }
@@ -214,33 +264,182 @@ public class ChapterDataInitService {
                 .build();
         chapterRepo.save(chapter);
 
-        ChapterTemplate elem = ChapterTemplate.builder()
-                .templateId("upper_elem_activity")
-                .stageName("몰입의 시작")
-                .mainQuestion("초등 시절, 당신을 설레게 하거나 몰입하게 만든 활동이 있었나요? 그때의 감정과 계기를 들려주세요.")
+        ChapterTemplate schoolScenery = ChapterTemplate.builder()
+                .templateId("upper_elem_school_scenery") // ID 세분화
+                .stageName("집 밖의 세계: 학교의 풍경")
+                .mainQuestion("초등학교 시절, 매일같이 오가던 학교의 모습은 어땠나요? 교실 창밖으로 보이던 풍경이나, 유난히 시끄러웠던 쉬는 시간의 교실 모습이 기억나시나요?")
                 .templateOrder(1)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_SCHOOL")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(schoolScenery);
+
+        ChapterTemplate schoolSenses = ChapterTemplate.builder()
+                .templateId("upper_elem_school_senses") // ID 세분화
+                .stageName("집 밖의 세계: 학교의 감각")
+                .mainQuestion("이번에는 학교에서만 느낄 수 있었던 특별한 냄새나 소리를 떠올려볼까요? 예를 들어, 낡은 목재 복도를 걷는 소리나, 점심시간 급식실의 냄새 같은 것들이요.")
+                .templateOrder(2)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_SCHOOL") // 같은 프롬프트 키 사용 가능
+                .chapter(chapter)
+                .build();
+        templateRepo.save(schoolSenses);
+
+        ChapterTemplate dailyPleasures = ChapterTemplate.builder()
+                .templateId("upper_elem_daily_joy") // 신규
+                .stageName("학교의 작은 즐거움")
+                .mainQuestion("학교에서의 일주일 중, 어떤 요일이나 시간을 가장 기다렸나요? 예를 들어, 특별히 좋아하던 급식 메뉴가 나오던 날, 좋아하던 과목 시간, 혹은 친구들과 마음껏 놀 수 있었던 쉬는 시간 같은 거요.")
+                .templateOrder(3)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_SCHOOL") // 기존 프롬프트 활용 가능
+                .chapter(chapter)
+                .build();
+        templateRepo.save(dailyPleasures);
+
+
+        ChapterTemplate bestFriend = ChapterTemplate.builder()
+                .templateId("upper_elem_best_friend")
+                .stageName("친구 이야기: 단짝 친구")
+                .mainQuestion("초등학교 시절, 가장 친했던 '단짝' 친구의 이름과 그 친구와 함께했던 가장 기억에 남는 놀이는 무엇이었나요?")
+                .templateOrder(4)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(bestFriend);
+
+        ChapterTemplate peerPlaytime = ChapterTemplate.builder()
+                .templateId("upper_elem_playtime") // 신규
+                .stageName("친구 이야기: 우리들의 놀이터")
+                .mainQuestion("그 친구, 혹은 다른 친구들과 쉬는 시간이나 방과 후에 주로 무엇을 하면서 시간을 보냈나요? 기억에 남는 놀이나 아지트 같은 장소가 있다면 들려주세요.")
+                .templateOrder(5)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(peerPlaytime);
+
+        ChapterTemplate peerRole = ChapterTemplate.builder()
+                .templateId("upper_elem_peer_role") // ID 세분화
+                .stageName("친구라는 세계: 무리 속의 나")
+                .mainQuestion("친구들과의 관계는 어땠나요? 주로 무리를 이끌었나요, 아니면 조용히 따르는 편이었나요? 친구들 사이에서만 불리던 별명이 있었는지도 궁금합니다.")
+                .templateOrder(6)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE") // 같은 프롬프트 키 사용 가능
+                .chapter(chapter)
+                .build();
+        templateRepo.save(peerRole);
+
+        ChapterTemplate peerConflict = ChapterTemplate.builder()
+                .templateId("upper_elem_peer_conflict") // 신규
+                .stageName("친구 이야기: 다툼과 화해")
+                .mainQuestion("가장 친했던 친구와 크게 다투거나 혹은 오해가 생겨 속상했던 기억도 있나요? 어떻게 화해했는지, 그 일을 통해 친구 관계에 대해 무엇을 배우게 되었는지 궁금합니다.")
+                .templateOrder(7)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(peerConflict);
+
+
+        ChapterTemplate talents = ChapterTemplate.builder()
+                .templateId("upper_elem_talents") // ID 통합 및 수정
+                .stageName("나의 발견: 잘하는 것과 어려운 것")
+                .mainQuestion("공부나 예체능 활동 중에서, 처음으로 '아, 나 이거 정말 잘한다!'며 칭찬받아 어깨가 으쓱했던 경험이 있나요? 반대로, 아무리 노력해도 잘 되지 않아 유독 속상했던 과목이나 활동은 무엇이었나요?")
+                .templateOrder(8)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
                 .dynamicPromptTemplate("UPPER_ELEM")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(elem);
+        templateRepo.save(talents);
 
-        ChapterTemplate elemStatic = ChapterTemplate.builder()
-                .templateId("upper_elem_static")
-                .stageName("관계와 성향")
-                .mainQuestion("그 시기에 영향을 준 사람이나 사건이 있었나요?")
-                .templateOrder(2)
+
+        ChapterTemplate dislikedActivities = ChapterTemplate.builder()
+                .templateId("upper_elem_disliked_activity") // 신규
+                .stageName("나의 발견: 어려웠던 것")
+                .mainQuestion("반대로, 학교나 집에서 억지로 해야만 해서 정말 하기 싫었던 활동도 있었나요? 예를 들어, 특정 과목 공부, 방 청소, 학원 가기 같은 것들이요.")
+                .templateOrder(9)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(dislikedActivities);
+
+
+        ChapterTemplate dreamJob = ChapterTemplate.builder()
+                .templateId("upper_elem_dream_job") // 신규
+                .stageName("하루의 조각: 나의 꿈")
+                .mainQuestion("어른이 되면 무엇이 되고 싶으셨나요? 어릴 적 장래희망은 무엇이었고, 왜 그 꿈을 꾸게 되었는지 이야기해주세요.")
+                .templateOrder(10)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_DREAM_JOB") // 프롬프트 키 신규
+                .chapter(chapter)
+                .build();
+        templateRepo.save(dreamJob);
+
+        ChapterTemplate pureJoy = ChapterTemplate.builder()
+                .templateId("upper_elem_pure_joy") // ID 세분화
+                .stageName("배움과 놀이: 순수한 즐거움")
+                .mainQuestion("성적과 상관없이, 시간 가는 줄 모르고 푹 빠졌던 자신만의 '놀이'나 취미가 있었나요? 예를 들어, 특정 장난감 수집, 만화책 보기, 컴퓨터 게임, 운동 등이요.")
+                .templateOrder(11)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM") // 같은 프롬프트 키 사용 가능
+                .chapter(chapter)
+                .build();
+        templateRepo.save(pureJoy);
+
+        ChapterTemplate schoolEvents = ChapterTemplate.builder()
+                .templateId("upper_elem_events") // 신규
+                .stageName("특별한 하루: 소풍과 운동회")
+                .mainQuestion("친구들과 함께 떠났던 소풍이나 현장체험학습, 혹은 모두가 참여했던 운동회 중에 가장 기억에 남는 하루가 있나요? 어디로 가서 무엇을 했고, 왜 그날이 특별하게 기억에 남았나요?")
+                .templateOrder(12)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_EVENT")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(schoolEvents);
+
+        ChapterTemplate schoolFestival = ChapterTemplate.builder()
+                .templateId("upper_elem_festival") // 신규
+                .stageName("특별한 하루: 무대 위의 나")
+                .mainQuestion("많은 사람 앞에서 나의 장기를 뽐냈던 학예회나 장기자랑에 대한 기억도 궁금합니다. 무대 위에서, 혹은 무대를 보면서 느꼈던 떨림이나 짜릿함이 기억나시나요?")
+                .templateOrder(13)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("UPPER_ELEM_EVENT")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(schoolFestival);
+
+        ChapterTemplate definingMoment = ChapterTemplate.builder()
+                .templateId("upper_elem_wrapup_static")
+                .stageName("성장의 발자국")
+                .mainQuestion("초등학교 시절을 통틀어, 지금의 '나'에게 가장 큰 영향을 준 하나의 기억을 꼽는다면 무엇일까요?")
+                .templateOrder(14) // 마지막 순서
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
                 .build();
-        templateRepo.save(elemStatic);
+        templateRepo.save(definingMoment);
 
-        saveStaticFollowUps(elemStatic, Arrays.asList(
-                "기억에 남는 선생님이나 친구와의 에피소드가 있나요?",
-                "처음으로 ‘잘한다/어렵다’고 느낀 분야는 무엇이었나요?",
-                "그 경험이 지금의 성향이나 선택에 이어진 점이 있다면 무엇인가요?"
+
+        saveStaticFollowUps(definingMoment, Arrays.asList(
+                "그 기억이 지금의 당신에게 어떤 의미로 남아있나요?",
+                "그 경험을 통해 얻게 된 교훈이나 삶의 태도가 있다면 무엇인가요?",
+                "그때의 나에게 돌아가 딱 한마디만 해줄 수 있다면, 뭐라고 말해주고 싶으세요?"
         ));
 
         return lv;
@@ -249,42 +448,127 @@ public class ChapterDataInitService {
     private int createChapter4(int lv) {
         Chapter chapter = Chapter.builder()
                 .chapterId("chapter4")
-                .chapterName("중학교")
+                .chapterName("중학교: 질풍노도의 시절") // 챕터 이름 변경
                 .chapterOrder(4)
-                .description("정체성 탐색의 시작, 또래/집단의 영향, 자기인식 변화")
+                .description("급격한 변화 속에서 겪었던 내면의 혼란, 세상의 중심이었던 친구 관계, 학업과 꿈에 대한 고민을 탐색합니다.") // 설명 변경
                 .build();
         chapterRepo.save(chapter);
 
-        ChapterTemplate middle = ChapterTemplate.builder()
-                .templateId("middle_identity")
-                .stageName("변곡점")
-                .mainQuestion("중학교 시절, ‘나’를 바라보는 시각이 달라지게 만든 사건이나 관계가 있었나요?")
+        // --- 변화의 시작, 낯선 내 모습 (사춘기) ---
+
+        ChapterTemplate pubertyChanges = ChapterTemplate.builder()
+                .templateId("middle_school_changes")
+                .stageName("변화의 시작: 낯선 내 모습")
+                .mainQuestion("중학생이 되면서 스스로 가장 크게 달라졌다고 느낀 점은 무엇이었나요? 갑자기 변한 외모나 목소리, 혹은 이전과 달라진 감정 기복 때문에 당황스럽거나 낯설게 느껴졌던 경험이 있나요?")
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE")
+                .dynamicPromptTemplate("MIDDLE_PUBERTY")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(middle);
+        templateRepo.save(pubertyChanges);
 
-        ChapterTemplate middleStatic = ChapterTemplate.builder()
-                .templateId("middle_static")
-                .stageName("취향과 관계")
-                .mainQuestion("이 시기에 즐겨 듣던 음악/콘텐츠/취미가 있었다면, 그것이 주는 감정은 무엇이었나요?")
+        ChapterTemplate mediaInfluence = ChapterTemplate.builder()
+                .templateId("middle_school_media")
+                .stageName("나의 세계: 음악과 연예인")
+                .mainQuestion("그 혼란스러운 시기에, 나의 마음을 알아주는 것 같았던 노래나 영화, 혹은 푹 빠져 지냈던 연예인이나 책이 있었나요? 그것들이 당신에게 어떤 위로와 즐거움을 주었는지 궁금합니다.")
                 .templateOrder(2)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("MIDDLE_MEDIA")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(mediaInfluence);
+
+
+        // --- 세상의 중심, 친구와 설렘 (친구, 연애) ---
+
+        ChapterTemplate peerGroup = ChapterTemplate.builder()
+                .templateId("middle_school_peer_group")
+                .stageName("세상의 중심: 친구")
+                .mainQuestion("초등학교 때와는 또 달랐을 것 같아요. 중학교 시절, 당신은 주로 어떤 친구들과 어울렸나요? 그 무리 안에서 당신의 역할이나 이미지는 어땠나요?")
+                .templateOrder(3)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("MIDDLE_PEOPLE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(peerGroup);
+
+        ChapterTemplate firstCrush = ChapterTemplate.builder()
+                .templateId("middle_school_first_crush")
+                .stageName("두근거림의 시작: 첫사랑")
+                .mainQuestion("이 시기에 처음으로 누군가를 짝사랑하거나, 이성 친구에게 설렘을 느꼈던 기억이 있나요? 그 사람을 생각하면 어떤 감정이나 장면이 떠오르나요?")
+                .templateOrder(4)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("MIDDLE_PEOPLE")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(firstCrush);
+
+
+        // ---  책상의 무게, 학업과 꿈 (공부) ---
+
+        ChapterTemplate academicStress = ChapterTemplate.builder()
+                .templateId("middle_school_academics")
+                .stageName("책상의 무게: 공부와 성적")
+                .mainQuestion("본격적으로 '성적'과 '입시'라는 무게를 느끼기 시작하던 때였을 것 같아요. 학업에 대한 스트레스는 없었나요? 부모님이나 선생님의 기대가 부담으로 다가왔던 적도 있었나요?")
+                .templateOrder(5)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("MIDDLE_ACADEMICS")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(academicStress);
+
+        ChapterTemplate futureDream = ChapterTemplate.builder()
+                .templateId("middle_school_future_dream")
+                .stageName("어른이 된다는 것: 장래희망")
+                .mainQuestion("어릴 적 장래희망과 비교했을 때, 중학생이 된 당신의 꿈은 어떻게 변했나요? 더 현실적인 고민을 하기 시작했나요, 아니면 새로운 꿈을 발견했나요?")
+                .templateOrder(6)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("MIDDLE_ACADEMICS")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(futureDream);
+
+
+        // ---  반항과 성장, 기억에 남는 순간 (성찰) ---
+
+        ChapterTemplate rebellion = ChapterTemplate.builder()
+                .templateId("middle_school_rebellion")
+                .stageName("나만의 규칙: 작은 반항")
+                .mainQuestion("어른들이 만든 규칙이나 세상에 대해 처음으로 '왜?'라는 의문을 품거나, 사소한 반항을 했던 기억이 있나요? 그 행동의 계기는 무엇이었나요?")
+                .templateOrder(7)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("MIDDLE_GROWTH")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(rebellion);
+
+        // 기존의 가장 추상적이고 어려웠던 질문을, 모든 구체적인 기억을 회상한 뒤 마지막에 배치하여 깊이 있는 성찰을 유도합니다.
+        ChapterTemplate wrapUp = ChapterTemplate.builder()
+                .templateId("middle_school_wrapup_static")
+                .stageName("나를 바꾼 순간")
+                .mainQuestion("중학교 시절을 모두 되돌아봤을 때, 지금의 나에게 가장 큰 영향을 남긴 하나의 사건, 한 명의 사람, 혹은 한 가지 깨달음이 있다면 무엇인가요?")
+                .templateOrder(8)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
                 .build();
-        templateRepo.save(middleStatic);
+        templateRepo.save(wrapUp);
 
-        saveStaticFollowUps(middleStatic, Arrays.asList(
-                "갈등이나 다툼을 겪었다면, 그 경험이 당신의 대화 방식이나 관계 맺음에 어떤 흔적을 남겼나요?",
-                "스스로 규칙을 세우거나 바꿨던 순간이 있나요? 왜였나요?",
-                "그 시기의 나에게 한마디를 건넨다면?"
+        saveStaticFollowUps(wrapUp, Arrays.asList(
+                "그 경험 이후, 당신의 어떤 점이 가장 크게 변했다고 생각하시나요?",
+                "만약 그때의 나에게 돌아가 조언을 해줄 수 있다면, 어떤 위로나 응원을 해주고 싶으신가요?"
         ));
+
         return lv;
     }
+
 
     private int createChapter5(int lv) {
         Chapter chapter = Chapter.builder()
@@ -295,387 +579,209 @@ public class ChapterDataInitService {
                 .build();
         chapterRepo.save(chapter);
 
-        ChapterTemplate high = ChapterTemplate.builder()
-                .templateId("high_commitment")
-                .stageName("치열함과 배움")
-                .mainQuestion("고등학교 시절 가장 치열하게 몰입했던 일은 무엇이었고, 그 과정에서 무엇을 배우셨나요?")
+        ChapterTemplate futureGoal = ChapterTemplate.builder()
+                .templateId("high_school_goal") // ID 신규
+                .stageName("마주해야 했던 세계: 목표와 꿈")
+                .mainQuestion("고등학생이 된 당신의 가장 큰 목표는 무엇이었나요? '좋은 대학에 가야 한다'는 막연한 목표 외에, 구체적으로 가고 싶었던 학과나 이루고 싶었던 꿈이 있었는지 궁금합니다.")
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("HIGH")
+                .dynamicPromptTemplate("HIGH_ACADEMICS") // 프롬프트 키 신규
                 .chapter(chapter)
                 .build();
-        templateRepo.save(high);
+        templateRepo.save(futureGoal);
 
-        ChapterTemplate highStatic = ChapterTemplate.builder()
-                .templateId("high_static")
-                .stageName("기준과 영향")
-                .mainQuestion("당신의 선택에 영향을 준 사람이나 말이 있었나요?")
+
+        ChapterTemplate struggle = ChapterTemplate.builder()
+                .templateId("high_school_struggle") // ID 신규
+                .stageName("마주해야 했던 세계: 압박과 현실")
+                .mainQuestion("그 목표를 향해 달려가면서 가장 힘들었던 점은 무엇이었나요? 끝이 보이지 않는 공부의 양, 주변의 기대, 혹은 친구와의 경쟁 때문에 지쳤던 순간이 있었나요?")
                 .templateOrder(2)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("HIGH_ACADEMICS")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(struggle);
+
+        ChapterTemplate healingHobby = ChapterTemplate.builder()
+                .templateId("high_school_healing_hobby") // ID 신규
+                .stageName("나만의 작은 세계: 위로와 즐거움")
+                .mainQuestion("그렇게 치열하고 힘든 시기를 버티게 해준 자신만의 '숨 쉴 공간'이 있었나요? 예를 들어, 밤늦게 듣던 음악, 챙겨보던 드라마나 애니메이션, 혹은 푹 빠져있던 취미 활동 같은 것들이요.")
+                .templateOrder(3)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("HIGH_HOBBY") // 프롬프트 키 신규
+                .chapter(chapter)
+                .build();
+        templateRepo.save(healingHobby);
+
+        ChapterTemplate healingFriend = ChapterTemplate.builder()
+                .templateId("high_school_healing_friend") // ID 신규
+                .stageName("나만의 작은 세계: 소중한 친구")
+                .mainQuestion("지친 마음을 털어놓을 수 있었던 소중한 친구가 있었나요? 함께 웃고 떠들며 스트레스를 풀었던 친구와의 추억이 있다면 들려주세요.")
+                .templateOrder(4)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("HIGH_FRIEND") // 프롬프트 키 신규
+                .chapter(chapter)
+                .build();
+        templateRepo.save(healingFriend);
+
+        ChapterTemplate memorableDay = ChapterTemplate.builder()
+                .templateId("high_school_memorable_day") // ID 신규
+                .stageName("잊을 수 없는 하루")
+                .mainQuestion("고등학교 3년 동안, 가장 기억에 남는 하루를 꼽는다면 언젠가요? 큰 시험을 마친 날, 축제, 혹은 친구들과의 특별한 여행처럼, 그날의 분위기와 당신의 감정이 어땠는지 궁금합니다.")
+                .templateOrder(5)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("HIGH_EVENT") // 프롬프트 키 신규
+                .chapter(chapter)
+                .build();
+        templateRepo.save(memorableDay);
+
+        ChapterTemplate influence = ChapterTemplate.builder()
+                .templateId("high_school_influence") // ID 신규
+                .stageName("나의 방향키")
+                .mainQuestion("인생의 중요한 갈림길이었을 시기인 만큼, 당신의 진로나 가치관에 큰 영향을 준 선생님, 친구, 혹은 책 속의 한 문장이 있었나요?")
+                .templateOrder(6)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("HIGH_GROWTH") // 프롬프트 키 신규
+                .chapter(chapter)
+                .build();
+        templateRepo.save(influence);
+
+        ChapterTemplate wrapUp = ChapterTemplate.builder()
+                .templateId("high_school_wrapup_static") // ID 변경
+                .stageName("뒤돌아본 나의 성장")
+                .mainQuestion("치열했던 고등학교 시절을 졸업하며, 당신은 어떤 사람으로 성장했다고 느끼셨나요?")
+                .templateOrder(7)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
                 .build();
-        templateRepo.save(highStatic);
+        templateRepo.save(wrapUp);
 
-        saveStaticFollowUps(highStatic, Arrays.asList(
-                "기대와 현실 사이에서 가장 힘들었던 순간은 언제였나요? 어떻게 버텼나요?",
-                "성공/실패의 기준이 이때 어떻게 정의되었나요?",
-                "그 경험이 남긴 태도나 습관이 있다면요?"
+
+        saveStaticFollowUps(wrapUp, Arrays.asList(
+                "그 시기를 통해 얻은 가장 큰 교훈은 무엇인가요?",
+                "만약 시간을 되돌려 그때의 나에게 딱 한마디를 해줄 수 있다면, 어떤 말을 해주고 싶으신가요?"
         ));
+
         return lv;
     }
 
     private int createChapter6(int lv) {
         Chapter chapter = Chapter.builder()
                 .chapterId("chapter6")
-                .chapterName("졸업 전환기")
+                .chapterName("홀로서기, 사회의 첫걸음") // 챕터 이름 변경
                 .chapterOrder(6)
-                .description("선택의 갈림길, 현실 요소, 자율성 확대")
+                .description("고등학교 졸업 후, 각자의 길 위에서 겪었던 선택과 고민, 새로운 시작과 성장의 경험을 탐색합니다.") // 설명 변경
                 .build();
         chapterRepo.save(chapter);
 
-        ChapterTemplate trans = ChapterTemplate.builder()
-                .templateId("transition_choice")
-                .stageName("갈림길의 선택")
-                .mainQuestion("졸업 전후의 중요한 선택(진학, 취업, 휴식, 재도전 등)을 하게 된 배경과 마음의 흐름을 이야기해주세요.")
+        // --- 인생의 큰 선택 (공통 질문) ---
+        ChapterTemplate theChoice = ChapterTemplate.builder()
+                .templateId("transition_the_choice") // ID 재사용 및 역할 재정의
+                .stageName("인생의 큰 선택")
+                .mainQuestion("고등학교 졸업은 인생의 큰 갈림길이죠. 당시 대학 진학, 취업 등 앞으로의 길에 대해 어떤 고민을 하셨고, 최종적으로 어떤 선택을 내리셨나요? 그 결정의 배경이 궁금합니다.")
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
                 .dynamicPromptTemplate("TRANSITION")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(trans);
+        templateRepo.save(theChoice);
 
-        ChapterTemplate transStatic = ChapterTemplate.builder()
-                .templateId("transition_static")
-                .stageName("균형과 재해석")
-                .mainQuestion("주변의 기대와 당신의 내적 목소리 사이에서 어떤 균형을 택했나요?")
+
+        // --- 캠퍼스의 낭만과 현실 (대학 진학자들을 위한 질문) ---
+        ChapterTemplate collegeMajor = ChapterTemplate.builder()
+                .templateId("college_major_satisfaction") // 신규
+                .stageName("캠퍼스 이야기: 전공과 공부")
+                .mainQuestion("대학에서는 어떤 전공을 공부하셨나요? 그 전공을 선택한 특별한 이유가 있었는지, 그리고 직접 공부해 보니 만족도는 어땠는지 궁금합니다.")
                 .templateOrder(2)
-                .stageLevel(lv++)
-                .followUpType(FollowUpType.STATIC)
-                .chapter(chapter)
-                .build();
-        templateRepo.save(transStatic);
-
-        saveStaticFollowUps(transStatic, Arrays.asList(
-                "결과가 주는 감정은 시간이 지나며 어떻게 달라졌나요?",
-                "같은 선택을 다시 해야 한다면 무엇을 다르게 하실 건가요?",
-                "그 선택이 남긴 배움은 무엇인가요?"
-        ));
-        return lv;
-    }
-
-    private int createChapter7(int lv) {
-        Chapter chapter = Chapter.builder()
-                .chapterId("chapter7")
-                .chapterName("대학 초반/사회 진입 초기")
-                .chapterOrder(7)
-                .description("새 환경 적응, 자율학습, 첫 성취/좌절, 관계망 확장")
-                .build();
-        chapterRepo.save(chapter);
-
-        ChapterTemplate start = ChapterTemplate.builder()
-                .templateId("college_or_work_start")
-                .stageName("새로운 시작")
-                .mainQuestion("대학 생활(또는 첫 직장/병역/대안 경로)의 초반에 가장 인상 깊었던 사건은 무엇이었나요? 그 경험이 당신을 어떻게 바꾸었나요?")
-                .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
                 .dynamicPromptTemplate("COLLEGE_OR_WORK")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(start);
+        templateRepo.save(collegeMajor);
 
-        ChapterTemplate startStatic = ChapterTemplate.builder()
-                .templateId("college_or_work_static")
-                .stageName("자유와 책임")
-                .mainQuestion("처음 맞닥뜨린 자유나 책임 중 가장 큰 것은 무엇이었나요?")
-                .templateOrder(2)
+        ChapterTemplate collegeLife = ChapterTemplate.builder()
+                .templateId("college_life_memories") // 신규
+                .stageName("캠퍼스 이야기: 낭만과 추억")
+                .mainQuestion("대학 생활의 기억 중 가장 먼저 떠오르는 것은 무엇인가요? 즐거웠던 동아리 활동, 새로운 친구들과의 만남, 혹은 잊을 수 없는 수업이나 과제에 대한 추억도 좋습니다.")
+                .templateOrder(3)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("COLLEGE_OR_WORK")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(collegeLife);
+
+
+        // ---  첫 월급의 무게 (사회 초년생들을 위한 질문) ---
+        ChapterTemplate firstJob = ChapterTemplate.builder()
+                .templateId("first_job_story") // 신규
+                .stageName("사회 초년생 이야기: 첫 직장")
+                .mainQuestion("처음으로 '내 힘으로 돈을 번다'는 경험은 어떠셨나요? 첫 직장이나 아르바이트를 구하게 된 과정과, 그곳에서 맡았던 역할에 대해 이야기해주세요.")
+                .templateOrder(4)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("COLLEGE_OR_WORK")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(firstJob);
+
+        ChapterTemplate workLessons = ChapterTemplate.builder()
+                .templateId("work_life_lessons") // 신규
+                .stageName("사회 초년생 이야기: 배움과 현실")
+                .mainQuestion("사회생활을 일찍 시작하며 배운 가장 큰 교훈은 무엇이었나요? 학생일 때와는 다른 책임감이나 어려움을 느꼈던 순간이 있었다면 들려주세요.")
+                .templateOrder(5)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("COLLEGE_OR_WORK")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(workLessons);
+
+
+        // --- 홀로서기의 시작 (공통 질문) ---
+        ChapterTemplate independence = ChapterTemplate.builder()
+                .templateId("independence_and_freedom") // 신규
+                .stageName("홀로서기의 시작")
+                .mainQuestion("스무 살이 넘으면서 이전과는 다른 자유를 느끼셨을 것 같아요. 처음으로 진짜 어른이 되었다고 실감했던 순간은 언제였나요?")
+                .templateOrder(6)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("TRANSITION")
+                .chapter(chapter)
+                .build();
+        templateRepo.save(independence);
+
+        // --- 되돌아보는 나의 선택 (마무리 성찰) ---
+        ChapterTemplate wrapUp = ChapterTemplate.builder()
+                .templateId("transition_wrapup_static") // ID 재사용 및 역할 재정의
+                .stageName("되돌아보는 나의 선택")
+                .mainQuestion("그 모든 선택과 경험들이 쌓여 지금의 당신이 되었습니다. 20대의 문턱에서 내렸던 선택들을 되돌아볼 때, 그 시간이 지금의 당신에게 남긴 가장 큰 선물은 무엇이라고 생각하시나요?")
+                .templateOrder(7)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
                 .build();
-        templateRepo.save(startStatic);
+        templateRepo.save(wrapUp);
 
-        saveStaticFollowUps(startStatic, Arrays.asList(
-                "기대와 다른 현실을 마주했을 때 어떤 선택을 했나요?",
-                "이 시기에 만난 사람들 중 지금도 남은 영향이 있다면 무엇인가요?",
-                "그 경험이 가져온 자신감 또는 관점의 변화가 있었나요?"
+        saveStaticFollowUps(wrapUp, Arrays.asList(
+                "만약 그 시절의 나에게 돌아가 딱 하나의 조언을 해줄 수 있다면, 무엇을 말해주고 싶으신가요?",
+                "그 선택의 결과에 대해, 시간이 지나면서 생각이 달라진 부분이 있나요?"
         ));
+
         return lv;
     }
 
-//    private int createChapter1(int lv) {
-//        Chapter chapter = Chapter.builder()
-//                .chapterId("chapter1")
-//                .chapterName("기본 정보")
-//                .chapterOrder(1)
-//                .description("사용자의 기본적인 정보와 배경을 파악하는 단계")
-//                .build();
-//        chapterRepo.save(chapter);
-//
-//        // 사용자 프로필 템플릿 - 고품질 버전
-//        ChapterTemplate userProfile = ChapterTemplate.builder()
-//                .templateId("userProfile")
-//                .stageName("나는 누구인가")
-//                .mainQuestion("지금의 당신을 한 문장으로 표현한다면 어떻게 말하고 싶으신가요? 이름과 나이, 현재 하고 계신 일을 포함해서 자유롭게 소개해주세요.")
-//                .templateOrder(1)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.DYNAMIC)
-//                .dynamicPromptTemplate("사용자가 자신을 이렇게 소개했습니다: \"%s\". 이 소개에서 더 깊이 알고 싶은 부분이나 흥미로운 점에 대해 2-3개의 후속 질문을 만들어주세요. " +
-//                        "중요 주의사항: " +
-//                        "1. 한국어 이름을 정확히 인식하세요" +
-//                        "2. 사용자가 실제로 언급한 내용만 바탕으로 질문하세요 " +
-//                        "3. 추측이나 가정된 정보로 질문하지 마세요 " +
-//                        "4. 감정이나 개인적 의미를 탐구하는 방향으로 질문해주세요")
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(userProfile);
-//
-//        // 출생 및 가족 배경 템플릿 - 감정 중심 개편
-//        ChapterTemplate birthFamily = ChapterTemplate.builder()
-//                .templateId("birthFamily")
-//                .stageName("뿌리와 시작")
-//                .mainQuestion("당신이 태어나고 자란 곳, 그리고 가족에 대해 이야기해주세요. 어떤 분위기의 집에서 자라셨나요?")
-//                .templateOrder(2)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(birthFamily);
-//
-//        saveStaticFollowUps(birthFamily, Arrays.asList(
-//                "가족 중에서 가장 기억에 남는 사람은 누구이고, 그 이유는 무엇인가요?",
-//                "어린 시절 집에서 일어났던 일 중 지금도 생생하게 기억나는 순간이 있다면 들려주세요.",
-//                "가족들과 함께했던 시간 중 가장 행복했던 기억은 무엇인가요?"
-//        ));
-//        return lv;
-//    }
-//
-//    private int createChapter2(int lv) {
-//        Chapter chapter = Chapter.builder()
-//                .chapterId("chapter2")
-//                .chapterName("성장 과정")
-//                .chapterOrder(2)
-//                .description("유년기부터 성인이 되기까지의 성장 경험")
-//                .build();
-//        chapterRepo.save(chapter);
-//
-//        // 유년기 이야기 - 감정 깊이 강화
-//        ChapterTemplate childhood = ChapterTemplate.builder()
-//                .templateId("childhood")
-//                .stageName("어린 시절의 기억들")
-//                .mainQuestion("어린 시절, 당신을 가장 두근거리게 했던 순간이나 깊이 상처받았던 기억이 있나요? 그때의 감정과 함께 이야기해주세요.")
-//                .templateOrder(1)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.DYNAMIC)
-//                .dynamicPromptTemplate("사용자가 어린 시절의 중요한 기억을 이렇게 공유했습니다: \"%s\". 이 경험이 사용자에게 어떤 영향을 미쳤는지, 그리고 그때의 감정이나 교훈에 대해 더 깊이 탐구할 수 있는 2-3개의 후속 질문을 만들어주세요. " +
-//                        "사용자가 실제로 언급한 내용만을 바탕으로 하고, 추측하지 마세요. 감정적 의미와 성장에 초점을 맞춰주세요.")
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(childhood);
-//
-//        // 학창 시절 - 성장과 관계 중심
-//        ChapterTemplate school = ChapterTemplate.builder()
-//                .templateId("school")
-//                .stageName("청춘의 흔적들")
-//                .mainQuestion("학창시절 중 가장 치열했던 순간이나 소중한 만남에 대해 들려주세요. 친구, 선생님, 또는 특별한 경험 중 지금의 당신을 만든 것이 있다면요.")
-//                .templateOrder(2)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(school);
-//
-//        saveStaticFollowUps(school, Arrays.asList(
-//                "그 시절, 당신을 가장 힘들게 했던 것은 무엇이었고 어떻게 이겨냈나요?",
-//                "학창시절의 꿈과 현재의 모습을 비교해보면 어떤 생각이 드시나요?",
-//                "그때의 경험이 지금의 당신에게 어떤 힘이 되고 있나요?"
-//        ));
-//
-//        // 교육 경험 (Static)
-//        ChapterTemplate education = ChapterTemplate.builder()
-//                .templateId("education")
-//                .stageName("학교 및 교육 경험")
-//                .mainQuestion("대학이나 직업 교육 과정 중 가장 인상 깊었던 수업이나 활동은 무엇인가요?")
-//                .templateOrder(3)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(education);
-//
-//        saveStaticFollowUps(education, Arrays.asList(
-//                "그 활동이 당신에게 어떤 영감을 주었나요?",
-//                "어떤 도전이 있었고, 어떻게 극복했나요?",
-//                "당신의 진로 선택에 이 경험이 어떤 영향을 미쳤나요?"
-//        ));
-//        return lv;
-//    }
-//
-//    private int createChapter3(int lv) {
-//        Chapter chapter = Chapter.builder()
-//                .chapterId("chapter3")
-//                .chapterName("사회 활동")
-//                .chapterOrder(3)
-//                .description("사회 진출과 커리어 발전 과정")
-//                .build();
-//        chapterRepo.save(chapter);
-//
-//        // 커리어 (Dynamic)
-//        ChapterTemplate career = ChapterTemplate.builder()
-//                .templateId("career")
-//                .stageName("사회 진출 및 커리어")
-//                .mainQuestion("대학 졸업 후 또는 첫 직장 생활 중 가장 의미 있던 순간은 언제였나요?")
-//                .templateOrder(1)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.DYNAMIC)
-//                .dynamicPromptTemplate("현재 '사회 진출' 단계입니다. 사용자가 답변한 내용: \"%s\". 이 답변에 기반해 2개의 후속 질문을 생성해주세요. 사용자가 실제로 언급한 내용만을 바탕으로 하고, 추측이나 가정하지 마세요.")
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(career);
-//
-//        // 업적 및 실패 (Static)
-//        ChapterTemplate achievements = ChapterTemplate.builder()
-//                .templateId("achievements")
-//                .stageName("업적 및 실패 경험")
-//                .mainQuestion("지금까지 인생에서 가장 큰 성취나 실패 경험은 무엇이며, 그 이유는 무엇인가요?")
-//                .templateOrder(2)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(achievements);
-//
-//        saveStaticFollowUps(achievements, Arrays.asList(
-//                "성취(또는 실패) 과정에서 겪은 어려움은 무엇이었나요?",
-//                "그 경험을 통해 얻은 교훈은 무엇인가요?",
-//                "이 경험이 당신의 가치관에 어떤 영향을 미쳤나요?"
-//        ));
-//        return lv;
-//    }
-//
-//    private int createChapter4(int lv) {
-//        Chapter chapter = Chapter.builder()
-//                .chapterId("chapter4")
-//                .chapterName("개인 생활")
-//                .chapterOrder(4)
-//                .description("개인적인 관계와 취미, 건강 등 일상생활")
-//                .build();
-//        chapterRepo.save(chapter);
-//
-//        // 인간관계 - 사랑과 상처 중심
-//        ChapterTemplate relationships = ChapterTemplate.builder()
-//                .templateId("relationships")
-//                .stageName("마음을 나눈 사람들")
-//                .mainQuestion("당신의 인생에서 가장 깊이 사랑했던 사람이나 가장 큰 위로가 되었던 사람에 대해 이야기해주세요. 그 사람과의 만남이 당신에게 어떤 의미였나요?")
-//                .templateOrder(1)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(relationships);
-//
-//        saveStaticFollowUps(relationships, Arrays.asList(
-//                "그 사람과 함께 보낸 시간 중 가장 소중한 순간을 구체적으로 묘사해주세요.",
-//                "헤어짐이나 이별의 아픔을 겪어본 적이 있다면, 그 경험이 당신을 어떻게 변화시켰나요?",
-//                "사랑이나 우정을 통해 깨달은 인생의 진리가 있다면 무엇인가요?"
-//        ));
-//
-//        // 여행 (Dynamic)
-//        ChapterTemplate travel = ChapterTemplate.builder()
-//                .templateId("travel")
-//                .stageName("여행 및 모험")
-//                .mainQuestion("가장 기억에 남는 여행지는 어디이며, 그 이유는 무엇인가요?")
-//                .templateOrder(2)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.DYNAMIC)
-//                .dynamicPromptTemplate("지금 '여행 및 모험' 단계입니다. 사용자가 답변한 내용: \"%s\". 사용자가 실제로 언급한 여행 경험만을 바탕으로 해당 여행을 깊이 탐구하기 위한 후속 질문 2개를 생성해주세요. 추측하지 마세요.")
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(travel);
-//
-//        // 취미 (Static)
-//        ChapterTemplate hobbies = ChapterTemplate.builder()
-//                .templateId("hobbies")
-//                .stageName("취미 및 관심사")
-//                .mainQuestion("당신이 오랫동안 즐겨온 취미나 활동은 무엇이며, 어떻게 시작하게 되었나요?")
-//                .templateOrder(3)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(hobbies);
-//
-//        saveStaticFollowUps(hobbies, Arrays.asList(
-//                "이 취미를 통해 얻은 즐거움은 무엇인가요?",
-//                "취미 활동 중 기억에 남는 에피소드는 무엇인가요?",
-//                "이 경험이 당신의 삶에 어떤 변화를 주었나요?"
-//        ));
-//
-//        // 건강 (Static)
-//        ChapterTemplate health = ChapterTemplate.builder()
-//                .templateId("health")
-//                .stageName("건강 및 웰빙")
-//                .mainQuestion("건강이나 웰빙을 위해 특별히 노력한 경험이 있나요? 그 이유는 무엇인가요?")
-//                .templateOrder(4)
-//                .stageLevel(lv++
-//                )
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(health);
-//
-//        saveStaticFollowUps(health, Arrays.asList(
-//                "그 노력이 삶에 어떤 긍정적 변화를 가져왔나요?",
-//                "어려웠던 점은 무엇이며, 어떻게 극복했나요?",
-//                "앞으로 건강을 위해 계획하고 있는 것은 무엇인가요?"
-//        ));
-//        return lv;
-//    }
-//
-//    private int createChapter5(int lv) {
-//        Chapter chapter = Chapter.builder()
-//                .chapterId("chapter5")
-//                .chapterName("성찰 및 유산")
-//                .chapterOrder(5)
-//                .description("인생을 돌아보고 미래에 대한 비전을 정리하는 단계")
-//                .build();
-//        chapterRepo.save(chapter);
-//
-//        // 성찰 - 인생의 의미 탐구
-//        ChapterTemplate reflection = ChapterTemplate.builder()
-//                .templateId("reflection")
-//                .stageName("인생을 돌아보며")
-//                .mainQuestion("지금까지 살아오면서 가장 후회되는 일과 가장 감사한 일이 무엇인지, 그리고 만약 과거로 돌아갈 수 있다면 무엇을 다르게 하고 싶은지 솔직하게 이야기해주세요.")
-//                .templateOrder(1)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.DYNAMIC)
-//                .dynamicPromptTemplate("사용자가 인생에 대한 깊은 성찰을 이렇게 나누었습니다: \"%s\". 사용자가 실제로 언급한 내용만을 바탕으로 이 답변에서 더 깊이 탐구할 수 있는 철학적이고 의미있는 후속 질문 2개를 만들어주세요. 추측이나 가정하지 말고, 인생의 의미, 가치, 성장에 대한 통찰을 이끌어낼 수 있도록 해주세요.")
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(reflection);
-//
-//        // 유산 - 삶의 메시지
-//        ChapterTemplate legacy = ChapterTemplate.builder()
-//                .templateId("legacy")
-//                .stageName("남기고 싶은 이야기")
-//                .mainQuestion("당신의 인생이 한 권의 책이라면, 마지막 페이지에 어떤 메시지를 남기고 싶으신가요? 당신을 기억할 사람들에게 전하고 싶은 진심어린 말이 있다면요.")
-//                .templateOrder(2)
-//                .stageLevel(lv++)
-//                .followUpType(FollowUpType.STATIC)
-//                .chapter(chapter)
-//                .build();
-//        templateRepo.save(legacy);
-//
-//        saveStaticFollowUps(legacy, Arrays.asList(
-//                "당신이 가장 소중하게 여기는 가치나 신념은 무엇이며, 이것을 어떻게 실천해왔나요?",
-//                "힘든 시기를 겪고 있는 누군가에게 해주고 싶은 조언이나 격려의 말이 있나요?",
-//                "당신의 삶을 통해 증명하고 싶었던 것은 무엇이고, 그것을 이루었다고 생각하시나요?"
-//        ));
-//        return lv;
-//    }
+
+
 
     private void saveStaticFollowUps(ChapterTemplate template, List<String> questions) {
         for (int i = 0; i < questions.size(); i++) {
