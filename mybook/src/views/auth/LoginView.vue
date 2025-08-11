@@ -89,9 +89,14 @@ async function handleLogin() {
   }
 }
 
+import apiClient from '@/api';
+
+// ... (기존 코드)
+
 function handleSocialLogin(provider: 'google') {
-  // 백엔드의 소셜 로그인 URL로 리디렉션
-  window.location.href = `http://localhost:8080/oauth2/authorization/${provider}`;
+  // 백엔드의 소셜 로그인 URL로 리디렉션 (baseURL 동적 사용)
+  const baseURL = apiClient.defaults.baseURL;
+  window.location.href = `${baseURL}/oauth2/authorization/${provider}`;
 }
 
 </script>
