@@ -26,4 +26,17 @@ public interface CommunityBookRepository extends JpaRepository<CommunityBook, Lo
     Page<CommunityBook> findByBookTypeAndDeletedAtIsNull(BookType bookTypeEnum, Pageable pageable);
 
     Page<CommunityBook> findByDeletedAtIsNull(Pageable pageable);
+
+    @Query("SELECT cb FROM CommunityBook cb WHERE cb.member.memberId = :memberId AND cb.deletedAt IS NULL")
+    Page<CommunityBook> findByMemberMemberIdAndDeletedAtIsNull(Long memberId, Pageable pageable);
+
+    @Query("SELECT cb FROM CommunityBook cb WHERE cb.member.memberId = :memberId AND cb.category.bookCategoryId = :categoryId AND cb.bookType = :bookType AND cb.deletedAt IS NULL")
+    Page<CommunityBook> findByMemberMemberIdAndCategoryIdAndBookTypeAndDeletedAtIsNull(Long memberId, Long categoryId, BookType bookTypeEnum, Pageable pageable);
+
+    @Query("SELECT cb FROM CommunityBook cb WHERE cb.member.memberId = :memberId AND cb.category.bookCategoryId = :categoryId AND cb.deletedAt IS NULL")
+    Page<CommunityBook> findByMemberMemberIdAndCategoryIdAndDeletedAtIsNull(Long memberId, Long categoryId, Pageable pageable);
+
+    @Query("SELECT cb FROM CommunityBook cb WHERE cb.member.memberId = :memberId AND cb.bookType = :bookType AND cb.deletedAt IS NULL")
+    Page<CommunityBook> findByMemberMemberIdAndBookTypeAndDeletedAtIsNull(Long memberId, BookType bookTypeEnum, Pageable pageable);
+
 }

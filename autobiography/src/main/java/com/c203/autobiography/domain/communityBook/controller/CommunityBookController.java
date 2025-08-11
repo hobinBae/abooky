@@ -29,7 +29,7 @@ public class CommunityBookController {
     private final CommunityBookService communityBookService;
 
     @Operation(summary = "커뮤니티 책 조회(읽기)", description = "커뮤니티 책을 상세 조회합니다.(첵 읽기) ")
-    @GetMapping("/{communityBookId}")
+    @GetMapping("/detail/{communityBookId}")
     public ResponseEntity<ApiResponse<CommunityBookDetailResponse>> getCommunityBook(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long communityBookId,
@@ -58,9 +58,26 @@ public class CommunityBookController {
                 .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 목록 조회 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "특정 작가가 작성한 커뮤니티 책 목록 조회", description = "특정 작가가 작성한 커뮤니티 책 목록을 조회합니다")
+    @GetMapping("/{memberId}")
+    public ResponseEntity<ApiResponse<CommunityBookListResponse>> getMemberCommunityBooks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long memberId,
+            HttpServletRequest httpRequest,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String bookType,
+            @RequestParam(required = false, defaultValue = "recent") String sortBy) {
+        Long userId = userDetails.getMemberId();
+        CommunityBookListResponse response = communityBookService.getMemberCommunityBooks(
+                userId, memberId, pageable, categoryId, bookType, sortBy);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "특정 작가가 작성한 커뮤니티 책 목록 조회 성공", response, httpRequest.getRequestURI()));
+    }
 
     @Operation(summary = "커뮤니티 책 삭제", description = "커뮤니티 책을 삭제합니다")
-    @DeleteMapping("/{communityBookId}")
+    @DeleteMapping("/books/{communityBookId}")
     public ResponseEntity<ApiResponse<Void>> deleteCommunityBook(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long communityBookId,

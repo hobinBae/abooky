@@ -19,4 +19,6 @@ public interface CommunityBookService {
     CommunityBookDetailResponse getCommunityBookDetail(Long memberId, Long communityBookId);
 
     CommunityBookListResponse getCommunityBookList(Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy);
+
+    CommunityBookListResponse getMemberCommunityBooks(Long userId, Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy);
 }
