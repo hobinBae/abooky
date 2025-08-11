@@ -93,11 +93,6 @@ const mainRoutes: Array<RouteRecordRaw> = [
     component: () => import('../views/groups/GroupTimelineView.vue')
   },
   {
-    path: '/integrated-group-book/:id',
-    name: 'integrated-group-book',
-    component: () => import('../views/groups/IntegratedGroupBookView.vue')
-  },
-  {
     path: '/author/:authorId',
     name: 'author-page',
     component: () => import('../views/auth/AuthorPageView.vue')
