@@ -18,6 +18,7 @@
 /* 페이지 기본 스타일 */
 .page-container {
   padding: 2rem;
+  padding-top: calc(56px + 2rem); /* 네비게이션 바 높이 + 기본 패딩 */
   background-color: var(--color-bg);
   min-height: 100vh;
   color: var(--color-text);
@@ -29,7 +30,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 4rem);
+  min-height: calc(100vh - 56px - 4rem); /* 네비게이션 바 높이 고려 */
 }
 
 .lobby-card {
@@ -224,7 +225,7 @@
 .workspace-container {
   display: flex;
   flex-direction: row;
-  height: calc(100vh - 4rem);
+  height: calc(100vh - 56px - 4rem); /* 네비게이션 바 높이 고려 */
   max-width: 1400px;
   margin: 0 auto;
   gap: 1rem;
@@ -694,6 +695,11 @@
 
 /* 모바일 반응형 채팅 */
 @media (max-width: 768px) {
+  .page-container {
+    padding: 1rem;
+    padding-top: calc(56px + 1rem); /* 모바일에서도 네비게이션 바 높이 고려 */
+  }
+  
   .workspace-container {
     flex-direction: column;
     height: auto;
