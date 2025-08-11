@@ -23,7 +23,7 @@ public interface AiClient {
      * 주어진 프롬프트 템플릿과 사용자 답변을 기반으로 2-3개의 후속질문을 생성합니다.
      */
     String generateDynamicFollowUp(String promptTemplate, String userAnswer);
-    
+    String generateDynamicFollowUpBySection(String sectionKey, String userAnswer);
     /**
      * 대화 내용을 바탕으로 자서전 에피소드를 생성합니다.
      */

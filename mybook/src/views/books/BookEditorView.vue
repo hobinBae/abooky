@@ -26,11 +26,11 @@
           </div>
         </div>
         <div class="form-group">
-          <label>장르 선택 (다중 선택 가능)</label>
+          <label>카테고리 선택</label>
           <div class="genre-toggle">
-            <button v-for="genre in genres" :key="genre" @click="toggleGenre(genre)"
-              :class="{ active: bookGenres.includes(genre) }">
-              {{ genre }}
+            <button v-for="category in categories" :key="category.id" @click="selectCategory(category.id)"
+              :class="{ active: selectedCategoryId === category.id }">
+              {{ category.name }}
             </button>
           </div>
         </div>
@@ -55,9 +55,11 @@
             <button @click="addStory" class="btn-add-story" title="이야기 추가"><i class="bi bi-plus-lg"></i></button>
           </div>
           <ul class="story-list">
-            <li v-for="(story, index) in currentBook.stories" :key="index" @click="selectStory(index)"
+            <li v-for="(story, index) in currentBook.stories" :key="index"
+              @click="selectStory(index)"
               :class="{ active: index === currentStoryIndex }">
               <span>{{ story.title }}</span>
+              <button @click.stop="deleteStory(story, index)" class="btn-delete-story">×</button>
             </li>
           </ul>
         </div>
@@ -127,7 +129,12 @@
     </section>
 
     <section v-else-if="creationStep === 'publishing'" class="publish-section">
-      <h2 class="section-title">책 발행하기</h2>
+      <div class="publish-header">
+        <button @click="creationStep = 'editing'" class="btn-back">
+          <i class="bi bi-arrow-left"></i> 뒤로가기
+        </button>
+        <h2 class="section-title">책 발행하기</h2>
+      </div>
       <p class="section-subtitle">마지막으로 책의 정보를 확인하고, 멋진 표지를 선택해주세요.</p>
 
       <div class="publish-form">
@@ -141,18 +148,29 @@
           <textarea id="final-book-summary" v-model="currentBook.summary" class="form-control" rows="5"></textarea>
         </div>
         <div class="form-group">
-          <label>장르 선택 (다중 선택 가능)</label>
+          <label>카테고리 선택</label>
           <div class="genre-toggle">
-            <button v-for="genre in genres" :key="genre" @click="toggleGenre(genre)"
-              :class="{ active: bookGenres.includes(genre) }">
-              {{ genre }}
+            <button v-for="category in categories" :key="category.id" @click="selectCategory(category.id)"
+              :class="{ active: selectedCategoryId === category.id }">
+              {{ category.name }}
             </button>
           </div>
         </div>
         <div class="form-group">
           <label for="book-tags">태그</label>
-          <input id="book-tags" type="text" v-model="tagInput"
-            placeholder="태그는 최대 5개까지 #을 붙여서 입력해주세요. 띄어쓰기 공백으로 태그를 구분합니다." class="form-control">
+          <div class="tag-container">
+            <div class="tag-list">
+              <span v-for="(tag, index) in tags" :key="index" class="tag-item">
+                {{ tag }}
+                <button @click="removeTag(index)" class="btn-remove-tag">×</button>
+              </span>
+            </div>
+            <input id="book-tags" type="text" v-model="tagInput"
+                   @keydown.enter.prevent="addTag"
+                   placeholder="태그 입력 후 Enter"
+                   class="form-control"
+                   :disabled="tags.length >= 5">
+          </div>
         </div>
         <div class="form-group">
           <label>표지 이미지 선택</label>
@@ -181,29 +199,35 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue';
-import { useRouter, useRoute } from 'vue-router';
+import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount } from 'vue';
+import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
+import apiClient from '@/api'; // API 클라이언트 임포트
+import { useAuthStore } from '@/stores/auth';
 
-// --- Interfaces ---
-interface Story { title: string; content: string; }
-interface Book { id: string; title: string; summary: string; type: string; genres: string[]; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; }
+// --- 인터페이스 정의 ---
+interface Story { id?: number; title: string; content: string; }
+interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; }
 
-// --- Static Data ---
+// --- 정적 데이터 ---
 const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-person-badge' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-pen' },];
-const genres = ['자서전', '일기', '소설/시', '에세이', '자기계발', '역사', '경제/경영', '사회/정치', '청소년', '어린이/동화', '문화/예술', '종교', '여행', '스포츠'];
+const categories = [
+  { id: 1, name: '자서전' }, { id: 2, name: '일기' }, { id: 3, name: '소설/시' },
+  { id: 4, name: '에세이' }, { id: 5, name: '자기계발' }, { id: 6, name: '역사' },
+  { id: 7, name: '경제/경영' }, { id: 8, name: '사회/정치' }, { id: 9, name: '청소년' },
+  { id: 10, name: '어린이/동화' }, { id: 11, name: '문화/예술' }, { id: 12, name: '종교' },
+  { id: 13, name: '여행' }, { id: 14, name: '스포츠' }
+];
 const coverOptions = ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=400', 'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=400', 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=400', 'https://images.unsplash.com/photo-1589998059171-988d887df646?q=80&w=400', 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=400',];
-const DUMMY_BOOKS: Book[] = [];
 
-// --- Router & Route ---
+// --- 라우터 및 라우트 ---
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 
-// --- Component State ---
+// --- 컴포넌트 상태 ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
-const currentBook = ref<Partial<Book>>({ title: '', summary: '', type: 'autobiography', genres: [], stories: [], tags: [] });
-
-// --- Computed Properties ---
-const bookGenres = computed(() => currentBook.value.genres || []);
+const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null });
+const selectedCategoryId = ref<number | null>(null);
 const currentStoryIndex = ref(-1);
 const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');
 const isInterviewStarted = ref(false);
@@ -211,40 +235,80 @@ const isRecording = ref(false);
 const isContentChanged = ref(false);
 const correctedContent = ref<string | null>(null);
 const selectedCover = ref(coverOptions[0]);
-const tagInput = ref('');
+const tagInput = ref(''); // 현재 입력 중인 태그
+const tags = ref<string[]>([]); // 등록된 태그 목록
+const isSavedOrPublished = ref(false);
 
-// Audio Recording State
+// --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
 let audioContext: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
 let animationFrameId: number | null = null;
 let mediaStream: MediaStream | null = null;
 
-// --- Computed Properties ---
+// --- 계산된 속성 ---
 const currentStory = computed(() => {
-  if (currentBook.value.stories && currentStoryIndex.value !== -1) {
+  if (currentBook.value.stories && currentStoryIndex.value > -1 && currentBook.value.stories[currentStoryIndex.value]) {
     return currentBook.value.stories[currentStoryIndex.value];
   }
   return null;
 });
 
-// --- Functions ---
+// --- 함수 ---
 
-// Step 1: Setup
-function toggleGenre(genre: string) {
-  const genres = currentBook.value.genres || [];
-  const index = genres.indexOf(genre);
-  if (index > -1) { genres.splice(index, 1); } else { genres.push(genre); }
-  currentBook.value.genres = genres;
+// 단계 1: 설정
+function selectCategory(categoryId: number) {
+  selectedCategoryId.value = categoryId;
+  currentBook.value.categoryId = categoryId;
 }
 
-function moveToEditingStep() {
-  if (!currentBook.value.title) { alert('책 제목을 입력해주세요.'); return; }
-  creationStep.value = 'editing';
-  if (currentBook.value.stories?.length === 0) { addStory(); }
+async function moveToEditingStep() {
+  if (!currentBook.value.title) {
+    alert('책 제목을 입력해주세요.');
+    return;
+  }
+  if (!selectedCategoryId.value) {
+    alert('카테고리를 선택해주세요.');
+    return;
+  }
+
+  const bookData = new FormData();
+  bookData.append('title', currentBook.value.title);
+  if(currentBook.value.summary) bookData.append('summary', currentBook.value.summary);
+
+  let bookTypeValue = 'AUTO'; // 기본값
+  if (currentBook.value.type === 'diary') {
+    bookTypeValue = 'DIARY';
+  } else if (currentBook.value.type === 'freeform') {
+    bookTypeValue = 'FREE_FORM';
+  }
+  bookData.append('bookType', bookTypeValue);
+
+  bookData.append('categoryId', String(selectedCategoryId.value));
+
+  try {
+    const response = await apiClient.post('/api/v1/books', bookData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    const newBook = response.data.data;
+    currentBook.value.id = newBook.bookId;
+    currentBook.value.title = newBook.title;
+    currentBook.value.summary = newBook.summary;
+    currentBook.value.stories = newBook.episodes || [];
+
+    creationStep.value = 'editing';
+    if (currentBook.value.stories.length === 0) {
+      addStory();
+    }
+  } catch (error) {
+    console.error('책 생성 오류:', error);
+    alert('책 생성에 실패했습니다.');
+  }
 }
 
-// Step 2: Editing
+// 단계 2: 편집
 async function startRecording() {
   if (isRecording.value) return;
   isRecording.value = true;
@@ -265,7 +329,7 @@ async function startRecording() {
     analyser.fftSize = 256;
     visualize();
   } catch (err) {
-    console.error('Error accessing microphone', err);
+    console.error('마이크 접근 오류:', err);
     alert('마이크에 접근할 수 없습니다. 권한을 확인해주세요.');
     isRecording.value = false;
   }
@@ -317,26 +381,52 @@ function visualize() {
 
 function loadOrCreateBook(bookId: string | null) {
   if (bookId) {
-    const foundBook = DUMMY_BOOKS.find(b => b.id === bookId);
-    if (foundBook) {
-      currentBook.value = JSON.parse(JSON.stringify(foundBook));
-      currentStoryIndex.value = foundBook.stories.length > 0 ? 0 : -1;
-      creationStep.value = 'editing';
-    } else {
-      alert('책을 찾을 수 없습니다. 새 책 만들기를 시작합니다.');
-      creationStep.value = 'setup';
-    }
+    // TODO: API를 통해 기존 책 데이터를 불러오는 로직 추가
   } else {
     creationStep.value = 'setup';
-    currentBook.value = { id: `new_book_${Date.now()}`, title: '', summary: '', type: 'autobiography', genres: [], authorId: 'dummyUser1', isPublished: false, stories: [], createdAt: new Date(), updatedAt: new Date(), tags: [] };
   }
 }
 
-function addStory() {
-  const newTitle = `${(currentBook.value.stories?.length || 0) + 1}번째 이야기`;
-  const newStory: Story = { title: newTitle, content: '' };
-  currentBook.value.stories = [...(currentBook.value.stories || []), newStory];
-  currentStoryIndex.value = (currentBook.value.stories?.length || 1) - 1;
+async function deleteStory(story: Story, index: number) {
+  if (!confirm(`'${story.title}' 이야기를 삭제하시겠습니까?`)) return;
+  if (!currentBook.value?.id || !story.id) {
+    alert('삭제할 이야기의 정보가 올바르지 않습니다.');
+    return;
+  }
+
+  try {
+    await apiClient.delete(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`);
+    currentBook.value.stories?.splice(index, 1);
+
+    if (currentStoryIndex.value === index) {
+      currentStoryIndex.value = -1;
+    } else if (currentStoryIndex.value > index) {
+      currentStoryIndex.value--;
+    }
+    alert('이야기가 삭제되었습니다.');
+  } catch (error) {
+    console.error('이야기 삭제 오류:', error);
+    alert('이야기 삭제에 실패했습니다.');
+  }
+}
+
+async function addStory() {
+  if (!currentBook.value?.id) return;
+
+  try {
+    const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/episodes`);
+    const newEpisode = response.data.data;
+    const newStory: Story = {
+      id: newEpisode.episodeId,
+      title: newEpisode.title || `${(currentBook.value.stories?.length || 0) + 1}번째 이야기`,
+      content: newEpisode.content || ''
+    };
+    currentBook.value.stories = [...(currentBook.value.stories || []), newStory];
+    currentStoryIndex.value = (currentBook.value.stories?.length || 1) - 1;
+  } catch (error) {
+    console.error('이야기 추가 오류:', error);
+    alert('새로운 이야기를 추가하는데 실패했습니다.');
+  }
 }
 
 function selectStory(index: number) {
@@ -344,12 +434,32 @@ function selectStory(index: number) {
   isContentChanged.value = false;
 }
 
-function saveStory() { alert('이야기가 저장되었습니다.'); isContentChanged.value = false; }
+async function saveStory() {
+  if (!currentStory.value?.id || !currentBook.value?.id) {
+    alert('저장할 이야기가 없거나 책 정보가 올바르지 않습니다.');
+    return;
+  }
+
+  try {
+    const episodeData = {
+      title: currentStory.value.title,
+      content: currentStory.value.content,
+    };
+    await apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}`, episodeData);
+    alert('이야기가 저장되었습니다.');
+    isContentChanged.value = false;
+  } catch (error) {
+    console.error('이야기 저장 오류:', error);
+    alert('이야기 저장에 실패했습니다.');
+  }
+}
+
 function startAiInterview() {
   isInterviewStarted.value = true;
   isContentChanged.value = false;
   aiQuestion.value = '당신의 어린 시절, 가장 기억에 남는 장소는 어디인가요? 그곳에서의 특별한 경험을 이야기해주세요.';
 }
+
 function submitAnswerAndGetFollowUp() {
   if (currentStory.value && currentStory.value.content.trim() !== '') {
     aiQuestion.value = `AI가 당신의 답변에 대한 꼬리 질문을 생성했습니다: ${currentStory.value.content.substring(0, 20)}...에 대해 더 자세히 이야기해주세요.`;
@@ -359,21 +469,54 @@ function submitAnswerAndGetFollowUp() {
     alert('답변 내용을 입력하거나 음성 녹음을 완료해주세요.');
   }
 }
+
 function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; alert('질문을 건너뛰었습니다.'); isContentChanged.value = false; }
 function autoCorrect() { if (currentStory.value) { correctedContent.value = `(AI 교정됨) ${currentStory.value.content} - 문법과 문체가 ${currentBook.value.type} 스타일에 맞게 수정되었습니다.`; } }
 function applyCorrection() { if (currentStory.value && correctedContent.value) { currentStory.value.content = correctedContent.value; correctedContent.value = null; } }
 function cancelCorrection() { correctedContent.value = null; }
 
-function saveDraft() {
+async function saveDraft() {
+  if (!currentBook.value?.id) {
+    alert('책 정보가 올바르지 않습니다.');
+    return;
+  }
   if (confirm('작업을 임시 저장하고 목록으로 돌아가시겠습니까?')) {
-    alert('임시 저장되었습니다.');
-    router.push('/continue-writing');
+    try {
+      const savePromises = currentBook.value.stories?.map(story => {
+        if (story.id) {
+          return apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`, {
+            title: story.title,
+            content: story.content,
+          });
+        }
+        return Promise.resolve();
+      }) || [];
+      await Promise.all(savePromises);
+
+      const bookData = new FormData();
+      bookData.append('title', currentBook.value.title || '');
+      bookData.append('summary', currentBook.value.summary || '');
+      if (selectedCategoryId.value) {
+        bookData.append('categoryId', String(selectedCategoryId.value));
+      }
+
+      await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      alert('임시 저장되었습니다.');
+      isSavedOrPublished.value = true;
+      router.push('/continue-writing');
+    } catch (error) {
+      console.error('임시 저장 오류:', error);
+      alert('임시 저장에 실패했습니다.');
+    }
   }
 }
 
 function moveToPublishingStep() { creationStep.value = 'publishing'; }
 
-// Step 3: Publishing
+// 단계 3: 발행
 function handleCoverUpload(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
@@ -384,61 +527,178 @@ function handleCoverUpload(event: Event) {
   }
 }
 
-function finalizePublication() {
-  if (!currentBook.value.title) { alert('책 제목을 입력해주세요.'); return; }
+// --- 태그 관리 함수 ---
+function addTag() {
+  const newTag = tagInput.value.trim();
+  if (newTag && !tags.value.includes(newTag) && tags.value.length < 5) {
+    // 공백 포함 여부 확인
+    if (/\s/.test(newTag)) {
+      alert('태그에는 공백을 포함할 수 없습니다.');
+      return;
+    }
+    tags.value.push(newTag);
+    tagInput.value = ''; // 입력 필드 초기화
+  } else if (tags.value.length >= 5) {
+    alert('태그는 최대 5개까지 등록할 수 있습니다.');
+  }
+}
+
+function removeTag(index: number) {
+  tags.value.splice(index, 1);
+}
+
+
+async function finalizePublication() {
+  if (!currentBook.value.id || !currentBook.value.title) {
+    alert('책 정보가 올바르지 않습니다.');
+    return;
+  }
 
   if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
 
-  if (currentBook.value) {
-    currentBook.value.tags = tagInput.value
-      .split(' ')
-      .filter(tag => tag.startsWith('#') && tag.length > 1)
-      .map(tag => tag.trim())
-      .slice(0, 5);
+  try {
+    const bookData = new FormData();
+    bookData.append('title', currentBook.value.title);
+    bookData.append('summary', currentBook.value.summary || '');
+    if (selectedCategoryId.value) {
+      bookData.append('categoryId', String(selectedCategoryId.value));
+    }
+    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    const savePromises = currentBook.value.stories?.map(story => {
+      if (story.id) {
+        return apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`, {
+          title: story.title,
+          content: story.content,
+        });
+      }
+      return Promise.resolve();
+    }) || [];
+    await Promise.all(savePromises);
+
+    // 상태 배열에 저장된 태그를 사용
+    await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
+
+    alert('책이 성공적으로 발행되었습니다!');
+    isSavedOrPublished.value = true;
+    router.push(`/book-detail/${currentBook.value.id}`);
+
+  } catch (error) {
+    console.error('책 발행 오류:', error);
+    alert('책 발행에 실패했습니다.');
+  }
+}
+
+async function finalizePublicationAsCopy() {
+  if (!currentBook.value.id || !currentBook.value.title) {
+    alert('책 정보가 올바르지 않습니다.');
+    return;
   }
 
-  // 실제 앱에서는 여기서 서버로 데이터를 전송합니다.
-  // DUMMY_BOOKS.push(currentBook.value as Book); // 시뮬레이션
-
-  alert('책이 성공적으로 발행되었습니다!');
-  router.push(`/book-detail/${currentBook.value.id}`);
-}
-
-// [추가] 복사본으로 발행하는 함수
-function finalizePublicationAsCopy() {
-  if (!currentBook.value.title) { alert('책 제목을 입력해주세요.'); return; }
-
-  // 1. 사용자에게 확인 받기
   if (!confirm('복사본으로 저장하시겠습니까? 현재 내용은 별개의 책으로 발행됩니다.')) return;
 
-  // 2. 현재 책 데이터 깊은 복사
-  const copiedBook: Partial<Book> = JSON.parse(JSON.stringify(currentBook.value));
+  const episodesToCopy = currentBook.value.stories?.map(story => ({
+    episodeId: story.id,
+    title: story.title,
+    content: story.content,
+    delete: false
+  })) || [];
 
-  // 3. 복사본 데이터 수정 (제목, ID 등)
-  copiedBook.title = `${copiedBook.title} - 복사본`;
-  copiedBook.id = `copy_of_${copiedBook.id}_${Date.now()}`; // 새로운 고유 ID 생성
-  copiedBook.createdAt = new Date();
-  copiedBook.updatedAt = new Date();
+  if (episodesToCopy.length === 0) {
+    alert('복사할 이야기가 하나 이상 있어야 합니다.');
+    return;
+  }
 
-  // 태그 처리
-  copiedBook.tags = tagInput.value
-    .split(' ')
-    .filter(tag => tag.startsWith('#') && tag.length > 1)
-    .map(tag => tag.trim())
-    .slice(0, 5);
+  const copyRequest = {
+    title: `${currentBook.value.title} - 복사본`,
+    summary: currentBook.value.summary,
+    categoryId: selectedCategoryId.value,
+    episodes: episodesToCopy,
+  };
 
-  // 실제 앱에서는 복사된 데이터를 서버로 전송합니다.
-  // DUMMY_BOOKS.push(copiedBook as Book); // 시뮬레이션
-
-  alert('책이 복사본으로 성공적으로 발행되었습니다!');
-  router.push(`/book-detail/${copiedBook.id}`); // 복사된 책의 상세 페이지로 이동
+  try {
+    const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/copy`, copyRequest);
+    const newBook = response.data.data;
+    alert('책이 복사본으로 성공적으로 발행되었습니다!');
+    isSavedOrPublished.value = true;
+    router.push(`/book-detail/${newBook.bookId}`);
+  } catch (error) {
+    console.error('복사본 발행 오류:', error);
+    alert('복사본 발행에 실패했습니다.');
+  }
 }
 
 
-// --- Lifecycle Hooks ---
+// --- 생명주기 훅 ---
+
+// 페이지 이탈 방지 (브라우저 새로고침/닫기)
+const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  if (creationStep.value !== 'setup' && !isSavedOrPublished.value) {
+    event.preventDefault();
+    event.returnValue = ''; // 대부분의 브라우저에서 사용자 정의 메시지를 무시하고 기본 메시지를 표시
+  }
+};
+
+// 페이지 이탈 방지 (Vue Router를 통한 내부 이동)
+onBeforeRouteLeave((to, from, next) => {
+  if (creationStep.value !== 'setup' && !isSavedOrPublished.value) {
+    const answer = window.confirm(
+      '저장하지 않은 변경사항이 있습니다. 정말로 페이지를 떠나시겠습니까? 현재 작업 내용은 모두 삭제됩니다.'
+    );
+    if (answer) {
+      next(); // 사용자가 이탈을 확인하면 onBeforeUnmount가 호출됨
+    } else {
+      next(false); // 이동 차단
+    }
+  } else {
+    next(); // 저장되었거나 변경사항이 없으면 이동
+  }
+});
+
 onMounted(() => {
   const bookId = route.params.bookId as string | undefined;
   loadOrCreateBook(bookId || null);
+  window.addEventListener('beforeunload', handleBeforeUnload);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload);
+
+  if (creationStep.value !== 'setup' && !isSavedOrPublished.value && currentBook.value.id) {
+    const bookId = currentBook.value.id;
+    const headers = {
+      'Authorization': `Bearer ${authStore.accessToken}`,
+    };
+
+    try {
+      // 1. 모든 에피소드에 대한 삭제 요청을 보냅니다.
+      currentBook.value.stories?.forEach(story => {
+        if (story.id) {
+          const episodeUrl = `${apiClient.defaults.baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
+          fetch(episodeUrl, {
+            method: 'DELETE',
+            headers,
+            keepalive: true,
+          });
+          console.log(`에피소드(ID: ${story.id}) 삭제 요청을 전송했습니다.`);
+        }
+      });
+
+      // 2. 책 삭제 요청을 보냅니다.
+      const bookUrl = `${apiClient.defaults.baseURL}/api/v1/books/${bookId}`;
+      fetch(bookUrl, {
+        method: 'DELETE',
+        headers,
+        keepalive: true,
+      });
+      console.log(`책(ID: ${bookId}) 삭제 요청을 전송했습니다.`);
+
+    } catch (e) {
+      console.error("페이지 이탈 중 삭제 요청 전송 실패:", e);
+    }
+  }
 });
 
 watch(() => currentStory.value?.content, (newContent) => {
@@ -770,6 +1030,33 @@ textarea.form-control {
   border-left: 3px solid var(--accent-color);
 }
 
+.story-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-delete-story {
+  background: none;
+  border: none;
+  color: #adb5bd;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  visibility: hidden;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.story-list li:hover .btn-delete-story {
+  visibility: visible;
+  opacity: 1;
+}
+
+.btn-delete-story:hover {
+  color: #dc3545;
+}
+
 .editor-area {
   display: grid;
   grid-template-columns: 1fr 240px;
@@ -925,6 +1212,38 @@ textarea.form-control {
   font-weight: 400; /* Normal weight */
 }
 
+.publish-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.publish-header .section-title {
+  margin-bottom: 0;
+}
+
+.btn-back {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--secondary-text-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-back:hover {
+  background-color: #f8f9fa;
+}
+
 .cover-selection {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -979,5 +1298,57 @@ textarea.form-control {
   font-size: 1.5rem;
   white-space: nowrap;
   color: #414141;
+}
+
+/* --- Tag Input Styles --- */
+.tag-container {
+  /* border: 1px solid #ccc; */ /* 외곽선 제거 */
+  border-radius: 6px;
+  padding: 0.5rem;
+  padding-bottom: 0; /* 아래쪽 패딩 제거 */
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  background-color: #e9ecef;
+  color: #495057;
+  border-radius: 16px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.btn-remove-tag {
+  background: none;
+  border: none;
+  color: #868e96;
+  margin-left: 0.5rem;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0;
+}
+
+.btn-remove-tag:hover {
+  color: #343a40;
+}
+
+.tag-container .form-control {
+  border: 1px solid #ccc; /* 입력란에만 외곽선 추가 */
+  box-shadow: none;
+  padding-left: 0.8rem; /* 패딩 조정 */
+  margin-top: 0.5rem; /* 위쪽 태그 목록과의 간격 */
+}
+
+.tag-container .form-control:focus {
+  box-shadow: none;
 }
 </style>

@@ -18,7 +18,7 @@ public class CorsConfig {
                 "http://localhost:3000",           // 개발 환경
                 "https://i13c203.p.ssafy.io"       // 프로덕션 환경
         ));
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS", "PATCH"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 

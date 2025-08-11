@@ -16,6 +16,7 @@
           <div class="flipper" :class="{ 'is-flipped': isCoverFlipped }">
             <div class="flipper-front" @click="flipCover">
               <div class="book-cover-design" :style="{ backgroundImage: `url(${coverImageUrl})` }">
+                <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" />
                 <div class="title-box">
                   <h1>{{ book.title }}</h1>
                   <p class="author-in-box">{{ book.authorName }}</p>
@@ -42,7 +43,6 @@
               <p class="summary">{{ book.summary }}</p>
             </div>
           </div>
-          
           <div class="cover-adornment">
             <i v-if="!isCoverFlipped" class="bi bi-hand-index flip-indicator"></i>
             <div v-if="isCoverFlipped" class="vertical-publish-date">
@@ -65,6 +65,12 @@
         <button v-if="isAuthor" @click="editBook" class="btn btn-edit">
           <i class="bi bi-pencil-square"></i> 책 편집하기
         </button>
+        <button v-if="isAuthor && !isPublished" @click="publishToBookstore" class="btn btn-edit btn-publish">
+          <i class="bi bi-book"></i> 서점에 출판하기
+        </button>
+        <button v-if="isAuthor && isPublished" @click="unpublishFromBookstore" class="btn btn-edit btn-unpublish">
+          <i class="bi bi-book-half"></i> 출판 취소하기
+        </button>
       </aside>
 
       <main class="right-panel">
@@ -77,7 +83,17 @@
               <h2>{{ currentEpisode.title }}</h2>
               <p>{{ book.title }}</p>
             </header>
-            <div class="content-body" v-html="formattedContent(currentEpisode.content)"></div>
+            <div class="content-body" v-html="formattedContent(truncatedContent)"></div>
+            
+            <div class="episode-navigation">
+              <button v-if="hasPreviousEpisode" @click="goToPreviousEpisode" class="btn-nav prev">
+                <i class="bi bi-arrow-left-circle"></i> 이전 이야기
+              </button>
+              <div v-else></div>
+              <button v-if="hasNextEpisode" @click="goToNextEpisode" class="btn-nav next">
+                다음 이야기 <i class="bi bi-arrow-right-circle"></i>
+              </button>
+            </div>
           </article>
 
           <section v-else class="other-episodes-section">
@@ -154,7 +170,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 // --- Interfaces ---
 interface Episode { title: string; content: string; }
-interface Book { id: string; title: string; authorId: string; authorName?: string; summary?: string; coverUrl?: string; genres?: string[]; tags?: string[]; episodes: Episode[]; likes: number; views: number; publicationDate?: Date; }
+interface Book { id: string; title: string; authorId: string; authorName?: string; summary?: string; coverUrl?: string; genres?: string[]; tags?: string[]; episodes: Episode[]; likes: number; views: number; publicationDate?: Date; isPublished?: boolean; }
 interface Comment { id: string; bookId: string; authorId: string; authorName?: string; text: string; createdAt: Date; }
 
 // --- Dummy Data ---
@@ -173,7 +189,7 @@ const DUMMY_BOOKS: Book[] = [{
     { title: '할머니의 손맛', content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다.\n할머니 댁에 가면 언제나 구수한 된장찌개 냄새가 나를 반겼다. 할머니는 내가 좋아하는 반찬들을 한가득 차려주셨고, 나는 할머니의 사랑이 담긴 밥상을 마주할 때마다 세상에서 가장 행복한 아이가 되었다.' }, 
     { title: '우리들의 운동장', content: '친구들과 함께 뛰어놀던 운동장은 우리만의 작은 세상이었다.\n학교가 끝나면 우리는 약속이라도 한 듯 운동장으로 달려갔다. 축구공 하나만 있으면 시간 가는 줄 모르고 뛰어놀았고, 해가 져서 어두워질 때까지 운동장을 떠나지 않았다.' }
   ], 
-  likes: 20, views: 150,
+  likes: 20, views: 150, isPublished: false,
 },];
 const DUMMY_COMMENTS: Comment[] = [{ id: 'c1', bookId: 'mybook1', authorId: 'dummyUser1', authorName: '독서광', text: '정말 재미있게 읽었습니다! 다음 에피소드도 기대됩니다.', createdAt: new Date('2024-07-28T10:00:00Z') }, { id: 'c2', bookId: 'mybook1', authorId: 'user_dummy_4', authorName: '여행자', text: '저도 어릴 적 생각이 많이 나네요. 글이 참 따뜻합니다.', createdAt: new Date('2024-07-28T11:30:00Z') }, { id: 'c3', bookId: 'mybook1', authorId: 'user_dummy_5', authorName: '음유시인', text: '할머니의 사랑이 느껴지는 글입니다. 감동받았어요.', createdAt: new Date('2024-07-27T14:00:00Z') }];
 
@@ -194,11 +210,12 @@ const currentUserId = ref('dummyUser1');
 const areCommentsVisible = ref(false);
 const editingCommentId = ref<string | null>(null);
 const editingCommentText = ref('');
+const isPublished = ref(false);
 const coverImageUrl = computed(() => { return book.value?.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'; });
 // [수정] 발행일 형식 변경 (YYYY.MM.DD)
 const formattedPublicationDate = computed(() => { 
   if (!book.value?.publicationDate) return '';
-  const date = book.value.publicationDate;
+  const date = new Date(book.value.publicationDate);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
@@ -206,13 +223,100 @@ const formattedPublicationDate = computed(() => {
 });
 const currentEpisode = computed(() => { if (book.value && currentEpisodeIndex.value !== null) { return book.value.episodes[currentEpisodeIndex.value]; } return null; });
 const isAuthor = computed(() => book.value && book.value.authorId === currentUserId.value);
+
+const truncatedContent = computed(() => {
+  if (currentEpisode.value) {
+    return currentEpisode.value.content.substring(0, 1000);
+  }
+  return '';
+});
+
+const hasNextEpisode = computed(() => {
+  return book.value && currentEpisodeIndex.value !== null && currentEpisodeIndex.value < book.value.episodes.length - 1;
+});
+
+const hasPreviousEpisode = computed(() => {
+  return currentEpisodeIndex.value !== null && currentEpisodeIndex.value > 0;
+});
+
 const formattedContent = (content: string) => content.replace(/\n/g, '<br />');
 function openBook() { initialCoverMode.value = false; setTimeout(() => { bookIsOpened.value = true; }, 10); }
 function goBackToList() { currentEpisodeIndex.value = null; }
-function fetchBookData() { const foundBook = DUMMY_BOOKS.find(b => b.id === bookId.value); if (foundBook) { book.value = { ...foundBook }; likeCount.value = book.value.likes || 0; } else { book.value = null; } }
-function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()); }
+
+function goToNextEpisode() {
+  if (hasNextEpisode.value) {
+    selectEpisode(currentEpisodeIndex.value! + 1);
+  }
+}
+
+function goToPreviousEpisode() {
+  if (hasPreviousEpisode.value) {
+    selectEpisode(currentEpisodeIndex.value! - 1);
+  }
+}
+function fetchBookData() {
+  const publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
+  const foundPublishedBook = publishedBooks.find((b: Book) => b.id === bookId.value);
+
+  if (foundPublishedBook) {
+    book.value = foundPublishedBook;
+    isPublished.value = true;
+  } else {
+    const foundBook = DUMMY_BOOKS.find(b => b.id === bookId.value);
+    if (foundBook) {
+      book.value = { ...foundBook };
+      isPublished.value = false;
+    } else {
+      book.value = null;
+    }
+  }
+  if (book.value) {
+    likeCount.value = book.value.likes || 0;
+  }
+}
+function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); }
 function toggleLike() { isLiked.value = !isLiked.value; likeCount.value += isLiked.value ? 1 : -1; }
 function editBook() { if (book.value) { router.push({ name: 'BookEditor', params: { bookId: book.value.id } }); } }
+
+function publishToBookstore() {
+  if (book.value && confirm(`'${book.value.title}'을(를) 서점에 출판하시겠습니까?`)) {
+    const publishedBook = { ...book.value, isPublished: true, publicationDate: new Date() };
+    
+    let publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
+    
+    const existingBookIndex = publishedBooks.findIndex((b: Book) => b.id === publishedBook.id);
+    if (existingBookIndex > -1) {
+      publishedBooks[existingBookIndex] = publishedBook;
+    } else {
+      publishedBooks.push(publishedBook);
+    }
+    
+    localStorage.setItem('publishedBooks', JSON.stringify(publishedBooks));
+    
+    isPublished.value = true;
+    if (book.value) {
+      book.value.isPublished = true;
+      book.value.publicationDate = publishedBook.publicationDate;
+    }
+
+    alert('서점에 성공적으로 출판되었습니다.');
+  }
+}
+
+function unpublishFromBookstore() {
+  if (book.value && confirm(`'${book.value.title}'의 출판을 취소하시겠습니까?`)) {
+    let publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
+    publishedBooks = publishedBooks.filter((b: Book) => b.id !== book.value?.id);
+    localStorage.setItem('publishedBooks', JSON.stringify(publishedBooks));
+
+    isPublished.value = false;
+    if (book.value) {
+      book.value.isPublished = false;
+    }
+    alert('출판이 취소되었습니다.');
+  }
+}
+
 function selectEpisode(index: number) { if (book.value && index >= 0 && index < book.value.episodes.length) { currentEpisodeIndex.value = index; document.querySelector('.right-panel-scroller')?.scrollTo(0, 0); } }
 function toggleCommentsVisibility() { areCommentsVisible.value = !areCommentsVisible.value; }
 function addComment() { if (!newComment.value.trim() || !book.value) return; const comment: Comment = { id: `c${Date.now()}`, bookId: book.value.id, authorId: currentUserId.value, authorName: '현재 사용자', text: newComment.value, createdAt: new Date() }; comments.value.unshift(comment); newComment.value = ''; areCommentsVisible.value = true; }
@@ -257,7 +361,7 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .left-panel, .right-panel { height: 85vh; max-height: 750px; background-color: #fff; transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); }
 .left-panel { position: relative; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center; transform: translateX(-150%); opacity: 0; }
 .book-wrapper.is-open .left-panel { transform: translateX(0); opacity: 1; }
-.right-panel { transform: translateX(150%); opacity: 0; }
+.right-panel { transform: translateX(150%); opacity: 0; overflow-y: auto; }
 .book-wrapper.is-open .right-panel { transform: translateX(0); opacity: 1; transition-delay: 0.1s; }
 
 /* --- 책 뒤집기(Flip) 스타일 --- */
@@ -291,6 +395,27 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 8px; }
 
+.btn-unpublish {
+  background-color: #6c757d;
+  color: white;
+  border-color: #6c757d;
+}
+.btn-unpublish:hover {
+  background-color: #5a6268;
+  border-color: #545b62;
+}
+
+.published-sticker {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 100px;
+  height: 100px;
+  z-index: 15;
+  transform: rotate(15deg);
+  pointer-events: none;
+}
+
 /* [추가] 아이콘과 날짜를 감싸는 컨테이너 */
 .cover-adornment {
   position: absolute;
@@ -320,7 +445,7 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 }
 
 /* --- 오른쪽 패널 내부 스타일 --- */
-.right-panel-scroller { height: 100%; overflow-y: auto; padding: 40px 8%; }
+.right-panel-scroller { padding: 40px 8%; }
 .btn-back { background: none; border: 1px solid #ddd; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 32px; transition: all 0.2s ease; }
 .btn-back:hover { background-color: #f8f8f8; border-color: #ccc; transform: scale(1.03); }
 hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
@@ -328,6 +453,35 @@ hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
 .episode-header h2 { font-family: 'Noto Serif KR', serif; font-size: 32px; font-weight: 700; margin-bottom: 4px; }
 .episode-header p { font-size: 15px; color: #999; }
 .content-body { font-family: 'Noto Serif KR', serif; font-size: 16px; line-height: 2.0; color: #333; padding-bottom: 60px; text-align: justify; }
+
+.episode-navigation {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.btn-nav {
+  background: none;
+  border: 1px solid #ddd;
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-nav:hover {
+  background-color: #f8f8f8;
+  border-color: #ccc;
+  transform: scale(1.03);
+}
+
 .other-episodes-section { padding-top: 40px; }
 .other-episodes-section:first-child { padding-top: 0; border-top: none; }
 .other-episodes-section h3 { font-size: 18px; font-weight: 700; margin-bottom: 24px; }

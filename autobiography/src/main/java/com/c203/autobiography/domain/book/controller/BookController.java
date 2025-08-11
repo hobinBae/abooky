@@ -181,13 +181,13 @@ public class BookController {
     @Operation(summary = "에피소드 생성", description = "대화 세션을 마무리하고 에피소드를 생성합니다.")
     @PostMapping("/{bookId}/episodes")
     public ResponseEntity<ApiResponse<EpisodeResponse>> createEpisode(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
+//            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long bookId,
             @Valid @RequestParam String sessionId, HttpServletRequest httpRequest
     ) throws JsonProcessingException {
 
-        Long memberId = userDetails.getMemberId();
-        EpisodeResponse response = episodeService.createEpisode(memberId, bookId, sessionId);
+//        Long memberId = userDetails.getMemberId();
+        EpisodeResponse response = episodeService.createEpisode( bookId, sessionId);
         //episodeCreateRequest 추가
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "에피소드 생성 성공", response, httpRequest.getRequestURI()));

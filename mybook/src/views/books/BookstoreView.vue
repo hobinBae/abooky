@@ -144,7 +144,12 @@ const DUMMY_BOOKS: Book[] = [
 ];
 
 // --- Reactive State ---
-const allBooks = ref<Book[]>(DUMMY_BOOKS);
+const publishedBooksRaw = JSON.parse(localStorage.getItem('publishedBooks') || '[]') as any[];
+const publishedBooks = publishedBooksRaw.map(book => ({
+  ...book,
+  createdAt: new Date(book.createdAt || book.publicationDate),
+})) as Book[];
+const allBooks = ref<Book[]>([...publishedBooks, ...DUMMY_BOOKS.filter(b => !publishedBooks.some(pb => pb.id === b.id))]);
 const searchTerm = ref('');
 const currentSortOption = ref<SortOption>('latest');
 const activeGenre = ref<string | null>(null);

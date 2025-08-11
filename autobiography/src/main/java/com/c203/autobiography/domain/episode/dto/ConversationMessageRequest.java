@@ -18,7 +18,7 @@ public class ConversationMessageRequest {
     private String sessionId;
 
     @NotBlank
-    @Schema(description = "메시지 타입 (QUESTION, PARTIAL, FINAL, EPISODE)", example = "PARTIAL")
+    @Schema(description = "메시지 타입 (QUESTION, ANSWER, EPISODE)", example = "PARTIAL")
     private MessageType messageType;
 
     @Schema(description = "청크 인덱스 (PARTIAL 메시지 시)", example = "0")
