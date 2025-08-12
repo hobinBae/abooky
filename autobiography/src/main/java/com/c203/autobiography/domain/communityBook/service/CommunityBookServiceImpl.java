@@ -8,6 +8,7 @@ import com.c203.autobiography.domain.communityBook.entity.CommunityBookEpisode;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookCommentRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
+import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRepository;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
@@ -35,6 +36,8 @@ public class CommunityBookServiceImpl implements CommunityBookService {
     private final CommunityBookRepository communityBookRepository;
     private final CommunityBookEpisodeRepository communityBookEpisodeRepository;
     private final CommunityBookCommentRepository communityBookCommentRepository;
+    private final CommunityBookTagRepository communityBookTagRepository;
+
 
     @Transactional
     @Override
@@ -59,8 +62,11 @@ public class CommunityBookServiceImpl implements CommunityBookService {
         // 조회수 증가
         incrementViewCount(communityBook);
 
+        // 태그 조회
+        List<CommunityBookTagResponse> tags = communityBookTagRepository.findTagInfoByCommunityBookId(communityBookId);
+
         // 응답 객체 생성
-        return CommunityBookDetailResponse.of(communityBook, episodes);
+        return CommunityBookDetailResponse.of(communityBook, episodes, tags);
     }
 
     /**
