@@ -24,8 +24,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
 
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -42,6 +45,9 @@ import static com.c203.autobiography.domain.book.dto.BookType.FREE_FORM;
 @Slf4j
 @Transactional(readOnly = true)
 public class BookServiceImpl implements BookService {
+
+    @Value("${aws.s3.base-url}")
+    private String s3BaseUrl;
 
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
@@ -110,18 +116,57 @@ public class BookServiceImpl implements BookService {
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
         }
 
-        String newImageUrl = book.getCoverImageUrl();
+        String currentImageUrl = book.getCoverImageUrl();
+        String newImageUrl = currentImageUrl; // 기본값은 현재 이미지 URL
         if (file != null && !file.isEmpty()) {
-            String currentImageUrl = book.getCoverImageUrl();
-            if (currentImageUrl != null && !currentImageUrl.isBlank()) {
+
+            currentImageUrl = book.getCoverImageUrl();
+
+            if (isDeletableS3File(currentImageUrl)) {
                 fileStorageService.delete(currentImageUrl);
             }
 
             newImageUrl = fileStorageService.store(file, "book");
 
+        } else if (request.getCoverImageUrl() != null && !request.getCoverImageUrl().equals(currentImageUrl)) {
+            // [CASE 2] 새로운 파일 업로드는 없지만, 요청에 다른 이미지 URL(예: 다른 기본 이미지 선택)이 포함된 경우
+
+            // 기존 이미지가 S3에 업로드된 파일인 경우에만 삭제
+            if (isDeletableS3File(currentImageUrl)) {
+                fileStorageService.delete(currentImageUrl);
+            }
+            // 요청으로 받은 URL을 새 URL로 설정
+            newImageUrl = request.getCoverImageUrl();
         }
+
         book.updateBook(request.getTitle(), newImageUrl, request.getSummary(), category);
+
+        List<String> tagNames = request.getTags();
+        if (tagNames != null) {
+            // 1. 요청으로 들어온 태그 이름들을 Tag 엔티티 Set으로 변환
+            Set<Tag> newTags = tagNames.stream().distinct()
+                    .map(name -> tagRepository.findByTagName(name)
+                            .orElseGet(() -> tagRepository.save(Tag.builder().tagName(name).build()))
+                    ).collect(Collectors.toSet());
+
+            // 2. Book 엔티티의 동기화 메소드를 호출하여 한번에 업데이트
+            book.updateTags(newTags);
+        }
+
         return BookResponse.of(book);
+    }
+
+    private boolean isDeletableS3File(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+
+        // ★★★ 핵심 수정 사항 ★★★
+        // URL에 '/default_' 라는 문자열이 포함되어 있는지 확인하여 기본 이미지인지 판별합니다.
+        boolean isDefaultImage = url.contains("/default_");
+
+        // 삭제 가능한 파일의 조건: 우리 S3 URL로 시작하고, 기본 이미지는 아니어야 함.
+        return url.startsWith(s3BaseUrl) && !isDefaultImage;
     }
 
     @Override
@@ -155,18 +200,19 @@ public class BookServiceImpl implements BookService {
         // 3) 완료 처리
         book.markCompleted();
 
-        // 4) 태그 설정 (null/empty 스킵)
-        if (tags != null && !tags.isEmpty()) {
-            book.clearTags();
-            tags.stream().distinct().forEach(name -> {
-                Tag tag = tagRepository.findByTagName(name)
-                        .orElseGet(() -> tagRepository.save(
-                                Tag.builder().tagName(name).build()
-                        ));
-                book.addTag(tag);
-            });
+        // 2) ★★★ 태그 설정 로직 수정 ★★★
+        if (tags != null) { // 비어있는 리스트도 처리하기 위해 !tags.isEmpty() 조건 제거
+            // 2-1. 요청으로 들어온 태그 이름들을 Tag 엔티티 Set으로 변환
+            Set<Tag> newTags = tags.stream().distinct()
+                    .map(name -> tagRepository.findByTagName(name)
+                            .orElseGet(() -> tagRepository.save(Tag.builder().tagName(name).build()))
+                    ).collect(Collectors.toSet());
+
+            // 2-2. Book 엔티티의 동기화 메소드를 호출하여 한번에 업데이트
+            book.updateTags(newTags);
         }
 
+        // 3) DTO 변환을 위한 데이터 조회 (기존과 동일)
         List<EpisodeResponse> episodes = episodeRepository
                 .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId)
                 .stream()
@@ -177,7 +223,6 @@ public class BookServiceImpl implements BookService {
                 .map(bt -> bt.getTag().getTagName())
                 .toList();
 
-        // 6) DTO 변환
         return BookResponse.of(book, episodes, tagNames);
 
     }
@@ -307,14 +352,13 @@ public class BookServiceImpl implements BookService {
 
         Page<Book> page = bookRepository.findAll(spec, pageable);
 
-
         return page.map(book -> {
             List<String> tagNames = book.getTags().stream()
                     .map(bt -> bt.getTag().getTagName())
                     .toList();
             return BookResponse.of(book, List.of(), tagNames);
         });
-        }
+    }
 
     @Override
     @Transactional
@@ -327,13 +371,13 @@ public class BookServiceImpl implements BookService {
 
         boolean exists = bookLikeRepository.existsByBookAndMember(book, member);
 
-        if(!exists){
+        if (!exists) {
             BookLike like = BookLike.of(book, member);
             bookLikeRepository.save(like);
             book.incrementLike();
             return new LikeResponse(true, bookLikeRepository.countByBook(book));
 
-        }else{
+        } else {
             bookLikeRepository.deleteByBookAndMember(book, member);
             book.decrementLike();
             return new LikeResponse(false, bookLikeRepository.countByBook(book));
@@ -353,7 +397,10 @@ public class BookServiceImpl implements BookService {
         // upsert
         RatingId ratingId = new RatingId(bookId, memberId);
         Rating rating = ratingRepository.findById(ratingId)
-                .map(r -> { r.updateScore(request.getScore()); return r; })
+                .map(r -> {
+                    r.updateScore(request.getScore());
+                    return r;
+                })
                 .orElseGet(() -> Rating.create(book, member, request.getScore()));
         ratingRepository.save(rating);
 
@@ -493,7 +540,7 @@ public class BookServiceImpl implements BookService {
                 .toList();
 
         System.out.println("community Episodes");
-        for(CommunityBookEpisode e : communityEpisodes){
+        for (CommunityBookEpisode e : communityEpisodes) {
             System.out.println(e.toString());
         }
 

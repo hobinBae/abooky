@@ -3,6 +3,7 @@ package com.c203.autobiography.domain.book.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,6 +27,8 @@ public class BookUpdateRequest {
 
     /** null 허용: 카테고리를 변경하지 않거나 제거할 때 사용 */
     private Long categoryId;
+
+    private List<String> tags;
 
     /*
     // 필요 시 도메인 엔티티에 적용
