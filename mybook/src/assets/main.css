@@ -1,43 +1,71 @@
 @import './base.css';
 
 @font-face {
-  font-family: 'SSRock';
-  src: url('@/assets/fonts/SSRockRegular.ttf') format('truetype');
+  font-family: 'EBSHunminjeongeumSaeronL';
+  src: url('./fonts/EBS훈민정음새론L.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'MaruBuri-Light';
+  src: url('./fonts/MaruBuri-Light.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'ChosunCentennial';
+  src: url('./fonts/ChosunCentennial.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'NanumSquareL';
+  src: url('./fonts/NanumSquare_acL.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'NanumSquareR';
+  src: url('./fonts/NanumSquare_acR.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SSRockRegular';
+  src: url('./fonts/SSRockRegular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'SuseongHyejeong';
+  src: url('./fonts/SuseongHyejeong.ttf') format('truetype');
   font-weight: normal;
   font-style: normal;
 }
 
 body {
   font-family: 'Inter', sans-serif;
-  /* background-image: url('/images/background-image.jpg'); 이미지 경로를 실제 파일 경로로 변경하세요 */
-  /* background-size: cover; /* 화면에 맞게 이미지를 확대/축소 */
-  /* background-position: center; 이미지를 중앙에 배치 */
-  /* background-repeat: no-repeat; 이미지 반복 방지 */
-  /* background-attachment: fixed;  */ /* 스크롤 시 배경 고정 (선택 사항) */
+  /* background-image: url('/images/background-image.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed; */
 }
+
 #app {
   margin: 0 auto;
   font-weight: normal;
   width: 100%;
 }
 
-a,
-.green {
-  text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
-}
-
-/* @media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
-} */
 
 @media (min-width: 1024px) {
-  /* body {
-  } */
+  body {}
 
   #app {
     display: grid;
