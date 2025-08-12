@@ -184,4 +184,23 @@ public class CommunityBookController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.CREATED, "커뮤니티 북 좋아요 수 조회 성공", response, httpRequest.getRequestURI()));
     }
+
+
+    @Operation(summary = "커뮤니티 북 북마크/북마크 취소", description = "커뮤니티 북 북마크를 토글합니다 (북마크가 있으면 취소, 없으면 추가)")
+    @PostMapping("/{communityBookId}/bookmark")
+    public ResponseEntity<ApiResponse<Object>> toggleBookmark(
+            @Parameter(description = "커뮤니티 북 ID", required = true)
+            @PathVariable Long communityBookId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest) {
+
+        Long memberId = userDetails.getMemberId();
+        boolean isBookmarked = communityBookService.toggleBookmark(communityBookId, memberId);
+
+        String message = isBookmarked ? "커뮤니티 책 북마크 성공" : "커뮤니티 책 북마크 취소 성공";
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, message, null, httpRequest.getRequestURI()));
+    }
+
 }
