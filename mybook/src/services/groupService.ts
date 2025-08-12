@@ -143,7 +143,9 @@ class GroupService {
       console.error('활성화된 세션 조회 실패:', error);
       
       // localStorage에서 세션 목록 조회 (실시간 업데이트)
-      return this.getStoredSessions();
+      const storedSessions = this.getStoredSessions();
+      console.log('🔧 localStorage에서 가져온 세션:', storedSessions);
+      return storedSessions;
     }
   }
 
@@ -162,84 +164,72 @@ class GroupService {
   private getDummyGroups(): Group[] {
     const currentUserId = this.getCurrentUserId();
     
-    // 사용자별로 다른 그룹 반환
-    if (currentUserId === 1001) { // 사용자 A
-      return [
-        {
-          groupId: 1,
-          groupName: "우리 가족",
-          description: "가족들과 추억을 기록하는 공간",
-          themeColor: "#FFCC00",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 1001,
-          leaderNickname: "김싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: ["김싸피123", "엄마", "아빠"]
-        },
-        {
-          groupId: 2,
-          groupName: "대학 동기",
-          description: "대학 동기들과 추억을 기록하는 공간",
-          themeColor: "#42b983",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 5001,
-          leaderNickname: "이싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: ["김싸피123", "이싸피123", "박싸피456"]
-        }
-      ];
-    } else if (currentUserId === 5001) { // 사용자 B
-      return [
-        {
-          groupId: 2,
-          groupName: "대학 동기",
-          description: "대학 동기들과 추억을 기록하는 공간",
-          themeColor: "#42b983",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 5001,
-          leaderNickname: "이싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: ["김싸피123", "이싸피123", "박싸피456"]
-        },
-        {
-          groupId: 1,
-          groupName: "우리 가족",
-          description: "가족들과 추억을 기록하는 공간",
-          themeColor: "#FFCC00",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 1001,
-          leaderNickname: "김싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: ["김싸피123", "엄마", "아빠"]
-        }
-      ];
-    }
-    
-    // 기본값
-    return [];
+    // 내 서재의 allGroups와 일치하는 더미 데이터 반환
+    return [
+      {
+        groupId: 1, // 내 서재의 'group1'에 해당
+        groupName: "독서 토론 모임",
+        description: "독서를 통해 생각을 나누는 모임",
+        themeColor: "#42b983",
+        groupImageUrl: "https://images.unsplash.com/photo-1506894824902-72895a783ac0?w=500",
+        leaderId: 1001,
+        leaderNickname: "김작가",
+        createdAt: "2025-01-01T10:00:00",
+        updatedAt: "2025-01-01T11:00:00",
+        members: ["김작가", "이영희", "박철수"]
+      },
+      {
+        groupId: 2, // 내 서재의 'group2'에 해당  
+        groupName: "글쓰기 동호회",
+        description: "함께 글을 쓰며 성장하는 동호회",
+        themeColor: "#FFCC00",
+        groupImageUrl: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=500",
+        leaderId: 1001,
+        leaderNickname: "김작가",
+        createdAt: "2025-01-02T10:00:00",
+        updatedAt: "2025-01-02T11:00:00",
+        members: ["김작가", "최수진"]
+      },
+      {
+        groupId: 3, // 내 서재의 'group3'에 해당
+        groupName: "여행 에세이 클럽",
+        description: "여행의 경험을 글로 남기는 클럽",
+        themeColor: "#3498db",
+        groupImageUrl: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500",
+        leaderId: 5001,
+        leaderNickname: "정민준",
+        createdAt: "2025-01-03T10:00:00",
+        updatedAt: "2025-01-03T11:00:00",
+        members: ["정민준", "김작가", "하은지"]
+      }
+    ];
   }
 
   private getDummySessions(): ActiveSession[] {
-    return [
+    // localStorage에서 먼저 확인하고, 없으면 초기 더미 데이터 생성
+    const stored = this.getStoredSessions();
+    if (stored.length > 0) {
+      return stored;
+    }
+    
+    // 초기 더미 데이터 - 테스트를 위해 일부 그룹이 활성화된 상태로 설정
+    const initialSessions = [
       {
-        groupId: 2,
-        groupName: '대학 동기',
-        hostName: '이싸피123',
-        startedAt: new Date(),
-        participantCount: 1
-      },
-      {
-        groupId: 99,
-        groupName: '다른 사람 그룹',
-        hostName: '타인123',
-        startedAt: new Date(),
-        participantCount: 3
+        groupId: 1,
+        groupName: '독서 토론 모임',
+        hostName: '이영희',
+        startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10분 전 시작
+        participantCount: 2
       }
     ];
+    
+    // localStorage에 저장
+    localStorage.setItem('activeGroupBookSessions', JSON.stringify(initialSessions));
+    
+    return initialSessions;
+    
+    // 모든 세션이 비활성화된 상태로 테스트하려면:
+    // return [];
   }
 
   // 그룹책 세션 시작 (방 만들기)
