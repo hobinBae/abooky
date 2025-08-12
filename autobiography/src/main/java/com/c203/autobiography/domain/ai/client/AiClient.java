@@ -36,4 +36,13 @@ public interface AiClient {
      * @return 아직 답변되지 않은 질문들의 인덱스 리스트
      */
     String analyzeAnsweredQuestions(String userAnswer, String remainingQuestions);
+
+    /**
+     * 사용자 답변을 읽기 쉬운 문장으로 편집합니다.(그룹책 에피소드 생성용)
+     * @param rawAnswer
+     * @param priorContext
+     * @param tone
+     * @return
+     */
+    String editText(String rawAnswer, String priorContext, String tone);
 }

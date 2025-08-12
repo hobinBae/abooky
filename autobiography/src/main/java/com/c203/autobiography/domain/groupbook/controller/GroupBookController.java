@@ -47,7 +47,7 @@ public class GroupBookController {
     }
 
     @Operation(summary = "그룹책 완성", description = "그룹 책을 완성합니다.")
-    @PatchMapping("/completed")
+    @PatchMapping("{groupBookId}/completed")
     public ResponseEntity<ApiResponse<GroupBookResponse>> completeBook(
             @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long groupId,

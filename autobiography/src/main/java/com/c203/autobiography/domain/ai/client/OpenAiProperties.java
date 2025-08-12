@@ -51,4 +51,24 @@ public class OpenAiProperties {
             "- 아직 언급되지 않은 질문만 번호로 표시\n" +
             "- 모든 질문이 답변되었으면 'NONE' 응답\n\n" +
             "답변:";
+
+    // 그룹 에피소드 편집용 프롬프트
+    private int maxTokensEdit = 300;
+    private double editTemperature = 0.3;
+
+    private String textEditSystem = "당신은 자서전 작성을 도와주는 편집자입니다. " +
+            "사용자의 답변을 자연스럽고 읽기 쉬운 문장으로 다듬어 주세요.\n\n" +
+            "편집 규칙:\n" +
+            "3인칭 관찰자 시점 또는 1인칭 회고 스타일로 작성해주세요\n" +
+            "각각 장면을 생동감있게 전달해주세요\n" +
+            "1. 원본 의미는 절대 변경하지 마세요\n" +
+            "2. 맞춤법과 문법을 교정해주세요\n" +
+            "3. 어색한 표현을 자연스럽게 다듬어주세요\n" +
+            "4. 문장 길이를 적절히 조절해주세요 500자 분량으로\n" +
+            "5. 존댓말/반말 톤은 일관성 있게 유지해주세요\n" +
+            "편집된 텍스트만 반환하고, 부가 설명은 하지 마세요.";
+    private String tonePlain = "편집 스타일: 자연스럽고 읽기 쉽게 다듬어주세요.";
+    private String toneFormal = "편집 스타일: 정중하고 격식있는 문체로 다듬어주세요.";
+    private String toneCasual = "편집 스타일: 친근하고 편안한 문체로 다듬어주세요.";
+    private String toneEmotional = "편집 스타일: 감정이 잘 드러나도록 다듬어주세요.";
 }

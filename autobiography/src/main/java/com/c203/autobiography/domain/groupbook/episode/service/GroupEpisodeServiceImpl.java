@@ -131,7 +131,7 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         int currentStepNo = (req.getLastStepNo() == null ? 1 : req.getLastStepNo());
 
         // 1) 현재 스텝 사용자 답변을 편집
-        String editedParagraph = editorService.polish(req.getUserAnswer(), ep.getEditedContent());
+        String editedParagraph = editorService.polish(req.getUserAnswer(), ep.getEditedContent(), "FORMAL");
 
         // 2) 현재 스텝의 가이드 상태 업데이트 (사용자 답변과 편집 결과 저장)
         Optional<GroupEpisodeGuideState> currentStateOpt = stateRepository
