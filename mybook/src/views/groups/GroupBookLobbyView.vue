@@ -6,11 +6,11 @@
         <p>그룹 사람들과 새로운 책을 만들거나 이 여정에 참여해 보세요.</p>
       </div>
       <div class="button-container">
-        <button class="lobby-button create-button" @click="showGroupModal = true">
+        <button class="lobby-button create-button" @click="openGroupModal">
           <h2>그룹책 방 만들기</h2>
           <p>새로운 그룹 책을 만들어보세요.</p>
         </button>
-        <button class="lobby-button join-button" @click="goToJoin">
+        <button class="lobby-button join-button" @click="openJoinModal">
           <h2>그룹책 방 참여하기</h2>
           <p>활성화된 나의 그룹 책에 참여하세요.</p>
         </button>
@@ -51,31 +51,33 @@
 
     <!-- 그룹책 참여 모달 -->
     <SimpleModal 
+      :key="joinModalKey"
       :is-visible="showJoinModal" 
-      title="활성화된 그룹책 만들기" 
+      title="내가 속한 그룹 선택" 
       @close="closeJoinModal"
     >
       <div v-if="loadingSessions" style="padding: 2rem; text-align: center;">
-        <LoadingSpinner message="활성화된 세션을 불러오는 중..." />
+        <LoadingSpinner message="활성화된 그룹책 방을 확인하는 중..." />
       </div>
       
-      <div v-else-if="availableGroupBookSessions.length === 0" style="padding: 2rem;">
+      <div v-else-if="activeGroupsForJoin.length === 0" style="padding: 2rem;">
         <EmptyState 
           icon-class="bi bi-book"
-          title="참여할 수 있는 그룹책 만들기가 없습니다"
-          description="현재 진행 중인 그룹책 만들기가 없습니다.\n직접 그룹책 방을 만들어보세요."
+          title="활성화된 그룹책 방이 없습니다"
+          description="활성화된 그룹책 방이 없습니다.\n그룹책 방 만들기를 이용해 활성화 시켜주세요."
           action-text="그룹책 방 만들기"
           action-class="btn-primary"
-          @action="closeJoinModal"
+          @action="handleCreateFromJoin"
         />
       </div>
       
-      <div v-else class="session-list">
-        <SessionItem 
-          v-for="session in availableGroupBookSessions" 
-          :key="session.groupId"
-          :session="session"
-          @join="joinGroupBookSession"
+      <div v-else class="group-list">
+        <GroupItem 
+          v-for="group in activeGroupsForJoin" 
+          :key="group.groupId"
+          :group="group"
+          :current-user-id="currentUserId"
+          @select="joinExistingGroupBookSession"
         />
       </div>
     </SimpleModal>
@@ -83,7 +85,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, nextTick, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import SimpleModal from '@/components/common/SimpleModal.vue';
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue';
@@ -97,6 +99,7 @@ const router = useRouter();
 // 모달 상태
 const showGroupModal = ref(false);
 const showJoinModal = ref(false);
+const joinModalKey = ref(0); // 강제 재렌더링용
 
 // 로딩 상태
 const loading = ref(false);
@@ -116,10 +119,22 @@ const allActiveGroupBookSessions = ref<ActiveSession[]>([]);
 
 // 내가 참여 가능한 활성화된 그룹책 세션만 필터링
 const availableGroupBookSessions = computed(() => {
-  return allActiveGroupBookSessions.value.filter(session => {
+  const filtered = allActiveGroupBookSessions.value.filter(session => {
     const myGroupIds = myGroups.value.map(group => group.groupId);
     return myGroupIds.includes(session.groupId);
   });
+  console.log('🔍 availableGroupBookSessions computed 실행됨, 결과:', filtered.length);
+  return filtered;
+});
+
+// 참여하기용: 활성화된 세션이 있는 그룹들만 필터링
+const activeGroupsForJoin = computed(() => {
+  const activeSessionGroupIds = availableGroupBookSessions.value.map(session => session.groupId);
+  const activeGroups = myGroups.value.filter(group => 
+    activeSessionGroupIds.includes(group.groupId)
+  );
+  console.log('🔍 activeGroupsForJoin computed 실행됨, 결과:', activeGroups.length);
+  return activeGroups;
 });
 
 // API 호출 함수들
@@ -145,15 +160,79 @@ const fetchAllActiveGroupBookSessions = async () => {
   }
 };
 
-// 이벤트 핸들러들
+// 모달 열기 함수들
+const openGroupModal = async () => {
+  showGroupModal.value = true;
+  await fetchMyGroups();
+};
+
+const openJoinModal = async () => {
+  showJoinModal.value = true;
+  loadingSessions.value = true;
+  
+  try {
+    // 그룹 데이터와 활성 세션을 모두 가져옴
+    await Promise.all([
+      fetchMyGroups(),
+      fetchAllActiveGroupBookSessions()
+    ]);
+  } catch (error) {
+    console.error('데이터 로딩 실패:', error);
+  } finally {
+    loadingSessions.value = false;
+  }
+};
+
+// 모달 닫기 함수들
 const closeGroupModal = () => {
+  console.log('=== 그룹 모달 닫기 시작 ===');
+  
+  // 1단계: 모든 상태 강제 초기화
   showGroupModal.value = false;
+  showJoinModal.value = false;
   loading.value = false;
+  loadingSessions.value = false;
+  
+  // 2단계: 비동기로 다시 한 번 확인
+  setTimeout(() => {
+    showGroupModal.value = false;
+    console.log('그룹 모달 완전 닫기 완료');
+  }, 10);
+  
+  console.log('=== 그룹 모달 닫기 완료 ===');
 };
 
 const closeJoinModal = () => {
+  console.log('🔥🔥🔥 부모 컴포넌트에서 closeJoinModal 호출됨!');
+  console.log('호출 전 showJoinModal 값:', showJoinModal.value);
+  
+  // 1단계: 상태 변경 전 로그
   showJoinModal.value = false;
+  console.log('showJoinModal.value = false 설정 후:', showJoinModal.value);
+  
+  showGroupModal.value = false;
+  loading.value = false;
   loadingSessions.value = false;
+  
+  // 2단계: 강제 재렌더링
+  joinModalKey.value = Date.now();
+  console.log('joinModalKey 업데이트:', joinModalKey.value);
+  
+  // 3단계: nextTick으로 DOM 업데이트 대기
+  nextTick(() => {
+    console.log('nextTick에서 showJoinModal 값:', showJoinModal.value);
+    if (showJoinModal.value === true) {
+      console.error('❌ nextTick에서도 모달이 여전히 true입니다!');
+    }
+  });
+  
+  // 4단계: 추가 안전장치
+  setTimeout(() => {
+    showJoinModal.value = false;
+    console.log('setTimeout에서 최종 확인:', showJoinModal.value);
+  }, 10);
+  
+  console.log('🔥🔥🔥 closeJoinModal 함수 완료');
 };
 
 const selectGroup = async (group: Group) => {
@@ -177,10 +256,6 @@ const selectGroup = async (group: Group) => {
   }
 };
 
-const goToJoin = () => {
-  showJoinModal.value = true;
-  fetchAllActiveGroupBookSessions();
-};
 
 const joinGroupBookSession = (session: ActiveSession) => {
   console.log('참여할 세션:', session);
@@ -201,10 +276,41 @@ const joinGroupBookSession = (session: ActiveSession) => {
   }
 };
 
+const joinExistingGroupBookSession = (group: Group) => {
+  console.log('활성화된 그룹책 방에 참여:', group);
+  
+  try {
+    router.push({
+      path: '/group-book-creation',
+      query: { 
+        groupId: group.groupId.toString(), 
+        groupName: group.groupName,
+        mode: 'join'
+      }
+    });
+    closeJoinModal();
+  } catch (error) {
+    console.error('그룹책 세션 참여 오류:', error);
+    window.location.href = `/group-book-creation?groupId=${group.groupId}&groupName=${encodeURIComponent(group.groupName)}&mode=join`;
+  }
+};
+
 const goToMyLibrary = () => {
   closeGroupModal();
   router.push({ path: '/my-library' });
 };
+
+const handleCreateFromJoin = () => {
+  closeJoinModal();
+  openGroupModal();
+};
+
+// showJoinModal 변경 감지
+watch(showJoinModal, (newValue, oldValue) => {
+  console.log(`🔍 showJoinModal 변경 감지: ${oldValue} → ${newValue}`);
+  const stack = new Error().stack;
+  console.log('변경된 곳의 호출 스택:', stack);
+}, { immediate: true });
 
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
