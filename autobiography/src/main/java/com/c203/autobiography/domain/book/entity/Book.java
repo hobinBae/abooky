@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -188,4 +190,25 @@ public class Book {
         tags.removeIf(link -> link.getTag().equals(tag));
     }
 
+    /**
+     * ★★★ 태그 목록 전체를 한번에 동기화하는 새로운 메소드 ★★★
+     * @param newTags 새로 반영할 Tag 엔티티의 Set
+     */
+    public void updateTags(Set<Tag> newTags) {
+        // 1. 제거할 BookTag 찾기
+        // 현재 태그 목록에서, 새로운 태그 목록에 포함되지 않은 것들을 제거한다.
+        // removeIf를 사용하면 순회 중 안전하게 제거 가능
+        this.tags.removeIf(bookTag -> !newTags.contains(bookTag.getTag()));
+
+        // 2. 추가할 Tag 찾기
+        // 현재 책이 가지고 있는 Tag들의 Set을 구한다.
+        Set<Tag> currentTags = this.tags.stream()
+                .map(BookTag::getTag)
+                .collect(Collectors.toSet());
+
+        // 새로운 태그 목록에서, 현재 가지고 있지 않은 태그들만 책에 추가한다.
+        newTags.stream()
+                .filter(newTag -> !currentTags.contains(newTag))
+                .forEach(this::addTag); // 기존 addTag 메소드 재활용
+    }
 }
