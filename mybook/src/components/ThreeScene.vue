@@ -16,9 +16,9 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 
 import { gsap } from 'gsap'
 
-const emit = defineEmits(['loaded', 'hotspot', 'background-loaded'])
+const emit = defineEmits(['loaded', 'hotspot', 'background-loaded', 'yard-animation-finished'])
 
-defineExpose({ moveToYard, moveCameraTo, loadModel });
+defineExpose({ moveToYard, moveCameraTo, loadModel, getHotspotByName });
 
 const container = ref<HTMLDivElement | null>(null)
 let camera: THREE.PerspectiveCamera
@@ -52,6 +52,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', onWindowResize);
   container.value?.removeEventListener('click', onCanvasClick);
+  container.value?.removeEventListener('mousemove', onMouseMove);
   stopAnimation();
 });
 
@@ -82,6 +83,7 @@ function initScene() {
 
   container.value?.appendChild(renderer.domElement)
   container.value?.addEventListener('click', onCanvasClick);
+  container.value?.addEventListener('mousemove', onMouseMove);
 
   controls = new OrbitControls(camera, renderer.domElement)
   controls.target.set(0.3, 35, 25)
@@ -248,7 +250,7 @@ function createHotspots() {
   const texture = new THREE.TextureLoader().load('/3D/star.png')
 
   // 첫번째 핫스팟 - 내서재
-  hotspots.push(createHotspot(new THREE.Vector3(-9.5, 2, 1), texture, () => {
+  hotspots.push(createHotspot(new THREE.Vector3(-9.5, 2, 1), texture, 'library', () => {
     console.log("내서재 핫스팟 클릭됨! 카메라 이동 시작.");
     moveCameraTo(-9.5, 3, 0, -11, 3, 0, () => {
       emit('hotspot', 'library')
@@ -256,7 +258,7 @@ function createHotspots() {
   }))
 
   // 두번째 핫스팟 - 서점
-  hotspots.push(createHotspot(new THREE.Vector3(-2.5, 2, -6), texture, () => {
+  hotspots.push(createHotspot(new THREE.Vector3(-2.5, 2, -6), texture, 'store', () => {
     console.log("서점 핫스팟 클릭됨! 카메라 이동 시작.");
     moveCameraTo(-2, 2, -6.5, -2, 2, -10.5, () => {
       emit('hotspot', 'store')
@@ -264,7 +266,7 @@ function createHotspots() {
   }))
 
   // 세번째 핫스팟 - 책만들기
-  hotspots.push(createHotspot(new THREE.Vector3(8.5, 2, 3), texture, () => {
+  hotspots.push(createHotspot(new THREE.Vector3(8.5, 2, 3), texture, 'create', () => {
     console.log("책 만들기 핫스팟 클릭됨! 카메라 이동 시작.");
     controls.enabled = false;
     const tl = gsap.timeline({
@@ -284,13 +286,18 @@ function createHotspots() {
   hotspots.forEach(h => scene.add(h))
 }
 
-function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, onClick: () => void) {
+function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, name: string, onClick: () => void) {
   const material = new THREE.SpriteMaterial({ map: texture })
   const sprite = new THREE.Sprite(material)
   sprite.scale.set(1, 1, 1)
   sprite.position.copy(pos)
-  sprite.userData.onClick = onClick; // userData에 onClick 함수 저장
+  sprite.name = name; // hotspot에 이름 할당
+  sprite.userData.onClick = onClick;
   return sprite
+}
+
+function getHotspotByName(name: string) {
+  return hotspots.find(h => h.name === name);
 }
 
 function moveCameraTo(px: number, py: number, pz: number, tx: number, ty: number, tz: number, onCompleteCallback?: () => void) {
@@ -317,6 +324,7 @@ function moveToYard() {
         onComplete: () => {
             controls.enabled = true;
             console.log("moveToYard: 마당으로 카메라 이동 완료.");
+            emit('yard-animation-finished');
         }
     });
     tl.to(camera.position, { x: 7.3, y: 2.5, z: 30, duration: 4 });
@@ -364,6 +372,42 @@ function onCanvasClick(event: MouseEvent) {
     }
   } else {
     console.log("교차된 객체가 없습니다.");
+  }
+}
+
+let hoveredHotspot: THREE.Object3D | null = null;
+
+function onMouseMove(event: MouseEvent) {
+  if (!container.value) return;
+
+  const rect = container.value.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersects = raycaster.intersectObjects(hotspots, true);
+
+  if (intersects.length > 0) {
+    const firstIntersect = intersects[0].object;
+    if (hoveredHotspot !== firstIntersect) {
+      // 이전에 호버된 핫스팟이 있으면 원래 크기로 되돌림
+      if (hoveredHotspot) {
+        gsap.to(hoveredHotspot.scale, { x: 1, y: 1, z: 1, duration: 0.3 });
+      }
+      // 새로 호버된 핫스팟을 확대
+      hoveredHotspot = firstIntersect;
+      gsap.to(hoveredHotspot.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 0.3 });
+    }
+  } else {
+    // 호버된 핫스팟이 없으면 이전에 호버된 핫스팟을 원래 크기로 되돌림
+    if (hoveredHotspot) {
+      gsap.to(hoveredHotspot.scale, { x: 1, y: 1, z: 1, duration: 0.3 });
+      hoveredHotspot = null;
+    }
   }
 }
 </script>

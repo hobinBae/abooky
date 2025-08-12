@@ -29,4 +29,6 @@ public interface BookService {
     BookRatingResponse rateBook(Long memberId, Long bookId, BookRatingRequest request);
 
     BookRatingResponse getBookRating(Long memberId, Long bookId);
+
+    CommunityBookCreateResponse exportBookToCommunity(Long memberId, Long bookId);
 }

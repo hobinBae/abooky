@@ -2,7 +2,6 @@ package com.c203.autobiography.domain.book.controller;
 
 import com.c203.autobiography.domain.book.dto.*;
 import com.c203.autobiography.domain.book.service.BookService;
-import com.c203.autobiography.domain.episode.dto.EpisodeCreateRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
 import com.c203.autobiography.domain.episode.service.EpisodeService;
@@ -181,14 +180,13 @@ public class BookController {
     @Operation(summary = "에피소드 생성", description = "대화 세션을 마무리하고 에피소드를 생성합니다.")
     @PostMapping("/{bookId}/episodes")
     public ResponseEntity<ApiResponse<EpisodeResponse>> createEpisode(
-//            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
             @PathVariable Long bookId,
-            @Valid @RequestParam String sessionId, HttpServletRequest httpRequest
-    ) throws JsonProcessingException {
+            HttpServletRequest httpRequest
+    ) {
 
-//        Long memberId = userDetails.getMemberId();
-        EpisodeResponse response = episodeService.createEpisode( bookId, sessionId);
-        //episodeCreateRequest 추가
+        Long memberId = userDetails.getMemberId();
+        EpisodeResponse response = episodeService.createEpisode(memberId, bookId);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "에피소드 생성 성공", response, httpRequest.getRequestURI()));
     }
@@ -249,4 +247,22 @@ public class BookController {
                 .body(ApiResponse.of(HttpStatus.OK, "평점 조회 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "커뮤니티 책 생성", description = "개인 책을 커뮤니티로 내보냅니다 (Book → CommunityBook, Episode → CommunityBookEpisode)")
+    @PostMapping("/{bookId}/export/community")
+    public ResponseEntity<ApiResponse<CommunityBookCreateResponse>> exportBookToCommunity(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @Parameter(description = "책 ID") @PathVariable Long bookId,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = user.getMemberId();
+        CommunityBookCreateResponse response = bookService.exportBookToCommunity(memberId, bookId);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(
+                        HttpStatus.CREATED,
+                        "책 커뮤니티 내보내기 성공",
+                        response,
+                        httpRequest.getRequestURI()
+                ));
+    }
 }

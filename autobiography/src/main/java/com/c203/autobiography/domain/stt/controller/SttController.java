@@ -3,6 +3,7 @@ package com.c203.autobiography.domain.stt.controller;
 import com.c203.autobiography.domain.episode.dto.ConversationMessageRequest;
 import com.c203.autobiography.domain.episode.dto.ConversationMessageResponse;
 import com.c203.autobiography.domain.episode.dto.MessageType;
+import com.c203.autobiography.domain.episode.entity.ConversationMessage;
 import com.c203.autobiography.domain.episode.service.ConversationService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.stt.dto.SttResponse;
@@ -49,7 +50,7 @@ public class SttController {
         SttResponse sttResp = sttService.recognize(audio, customProperNouns);
         log.info(sttResp.getText() + "stt");
         // 2) 대화 메시지 저장 (PARTIAL)
-        conversationService.createMessage(
+         ConversationMessageResponse conversation =  conversationService.createMessage(
                 ConversationMessageRequest.builder()
                         .sessionId(sessionId)
                         .messageType(MessageType.ANSWER)
@@ -59,6 +60,7 @@ public class SttController {
         );
         // 3) SSE로 부분 인식 결과 푸시
         TranscriptResponse partialDto = TranscriptResponse.builder()
+                .messageId(conversation.getMessageId())
                 .chunkIndex(chunkIndex)
                 .text(sttResp.getText())
                 .build();
