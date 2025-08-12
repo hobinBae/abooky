@@ -1,15 +1,13 @@
 <template>
-  <div class="my-page-container">
-    <div class="top-actions">
-      <button @click="goToProfileEdit" class="btn-top-action" title="프로필 수정">
-        <i class="bi bi-gear-fill"></i>
-      </button>
-      <button @click="handleLogout" class="btn-top-action" title="로그아웃">
-        <i class="bi bi-box-arrow-right"></i>
-      </button>
-    </div>
+  <div class="my-page-background">
+    <div class="my-page-container">
+      <div class="top-actions">
+        <button @click="goToProfileEdit" class="btn-top-action" title="프로필 수정">
+          <i class="bi bi-gear-fill"></i>
+        </button>
+      </div>
 
-    <section v-if="user" class="profile-section">
+      <section v-if="user" class="profile-section">
       <div class="profile-main-content">
         <div class="profile-left-section">
           <img :src="user.profileImageUrl || 'https://via.placeholder.com/150'" alt="Profile Picture"
@@ -92,14 +90,11 @@
 
     <hr class="divider">
 
-    <section class="danger-zone">
-      <h3 class="section-title danger-title">계정 관리</h3>
-      <div class="danger-content">
-        <p>계정을 삭제하면 모든 데이터가 영구적으로 사라지며 복구할 수 없습니다.</p>
-        <button @click="deleteAccount" class="btn btn-danger">회원 탈퇴</button>
-      </div>
-    </section>
+    <div class="account-actions">
+      <button @click="deleteAccount" class="btn-link-danger">회원 탈퇴</button>
+    </div>
   </div>
+</div>
 </template>
 
 <script setup lang="ts">
@@ -203,24 +198,34 @@ onMounted(() => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;700&display=swap');
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
 /* --- 기본 페이지 스타일 --- */
-.my-page-container {
+.my-page-background {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #ffffff; /* 흰색 배경 */
   padding: 4rem 2rem;
+  box-sizing: border-box;
+}
+
+.my-page-container {
+  padding: 4rem 2.5rem;
   max-width: 900px;
   margin: 0 auto;
   font-family: 'Pretendard', sans-serif;
-  color: #333;
-  background-color: #fff;
+  color: #333; /* 기본 텍스트 검은색 */
+  background-color: #f4f3e8; /* 연한 올리브 배경 */
   position: relative;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.08);
 }
 
 .top-actions {
   position: absolute;
-  top: 1.5rem;
-  right: 1.5rem;
+  top: 1rem; /* padding-top 값과 유사하게 조정 */
+  right: 2.5rem; /* padding-right 값과 유사하게 조정 */
   display: flex;
   gap: 0.5rem;
   z-index: 10;
@@ -236,7 +241,7 @@ onMounted(() => {
   padding: 0.5rem;
 }
 .btn-top-action:hover {
-  color: #333;
+  color: #6F7D48; /* 진한 올리브색 */
 }
 
 /* --- 프로필 섹션 --- */
@@ -264,7 +269,7 @@ onMounted(() => {
   height: 150px;
   border-radius: 50%;
   object-fit: cover;
-  border: 2px solid #525252;
+  border: 4px solid #6F7D48; /* 진한 올리브색 테두리 */
 }
 
 .user-info {
@@ -272,7 +277,6 @@ onMounted(() => {
 }
 
 .user-name {
-  font-family: 'Noto Serif KR', serif;
   font-size: 1.8rem;
   font-weight: 700;
   color: #333;
@@ -281,23 +285,22 @@ onMounted(() => {
 
 .user-penname {
   font-size: 1rem;
-  color: #868e96;
+  color: #555; /* 진한 회색 */
   font-weight: 500;
 }
 
 .author-message-box {
   flex-grow: 1;
-  background-color: #f8f9fa;
-  border-left: 4px solid #dee2e6;
+  background-color: #ffffff; /* 흰색 배경 */
+  border-left: 4px solid #6F7D48; /* 진한 올리브색 테두리 */
   padding: 2rem;
   border-radius: 8px;
 }
 
 .author-message-title {
-  font-family: 'Noto Serif KR', serif;
   font-size: 1.1rem;
   font-weight: 600;
-  color: #333;
+  color: #333; /* 검은색 */
   margin: 0 0 0.75rem 0;
 }
 
@@ -313,14 +316,13 @@ onMounted(() => {
 }
 
 .section-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.8rem;
+  font-size: 1.6rem; /* 글씨 크기 조정 */
   font-weight: 700;
-  color: #333;
+  color: #6F7D48; /* 진한 올리브색 */
   margin-bottom: 2rem;
-  text-align: center;
+  text-align: left; /* 왼쪽 정렬 */
   padding-bottom: 1rem;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid #6F7D48; /* 진한 올리브색 테두리 */
 }
 
 /* --- 책 리스트 스타일 --- */
@@ -349,7 +351,7 @@ onMounted(() => {
 
 .book-item-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 20px rgba(138, 154, 91, 0.15); /* 올리브색 그림자 */
 }
 
 .list-title-box {
@@ -367,14 +369,13 @@ onMounted(() => {
 }
 
 .list-title-box-title {
-  font-family: 'Noto Serif KR', serif;
   font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
   margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  display: block; /* 표준 line-clamp를 위해 변경 */
+  display: block;
   line-clamp: 3;
 }
 
@@ -392,11 +393,11 @@ onMounted(() => {
 }
 
 .comment-item {
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid #ccc; /* 회색 테두리 */
   padding: 1.5rem 0.5rem;
 }
 .comment-item:first-child {
-  border-top: 1px solid #f1f3f5;
+  border-top: 1px solid #ccc; /* 회색 테두리 */
 }
 
 .comment-text {
@@ -415,7 +416,7 @@ onMounted(() => {
 }
 
 .comment-book-link {
-  color: #868e96;
+  color: #6F7D48; /* 진한 올리브색 */
   text-decoration: none;
   font-weight: 600;
 }
@@ -424,54 +425,38 @@ onMounted(() => {
   text-decoration: underline;
 }
 
-.danger-zone {
-  background-color: #fff5f5;
-  border: 1px solid #ffc9c9;
-  border-radius: 8px;
-  padding: 2rem;
+.account-actions {
+  text-align: right;
+  margin-top: 2rem;
 }
 
-.danger-title {
-  color: #c92a2a;
-  border-bottom-color: #ffc9c9;
-}
-
-.danger-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.danger-content p {
-  margin: 0;
-  color: #555;
-}
-
-.btn-danger {
-  background-color: #e03131;
-  color: white;
+.btn-link-danger {
+  background: none;
   border: none;
-  font-weight: 600;
+  color: #c92a2a;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.9rem;
 }
 
-.btn-danger:hover {
-  background-color: #c92a2a;
+.btn-link-danger:hover {
+  color: #e03131;
 }
 
 /* --- 공통 스타일 --- */
 .no-content-message {
   text-align: center;
-  color: #999;
+  color: #868e96; /* 회색 */
   font-size: 1rem;
   padding: 3rem 0;
-  background-color: #f8f9fa;
+  background-color: #ffffff; /* 흰색 배경 */
   border-radius: 8px;
   margin-top: 1.5rem;
 }
 
 .divider {
   border: 0;
-  border-top: 1px solid #f1f3f5;
+  border-top: 1px solid #ccc; /* 회색 테두리 */
   margin: 3rem 0;
 }
 
@@ -488,7 +473,7 @@ onMounted(() => {
 .page-number {
   font-family: 'Pretendard', sans-serif;
   background-color: #fff;
-  border: 1px solid #dee2e6;
+  border: 1px solid #ccc; /* 회색 테두리 */
   padding: 0.5rem 0.8rem;
   border-radius: 4px;
   cursor: pointer;
@@ -500,7 +485,7 @@ onMounted(() => {
 .pagination-btn:hover:not(:disabled),
 .page-number:hover {
   background-color: #f8f9fa;
-  border-color: #ced4da;
+  border-color: #ccc;
 }
 
 .pagination-btn:disabled {
@@ -510,9 +495,9 @@ onMounted(() => {
 }
 
 .page-number.active {
-  background-color: #333;
+  background-color: #6F7D48; /* 진한 올리브색 */
   color: white;
-  border-color: #333;
+  border-color: #6F7D48;
   font-weight: 600;
 }
 </style>

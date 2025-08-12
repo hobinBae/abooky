@@ -4,7 +4,7 @@
       <h2 class="section-title">작성 중인 책 목록</h2>
       <p class="section-subtitle">계속해서 이야기를 만들어갈 책을 선택하세요.</p>
       <div v-if="inProgressBooks.length > 0" class="book-list">
-        <div v-for="book in inProgressBooks" :key="book.id" class="book-list-item" @click="editBook(book.id)">
+        <div v-for="book in inProgressBooks" :key="book.bookId" class="book-list-item" @click="editBook(book.bookId)">
           <div class="book-info">
             <span class="book-title">{{ book.title }}</span>
             <span class="book-last-saved">마지막 저장: {{ new Date(book.updatedAt).toLocaleString() }}</span>
@@ -23,44 +23,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import apiClient from '@/api';
 
 // --- Interfaces ---
 interface Book {
-  id: string;
+  bookId: string;
   title: string;
-  authorId: string;
-  isPublished: boolean;
-  episodes: { content: string }[];
-  createdAt: Date;
-  updatedAt: Date;
+  updatedAt: string; // ISO 8601 형식의 문자열
+  completed: boolean;
 }
-
-// --- Dummy Data ---
-const DUMMY_IN_PROGRESS_BOOKS: Book[] = [
-    {
-    id: 'draft_book_1',
-    title: '제주도 한 달 살기 (초안)',
-    authorId: 'dummyUser1',
-    isPublished: false,
-    episodes: [
-      { content: '협재 해변의 일몰은 정말 아름다웠다. 매일 봐도 질리지 않는 풍경.' },
-      { content: '오름을 오르며 마주한 제주의 바람은 모든 시름을 잊게 했다.' },
-    ],
-    createdAt: new Date('2024-06-01T10:00:00Z'),
-    updatedAt: new Date('2024-07-20T15:30:00Z'),
-  },
-  {
-    id: 'draft_book_2',
-    title: '나의 요리 레시피 북 (미완성)',
-    authorId: 'dummyUser1',
-    isPublished: false,
-    episodes: [
-      { content: '김치찌개 황금 레시피: 돼지고기 듬뿍, 신김치 필수!' },
-    ],
-    createdAt: new Date('2024-07-01T09:00:00Z'),
-    updatedAt: new Date('2024-07-25T11:00:00Z'),
-  },
-];
 
 // --- Router ---
 const router = useRouter();
@@ -69,9 +40,14 @@ const router = useRouter();
 const inProgressBooks = ref<Book[]>([]);
 
 // --- Functions ---
-function fetchInProgressBooks() {
-  // In a real app, you would fetch this from an API
-  inProgressBooks.value = DUMMY_IN_PROGRESS_BOOKS.filter(book => !book.isPublished);
+async function fetchInProgressBooks() {
+  try {
+    const response = await apiClient.get('/api/v1/books');
+    // API에서 받아온 전체 책 목록 중 완료되지 않은 책만 필터링
+    inProgressBooks.value = response.data.data.filter((book: Book) => !book.completed);
+  } catch (error) {
+    console.error("작성 중인 책 목록을 불러오는데 실패했습니다:", error);
+  }
 }
 
 function editBook(bookId: string) {

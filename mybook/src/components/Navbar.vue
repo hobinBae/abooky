@@ -1,32 +1,36 @@
 <template>
-  <nav class="navbar navbar-expand-lg fixed-top"
-       :class="{ 'navbar-content-hidden': isIntroActive, 'navbar-dark': isHome, 'navbar-light': !isHome }">
-    <div class="container-fluid">
+  <nav class="navbar navbar-expand-lg"
+       :class="{ 'navbar-content-hidden': isIntroActive, 'navbar-dark': isHome, 'navbar-light': !isHome, 'scrolled': isScrolled }">
+    <div class="container-fluid position-relative">
       <router-link class="navbar-brand" to="/">
-        <span style="font-size: 1.5rem; font-weight: bold;">MyBook</span>
+        <div class="logo-container">
+          <span class="logo-large">아</span><span class="logo-small">띠와&nbsp;</span>
+          <span class="logo-large">북</span><span class="logo-small">적북적&nbsp;</span>
+          <span class="logo-large">이</span><span class="logo-small">야길</span>
+        </div>
       </router-link>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-          <li class="nav-item">
+        <ul class="navbar-nav center-nav">
+          <li class="nav-item mx-3">
             <router-link class="nav-link" to="/bookstore">서점</router-link>
           </li>
-          <li class="nav-item">
-            <router-link class="nav-link" to="/create-book">책만들기</router-link>
+          <li class="nav-item mx-3">
+            <router-link class="nav-link" to="/create-book">책 집필</router-link>
           </li>
-          <li class="nav-item">
-            <router-link class="nav-link" to="/my-library">내서재</router-link>
+          <li class="nav-item mx-3">
+            <router-link class="nav-link" to="/my-library">서재</router-link>
+          </li>
+          <li v-if="isLoggedIn" class="nav-item mx-3">
+            <router-link class="nav-link" to="/my-page">내 정보</router-link>
           </li>
         </ul>
-        <ul class="navbar-nav">
+        <ul class="navbar-nav ms-auto align-items-center flex-nowrap">
           <template v-if="!isLoggedIn">
             <li class="nav-item">
-              <router-link class="nav-link" to="/login">로그인</router-link>
-            </li>
-            <li class="nav-item">
-              <router-link class="nav-link" to="/signup">회원가입</router-link>
+              <router-link class="nav-link auth-button" to="/login">로그인</router-link>
             </li>
           </template>
           <template v-else>
@@ -37,10 +41,7 @@
               </a>
             </li>
             <li class="nav-item">
-              <router-link class="nav-link" to="/my-page">마이페이지</router-link>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="#" @click.prevent="logout">로그아웃</a>
+              <a class="nav-link auth-button" href="#" @click.prevent="logout">로그아웃</a>
             </li>
           </template>
         </ul>
@@ -72,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { storeToRefs } from 'pinia';
 import apiClient from '@/api';
@@ -90,6 +91,20 @@ const { logout } = authStore;
 defineProps({
   isIntroActive: Boolean,
   isHome: Boolean
+});
+
+const isScrolled = ref(false);
+
+const handleScroll = () => {
+  isScrolled.value = window.scrollY > 50;
+};
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll);
 });
 
 const showNotificationModal = ref(false);
@@ -138,9 +153,18 @@ onMounted(() => {
 
 <style scoped>
 .navbar {
+  position: sticky;
+  top: 0;
   background-color: transparent !important;
   z-index: 1030;
   transition: background-color 0.5s ease;
+  padding-top: 20px; /* 상단 여백 추가 */
+  padding-bottom: 20px; /* 하단 여백 추가 */
+}
+
+.navbar.scrolled {
+  background-color: rgba(152, 164, 115, 0.3) !important;
+  backdrop-filter: blur(10px);
 }
 
 .navbar-content-hidden .navbar-brand,
@@ -151,13 +175,21 @@ onMounted(() => {
   transition: opacity 0.5s ease, visibility 0.5s ease;
 }
 
+.navbar-brand {
+  padding-left: 2rem; /* Add left padding to the logo */
+}
+
 .navbar-brand,
 .navbar-toggler,
 .nav-link {
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.5s ease, visibility 0.5s ease, color 0.5s ease;
+  transition: opacity 0.5s ease, visibility 0.5s ease, color 0.5s ease, transform 0.2s ease-in-out;
   font-size: 18px !important;
+}
+
+.nav-link:hover {
+  transform: scale(1.1);
 }
 
 .notification-item {
@@ -170,7 +202,7 @@ onMounted(() => {
   right: 0px;
   padding: 3px 6px;
   border-radius: 50%;
-  background-color: red;
+  background-color: rgb(163, 24, 24);
   color: white;
   font-size: 10px;
 }
@@ -249,17 +281,110 @@ onMounted(() => {
   color: #28a745;
   border-color: #28a745;
 }
-.btn-accept:hover {
-  background-color: #28a745;
-  color: white;
-}
 
 .btn-reject {
   color: #dc3545;
   border-color: #dc3545;
 }
-.btn-reject:hover {
-  background-color: #dc3545;
-  color: white;
+
+.auth-button {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  display: inline-block;
+  border: 1px solid #dee2e6 !important;
+  border-radius: 20px !important;
+  margin-left: 1rem !important;
+  margin-right: 1rem !important;
+  padding: 0.2rem 0.7rem !important;
+  font-size: 14px !important;
+  white-space: nowrap;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  transition: color 0.5s ease;
 }
+
+.auth-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(138, 154, 91, 0.4);
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 0.4s ease-in-out;
+  z-index: -1;
+}
+
+.auth-button:hover::before {
+  transform-origin: bottom;
+  transform: scaleY(1);
+}
+
+.auth-button:hover {
+  color: white !important;
+}
+
+.logo-container {
+  display: flex;
+  align-items: baseline;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  font-weight: normal;
+  white-space: nowrap;
+  min-width: 250px; /* Adjust as needed to fit the full text */
+}
+
+.logo-large {
+  font-size: 2rem;
+  transition: margin-right 0.4s ease-in-out;
+  margin-right: 1rem; /* Default spacing for "아 북 이" */
+}
+
+.logo-small {
+  font-size: 1rem;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width 0.4s ease-in-out, opacity 0.3s ease-in-out;
+  padding-right: 0.5rem; /* Spacing for "아띠와 북적북적 이야길" */
+}
+
+.logo-container:hover .logo-large {
+  margin-right: 0;
+}
+
+.logo-container:hover .logo-small {
+  max-width: 100px; /* A reasonable max width to expand to */
+  opacity: 1;
+}
+
+#navbarNav {
+  position: static !important;
+}
+
+.center-nav {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  list-style: none;
+  padding-left: 0;
+  gap: 4rem; /* 메뉴 간격 조정 */
+}
+
+.center-nav .nav-link {
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  font-size: 20px !important; /* 글씨 크기 조정 */
+  /* font-weight: bold !important;  */
+}
+
+.navbar-dark .center-nav .nav-link {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.navbar-light .center-nav .nav-link {
+  color: #000000 !important;
+}
+
 </style>
