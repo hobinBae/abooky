@@ -29,8 +29,6 @@
         </form>
       </section>
 
-      <hr class="divider">
-
       <!-- <section class="form-section">
         <h2 class="section-title">비밀번호 변경</h2>
         <form @submit.prevent="changePassword" class="form-layout">
@@ -189,23 +187,69 @@ onMounted(() => {
 
 /* --- 기본 페이지 스타일 --- */
 .profile-edit-page {
-  padding: 4rem 2rem;
-  background-color: #fff; /* 흰색 배경 */
-  color: #333;
+  width: 100%;
   min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  font-family: 'Pretendard', sans-serif;
+  background-color: #ffffff; /* 흰색 배경 */
+  padding: 4rem 2rem;
+  box-sizing: border-box;
 }
 
 .profile-container {
-  width: 100%;
-  max-width: 700px;
+  padding: 4rem 2.5rem 2.5rem;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: 'SCDream4', sans-serif;
+  color: #333;
+  background-color: #f4f3e8; /* 연한 올리브 배경 */
+  position: relative;
+  border-radius: 8px;
+  
+  /* 책 모양 효과 - 더 많이 쌓인 느낌 */
+  box-shadow: 
+    /* 메인 그림자 */
+    0 0 0 1px rgba(0,0,0,0.1),
+    /* 왼쪽과 위쪽 책등 효과 */
+    -10px -3px 0 -2px #e8e7dc,
+    -20px -6px 0 -4px #ddd9c8,
+    -30px -9px 0 -6px #d2cdb4,
+    -40px -12px 0 -8px #c7c2a0,
+    -50px -15px 0 -10px #bcb78c,
+    /* 전체적인 깊이감 */
+    -55px -10px 30px rgba(0,0,0,0.2);
+  
+  /* 책등 라인 효과를 위한 가상 요소 */
+}
+
+.my-page-container::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: -3px;
+  bottom: 3px;
+  width: 2px;
+  background: linear-gradient(to bottom, 
+    rgba(111, 125, 72, 0.4) 0%, 
+    rgba(111, 125, 72, 0.15) 50%, 
+    rgba(111, 125, 72, 0.4) 100%);
+  border-radius: 1px;
+}
+
+.my-page-container::after {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: -6px;
+  bottom: 6px;
+  width: 1px;
+  background: linear-gradient(to bottom, 
+    rgba(111, 125, 72, 0.3) 0%, 
+    rgba(111, 125, 72, 0.1) 50%, 
+    rgba(111, 125, 72, 0.3) 100%);
 }
 
 .page-title {
   text-align: center;
-  font-family: 'Noto Serif KR', serif;
+  font-family: 'SCDream4', serif;
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 3rem;
@@ -217,8 +261,8 @@ onMounted(() => {
 }
 
 .section-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.8rem;
+  font-family: 'SCDream4', serif;
+  font-size: 2rem;
   font-weight: 600;
   margin-bottom: 2.5rem;
 }
@@ -252,7 +296,8 @@ onMounted(() => {
 }
 
 .form-text {
-  font-size: 0.875rem;
+  font-size: 1.1rem;
+  font-family: 'SCDream5', serif;
   color: #6c757d;
 }
 
@@ -265,7 +310,7 @@ onMounted(() => {
 
 .form-label {
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 1.3rem;
 }
 
 .form-control {
@@ -273,7 +318,7 @@ onMounted(() => {
   padding: 0.8rem 1rem;
   border: 1px solid #dee2e6;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 1.1rem;
   transition: border-color 0.2s ease;
 }
 
@@ -290,7 +335,7 @@ textarea.form-control {
 /* --- 버튼 스타일 --- */
 .btn {
   padding: 0.8rem 1.25rem;
-  font-size: 1rem;
+  font-size: 1.15rem;
   font-weight: 600;
   border-radius: 4px;
   cursor: pointer;
@@ -302,11 +347,12 @@ textarea.form-control {
 
 .btn-primary {
   color: #fff;
-  background-color: #333;
+  border-color: #6B8E23;
+  background-color: #6B8E23;
 }
 .btn-primary:hover:not(:disabled) {
-  background-color: #000;
-  border-color: #000;
+  background-color: #9CAF88;
+  border-color: #9CAF88;
 }
 .btn-primary:disabled {
   opacity: 0.5;
