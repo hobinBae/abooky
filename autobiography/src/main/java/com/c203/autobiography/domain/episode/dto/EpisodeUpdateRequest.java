@@ -25,7 +25,6 @@ public class EpisodeUpdateRequest {
 
     private Integer episodeOrder;
 
-    @NotBlank(message = "내용은 필수입니다.")
     private String content;
 
     @Size(max = 255, message = "오디오 URL은 최대 255자까지 가능합니다.")

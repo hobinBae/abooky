@@ -102,6 +102,7 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
+    @Transactional
     public String startNewConversation(Long memberId, Long bookId, Long episodeId) {
         // 1) 사용자/책/에피소드 검증 + 소유권 체크
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
@@ -187,6 +188,7 @@ public class ConversationServiceImpl implements ConversationService {
             String lastQuestion = getLastQuestion(sessionId);
             if (lastQuestion != null && !lastQuestion.isEmpty()) {
                 // TODO: 마지막 질문에 대한 전체 DTO를 만들어서 보내주면 더 좋습니다.
+                log.info("퀘스천리스판스 : {}",String.valueOf(QuestionResponse.builder().text(lastQuestion).build()));
                 sseService.pushQuestion(sessionId, QuestionResponse.builder().text(lastQuestion).build());
             }
         }
@@ -265,17 +267,11 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
+    @Transactional
     public ConversationMessageResponse updateMessage(ConversationMessageUpdateRequest request) {
         ConversationMessage msg = messageRepo.findById(request.getMessageId())
                 .orElseThrow(() -> new IllegalArgumentException("메시지를 찾을 수 없습니다: " + request.getMessageId()));
-        msg = ConversationMessage.builder()
-                .messageId(msg.getMessageId())
-                .sessionId(msg.getSessionId())
-                .messageType(msg.getMessageType())
-                .chunkIndex(msg.getChunkIndex())
-                .content(request.getContent())
-                .messageNo(msg.getMessageNo())
-                .build();
+        msg.updateContent(request.getContent());
         messageRepo.save(msg);
         return ConversationMessageResponse.from(msg);
     }

@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.episode.service;
 
+
 import com.c203.autobiography.domain.ai.client.AiClient;
 import com.c203.autobiography.domain.ai.dto.ChatCompletionResponse;
 import com.c203.autobiography.domain.book.entity.Book;
@@ -32,7 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional(readOnly = true)
-public class EpisodeServiceImpl implements EpisodeService{
+public class EpisodeServiceImpl implements EpisodeService {
 
     private final ConversationMessageRepository conversationMessageRepository;
     private final EpisodeRepository episodeRepository;
@@ -43,6 +44,7 @@ public class EpisodeServiceImpl implements EpisodeService{
 
     /**
      * 에피소드 생성
+     *
      * @param memberId
      * @param bookId
      * @return
@@ -88,6 +90,7 @@ public class EpisodeServiceImpl implements EpisodeService{
 
     /**
      * 에피소드 수정
+     *
      * @param memberId
      * @param bookId
      * @param episodeId
@@ -100,13 +103,15 @@ public class EpisodeServiceImpl implements EpisodeService{
 
         Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
 
-        episode.updateEpisode(request.getTitle(), request.getEpisodeDate(), request.getEpisodeOrder(), request.getContent(), request.getAudioUrl());
+        episode.updateEpisode(request.getTitle(), request.getEpisodeDate(), request.getEpisodeOrder(),
+                request.getContent(), request.getAudioUrl());
 
         return EpisodeResponse.of(episode);
     }
 
     /**
      * 에피소드 삭제
+     *
      * @param memberId
      * @param bookId
      * @param episodeId
@@ -127,12 +132,13 @@ public class EpisodeServiceImpl implements EpisodeService{
     public EpisodeResponse createEpisodeFromCurrentWindow(Episode episode, String sessionId)
             throws JsonProcessingException {
 
-
         var session = conversationSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ApiException(ErrorCode.INVALID_INPUT_VALUE));
         Integer startNo = session.getEpisodeStartMessageNo();
 
-        if (startNo == null) startNo = 1;
+        if (startNo == null) {
+            startNo = 1;
+        }
 
         Integer endNo = conversationMessageRepository.findMaxMessageNo(sessionId);
 
@@ -149,80 +155,40 @@ public class EpisodeServiceImpl implements EpisodeService{
         }
 
         // JSON 강제 포맷 요청 (기존 로직 그대로 사용 가능)
-        String prompt = String.format("""
-      다음 JSON 포맷으로 응답해주세요:
-      {
-        "title": "여기에 에피소드 제목을 적어주세요",
-        "content": "여기에 에피소드 본문을 적어주세요"
-      }
-      위와 같은 형태로, 아래 대화 내용을 바탕으로 에피소드 제목과 본문을 작성해 주세요:
+        String prompt = """
+                다음 JSON 포맷으로만 응답하세요:
+                {"title": "...", "content": "..."}
+                아래 대화를 바탕으로 에피소드 제목과 본문을 작성하세요.
 
-      %s
-      """, dialog);
+                %s
+                """.formatted(dialog);
 
-//        String episodeJsonContent = aiClient.generateEpisode(prompt);
-//        ObjectMapper om = new ObjectMapper();
-//        JsonNode node = om.readTree(episodeJsonContent);
-//        String title   = node.get("title").asText();
-//        String content = node.get("content").asText();
-//
-//         episode.updateEpisode(
-//                 title,
-//                 episode.getEpisodeDate(),
-//                 episode.getEpisodeOrder(),
-//                 content,
-//                 episode.getAudioUrl()
-//         );
-//        episodeRepository.save(episode);
-
-//        // 세션에 연결(선택) + 다음 에피소드 구간 시작점 갱신
-//        // 다음 장부터는 다음 메시지부터 새 에피소드로 묶임
-//        ConversationSession updated = session.toBuilder()
-//                .episodeId(episode.getEpisodeId()) // 필요 없으면 제거 가능
-//                .episodeStartMessageNo(endNo + 1)  // ✅ 다음 구간 시작점 점프
-//                .build();
-//        conversationSessionRepository.save(updated);
         String rawApiResponse = aiClient.generateEpisode(prompt);
 
-        String title;
-        String content;
-        try {
-            // 2. 응답 문자열에서 Markdown 코드 블록 등 불필요한 부분 제거
-            String cleanedJson = cleanApiResponse(rawApiResponse);
-
-            // 3. ObjectMapper를 사용하여 정리된 JSON을 DTO 객체로 1차 파싱
-            ObjectMapper om = new ObjectMapper();
-            ChatCompletionResponse responseDto = om.readValue(cleanedJson, ChatCompletionResponse.class);
-
-            // 4. DTO 구조를 따라 최종적으로 원하는 내용(content)을 추출
-            String innerJsonContent = null;
-            if (responseDto != null && responseDto.getChoices() != null && !responseDto.getChoices().isEmpty()) {
-                ChatCompletionResponse.MessageResponse message = responseDto.getChoices().get(0).getMessage();
-                if (message != null && message.getContent() != null) {
-                    innerJsonContent = message.getContent();
-                }
-            }
-
-            if (innerJsonContent == null) {
-                throw new IllegalStateException("OpenAI 응답에서 유효한 content를 찾을 수 없습니다.");
-            }
-
-            // 5. 추출된 내용(innerJsonContent)은 우리가 요청한 JSON 형식이므로, 이를 2차 파싱하여 title과 content를 최종 추출
-            JsonNode finalNode = om.readTree(innerJsonContent);
-            title = finalNode.get("title").asText();
-            content = finalNode.get("content").asText();
-
-        } catch (Exception e) {
-            log.error("OpenAI 응답 처리 중 심각한 오류 발생", e);
-            // 에러 발생 시 기본값 또는 예외 처리
-            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE);
+        String inner;
+        try{
+            inner = extractAssistantText(rawApiResponse);
+        }catch(JsonProcessingException e){
+            log.error("AI 응답 파싱 중 JSON 예외", e);
+            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // ❗ 새 에러코드
         }
 
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★
-        //          수정된 로직 종료
-        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        if (inner == null) {
+            log.error("AI 응답에서 본문을 추출하지 못했습니다. raw={}", truncate(rawApiResponse, 2000));
+            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // ❗ 새 에러코드
+        }
 
-        // 6. 추출한 title과 content로 에피소드 업데이트 (기존과 동일)
+        String cleaned = cleanInnerJsonText(inner);
+
+        // ✅ 3차: 최종 JSON 파싱
+        ObjectMapper om = new ObjectMapper();
+        JsonNode finalNode = om.readTree(cleaned);
+        String title = finalNode.path("title").asText(null);
+        String content = finalNode.path("content").asText(null);
+        if (title == null || content == null) {
+            log.error("AI JSON 형식 불일치. cleaned={}", cleaned);
+            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE);
+        }
         episode.updateEpisode(
                 title,
                 episode.getEpisodeDate(),
@@ -231,30 +197,128 @@ public class EpisodeServiceImpl implements EpisodeService{
                 episode.getAudioUrl()
         );
         episodeRepository.save(episode);
-
-
         return EpisodeResponse.of(episode);
+
     }
-    // 문자열 전처리 헬퍼 메소드
-    private String cleanApiResponse(String rawResponse) {
-        String cleaned = rawResponse.trim();
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7, cleaned.length() - 3).trim();
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3, cleaned.length() - 3).trim();
+
+    private static String truncate(String s, int max) {
+        if (s == null) {
+            return null;
         }
-        return cleaned;
+        return s.length() <= max ? s : s.substring(0, max) + "...(truncated)";
+    }
+
+    // 문자열 전처리 헬퍼 메소드
+    private static String cleanInnerJsonText(String text) {
+        if (text == null) {
+            return null;
+        }
+        // ```json ... ``` 만 제거 (본문만 정리)
+        String trimmed = text.trim();
+        if (trimmed.startsWith("```")) {
+            trimmed = trimmed.replaceFirst("^```(?:json)?\\s*", "");
+            trimmed = trimmed.replaceFirst("\\s*```\\s*$", "");
+        }
+        return trimmed.trim();
+    }
+
+    private static String extractAssistantText(String raw) throws JsonProcessingException {
+        if (raw == null) {
+            return null;
+        }
+        String t = raw.trim();
+
+        // 0) 백틱 코드블록 제거(있다면)
+        if (t.startsWith("```")) {
+            t = cleanInnerJsonText(t);
+        }
+
+        // 0-1) 이미 {"title": "...", "content": "..."} 형태로 온 경우 바로 통과
+        if (t.startsWith("{") && t.endsWith("}")) {
+            try {
+                ObjectMapper om = new ObjectMapper();
+                JsonNode node = om.readTree(t);
+                if (node.has("title") && node.has("content")) {
+                    return t; // 이미 최종 JSON
+                }
+            } catch (Exception ignore) {
+            }
+        }
+
+        // 0-2) 응답이 이중 인코딩된 JSON 문자열인 경우 처리 ( "{"title":".."}" )
+        if (t.startsWith("\"") && t.endsWith("\"")) {
+            try {
+                ObjectMapper om = new ObjectMapper();
+                JsonNode asTextNode = om.readTree(t);
+                if (asTextNode.isTextual()) {
+                    String unquoted = asTextNode.asText().trim();
+                    if (unquoted.startsWith("{") && unquoted.endsWith("}")) {
+                        JsonNode node2 = om.readTree(unquoted);
+                        if (node2.has("title") && node2.has("content")) {
+                            return unquoted;
+                        }
+                        // 래퍼일 수도 있으니 아래 일반 흐름으로 계속 진행
+                        t = unquoted;
+                    }
+                }
+            } catch (Exception ignore) {}
+        }
+
+
+
+        // 1) OpenAI chat 랩퍼에서 추출
+        ObjectMapper om = new ObjectMapper();
+        JsonNode root = om.readTree(t);
+
+        JsonNode msg = root.path("choices").path(0).path("message");
+
+        // 1-1) content가 문자열
+        JsonNode content = msg.get("content");
+        if (content != null && !content.isNull()) {
+            if (content.isTextual()) {
+                return content.asText();
+            }
+
+            // 1-2) content가 배열(Responses 스타일)
+            if (content.isArray()) {
+                StringBuilder sb = new StringBuilder();
+                for (JsonNode part : content) {
+                    if (part.hasNonNull("text")) {
+                        sb.append(part.get("text").asText());
+                    } else if (part.hasNonNull("output_text")) {
+                        sb.append(part.get("output_text").asText());
+                    }
+                }
+                if (sb.length() > 0) {
+                    return sb.toString();
+                }
+            }
+        }
+        // 1-3) content가 객체 { type, text } 형태인 경우
+        if (content != null && content.isObject()) {
+            if (content.hasNonNull("text")) {
+                return content.get("text").asText();
+            }
+            if (content.hasNonNull("output_text")) {
+                return content.get("output_text").asText();
+            }
+        }
+
+        // 2) tool_calls(function.arguments)에 JSON이 담긴 경우
+        JsonNode toolArgs = msg.path("tool_calls").path(0).path("function").path("arguments");
+        if (!toolArgs.isMissingNode() && !toolArgs.isNull()) {
+            return toolArgs.isTextual() ? toolArgs.asText() : toolArgs.toString();
+        }
+
+        return null;
     }
 
 
     /**
-     * 공통 검증 로직:
-     * 1) 회원 존재
-     * 2) 책 존재 + 논리삭제 체크 + 권한 확인
-     * 3) 에피소드 존재 + 논리삭제 체크
+     * 공통 검증 로직: 1) 회원 존재 2) 책 존재 + 논리삭제 체크 + 권한 확인 3) 에피소드 존재 + 논리삭제 체크
      */
 
-    private Episode validateAndGetEpisode(Long memberId, Long bookId, Long episodeId){
+    private Episode validateAndGetEpisode(Long memberId, Long bookId, Long episodeId) {
         // 1) 회원
         memberRepository.findById(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
