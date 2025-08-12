@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.communityBook.service;
 
+import com.c203.autobiography.domain.book.dto.LikeResponse;
 import com.c203.autobiography.domain.communityBook.dto.*;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Pageable;
@@ -23,4 +24,8 @@ public interface CommunityBookService {
     CommunityBookListResponse getCommunityBookList(Long memberId, Pageable pageable, String sortBy);
 
     CommunityBookListResponse getMemberCommunityBooks(Long userId, Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy);
+
+    boolean toggleLike(Long bookId, Long memberId);
+
+    long getLikeCount(Long communityBookId);
 }

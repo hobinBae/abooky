@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.communityBook.controller;
 
+import com.c203.autobiography.domain.book.dto.LikeResponse;
 import com.c203.autobiography.domain.communityBook.dto.*;
 import com.c203.autobiography.domain.communityBook.service.CommunityBookService;
 import com.c203.autobiography.global.dto.ApiResponse;
@@ -151,5 +152,36 @@ public class CommunityBookController {
         CommunityBookCommentDeleteResponse response= communityBookService.deleteCommunityBookComment(communityBookId, communityBookCommentId, memberId);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 댓글 삭제 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "커뮤니티 책 좋아요/좋아요 취소", description = "커뮤니티 책에 좋아요를 누르거나 취소합니다.")
+    @PostMapping("/{communityBookId}/likes")
+    public ResponseEntity<ApiResponse<LikeResponse>> likeBook(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long communityBookId,
+            HttpServletRequest httpRequest
+
+    ) {
+        Long memberId = userDetails.getMemberId();
+        boolean isLiked = communityBookService.toggleLike(communityBookId, memberId);
+
+        String message = isLiked ? "커뮤니티 책 좋아요 성공" : "커뮤니티 책 좋아요 취소 성공";
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.CREATED, message, null, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "커뮤니티 북 좋아요 수 조회", description = "해당 커뮤니티 북의 총 좋아요 수를 조회합니다")
+    @GetMapping("/{communityBookId}/likes/count")
+    public ResponseEntity<ApiResponse<CommunityBookLikeCntResponse>> getLikeCount(
+            @Parameter(description = "커뮤니티 북 ID", required = true)
+            @PathVariable Long communityBookId,
+            HttpServletRequest httpRequest) {
+
+        long likeCount = communityBookService.getLikeCount(communityBookId);
+
+        CommunityBookLikeCntResponse response = CommunityBookLikeCntResponse.of(communityBookId, likeCount);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.CREATED, "커뮤니티 북 좋아요 수 조회 성공", response, httpRequest.getRequestURI()));
     }
 }
