@@ -44,7 +44,8 @@
           </div>
           
           <div class="video-grid-wrapper">
-            <div class="video-grid" :class="`participants-${totalParticipants}`">
+            <!-- 화면 공유 모드가 아닐 때 - 기존 그리드 레이아웃 -->
+            <div v-if="!isScreenSharing" class="video-grid" :class="`participants-${totalParticipants}`">
               <!-- 로컬 참여자 (나) -->
               <div class="video-participant local-participant">
                 <video 
@@ -83,6 +84,70 @@
                     <span v-if="participant.connectionQuality !== undefined" class="connection-quality">
                       {{ getConnectionQualityText(participant.connectionQuality) }}
                     </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 화면 공유 모드일 때 - 메인 화면 + 썸네일 레이아웃 -->
+            <div v-else class="screen-share-layout">
+              <!-- 메인 화면 공유 영역 (화면 공유하는 사람의 화면) -->
+              <div class="main-screen-area">
+                <video 
+                  ref="localVideoElement"
+                  autoplay 
+                  muted 
+                  playsinline 
+                  class="main-screen-video">
+                </video>
+                <div class="main-screen-info">
+                  <div class="sharing-indicator">
+                    <i class="bi bi-share-fill me-2"></i>
+                    나의 화면 공유 중
+                  </div>
+                </div>
+              </div>
+
+              <!-- 오른쪽 썸네일 영역 -->
+              <div class="thumbnails-area">
+                <div class="thumbnails-container">
+                  <!-- 내 카메라 썸네일 (화면 공유 중이므로 카메라는 별도 표시) -->
+                  <div class="thumbnail-participant">
+                    <video 
+                      ref="localCameraThumbnail"
+                      autoplay 
+                      muted 
+                      playsinline 
+                      class="thumbnail-video">
+                    </video>
+                    <div class="thumbnail-info">
+                      <div class="thumbnail-name">
+                        <i class="bi me-1" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                        나
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 원격 참여자 썸네일들 -->
+                  <div 
+                    v-for="participant in remoteParticipants" 
+                    :key="participant.identity" 
+                    class="thumbnail-participant">
+                    <video 
+                      :ref="el => setParticipantVideoRef(el, participant.identity)"
+                      autoplay 
+                      playsinline 
+                      class="thumbnail-video">
+                    </video>
+                    <div v-if="!participant.videoTrack" class="thumbnail-video-placeholder">
+                      {{ participant.identity.charAt(0).toUpperCase() }}
+                    </div>
+                    <div class="thumbnail-info">
+                      <div class="thumbnail-name">
+                        <i class="bi me-1" :class="participant.isMicrophoneEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
+                        {{ participant.identity }}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -213,6 +278,7 @@ const canJoin = ref(false);
 // 미디어 상태
 const localVideo = ref<HTMLVideoElement | null>(null);
 const localVideoElement = ref<HTMLVideoElement | null>(null);
+const localCameraThumbnail = ref<HTMLVideoElement | null>(null);
 const isAudioEnabled = ref(true);
 const isVideoEnabled = ref(true);
 const isScreenSharing = ref(false);
@@ -358,14 +424,148 @@ async function joinRoom() {
         setMicrophoneEnabled: async (enabled: boolean) => {
           console.log('더미: 마이크', enabled ? '활성화' : '비활성화');
           isAudioEnabled.value = enabled;
+          
+          // 실제 오디오 스트림 제어
+          if (localVideoElement.value?.srcObject) {
+            const stream = localVideoElement.value.srcObject as MediaStream;
+            const audioTracks = stream.getAudioTracks();
+            audioTracks.forEach(track => {
+              track.enabled = enabled;
+            });
+          }
         },
         setCameraEnabled: async (enabled: boolean) => {
           console.log('더미: 카메라', enabled ? '활성화' : '비활성화');
           isVideoEnabled.value = enabled;
+          
+          // 실제 비디오 스트림 제어
+          if (localVideoElement.value?.srcObject) {
+            const stream = localVideoElement.value.srcObject as MediaStream;
+            const videoTracks = stream.getVideoTracks();
+            videoTracks.forEach(track => {
+              track.enabled = enabled;
+            });
+          }
         },
         setScreenShareEnabled: async (enabled: boolean) => {
           console.log('더미: 화면공유', enabled ? '시작' : '중지');
           isScreenSharing.value = enabled;
+          
+          try {
+            if (enabled) {
+              // 화면 공유 시작
+              console.log('화면 공유 스트림 요청 시작...');
+              const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+                video: { 
+                  mediaSource: 'screen',
+                  width: { max: 1920 },
+                  height: { max: 1080 },
+                  frameRate: { max: 30 }
+                }, 
+                audio: true 
+              });
+              
+              console.log('화면 공유 스트림 획득:', screenStream);
+              console.log('비디오 트랙:', screenStream.getVideoTracks());
+              console.log('오디오 트랙:', screenStream.getAudioTracks());
+              
+              if (localVideoElement.value) {
+                console.log('비디오 요소에 화면 공유 스트림 설정');
+                
+                // 비디오 요소 속성 설정
+                localVideoElement.value.muted = true; // 화면 공유는 음소거
+                localVideoElement.value.autoplay = true;
+                localVideoElement.value.playsInline = true;
+                
+                // 스트림 설정
+                localVideoElement.value.srcObject = screenStream;
+                
+                // loadedmetadata 이벤트 대기
+                const waitForMetadata = new Promise<void>((resolve, reject) => {
+                  const timeout = setTimeout(() => {
+                    reject(new Error('비디오 메타데이터 로딩 타임아웃'));
+                  }, 5000);
+                  
+                  localVideoElement.value!.onloadedmetadata = () => {
+                    clearTimeout(timeout);
+                    console.log('비디오 메타데이터 로드 완료');
+                    console.log('비디오 크기:', localVideoElement.value!.videoWidth, 'x', localVideoElement.value!.videoHeight);
+                    resolve();
+                  };
+                  
+                  localVideoElement.value!.onerror = (error) => {
+                    clearTimeout(timeout);
+                    console.error('비디오 로딩 에러:', error);
+                    reject(error);
+                  };
+                });
+                
+                // 메타데이터 로딩 대기
+                await waitForMetadata;
+                
+                // 카메라 썸네일에 원래 카메라 스트림 설정
+                if (localCameraThumbnail.value && localVideo.value?.srcObject) {
+                  localCameraThumbnail.value.srcObject = localVideo.value.srcObject;
+                  try {
+                    await localCameraThumbnail.value.play();
+                    console.log('카메라 썸네일 재생 시작');
+                  } catch (thumbError) {
+                    console.warn('카메라 썸네일 자동 재생 실패:', thumbError);
+                  }
+                }
+                
+                // 비디오 재생 시작 (여러 번 시도)
+                let playAttempts = 0;
+                const maxPlayAttempts = 3;
+                
+                const attemptPlay = async () => {
+                  try {
+                    await localVideoElement.value!.play();
+                    console.log('화면 공유 스트림 재생 시작 성공');
+                    
+                    // 재생 성공 후 상태 확인
+                    setTimeout(() => {
+                      console.log('재생 후 비디오 요소 상태:');
+                      console.log('- paused:', localVideoElement.value?.paused);
+                      console.log('- currentTime:', localVideoElement.value?.currentTime);
+                      console.log('- videoWidth:', localVideoElement.value?.videoWidth);
+                      console.log('- videoHeight:', localVideoElement.value?.videoHeight);
+                      console.log('- readyState:', localVideoElement.value?.readyState);
+                    }, 500);
+                    
+                  } catch (playError) {
+                    playAttempts++;
+                    console.warn(`화면 공유 비디오 재생 실패 (시도 ${playAttempts}/${maxPlayAttempts}):`, playError);
+                    
+                    if (playAttempts < maxPlayAttempts) {
+                      setTimeout(attemptPlay, 1000);
+                    } else {
+                      console.error('화면 공유 비디오 재생 최종 실패');
+                      // 사용자에게 수동으로 재생하도록 안내
+                      localVideoElement.value!.controls = true;
+                    }
+                  }
+                };
+                
+                await attemptPlay();
+                
+                // 화면 공유 종료 감지
+                screenStream.getVideoTracks()[0].onended = () => {
+                  console.log('화면 공유가 사용자에 의해 종료됨');
+                  isScreenSharing.value = false;
+                  // 원래 카메라 스트림으로 복구
+                  restoreCameraStream();
+                };
+              }
+            } else {
+              // 화면 공유 종료 - 원래 카메라 스트림으로 복구
+              restoreCameraStream();
+            }
+          } catch (error) {
+            console.error('화면 공유 실패:', error);
+            isScreenSharing.value = false;
+            alert('화면 공유에 실패했습니다. 브라우저에서 화면 공유 권한을 허용해주세요.');
+          }
         },
         publishData: async (data: Uint8Array) => {
           console.log('더미: 데이터 전송', data);
@@ -581,6 +781,61 @@ async function publishLocalMedia() {
 
   } catch (error) {
     console.error('로컬 미디어 퍼블리시 실패:', error);
+  }
+}
+
+// 원래 카메라 스트림으로 복구하는 함수
+async function restoreCameraStream() {
+  try {
+    if (localVideoElement.value) {
+      // 현재 화면 공유 스트림 정리
+      const currentStream = localVideoElement.value.srcObject as MediaStream;
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => {
+          console.log('화면 공유 트랙 정지:', track.kind);
+          track.stop();
+        });
+      }
+      
+      // 비디오 요소 속성 복구
+      localVideoElement.value.controls = false;
+      localVideoElement.value.muted = true;
+      localVideoElement.value.autoplay = true;
+      localVideoElement.value.playsInline = true;
+      
+      if (localVideo.value?.srcObject) {
+        // 로비에서 사용하던 카메라 스트림으로 복구
+        console.log('로비 카메라 스트림으로 복구 중...');
+        localVideoElement.value.srcObject = localVideo.value.srcObject;
+        
+        // 비디오 재생 시작
+        try {
+          await localVideoElement.value.play();
+          console.log('원래 카메라 스트림으로 복구 및 재생 성공');
+        } catch (playError) {
+          console.warn('카메라 비디오 자동 재생 실패:', playError);
+        }
+      } else {
+        // 새로운 카메라 스트림 생성
+        console.log('새로운 카메라 스트림 생성 중...');
+        const cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+          audio: true
+        });
+        
+        localVideoElement.value.srcObject = cameraStream;
+        
+        // 비디오 재생 시작
+        try {
+          await localVideoElement.value.play();
+          console.log('새로운 카메라 스트림 생성, 복구 및 재생 성공');
+        } catch (playError) {
+          console.warn('새로운 카메라 비디오 자동 재생 실패:', playError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('카메라 스트림 복구 실패:', error);
   }
 }
 
