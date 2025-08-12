@@ -13,6 +13,7 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long> {
 
     Optional<Episode> findByEpisodeIdAndBookBookIdAndDeletedAtIsNull(Long episodeId, Long bookId);
     List<Episode> findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(Long bookId);
+
     Long countByBookBookIdAndDeletedAtIsNull(Long bookId);
     /**
      * 특정 책(bookId)에 속하면서, content가 null이 아니고 빈 문자열("")이 아닌
@@ -34,5 +35,8 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long> {
      */
     @Query("SELECT count(e) FROM Episode e WHERE e.book.bookId = :bookId AND e.content IS NOT NULL AND e.content <> ''")
     long countCompletedEpisodesByBookId(@Param("bookId") Long bookId);
+
+
+    List<Episode> findByBookBookIdOrderByEpisodeOrderAsc(Long bookId);
 
 }
