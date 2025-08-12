@@ -7,6 +7,8 @@ import org.springframework.data.domain.Pageable;
 import java.util.Optional;
 
 public interface CommunityBookService {
+    CommunityBookListResponse search(Long memberId, Pageable pageable, String title, String[] tags, Long categoryId, String bookType, String sortBy);
+
     void deleteCommunityBook(Long memberId, Long communityBookId);
 
     // 댓글 관련 기능
@@ -18,7 +20,7 @@ public interface CommunityBookService {
 
     CommunityBookDetailResponse getCommunityBookDetail(Long memberId, Long communityBookId);
 
-    CommunityBookListResponse getCommunityBookList(Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy);
+    CommunityBookListResponse getCommunityBookList(Long memberId, Pageable pageable, String sortBy);
 
     CommunityBookListResponse getMemberCommunityBooks(Long userId, Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy);
 }

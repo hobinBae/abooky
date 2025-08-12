@@ -47,15 +47,38 @@ public class CommunityBookController {
             @AuthenticationPrincipal CustomUserDetails userDetails,
             HttpServletRequest httpRequest,
             @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+
+            @RequestParam(required = false, defaultValue = "recent") String sortBy) {
+        Long memberId = userDetails.getMemberId();
+        CommunityBookListResponse response = communityBookService.getCommunityBookList(
+                memberId, pageable, sortBy);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 목록 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "커뮤니티 책 검색", description = "커뮤니티 책을 검색합니다")
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<CommunityBookListResponse>> search(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+
+            @Parameter(description = "책 제목 키워드 검색")
+            @RequestParam(required = false) String title,
+
+            @Parameter(description = "태그명으로 검색 (쉼표로 구분)")
+            @RequestParam(required = false) String[] tags,
+
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String bookType,
             @RequestParam(required = false, defaultValue = "recent") String sortBy) {
         Long memberId = userDetails.getMemberId();
-        CommunityBookListResponse response = communityBookService.getCommunityBookList(
-                memberId, pageable, categoryId, bookType, sortBy);
+        CommunityBookListResponse response = communityBookService.search(
+                memberId, pageable, title, tags, categoryId, bookType, sortBy);
 
         return ResponseEntity.status(HttpStatus.OK)
-                .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 목록 조회 성공", response, httpRequest.getRequestURI()));
+                .body(ApiResponse.of(HttpStatus.OK, "커뮤니티 책 검색 성공", response, httpRequest.getRequestURI()));
     }
 
     @Operation(summary = "특정 작가가 작성한 커뮤니티 책 목록 조회", description = "특정 작가가 작성한 커뮤니티 책 목록을 조회합니다")
