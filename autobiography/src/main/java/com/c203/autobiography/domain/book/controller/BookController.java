@@ -2,7 +2,6 @@ package com.c203.autobiography.domain.book.controller;
 
 import com.c203.autobiography.domain.book.dto.*;
 import com.c203.autobiography.domain.book.service.BookService;
-import com.c203.autobiography.domain.episode.dto.EpisodeCreateRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
 import com.c203.autobiography.domain.episode.service.EpisodeService;
@@ -249,4 +248,22 @@ public class BookController {
                 .body(ApiResponse.of(HttpStatus.OK, "평점 조회 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "커뮤니티 책 생성", description = "개인 책을 커뮤니티로 내보냅니다 (Book → CommunityBook, Episode → CommunityBookEpisode)")
+    @PostMapping("/{bookId}/export/community")
+    public ResponseEntity<ApiResponse<CommunityBookCreateResponse>> exportBookToCommunity(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @Parameter(description = "책 ID") @PathVariable Long bookId,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = user.getMemberId();
+        CommunityBookCreateResponse response = bookService.exportBookToCommunity(memberId, bookId);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(
+                        HttpStatus.CREATED,
+                        "책 커뮤니티 내보내기 성공",
+                        response,
+                        httpRequest.getRequestURI()
+                ));
+    }
 }

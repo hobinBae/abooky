@@ -10,4 +10,6 @@ public interface EpisodeRepository extends JpaRepository<Episode, Long> {
     Optional<Episode> findByEpisodeIdAndDeletedAtIsNull(Long episodeId);
 
     List<Episode> findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(Long bookId);
+
+    List<Episode> findByBookBookIdOrderByEpisodeOrderAsc(Long bookId);
 }
