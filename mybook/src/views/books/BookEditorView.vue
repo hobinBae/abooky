@@ -596,7 +596,8 @@ function connectToSseStream() {
     eventSource.close();
   }
 
-  const url = `${apiClient.defaults.baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
+  const baseURL = apiClient.defaults?.baseURL || '';
+  const url = `${baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
   eventSource = new EventSource(url, { withCredentials: true });
 
   eventSource.onopen = () => {
@@ -610,7 +611,7 @@ function connectToSseStream() {
     if (q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion) {
       isInterviewStarted.value = false;
       isContentChanged.value = false;
-      episodeJustApplied.value = false;
+
       return;
     }
 
@@ -620,9 +621,10 @@ function connectToSseStream() {
       return;
     }
 
-    // 일반적인 다음 질문으로 넘어가는 경우에만 초기화
-    isContentChanged.value = false;
-    if (currentStory.value) currentStory.value.content = '';
+    if (q.questionType === 'MAIN' || q.questionType === 'FOLLOWUP' || !q.questionType) {
+      isContentChanged.value = false;
+      if (currentStory.value) currentStory.value.content = '';
+    }
   });
 
 
@@ -639,6 +641,9 @@ function connectToSseStream() {
 
   // 'episode' 이벤트 리스너
   eventSource.addEventListener('episode', async (event) => {
+
+    episodeJustApplied.value = true;
+
     const e = JSON.parse(event.data);
 
     if (!currentBook.value?.stories) return;
@@ -656,8 +661,7 @@ function connectToSseStream() {
       currentStoryIndex.value = currentBook.value.stories.length - 1;   // ✅ 새로 추가되면 선택
     }
 
-    // 에피소드 직후 클리어 방지 플래그
-    episodeJustApplied.value = true;
+
   });
 
   eventSource.onerror = (error) => {
@@ -688,13 +692,13 @@ async function submitAnswerAndGetFollowUp() {
   try {
     console.log('다음 질문 요청...');
     // "다음 질문"을 요청하는 API 호출
-    await apiClient.post(`/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value.id}/next?sessionId=${currentSessionId.value}`);
+    await apiClient.post(`/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value?.id}/next?sessionId=${currentSessionId.value}`);
 
     // 다음 질문은 SSE의 'question' 이벤트 리스너가 받아서 자동으로 화면에 표시합니다.
 
-    // 다음 질문을 위해 답변 내용 초기화 및 상태 변경
-    if (currentStory.value) currentStory.value.content = '';
-    isContentChanged.value = false;
+    // // 다음 질문을 위해 답변 내용 초기화 및 상태 변경
+    // if (currentStory.value) currentStory.value.content = '';
+    // isContentChanged.value = false;
   } catch (error) {
     console.error('다음 질문 요청 실패:', error);
     alert('다음 질문을 가져오는데 실패했습니다.');
@@ -946,7 +950,8 @@ onBeforeUnmount(() => {
       // 1. 모든 에피소드에 대한 삭제 요청을 보냅니다.
       currentBook.value.stories?.forEach(story => {
         if (story.id) {
-          const episodeUrl = `${apiClient.defaults.baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
+          const baseURL = apiClient.defaults?.baseURL || '';
+          const episodeUrl = `${baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
           fetch(episodeUrl, {
             method: 'DELETE',
             headers,
@@ -957,7 +962,8 @@ onBeforeUnmount(() => {
       });
 
       // 2. 책 삭제 요청을 보냅니다.
-      const bookUrl = `${apiClient.defaults.baseURL}/api/v1/books/${bookId}`;
+      const baseURL = apiClient.defaults?.baseURL || '';
+      const bookUrl = `${baseURL}/api/v1/books/${bookId}`;
       fetch(bookUrl, {
         method: 'DELETE',
         headers,
