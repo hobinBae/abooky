@@ -28,4 +28,6 @@ public interface CommunityBookService {
     boolean toggleLike(Long bookId, Long memberId);
 
     long getLikeCount(Long communityBookId);
+
+    boolean toggleBookmark(Long communityBookId, Long memberId);
 }

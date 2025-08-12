@@ -5,10 +5,7 @@ import com.c203.autobiography.domain.book.dto.LikeResponse;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.entity.BookLike;
 import com.c203.autobiography.domain.communityBook.dto.*;
-import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
-import com.c203.autobiography.domain.communityBook.entity.CommunityBookComment;
-import com.c203.autobiography.domain.communityBook.entity.CommunityBookEpisode;
-import com.c203.autobiography.domain.communityBook.entity.CommunityBookLike;
+import com.c203.autobiography.domain.communityBook.entity.*;
 import com.c203.autobiography.domain.communityBook.repository.*;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
@@ -39,6 +36,7 @@ public class CommunityBookServiceImpl implements CommunityBookService {
     private final CommunityBookCommentRepository communityBookCommentRepository;
     private final CommunityBookTagRepository communityBookTagRepository;
     private final CommunityBookLikeRepository communityBookLikeRepository;
+    private final CommunityBookBookmarkRepository communityBookBookmarkRepository;
 
     @Transactional(readOnly = true)
     @Override
@@ -470,5 +468,35 @@ public class CommunityBookServiceImpl implements CommunityBookService {
                 .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
 
         return communityBookLikeRepository.countByCommunityBook(communityBook);
+    }
+
+    @Transactional
+    @Override
+    public boolean toggleBookmark(Long communityBookId, Long memberId) {
+        // 1. 멤버 존재 여부 확인
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 커뮤니티 북 존재 여부 확인
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 3. 현재 북마크 상태 확인
+        boolean exists = communityBookBookmarkRepository.existsByCommunityBookAndMember(communityBook, member);
+
+        if (!exists) {
+            // 북마크 추가
+            CommunityBookBookmark bookmark = CommunityBookBookmark.of(communityBook, member);
+            communityBookBookmarkRepository.save(bookmark);
+
+            log.info("User {} bookmarked community book {}", memberId, communityBookId);
+            return true; // 북마크 추가됨
+        } else {
+            // 북마크 취소
+            communityBookBookmarkRepository.deleteByCommunityBookAndMember(communityBook, member);
+
+            log.info("User {} removed bookmark from community book {}", memberId, communityBookId);
+            return false; // 북마크 취소됨
+        }
     }
 }
