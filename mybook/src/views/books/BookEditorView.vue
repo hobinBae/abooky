@@ -55,9 +55,8 @@
             <button @click="addStory" class="btn-add-story" title="이야기 추가"><i class="bi bi-plus-lg"></i></button>
           </div>
           <ul class="story-list">
-            <li v-for="(story, index) in currentBook.stories" :key="index"
-              @click="selectStory(index)"
-              :class="{ active: index === currentStoryIndex }">
+            <li v-for="(story, index) in currentBook.stories" :key="story.id ?? ('tmp-' + index)"
+              @click="selectStory(index)" :class="{ active: index === currentStoryIndex }">
               <span>{{ story.title }}</span>
               <button @click.stop="deleteStory(story, index)" class="btn-delete-story">×</button>
             </li>
@@ -77,9 +76,9 @@
             </div>
             <div class="story-content-wrapper">
               <textarea v-model="currentStory.content" class="story-content-editor"
-                placeholder="이곳에 이야기를 적거나 음성 녹음 시작을 누르고 말해 보세요." maxlength="1000"></textarea>
+                placeholder="이곳에 이야기를 적거나 음성 녹음 시작을 누르고 말해 보세요." maxlength="5000"></textarea>
               <div class="char-counter">
-                {{ currentStory.content.length }} / 1000
+                {{ currentStory.content.length }} / 5000
               </div>
             </div>
 
@@ -104,8 +103,8 @@
             <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
                 class="bi bi-stop-circle-fill"></i> 음성 답변 완료</button>
 
-            <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged" class="btn-sidebar"><i
-                class="bi bi-check-circle"></i> 질문 답변완료</button>
+            <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged"
+              class="btn-sidebar"><i class="bi bi-check-circle"></i> 질문 답변완료</button>
             <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
                 class="bi bi-skip-end-circle"></i> 질문 건너뛰기</button>
             <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> AI 자동 교정</button>
@@ -165,11 +164,8 @@
                 <button @click="removeTag(index)" class="btn-remove-tag">×</button>
               </span>
             </div>
-            <input id="book-tags" type="text" v-model="tagInput"
-                   @keydown.enter.prevent="addTag"
-                   placeholder="태그 입력 후 Enter"
-                   class="form-control"
-                   :disabled="tags.length >= 5">
+            <input id="book-tags" type="text" v-model="tagInput" @keydown.enter.prevent="addTag"
+              placeholder="태그 입력 후 Enter" class="form-control" :disabled="tags.length >= 5">
           </div>
         </div>
         <div class="form-group">
@@ -239,9 +235,11 @@ const selectedCover = ref(coverOptions[0]);
 const tagInput = ref(''); // 현재 입력 중인 태그
 const tags = ref<string[]>([]); // 등록된 태그 목록
 const isSavedOrPublished = ref(false);
-
+const episodeJustApplied = ref(false);
 //상태 추가
 const currentSessionId = ref<string | null>(null);
+//메시지 아이디 저장
+const currentAnswerMessageId = ref<number | null>(null);
 // SSE EventSource 객체를 저장할 변수
 let eventSource: EventSource | null = null;
 
@@ -284,7 +282,7 @@ async function moveToEditingStep() {
 
   const bookData = new FormData();
   bookData.append('title', currentBook.value.title);
-  if(currentBook.value.summary) bookData.append('summary', currentBook.value.summary);
+  if (currentBook.value.summary) bookData.append('summary', currentBook.value.summary);
 
   let bookTypeValue = 'AUTO'; // 기본값
   if (currentBook.value.type === 'diary') {
@@ -309,9 +307,9 @@ async function moveToEditingStep() {
     currentBook.value.stories = newBook.episodes || [];
 
     creationStep.value = 'editing';
-    if (currentBook.value.stories?.length === 0) {
-      addStory();
-    }
+    // if (currentBook.value.stories?.length === 0) {
+    //   addStory();
+    // }
   } catch (error) {
     console.error('책 생성 오류:', error);
     alert('책 생성에 실패했습니다.');
@@ -475,26 +473,20 @@ async function deleteStory(story: Story, index: number) {
   }
 }
 
+
 async function addStory() {
   if (!currentBook.value?.id) return;
 
   try {
     const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/episodes`);
     const newEpisode = response.data.data;
-
-    if (!currentBook.value.stories) {
-      currentBook.value.stories = [];
-    }
-
     const newStory: Story = {
       id: newEpisode.episodeId,
-      title: newEpisode.title || `${currentBook.value.stories.length + 1}번째 이야기`,
+      title: newEpisode.title || `${(currentBook.value.stories?.length || 0) + 1}번째 이야기`,
       content: newEpisode.content || ''
     };
-
-    currentBook.value.stories.push(newStory);
-    currentStoryIndex.value = currentBook.value.stories.length - 1;
-
+    currentBook.value.stories = [...(currentBook.value.stories || []), newStory];
+    currentStoryIndex.value = (currentBook.value.stories?.length || 1) - 1;
   } catch (error) {
     console.error('이야기 추가 오류:', error);
     alert('새로운 이야기를 추가하는데 실패했습니다.');
@@ -507,24 +499,61 @@ function selectStory(index: number) {
 }
 
 async function saveStory() {
-  if (!currentStory.value?.id || !currentBook.value?.id) {
-    alert('저장할 이야기가 없거나 책 정보가 올바르지 않습니다.');
-    return;
-  }
 
-  try {
-    const episodeData = {
-      title: currentStory.value.title,
-      content: currentStory.value.content,
-    };
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}`, episodeData);
-    alert('이야기가 저장되었습니다.');
-    isContentChanged.value = false;
-  } catch (error) {
-    console.error('이야기 저장 오류:', error);
-    alert('이야기 저장에 실패했습니다.');
+  if (isInterviewStarted.value === true) {
+    // [시나리오 1] 인터뷰 진행 중 -> "메시지 수정"
+    // 사용자가 STT 결과를 수정한 내용을 저장하는 경우
+
+    if (!currentAnswerMessageId.value) {
+      alert('수정할 답변 정보가 없습니다. 답변이 완료된 후 다시 시도해주세요.');
+      return;
+    }
+
+    console.log(`메시지 수정 요청: ID=${currentAnswerMessageId.value}`);
+
+    try {
+      const updateRequest = {
+        messageId: currentAnswerMessageId.value,
+        content: currentStory.value?.content.trim() || ''
+      };
+      await apiClient.put('/api/v1/conversation/message', updateRequest);
+      alert('수정된 답변이 저장되었습니다.');
+
+    } catch (error) {
+      console.error('메시지 수정 실패:', error);
+      alert('답변 저장에 실패했습니다.');
+    }
+
+  } else {
+    // [시나리오 2] 인터뷰 종료 후 -> "에피소드 수정"
+    // 사용자가 목차에서 이전 에피소드를 불러와 제목이나 내용을 수정하는 경우
+
+    if (!currentStory.value?.id || !currentBook.value?.id) {
+      alert('저장할 에피소드 정보가 올바르지 않습니다.');
+      return;
+    }
+
+    console.log(`에피소드 수정 요청: ID=${currentStory.value.id}`);
+
+    try {
+      const episodeUpdateRequest = {
+        title: currentStory.value.title,
+        content: currentStory.value.content
+      };
+      await apiClient.patch(
+        `/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}`,
+        episodeUpdateRequest
+      );
+      alert('에피소드가 성공적으로 저장되었습니다.');
+      isContentChanged.value = false;
+
+    } catch (error) {
+      console.error('에피소드 저장(수정) 실패:', error);
+      alert('에피소드 저장에 실패했습니다.');
+    }
   }
 }
+
 
 // 수정함
 async function startAiInterview() {
@@ -575,75 +604,60 @@ function connectToSseStream() {
   };
 
   eventSource.addEventListener('question', (event) => {
-    const questionData = JSON.parse(event.data);
-    aiQuestion.value = questionData.text; // 질문 텍스트는 항상 업데이트
+    const q = JSON.parse(event.data);
+    aiQuestion.value = q.text;
 
-    // TODO: setProgress(questionData) 와 같은 진행률 UI 업데이트 로직 호출
-
-    if (questionData.questionType === 'CHAPTER_COMPLETE') {
-      // [챕터 완료 시나리오]
-      console.log('챕터 완료 신호 수신');
-      append(questionData.text, 'system'); // 시스템 메시지로 안내
-      isInterviewStarted.value = false; // 현재 "이야기"에 대한 인터뷰는 종료됨
-      // 추가 답변 및 다음 질문 요청 버튼 비활성화
-      isContentChanged.value = false;
-
-    } else if (questionData.isLastQuestion) {
-      // [모든 대화 종료 시나리오]
-      console.log('모든 인터뷰 완료 신호 수신');
-      append(questionData.text, 'system');
+    if (q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion) {
       isInterviewStarted.value = false;
       isContentChanged.value = false;
-      // 필요하다면 모든 인터뷰 관련 버튼을 비활성화 할 수 있습니다.
-
-    } else {
-      // [일반 질문 시나리오]
-      append(questionData.text, 'ai');
-      // 다음 답변을 위해 상태 초기화
-      isContentChanged.value = false;
-      if (currentStory.value) currentStory.value.content = '';
+      episodeJustApplied.value = false;
+      return;
     }
+
+    // 에피소드 반영 직후엔 초기화 금지
+    if (episodeJustApplied.value) {
+      episodeJustApplied.value = false;
+      return;
+    }
+
+    // 일반적인 다음 질문으로 넘어가는 경우에만 초기화
+    isContentChanged.value = false;
+    if (currentStory.value) currentStory.value.content = '';
   });
 
 
-  // 2. ★★★ 버그 수정: 'partialTranscript' 이벤트 리스너 ★★★
+  // 2.'partialTranscript' 이벤트 리스너
   eventSource.addEventListener('partialTranscript', (event) => {
     const transcriptData = JSON.parse(event.data);
     if (currentStory.value) {
       // 서버에서 받은 음성 인식 결과를 content에 추가
       currentStory.value.content += transcriptData.text + ' ';
     }
+    // 수신한 messageId를 상태에 저장
+    currentAnswerMessageId.value = transcriptData.messageId;
   });
 
-  // 'episode' 이벤트 리스너 (수정 완료)
-  eventSource.addEventListener('episode', (event) => {
-    const episodeData = JSON.parse(event.data);
-    append(`✅ AI가 이전 챕터의 대화를 바탕으로 '${episodeData.title}' 이야기의 초안을 작성했습니다. 내용을 확인하고 자유롭게 수정하세요.`, 'system');
+  // 'episode' 이벤트 리스너
+  eventSource.addEventListener('episode', async (event) => {
+    const e = JSON.parse(event.data);
 
-    if (currentBook.value && currentBook.value.stories) {
+    if (!currentBook.value?.stories) return;
 
-      // 1. .find() 대신 .findIndex()를 사용하여 업데이트할 이야기의 "인덱스"를 찾습니다.
-      const storyIndexToUpdate = currentBook.value.stories.findIndex(story => story.id === episodeData.episodeId);
+    const i = currentBook.value.stories.findIndex(s => s.id === e.episodeId);
 
-      // 2. 일치하는 이야기가 있다면 (인덱스가 -1이 아니라면)
-      if (storyIndexToUpdate > -1) {
-
-        // 3. 기존 객체의 속성을 유지하면서, 새로운 제목과 내용으로 "새로운 객체"를 만듭니다.
-        const updatedStory = {
-          ...currentBook.value.stories[storyIndexToUpdate], // 기존 id 등 다른 속성 복사
-          title: episodeData.title,
-          content: episodeData.content
-        };
-
-        // 4. 배열의 해당 인덱스 위치를 새로운 객체로 "교체"합니다.
-        currentBook.value.stories[storyIndexToUpdate] = updatedStory;
-
-        // isContentChanged 플래그 업데이트 로직은 그대로 유지
-        if (currentStoryIndex.value === storyIndexToUpdate) {
-          isContentChanged.value = true;
-        }
-      }
+    if (i > -1) {
+      const updated = { ...currentBook.value.stories[i], title: e.title, content: e.content };
+      currentBook.value.stories.splice(i, 1, updated);    // ✅ 반응성 보장
+      await nextTick();
+      if (currentStoryIndex.value === -1) currentStoryIndex.value = i;  // 선택 없으면 선택
+    } else {
+      const newStory = { id: e.episodeId, title: e.title, content: e.content };
+      currentBook.value.stories.push(newStory);
+      currentStoryIndex.value = currentBook.value.stories.length - 1;   // ✅ 새로 추가되면 선택
     }
+
+    // 에피소드 직후 클리어 방지 플래그
+    episodeJustApplied.value = true;
   });
 
   eventSource.onerror = (error) => {
@@ -652,7 +666,6 @@ function connectToSseStream() {
     eventSource?.close();
   };
 }
-
 
 
 // 질문 답변 완료 버튼 클릭 시
@@ -916,7 +929,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
 
-    if (eventSource) {
+  if (eventSource) {
     eventSource.close();
     console.log('SSE 연결 종료');
   }
@@ -1172,7 +1185,8 @@ textarea.form-control {
 }
 
 .genre-toggle button.active {
-  background-color: #6c757d; /* Darker Gray */
+  background-color: #6c757d;
+  /* Darker Gray */
   color: white;
 
 }
@@ -1180,9 +1194,12 @@ textarea.form-control {
 .form-actions {
   text-align: center;
   margin-top: 3rem;
-  display: flex; /* [추가] 버튼을 옆으로 나열하기 위해 flex 사용 */
-  justify-content: center; /* [추가] 중앙 정렬 */
-  gap: 1rem; /* [추가] 버튼 사이 간격 */
+  display: flex;
+  /* [추가] 버튼을 옆으로 나열하기 위해 flex 사용 */
+  justify-content: center;
+  /* [추가] 중앙 정렬 */
+  gap: 1rem;
+  /* [추가] 버튼 사이 간격 */
 }
 
 /* --- Workspace Section --- */
@@ -1466,7 +1483,8 @@ textarea.form-control {
   background-color: #fff;
   border: 1px solid #ccc;
   font-family: 'Pretendard', sans-serif;
-  font-weight: 400; /* Normal weight */
+  font-weight: 400;
+  /* Normal weight */
 }
 
 .publish-header {
@@ -1559,10 +1577,12 @@ textarea.form-control {
 
 /* --- Tag Input Styles --- */
 .tag-container {
-  /* border: 1px solid #ccc; */ /* 외곽선 제거 */
+  /* border: 1px solid #ccc; */
+  /* 외곽선 제거 */
   border-radius: 6px;
   padding: 0.5rem;
-  padding-bottom: 0; /* 아래쪽 패딩 제거 */
+  padding-bottom: 0;
+  /* 아래쪽 패딩 제거 */
 }
 
 .tag-list {
@@ -1599,10 +1619,13 @@ textarea.form-control {
 }
 
 .tag-container .form-control {
-  border: 1px solid #ccc; /* 입력란에만 외곽선 추가 */
+  border: 1px solid #ccc;
+  /* 입력란에만 외곽선 추가 */
   box-shadow: none;
-  padding-left: 0.8rem; /* 패딩 조정 */
-  margin-top: 0.5rem; /* 위쪽 태그 목록과의 간격 */
+  padding-left: 0.8rem;
+  /* 패딩 조정 */
+  margin-top: 0.5rem;
+  /* 위쪽 태그 목록과의 간격 */
 }
 
 .tag-container .form-control:focus {
