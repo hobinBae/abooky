@@ -4,7 +4,7 @@
       <div class="book-cover-initial" :style="{ backgroundImage: `url(${coverImageUrl})` }" @click="openBook">
         <div class="title-box">
           <h1>{{ book.title }}</h1>
-          <p class="author-in-box">{{ book.authorName }}</p>
+          <p class="author-in-box">{{ book.nickname }}</p>
         </div>
       </div>
     </div>
@@ -19,19 +19,19 @@
                 <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" />
                 <div class="title-box">
                   <h1>{{ book.title }}</h1>
-                  <p class="author-in-box">{{ book.authorName }}</p>
+                  <p class="author-in-box">{{ book.nickname }}</p>
                 </div>
               </div>
             </div>
             <div class="flipper-back" @click="flipCover">
               <h4>작가</h4>
               <p class="author-line">
-                <router-link :to="`/author/${book.authorId}`" class="author-link">{{ book.authorName }}</router-link>
+                <router-link :to="`/author/${book.memberId}`" class="author-link">{{ book.nickname }}</router-link>
               </p>
               <hr class="divider" />
               <h4>장르</h4>
               <div class="genres-container">
-                <span v-for="genre in book.genres" :key="genre" class="tag">{{ genre }}</span>
+                <span class="tag">{{ book.categoryName }}</span>
               </div>
               <hr class="divider" />
               <h4>태그</h4>
@@ -39,7 +39,7 @@
                 <span v-for="tag in book.tags" :key="tag" class="tag">#{{ tag }}</span>
               </div>
               <hr class="divider" />
-              <h4>줄거리</h4>
+              <h4>책 소개</h4>
               <p class="summary">{{ book.summary }}</p>
             </div>
           </div>
@@ -58,13 +58,18 @@
           </button>
           <span class="stat-item">
             <i class="bi bi-eye-fill"></i>
-            <span>{{ book.views }}</span>
+            <span>{{ book.viewCount }}</span>
           </span>
         </div>
 
-        <button v-if="isAuthor" @click="editBook" class="btn btn-edit">
-          <i class="bi bi-pencil-square"></i> 책 편집하기
-        </button>
+        <div class="author-controls" v-if="isAuthor">
+          <button @click="editBook" class="btn btn-edit">
+            <i class="bi bi-pencil-square"></i> 책 편집하기
+          </button>
+          <button @click="deleteBook" class="btn btn-edit btn-delete">
+            <i class="bi bi-trash"></i> 책 삭제하기
+          </button>
+        </div>
         <button v-if="isAuthor && !isPublished" @click="publishToBookstore" class="btn btn-edit btn-publish">
           <i class="bi bi-book"></i> 서점에 출판하기
         </button>
@@ -84,7 +89,7 @@
               <p>{{ book.title }}</p>
             </header>
             <div class="content-body" v-html="formattedContent(truncatedContent)"></div>
-            
+
             <div class="episode-navigation">
               <button v-if="hasPreviousEpisode" @click="goToPreviousEpisode" class="btn-nav prev">
                 <i class="bi bi-arrow-left-circle"></i> 이전 이야기
@@ -99,7 +104,7 @@
           <section v-else class="other-episodes-section">
             <h3>목차</h3>
             <ul class="other-episodes-list">
-              <li v-for="(episode, index) in book.episodes" :key="index" @click="selectEpisode(index)"
+              <li v-for="(episode, index) in book.episodes" :key="episode.episodeId" @click="selectEpisode(index)"
                 :class="{ active: index === currentEpisodeIndex }">
                 <div class="episode-list-item-title">
                   <span class="episode-number">{{ index + 1 }}.</span>
@@ -167,35 +172,39 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import apiClient from '@/api';
+import { useAuthStore } from '@/stores/auth';
 
 // --- Interfaces ---
-interface Episode { title: string; content: string; }
-interface Book { id: string; title: string; authorId: string; authorName?: string; summary?: string; coverUrl?: string; genres?: string[]; tags?: string[]; episodes: Episode[]; likes: number; views: number; publicationDate?: Date; isPublished?: boolean; }
+interface Episode {
+  episodeId: number;
+  title: string;
+  content: string;
+}
+interface Book {
+  bookId: string;
+  title: string;
+  memberId: string;
+  nickname?: string; // authorName -> nickname
+  summary?: string;
+  coverImageUrl?: string;
+  categoryName?: string;
+  tags?: string[];
+  episodes: Episode[];
+  likeCount: number;
+  viewCount: number;
+  createdAt: string; // ISO 8601 형식의 문자열로 받음
+  completed: boolean;
+}
 interface Comment { id: string; bookId: string; authorId: string; authorName?: string; text: string; createdAt: Date; }
 
 // --- Dummy Data ---
-const DUMMY_BOOKS: Book[] = [{
-  id: 'mybook1',
-  title: '안녕, 급식실 첫번째 이야기',
-  authorId: 'dummyUser1',
-  authorName: '문혜성',
-  summary: '어린 시절의 소중한 추억들을 담은 자서전입니다. 골목길에서의 모험, 할머니의 따뜻한 손길, 그리고 친구들과의 우정까지, 순수했던 그 시절의 이야기들이 펼쳐집니다.',
-  coverUrl: '',
-  publicationDate: new Date('2024-05-20T00:00:00Z'),
-  genres: ['에세이', '자서전'],
-  tags: ['어린시절', '추억', '성장', '가족', '친구'],
-  episodes: [
-    { title: '골목길의 추억', content: '어릴 적 살던 동네의 골목길은 언제나 모험의 시작이었다.\n낡은 담벼락을 따라 이어진 좁은 길은 우리에게 미지의 세계로 통하는 문과 같았다. 해 질 녘까지 술래잡기를 하고, 숨바꼭질을 하며 뛰어놀던 그곳은 단순한 길이 아니라, 우리의 꿈과 상상력이 자라나던 놀이터였다.' }, 
-    { title: '할머니의 손맛', content: '할머니의 따뜻한 손길과 맛있는 음식은 잊을 수 없는 기억이다.\n할머니 댁에 가면 언제나 구수한 된장찌개 냄새가 나를 반겼다. 할머니는 내가 좋아하는 반찬들을 한가득 차려주셨고, 나는 할머니의 사랑이 담긴 밥상을 마주할 때마다 세상에서 가장 행복한 아이가 되었다.' }, 
-    { title: '우리들의 운동장', content: '친구들과 함께 뛰어놀던 운동장은 우리만의 작은 세상이었다.\n학교가 끝나면 우리는 약속이라도 한 듯 운동장으로 달려갔다. 축구공 하나만 있으면 시간 가는 줄 모르고 뛰어놀았고, 해가 져서 어두워질 때까지 운동장을 떠나지 않았다.' }
-  ], 
-  likes: 20, views: 150, isPublished: false,
-},];
 const DUMMY_COMMENTS: Comment[] = [{ id: 'c1', bookId: 'mybook1', authorId: 'dummyUser1', authorName: '독서광', text: '정말 재미있게 읽었습니다! 다음 에피소드도 기대됩니다.', createdAt: new Date('2024-07-28T10:00:00Z') }, { id: 'c2', bookId: 'mybook1', authorId: 'user_dummy_4', authorName: '여행자', text: '저도 어릴 적 생각이 많이 나네요. 글이 참 따뜻합니다.', createdAt: new Date('2024-07-28T11:30:00Z') }, { id: 'c3', bookId: 'mybook1', authorId: 'user_dummy_5', authorName: '음유시인', text: '할머니의 사랑이 느껴지는 글입니다. 감동받았어요.', createdAt: new Date('2024-07-27T14:00:00Z') }];
 
 // --- 로직 ---
 const route = useRoute();
 const router = useRouter();
+const authStore = useAuthStore();
 const bookId = computed(() => route.params.id as string);
 const initialCoverMode = ref(true);
 const bookIsOpened = ref(false);
@@ -206,23 +215,28 @@ const currentEpisodeIndex = ref<number | null>(null);
 const newComment = ref('');
 const isLiked = ref(false);
 const likeCount = ref(0);
-const currentUserId = ref('dummyUser1');
+const currentUserId = ref('dummyUser1'); // TODO: 실제 사용자 ID로 교체
 const areCommentsVisible = ref(false);
 const editingCommentId = ref<string | null>(null);
 const editingCommentText = ref('');
-const isPublished = ref(false);
-const coverImageUrl = computed(() => { return book.value?.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'; });
-// [수정] 발행일 형식 변경 (YYYY.MM.DD)
-const formattedPublicationDate = computed(() => { 
-  if (!book.value?.publicationDate) return '';
-  const date = new Date(book.value.publicationDate);
+const isPublished = ref(false); // 출판 상태를 독립적으로 관리
+const coverImageUrl = computed(() => { return book.value?.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'; });
+const formattedPublicationDate = computed(() => {
+  if (!book.value?.createdAt) return '';
+  const date = new Date(book.value.createdAt);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}.${month}.${day}`;
 });
 const currentEpisode = computed(() => { if (book.value && currentEpisodeIndex.value !== null) { return book.value.episodes[currentEpisodeIndex.value]; } return null; });
-const isAuthor = computed(() => book.value && book.value.authorId === currentUserId.value);
+const isAuthor = computed(() => {
+  if (!book.value || !authStore.user) {
+    return false;
+  }
+  // 두 ID를 모두 문자열로 변환하여 비교
+  return String(book.value.memberId) === String(authStore.user.memberId);
+});
 
 const truncatedContent = computed(() => {
   if (currentEpisode.value) {
@@ -254,78 +268,96 @@ function goToPreviousEpisode() {
     selectEpisode(currentEpisodeIndex.value! - 1);
   }
 }
-function fetchBookData() {
-  const publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
-  const foundPublishedBook = publishedBooks.find((b: Book) => b.id === bookId.value);
-
-  if (foundPublishedBook) {
-    book.value = foundPublishedBook;
-    isPublished.value = true;
-  } else {
-    const foundBook = DUMMY_BOOKS.find(b => b.id === bookId.value);
-    if (foundBook) {
-      book.value = { ...foundBook };
-      isPublished.value = false;
-    } else {
-      book.value = null;
+async function fetchBookData() {
+  try {
+    const response = await apiClient.get(`/api/v1/books/${bookId.value}`);
+    book.value = response.data.data;
+    if (book.value) {
+      likeCount.value = book.value.likeCount || 0;
+      // isPublished.value = book.value.completed; // completed 상태와 출판 상태 분리
     }
-  }
-  if (book.value) {
-    likeCount.value = book.value.likes || 0;
+  } catch (error) {
+    console.error('책 정보를 불러오는데 실패했습니다:', error);
+    book.value = null;
+    // TODO: 404 또는 에러 페이지로 리디렉션하는 로직 추가
   }
 }
 function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); }
 function toggleLike() { isLiked.value = !isLiked.value; likeCount.value += isLiked.value ? 1 : -1; }
-function editBook() { if (book.value) { router.push({ name: 'BookEditor', params: { bookId: book.value.id } }); } }
+function editBook() {
+  if (book.value) {
+    router.push({
+      name: 'BookEditor',
+      params: { bookId: book.value.bookId },
+      query: { start_editing: 'true' }
+    });
+  }
+}
 
-function publishToBookstore() {
+async function publishToBookstore() {
   if (book.value && confirm(`'${book.value.title}'을(를) 서점에 출판하시겠습니까?`)) {
-    const publishedBook = { ...book.value, isPublished: true, publicationDate: new Date() };
-    
-    let publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
-    
-    const existingBookIndex = publishedBooks.findIndex((b: Book) => b.id === publishedBook.id);
-    if (existingBookIndex > -1) {
-      publishedBooks[existingBookIndex] = publishedBook;
-    } else {
-      publishedBooks.push(publishedBook);
+    try {
+      // 출판을 위해 complete API를 호출하되, UI 상태는 isPublished로 별도 관리
+      await apiClient.patch(`/api/v1/books/${book.value.bookId}/complete`, { tags: book.value.tags || [] });
+      isPublished.value = true; // UI 상태를 '출판됨'으로 변경
+      book.value.completed = true; // 데이터 일관성을 위해 로컬 book 객체도 업데이트
+      alert('책이 성공적으로 출판되었습니다.');
+    } catch (error) {
+      console.error('출판에 실패했습니다:', error);
+      alert('출판 처리 중 오류가 발생했습니다.');
     }
-    
-    localStorage.setItem('publishedBooks', JSON.stringify(publishedBooks));
-    
-    isPublished.value = true;
-    if (book.value) {
-      book.value.isPublished = true;
-      book.value.publicationDate = publishedBook.publicationDate;
-    }
-
-    alert('서점에 성공적으로 출판되었습니다.');
   }
 }
 
 function unpublishFromBookstore() {
-  if (book.value && confirm(`'${book.value.title}'의 출판을 취소하시겠습니까?`)) {
-    let publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]');
-    publishedBooks = publishedBooks.filter((b: Book) => b.id !== book.value?.id);
-    localStorage.setItem('publishedBooks', JSON.stringify(publishedBooks));
-
+  // TODO: 백엔드에 출판 취소 API가 필요합니다.
+  // 임시로 프론트엔드 상태만 변경
+  if (confirm('출판을 취소하시겠습니까?')) {
     isPublished.value = false;
-    if (book.value) {
-      book.value.isPublished = false;
+    alert('출판이 취소되었습니다. (현재는 프론트엔드에서만 반영)');
+  }
+}
+
+async function deleteBook() {
+  if (!book.value) return;
+
+  if (confirm(`'${book.value.title}'을(를) 정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
+    try {
+      // 1. 모든 에피소드 삭제
+      if (book.value.episodes && book.value.episodes.length > 0) {
+        for (const episode of book.value.episodes) {
+          await apiClient.delete(`/api/v1/books/${book.value.bookId}/episodes/${episode.episodeId}`);
+        }
+      }
+
+      // 2. 책 삭제
+      await apiClient.delete(`/api/v1/books/${book.value.bookId}`);
+
+      alert('책과 모든 에피소드가 삭제되었습니다.');
+      router.push('/my-library'); // 내 서재로 이동
+    } catch (error) {
+      console.error('책 또는 에피소드 삭제에 실패했습니다:', error);
+      alert('삭제 처리 중 오류가 발생했습니다.');
     }
-    alert('출판이 취소되었습니다.');
   }
 }
 
 function selectEpisode(index: number) { if (book.value && index >= 0 && index < book.value.episodes.length) { currentEpisodeIndex.value = index; document.querySelector('.right-panel-scroller')?.scrollTo(0, 0); } }
 function toggleCommentsVisibility() { areCommentsVisible.value = !areCommentsVisible.value; }
-function addComment() { if (!newComment.value.trim() || !book.value) return; const comment: Comment = { id: `c${Date.now()}`, bookId: book.value.id, authorId: currentUserId.value, authorName: '현재 사용자', text: newComment.value, createdAt: new Date() }; comments.value.unshift(comment); newComment.value = ''; areCommentsVisible.value = true; }
+function addComment() { if (!newComment.value.trim() || !book.value) return; const comment: Comment = { id: `c${Date.now()}`, bookId: book.value.bookId, authorId: currentUserId.value, authorName: '현재 사용자', text: newComment.value, createdAt: new Date() }; comments.value.unshift(comment); newComment.value = ''; areCommentsVisible.value = true; }
 function deleteComment(commentId: string) { if (confirm('정말로 삭제하시겠습니까?')) { comments.value = comments.value.filter(c => c.id !== commentId); } }
 function startEditing(comment: Comment) { editingCommentId.value = comment.id; editingCommentText.value = comment.text; }
 function cancelEdit() { editingCommentId.value = null; editingCommentText.value = ''; }
 function saveEdit(commentId: string) { const comment = comments.value.find(c => c.id === commentId); if (comment) { comment.text = editingCommentText.value; } cancelEdit(); }
 function flipCover() { isCoverFlipped.value = !isCoverFlipped.value; }
-onMounted(() => { fetchBookData(); fetchComments(); setTimeout(() => { openBook(); }, 1500); });
+onMounted(async () => {
+  if (authStore.accessToken && !authStore.user) {
+    await authStore.fetchUserInfo();
+  }
+  await fetchBookData();
+  fetchComments();
+  setTimeout(() => { openBook(); }, 1000);
+});
 watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.value = null; isCoverFlipped.value = false; });
 </script>
 
@@ -395,6 +427,18 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 8px; }
 
+.author-controls {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 0 10px;
+  box-sizing: border-box;
+}
+
+.author-controls .btn-edit {
+  flex: 1;
+}
+
 .btn-unpublish {
   background-color: #6c757d;
   color: white;
@@ -429,7 +473,7 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 
 /* [수정] 기존 transform 속성 삭제 및 display 추가 */
 .flip-indicator {
-  display: inline-block; /* transform이 잘 적용되도록 추가 */
+  display: inline-block; /* transform이 잘 적용'복사본으로 발행'되도록 추가 */
   font-size: 20px;
   color: #ccc;
   animation: pulse 2.5s infinite ease-in-out;

@@ -206,7 +206,8 @@ import { useAuthStore } from '@/stores/auth';
 
 // --- 인터페이스 정의 ---
 interface Story { id?: number; title: string; content: string; }
-interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; }
+interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; completed?: boolean; }
+interface ApiEpisode { episodeId: number; title: string; content: string; }
 
 // --- 정적 데이터 ---
 const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-person-badge' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-pen' },];
@@ -379,9 +380,36 @@ function visualize() {
   draw();
 }
 
+async function loadBookForEditing(bookId: string) {
+  try {
+    const response = await apiClient.get(`/api/v1/books/${bookId}`);
+    const bookData = response.data.data;
+    currentBook.value = {
+      id: bookData.bookId,
+      title: bookData.title,
+      summary: bookData.summary,
+      stories: bookData.episodes?.map((e: ApiEpisode) => ({ id: e.episodeId, title: e.title, content: e.content })) || [],
+      tags: bookData.tags || [],
+      categoryId: bookData.categoryId,
+      type: bookData.bookType.toLowerCase(),
+      completed: bookData.completed,
+    };
+    tags.value = bookData.tags || []; // [수정] 불러온 태그를 상태에 할당
+    selectedCategoryId.value = bookData.categoryId;
+    creationStep.value = 'editing';
+    if (currentBook.value.stories && currentBook.value.stories.length > 0) {
+      selectStory(0);
+    }
+  } catch (error) {
+    console.error('책 정보를 불러오는데 실패했습니다:', error);
+    alert('책 정보를 불러오는데 실패했습니다. 이전 페이지로 돌아갑니다.');
+    router.back();
+  }
+}
+
 function loadOrCreateBook(bookId: string | null) {
   if (bookId) {
-    // TODO: API를 통해 기존 책 데이터를 불러오는 로직 추가
+    loadBookForEditing(bookId);
   } else {
     creationStep.value = 'setup';
   }
@@ -416,13 +444,20 @@ async function addStory() {
   try {
     const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/episodes`);
     const newEpisode = response.data.data;
+
+    if (!currentBook.value.stories) {
+      currentBook.value.stories = [];
+    }
+
     const newStory: Story = {
       id: newEpisode.episodeId,
-      title: newEpisode.title || `${(currentBook.value.stories?.length || 0) + 1}번째 이야기`,
+      title: newEpisode.title || `${currentBook.value.stories.length + 1}번째 이야기`,
       content: newEpisode.content || ''
     };
-    currentBook.value.stories = [...(currentBook.value.stories || []), newStory];
-    currentStoryIndex.value = (currentBook.value.stories?.length || 1) - 1;
+
+    currentBook.value.stories.push(newStory);
+    currentStoryIndex.value = currentBook.value.stories.length - 1;
+
   } catch (error) {
     console.error('이야기 추가 오류:', error);
     alert('새로운 이야기를 추가하는데 실패했습니다.');
@@ -557,16 +592,7 @@ async function finalizePublication() {
   if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
 
   try {
-    const bookData = new FormData();
-    bookData.append('title', currentBook.value.title);
-    bookData.append('summary', currentBook.value.summary || '');
-    if (selectedCategoryId.value) {
-      bookData.append('categoryId', String(selectedCategoryId.value));
-    }
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
+    // 1. 에피소드(이야기)들을 먼저 저장합니다.
     const savePromises = currentBook.value.stories?.map(story => {
       if (story.id) {
         return apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`, {
@@ -578,8 +604,28 @@ async function finalizePublication() {
     }) || [];
     await Promise.all(savePromises);
 
-    // 상태 배열에 저장된 태그를 사용
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
+    // 2. 책의 기본 정보(제목, 줄거리, 카테고리)를 업데이트하기 위한 데이터를 준비합니다.
+    const bookData = new FormData();
+    bookData.append('title', currentBook.value.title);
+    bookData.append('summary', currentBook.value.summary || '');
+    if (selectedCategoryId.value) {
+      bookData.append('categoryId', String(selectedCategoryId.value));
+    }
+
+    // 3. 이미 발행된 책을 수정하는 경우, 태그 정보를 기본 정보 업데이트 요청에 포함시킵니다.
+    if (currentBook.value.completed) {
+      tags.value.forEach(tag => bookData.append('tags', tag));
+    }
+
+    // 책의 기본 정보 (+태그)를 업데이트합니다.
+    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    // 4. 최초로 책을 발행하는 경우에만 /complete 엔드포인트를 호출하여 발행을 완료하고 태그를 저장합니다.
+    if (!currentBook.value.completed) {
+      await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
+    }
 
     alert('책이 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
@@ -616,11 +662,29 @@ async function finalizePublicationAsCopy() {
     summary: currentBook.value.summary,
     categoryId: selectedCategoryId.value,
     episodes: episodesToCopy,
+    tags: tags.value, // 태그는 copy 요청에 포함
   };
 
   try {
+    // 1. 책 복사 API 호출
     const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/copy`, copyRequest);
     const newBook = response.data.data;
+
+    // 2. 복사된 책의 카테고리 업데이트
+    if (selectedCategoryId.value) {
+      const bookData = new FormData();
+      bookData.append('title', `${currentBook.value.title} - 복사본`);
+      bookData.append('summary', currentBook.value.summary || '');
+      bookData.append('categoryId', String(selectedCategoryId.value));
+
+      await apiClient.patch(`/api/v1/books/${newBook.bookId}`, bookData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+
+    // 3. 복사된 책을 complete 상태로 만들기
+    await apiClient.patch(`/api/v1/books/${newBook.bookId}/complete`, { tags: tags.value });
+
     alert('책이 복사본으로 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
     router.push(`/book-detail/${newBook.bookId}`);
@@ -659,7 +723,11 @@ onBeforeRouteLeave((to, from, next) => {
 
 onMounted(() => {
   const bookId = route.params.bookId as string | undefined;
-  loadOrCreateBook(bookId || null);
+  if (route.query.start_editing === 'true' && bookId) {
+    loadBookForEditing(bookId);
+  } else {
+    loadOrCreateBook(bookId || null);
+  }
   window.addEventListener('beforeunload', handleBeforeUnload);
 });
 
