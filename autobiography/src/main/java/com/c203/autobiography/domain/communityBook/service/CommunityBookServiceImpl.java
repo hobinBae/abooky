@@ -20,6 +20,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -37,6 +39,7 @@ public class CommunityBookServiceImpl implements CommunityBookService {
     private final CommunityBookTagRepository communityBookTagRepository;
     private final CommunityBookLikeRepository communityBookLikeRepository;
     private final CommunityBookBookmarkRepository communityBookBookmarkRepository;
+    private final CommunityBookRatingRepository communityBookRatingRepository;
 
     @Transactional(readOnly = true)
     @Override
@@ -498,5 +501,73 @@ public class CommunityBookServiceImpl implements CommunityBookService {
             log.info("User {} removed bookmark from community book {}", memberId, communityBookId);
             return false; // 북마크 취소됨
         }
+    }
+
+    @Override
+    @Transactional
+    public CommunityBookRatingResponse createRating(Long memberId, CommunityBookRatingRequest request) {
+        // 1. 멤버 존재 여부 확인
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 커뮤니티 북 존재 여부 확인
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(request.getCommunityBookId())
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 3. 이미 평점을 매겼는지 확인
+        Optional<CommunityBookRating> existingRating =
+                communityBookRatingRepository.findByCommunityBookAndMember(communityBook, member);
+
+        if (existingRating.isPresent()) {
+            throw new ApiException(ErrorCode.RATING_ALREADY_EXISTS);
+        }
+
+        // 4. 새 평점 생성
+        CommunityBookRating rating = CommunityBookRating.of(communityBook, member, request.getScore());
+        communityBookRatingRepository.save(rating);
+        log.info("User {} created rating for community book {} with score {}", memberId, request.getCommunityBookId(), request.getScore());
+
+        // 5. 커뮤니티 북의 평균 평점 업데이트
+        updateBookAverageRating(communityBook);
+
+        return CommunityBookRatingResponse.of(request.getCommunityBookId(), request.getScore());
+    }
+
+    /**
+     * 커뮤니티 북의 평균 평점 업데이트
+     */
+    private void updateBookAverageRating(CommunityBook communityBook) {
+        Optional<Double> averageRating = communityBookRatingRepository.findAverageRatingByCommunityBookId(communityBook.getCommunityBookId());
+
+        if (averageRating.isPresent()) {
+            BigDecimal avgRating = BigDecimal.valueOf(averageRating.get())
+                    .setScale(1, RoundingMode.HALF_UP);
+            communityBook.updateAverageRating(avgRating);
+        } else {
+            communityBook.updateAverageRating(BigDecimal.valueOf(0.0));
+        }
+    }
+
+    /**
+     * 커뮤니티 책 평균 평점 조회
+     */
+    @Transactional(readOnly = true)
+    public CommunityBookRatingResponse getAverageRating(Long communityBookId) {
+        // 1. 커뮤니티 북 존재 여부 확인
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 2. 평균 평점 조회
+        Optional<Double> averageRatingOpt = communityBookRatingRepository.findAverageRatingByCommunityBookId(communityBookId);
+
+        // 3. 총 평점 개수 조회
+        long totalCount = communityBookRatingRepository.countByCommunityBookId(communityBookId);
+
+        // 4. 평균 평점 계산 (평점이 없으면 0.0)
+        BigDecimal averageRating = averageRatingOpt
+                .map(rating -> BigDecimal.valueOf(rating).setScale(1, RoundingMode.HALF_UP))
+                .orElse(BigDecimal.valueOf(0.0));
+
+        return CommunityBookRatingResponse.of(communityBookId, averageRating);
     }
 }

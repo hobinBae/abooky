@@ -129,4 +129,11 @@ public class CommunityBook {
     public void syncLikeCount(long actualLikeCount) {
         this.likeCount = (int) actualLikeCount;
     }
+
+    /**
+     * 평균 평점 업데이트
+     */
+    public void updateAverageRating(BigDecimal averageRating) {
+        this.averageRating = averageRating;
+    }
 }
