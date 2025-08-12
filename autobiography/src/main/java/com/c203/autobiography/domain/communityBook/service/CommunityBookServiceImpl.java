@@ -1,14 +1,15 @@
 package com.c203.autobiography.domain.communityBook.service;
 
 import com.c203.autobiography.domain.book.dto.BookType;
+import com.c203.autobiography.domain.book.dto.LikeResponse;
+import com.c203.autobiography.domain.book.entity.Book;
+import com.c203.autobiography.domain.book.entity.BookLike;
 import com.c203.autobiography.domain.communityBook.dto.*;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookComment;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookEpisode;
-import com.c203.autobiography.domain.communityBook.repository.CommunityBookCommentRepository;
-import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
-import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
-import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRepository;
+import com.c203.autobiography.domain.communityBook.entity.CommunityBookLike;
+import com.c203.autobiography.domain.communityBook.repository.*;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
@@ -37,6 +38,7 @@ public class CommunityBookServiceImpl implements CommunityBookService {
     private final CommunityBookEpisodeRepository communityBookEpisodeRepository;
     private final CommunityBookCommentRepository communityBookCommentRepository;
     private final CommunityBookTagRepository communityBookTagRepository;
+    private final CommunityBookLikeRepository communityBookLikeRepository;
 
     @Transactional(readOnly = true)
     @Override
@@ -425,6 +427,38 @@ public class CommunityBookServiceImpl implements CommunityBookService {
         comment.softDelete();
 
         return CommunityBookCommentDeleteResponse.of(communityBookCommentId);
+    }
+
+    @Override
+    @Transactional
+    public boolean toggleLike(Long communityBookId, Long memberId) {
+        // 1. 멤버 존재 여부 확인
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 커뮤니티 북 존재 여부 확인
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 3. 현재 좋아요 상태 확인
+        boolean exists = communityBookLikeRepository.existsByCommunityBookAndMember(communityBook, member);
+
+        if (!exists) {
+            // 좋아요 추가
+            CommunityBookLike like = CommunityBookLike.of(communityBook, member);
+            communityBookLikeRepository.save(like);
+            communityBook.incrementLike();
+
+            log.info("User {} liked community book {}", memberId, communityBookId);
+            return true; // 좋아요 추가됨
+        } else {
+            // 좋아요 취소
+            communityBookLikeRepository.deleteByCommunityBookAndMember(communityBook, member);
+            communityBook.decrementLike();
+
+            log.info("User {} unliked community book {}", memberId, communityBookId);
+            return false; // 좋아요 취소됨
+        }
     }
 
 }

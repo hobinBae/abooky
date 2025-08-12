@@ -88,7 +88,7 @@ public class CommunityBook {
 
     @Builder.Default
     @Column(name = "like_count", nullable = false)
-    private int likeCount = 0;
+    private Integer likeCount = 0;
 
     @Builder.Default
     @Column(
@@ -107,5 +107,26 @@ public class CommunityBook {
 
     public void incrementViewCount() {
         this.viewCount = (this.viewCount == null ? 0 : this.viewCount) + 1;
+    }
+
+    /**
+     * 좋아요 수 증가
+     */
+    public void incrementLike() {
+        this.likeCount = (this.likeCount == null ? 0 : this.likeCount) + 1;
+    }
+
+    /**
+     * 좋아요 수 감소
+     */
+    public void decrementLike() {
+        this.likeCount = Math.max(0, (this.likeCount == null ? 0 : this.likeCount) - 1);
+    }
+
+    /**
+     * 좋아요 수 동기화 (실제 DB에서 카운트한 값으로 업데이트)
+     */
+    public void syncLikeCount(long actualLikeCount) {
+        this.likeCount = (int) actualLikeCount;
     }
 }
