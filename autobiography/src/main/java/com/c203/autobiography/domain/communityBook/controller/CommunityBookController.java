@@ -100,6 +100,23 @@ public class CommunityBookController {
                 .body(ApiResponse.of(HttpStatus.OK, "특정 작가가 작성한 커뮤니티 책 목록 조회 성공", response, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "내가 작성한 커뮤니티 책 목록 조회", description = "내가 작성한 커뮤니티 책 목록을 조회합니다")
+    @GetMapping()
+    public ResponseEntity<ApiResponse<CommunityBookListResponse>> getMyCommunityBooks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String bookType,
+            @RequestParam(required = false, defaultValue = "recent") String sortBy) {
+        Long userId = userDetails.getMemberId();
+        CommunityBookListResponse response = communityBookService.getMemberCommunityBooks(
+                userId, userId, pageable, categoryId, bookType, sortBy);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "내가 작성한 커뮤니티 책 목록 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
     @Operation(summary = "커뮤니티 책 삭제", description = "커뮤니티 책을 삭제합니다")
     @DeleteMapping("/books/{communityBookId}")
     public ResponseEntity<ApiResponse<Void>> deleteCommunityBook(
