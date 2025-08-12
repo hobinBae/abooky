@@ -61,6 +61,71 @@ public class GuideResolverServiceImpl implements GuideResolverService{
                 new GuideQuestion("STORY_OTHER_1", "여러분 모임의 분위기를 보여주는 이야기를 들려주세요."),
                 new GuideQuestion("STORY_OTHER_2", "그 이야기 속 핵심 장면을 한 문단으로 정리해 주세요.")
         ));
+
+        templates.put(key("REFLECTION", GroupType.FRIENDS), List.of(
+                new GuideQuestion("REFLECTION_FRIENDS_1", "친구들과 함께하면서 가장 많이 배운 것은 무엇인가요?"),
+                new GuideQuestion("REFLECTION_FRIENDS_2", "서로에게 어떤 영향을 주고받았나요?"),
+                new GuideQuestion("REFLECTION_FRIENDS_3", "이 우정이 각자에게 어떤 의미인가요?")
+        ));
+        templates.put(key("REFLECTION", GroupType.FAMILY), List.of(
+                new GuideQuestion("REFLECTION_FAMILY_1", "가족으로서 함께 성장한 시간들을 돌아보며 어떤 생각이 드나요?"),
+                new GuideQuestion("REFLECTION_FAMILY_2", "서로에게서 배운 가장 소중한 것은 무엇인가요?"),
+                new GuideQuestion("REFLECTION_FAMILY_3", "우리 가족만의 특별함은 무엇이라고 생각하나요?")
+        ));
+        templates.put(key("REFLECTION", GroupType.COUPLE), List.of(
+                new GuideQuestion("REFLECTION_COUPLE_1", "서로를 통해 가장 많이 성장한 부분은 무엇인가요?"),
+                new GuideQuestion("REFLECTION_COUPLE_2", "힘들었던 순간들을 어떻게 함께 극복했나요?"),
+                new GuideQuestion("REFLECTION_COUPLE_3", "이 관계가 각자에게 어떤 변화를 가져왔나요?")
+        ));
+        templates.put(key("REFLECTION", GroupType.TEAM), List.of(
+                new GuideQuestion("REFLECTION_TEAM_1", "팀으로 활동하면서 가장 크게 성장한 부분은 무엇인가요?"),
+                new GuideQuestion("REFLECTION_TEAM_2", "어려운 순간들을 어떻게 함께 헤쳐나갔나요?"),
+                new GuideQuestion("REFLECTION_TEAM_3", "팀워크를 통해 얻은 가장 소중한 것은 무엇인가요?")
+        ));
+
+        // 🎯 FUTURE 템플릿 추가
+        templates.put(key("FUTURE", GroupType.FRIENDS), List.of(
+                new GuideQuestion("FUTURE_FRIENDS_1", "앞으로 함께 이루고 싶은 꿈이나 목표가 있나요?"),
+                new GuideQuestion("FUTURE_FRIENDS_2", "10년 후에도 이 우정이 계속되길 바라는 이유는 무엇인가요?")
+        ));
+        templates.put(key("FUTURE", GroupType.FAMILY), List.of(
+                new GuideQuestion("FUTURE_FAMILY_1", "우리 가족이 앞으로 함께 만들어가고 싶은 추억은 무엇인가요?"),
+                new GuideQuestion("FUTURE_FAMILY_2", "가족으로서 이루고 싶은 공동의 꿈이 있다면 무엇인가요?")
+        ));
+        templates.put(key("FUTURE", GroupType.COUPLE), List.of(
+                new GuideQuestion("FUTURE_COUPLE_1", "함께 그려가고 싶은 미래의 모습은 어떤가요?"),
+                new GuideQuestion("FUTURE_COUPLE_2", "서로에게 약속하고 싶은 것이 있다면 무엇인가요?")
+        ));
+        templates.put(key("FUTURE", GroupType.TEAM), List.of(
+                new GuideQuestion("FUTURE_TEAM_1", "팀으로서 앞으로 도전하고 싶은 새로운 목표는 무엇인가요?"),
+                new GuideQuestion("FUTURE_TEAM_2", "이 팀워크를 바탕으로 이루고 싶은 더 큰 성과가 있나요?")
+        ));
+
+        // 🎯 OUTRO 템플릿 추가 (마무리)
+        templates.put(key("OUTRO", GroupType.FRIENDS), List.of(
+                new GuideQuestion("OUTRO_FRIENDS_1", "이 친구들에게 마지막으로 전하고 싶은 마음을 써주세요.")
+        ));
+        templates.put(key("OUTRO", GroupType.FAMILY), List.of(
+                new GuideQuestion("OUTRO_FAMILY_1", "가족들에게 전하고 싶은 감사의 마음을 써주세요.")
+        ));
+        templates.put(key("OUTRO", GroupType.COUPLE), List.of(
+                new GuideQuestion("OUTRO_COUPLE_1", "서로에게 전하고 싶은 마지막 사랑의 메시지를 써주세요.")
+        ));
+        templates.put(key("OUTRO", GroupType.TEAM), List.of(
+                new GuideQuestion("OUTRO_TEAM_1", "팀원들에게 전하고 싶은 마지막 격려의 메시지를 써주세요.")
+        ));
+
+        // OTHER 그룹타입용 공통 템플릿들도 추가
+        templates.put(key("REFLECTION", GroupType.OTHER), List.of(
+                new GuideQuestion("REFLECTION_OTHER_1", "함께하면서 가장 많이 배운 것은 무엇인가요?"),
+                new GuideQuestion("REFLECTION_OTHER_2", "이 관계가 각자에게 어떤 의미인가요?")
+        ));
+        templates.put(key("FUTURE", GroupType.OTHER), List.of(
+                new GuideQuestion("FUTURE_OTHER_1", "앞으로 함께 이루고 싶은 목표가 있나요?")
+        ));
+        templates.put(key("OUTRO", GroupType.OTHER), List.of(
+                new GuideQuestion("OUTRO_OTHER_1", "서로에게 전하고 싶은 마지막 메시지를 써주세요.")
+        ));
     }
 
     @Override

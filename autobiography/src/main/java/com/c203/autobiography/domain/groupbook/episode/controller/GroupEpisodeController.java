@@ -102,7 +102,7 @@ public class GroupEpisodeController {
             @PathVariable Long groupBookId,
             @PathVariable Long episodeId,
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @RequestBody GroupEpisodeUpdateRequest req,
+            @Valid @ModelAttribute GroupEpisodeUpdateRequest req,
             HttpServletRequest httpRequest
     ) {
         GroupEpisodeResponse response = groupEpisodeService.update(

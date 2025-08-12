@@ -194,7 +194,7 @@ public class GroupBookServiceImpl implements GroupBookService {
 
         boolean isMember = groupMemberRepository.findByGroupIdAndMemberIdAndDeletedAtIsNull(groupId, memberId)
                 .isPresent();
-        if (isMember) {
+        if (!isMember) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
 

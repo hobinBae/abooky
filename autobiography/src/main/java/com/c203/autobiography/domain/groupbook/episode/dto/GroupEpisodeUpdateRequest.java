@@ -11,9 +11,12 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class GroupEpisodeUpdateRequest {
-    @NotBlank private String template;
-    @NotBlank
+
     private String title;
+
+    private String template;
+
     private Integer orderNo;
+
     private String editedContent;
 }

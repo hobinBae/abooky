@@ -17,6 +17,11 @@ public class GroupEpisodeResponse {
 
     // 첫 질문을 위한 필드 추가
     private final String currentQuestion;
+    // 🎯 다음 에피소드 관련 필드들
+    private final String nextEpisodeQuestion;     // 다음 에피소드 첫 질문
+    private final String nextQuestionKey;         // 다음 질문 키
+    private final String recommendedTemplate;     // 추천 템플릿
+    private final String recommendedTitle;        // 추천 제목
 
     public static GroupEpisodeResponse of(GroupEpisode ep) {
         return GroupEpisodeResponse.builder()

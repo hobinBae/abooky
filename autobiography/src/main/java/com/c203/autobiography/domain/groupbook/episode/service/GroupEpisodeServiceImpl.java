@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
+import com.c203.autobiography.domain.groupbook.entity.GroupType;
 import com.c203.autobiography.domain.groupbook.episode.dto.*;
 import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeGuideState;
 import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeStatus;
@@ -72,8 +73,11 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
                 req.getFirstAnswer()
         );
 
+        String nextQuestion = null;
+
         if (secondQuestionOpt.isPresent()) {
             GuideQuestion secondQuestion = secondQuestionOpt.get();
+            nextQuestion = secondQuestion.question();
             GroupEpisodeGuideState secondState = GroupEpisodeGuideState.builder()
                     .groupEpisode(ep)
                     .stepNo(2)
@@ -89,7 +93,32 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
             ep.setStatus(GroupEpisodeStatus.REVIEW);
         }
 
-        return GroupEpisodeResponse.of(ep);
+        return GroupEpisodeResponse.builder()
+                .id(ep.getGroupEpisodeId())
+                .groupBookId(ep.getGroupBook().getGroupBookId())
+                .title(ep.getTitle())
+                .orderNo(ep.getOrderNo())
+                .status(ep.getStatus().name())
+                .currentStep(ep.getCurrentStep())
+                .editedContent(ep.getEditedContent())
+                .currentQuestion(nextQuestion) // 🎯 이 부분이 핵심!
+                .build();
+    }
+
+    // 🔧 현재 에피소드의 템플릿을 guide_key에서 추출하는 메서드
+    private String getCurrentTemplateFromGuideStates(Long episodeId) {
+        List<GroupEpisodeGuideState> states = stateRepository
+                .findByGroupEpisode_GroupEpisodeIdOrderByStepNoAsc(episodeId);
+
+        if (!states.isEmpty()) {
+            String guideKey = states.get(0).getGuideKey(); // 첫 번째 guide_key 확인
+            // "STORY_FRIENDS_1" → "STORY" 추출
+            if (guideKey != null && guideKey.contains("_")) {
+                return guideKey.split("_")[0]; // STORY, INTRO, REFLECTION 등
+            }
+        }
+
+        return "STORY"; // 기본값
     }
 
     @Override @Transactional
@@ -130,9 +159,10 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
 
         // 4) 다음 질문 결정
         int nextStepNo = currentStepNo + 1;
+        String currentTemplate = getCurrentTemplateFromGuideStates(episodeId);
         Optional<GuideQuestion> nextQuestionOpt = guideResolver.resolveNext(
                 gb.getGroupType(),
-                "INTRO",
+                currentTemplate,
                 currentStepNo,
                 req.getUserAnswer()
         );
@@ -176,7 +206,53 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         GroupEpisode ep = episodeRepository.findById(episodeId)
                 .orElseThrow(() -> new IllegalArgumentException("Episode not found: " + episodeId));
         ep.setStatus(GroupEpisodeStatus.COMPLETE);
-        return GroupEpisodeResponse.of(ep);
+
+        // 🎯 다음 에피소드를 위한 질문 준비
+        GroupBook groupBook = ep.getGroupBook();
+        String nextTemplate = determineNextTemplate(ep.getTemplate()); // INTRO → STORY
+        GuideQuestion nextQuestion = guideResolver.resolveFirst(groupBook.getGroupType(), nextTemplate);
+        String recommendedTitle = generateRecommendedTitle(nextTemplate, groupBook.getGroupType());
+
+        return GroupEpisodeResponse.builder()
+                .id(ep.getGroupEpisodeId())
+                .groupBookId(ep.getGroupBook().getGroupBookId())
+                .title(ep.getTitle())
+                .orderNo(ep.getOrderNo())
+                .status(ep.getStatus().name())
+                .currentStep(ep.getCurrentStep())
+                .editedContent(ep.getEditedContent())
+                .currentQuestion(null) // 완료된 에피소드는 질문 없음
+                // 🎯 다음 에피소드 정보
+                .nextEpisodeQuestion(nextQuestion.question())
+                .nextQuestionKey(nextQuestion.key())
+                .recommendedTemplate(nextTemplate)
+                .recommendedTitle(recommendedTitle)
+                .build();
+    }
+
+    private String determineNextTemplate(String currentTemplate) {
+        // 템플릿 순서: INTRO → STORY → REFLECTION → OUTRO
+        return switch (currentTemplate) {
+            case "INTRO" -> "STORY";
+            case "STORY" -> "REFLECTION";
+            case "REFLECTION" -> "OUTRO";
+            default -> "STORY";
+        };
+    }
+
+    private String generateRecommendedTitle(String template, GroupType groupType) {
+        return switch (template) {
+            case "STORY" -> switch (groupType) {
+                case FRIENDS -> "기억에 남는 순간";
+                case FAMILY -> "특별한 하루";
+                case COUPLE -> "소중한 추억";
+                case TEAM -> "함께한 도전";
+                default -> "우리의 이야기";
+            };
+            case "REFLECTION" -> "돌아보며";
+            case "OUTRO" -> "앞으로의 다짐";
+            default -> "다음 이야기";
+        };
     }
 
     @Override
