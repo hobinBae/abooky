@@ -171,11 +171,15 @@ const openJoinModal = async () => {
   loadingSessions.value = true;
   
   try {
-    // 그룹 데이터와 활성 세션을 모두 가져옴
+    // 그룹 데이터와 활성 세션을 모두 가져옴 (최신 상태로 업데이트)
+    console.log('🔍 참여하기 모달 열기 - 최신 세션 상태 확인');
     await Promise.all([
       fetchMyGroups(),
       fetchAllActiveGroupBookSessions()
     ]);
+    
+    console.log('🔍 현재 활성 세션:', allActiveGroupBookSessions.value.length);
+    console.log('🔍 참여 가능한 그룹:', activeGroupsForJoin.value.length);
   } catch (error) {
     console.error('데이터 로딩 실패:', error);
   } finally {
@@ -239,6 +243,19 @@ const selectGroup = async (group: Group) => {
   console.log('선택된 그룹:', group);
   
   try {
+    // 먼저 활성화된 세션이 있는지 확인
+    await fetchAllActiveGroupBookSessions();
+    
+    const isGroupAlreadyActive = allActiveGroupBookSessions.value.some(
+      session => session.groupId === group.groupId
+    );
+    
+    if (isGroupAlreadyActive) {
+      alert('이미 활성화된 그룹입니다. 그룹책 방 참여하기를 이용해주세요.');
+      closeGroupModal();
+      return;
+    }
+    
     // 그룹책 세션 시작
     await groupService.startGroupBookSession(group.groupId, group.groupName);
     

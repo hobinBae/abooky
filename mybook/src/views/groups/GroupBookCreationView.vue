@@ -791,13 +791,25 @@ function goToBookEditor() {
 
 async function leaveRoom() {
   try {
+    // 그룹 세션 종료 (로컬 테스트용)
+    const groupId = route.query.groupId;
+    if (groupId) {
+      console.log('🔧 로컬 테스트 모드: 그룹 세션 종료', groupId);
+      try {
+        const { groupService } = await import('@/services/groupService');
+        await groupService.endGroupBookSession(parseInt(groupId.toString()));
+        console.log('그룹 세션 종료 완료');
+      } catch (sessionError) {
+        console.error('그룹 세션 종료 실패:', sessionError);
+      }
+    }
+
     if (livekitRoom) {
       await livekitRoom.disconnect();
       livekitRoom = null;
     }
 
     // 로컬 미디어 정리
-
     if (localVideo.value?.srcObject) {
       const stream = localVideo.value.srcObject as MediaStream;
       stream.getTracks().forEach(track => track.stop());
@@ -909,17 +921,35 @@ onMounted(async () => {
 
 onUnmounted(() => {
   // 정리 작업
+  cleanup();
+});
+
+// 페이지 언로드 시에도 세션 종료
+const cleanup = async () => {
+  const groupId = route.query.groupId;
+  if (groupId) {
+    try {
+      const { groupService } = await import('@/services/groupService');
+      await groupService.endGroupBookSession(parseInt(groupId.toString()));
+      console.log('페이지 종료 시 그룹 세션 정리 완료');
+    } catch (error) {
+      console.error('페이지 종료 시 그룹 세션 정리 실패:', error);
+    }
+  }
+
   if (livekitRoom) {
     livekitRoom.disconnect();
     livekitRoom = null;
   }
 
-
   if (localVideo.value?.srcObject) {
     const stream = localVideo.value.srcObject as MediaStream;
     stream.getTracks().forEach(track => track.stop());
   }
-});
+};
+
+// beforeunload 이벤트 리스너 추가 (브라우저 종료/새로고침 시)
+window.addEventListener('beforeunload', cleanup);
 </script>
 
 <style scoped>

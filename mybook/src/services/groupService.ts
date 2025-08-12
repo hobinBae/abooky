@@ -143,7 +143,9 @@ class GroupService {
       console.error('활성화된 세션 조회 실패:', error);
       
       // localStorage에서 세션 목록 조회 (실시간 업데이트)
-      return this.getStoredSessions();
+      const storedSessions = this.getStoredSessions();
+      console.log('🔧 localStorage에서 가져온 세션:', storedSessions);
+      return storedSessions;
     }
   }
 
@@ -204,29 +206,30 @@ class GroupService {
   }
 
   private getDummySessions(): ActiveSession[] {
-    // 테스트를 위해 일부만 활성화된 세션 반환
-    // 빈 배열로 설정하면 "활성화된 그룹책 방이 없습니다" 메시지가 표시됨
-    // 아래 주석을 해제하면 활성화된 세션이 있는 상태로 테스트 가능
+    // localStorage에서 먼저 확인하고, 없으면 초기 더미 데이터 생성
+    const stored = this.getStoredSessions();
+    if (stored.length > 0) {
+      return stored;
+    }
     
-    return []; // 활성화된 세션 없음 - 안내 메시지 표시
+    // 초기 더미 데이터 - 테스트를 위해 일부 그룹이 활성화된 상태로 설정
+    const initialSessions = [
+      {
+        groupId: 1,
+        groupName: '독서 토론 모임',
+        hostName: '이영희',
+        startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10분 전 시작
+        participantCount: 2
+      }
+    ];
     
-    // 활성화된 세션이 있는 경우의 더미 데이터
-    // return [
-    //   {
-    //     groupId: 1,
-    //     groupName: '독서 토론 모임',
-    //     hostName: '이영희',
-    //     startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10분 전 시작
-    //     participantCount: 2
-    //   },
-    //   {
-    //     groupId: 3,
-    //     groupName: '여행 에세이 클럽',
-    //     hostName: '정민준',
-    //     startedAt: new Date(Date.now() - 5 * 60 * 1000), // 5분 전 시작  
-    //     participantCount: 1
-    //   }
-    // ];
+    // localStorage에 저장
+    localStorage.setItem('activeGroupBookSessions', JSON.stringify(initialSessions));
+    
+    return initialSessions;
+    
+    // 모든 세션이 비활성화된 상태로 테스트하려면:
+    // return [];
   }
 
   // 그룹책 세션 시작 (방 만들기)
