@@ -10,8 +10,9 @@
       <section v-if="user" class="profile-section">
       <div class="profile-main-content">
         <div class="profile-left-section">
-          <img :src="user.profileImageUrl || 'https://via.placeholder.com/150'" alt="Profile Picture"
+          <img src="/images/profile.png" alt="Profile.png"
             class="profile-pic">
+          <!-- <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" /> -->
           <div class="user-info">
             <h2 class="user-name">{{ user.name }}</h2>
             <p class="user-penname">@{{ user.nickname }}</p>
@@ -214,7 +215,7 @@ onMounted(() => {
   padding: 4rem 2.5rem;
   max-width: 900px;
   margin: 0 auto;
-  font-family: 'Pretendard', sans-serif;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
   color: #333; /* 기본 텍스트 검은색 */
   background-color: #f4f3e8; /* 연한 올리브 배경 */
   position: relative;
@@ -277,14 +278,14 @@ onMounted(() => {
 }
 
 .user-name {
-  font-size: 1.8rem;
+  font-size: 2rem;
   font-weight: 700;
   color: #333;
   margin-bottom: 0.25rem;
 }
 
 .user-penname {
-  font-size: 1rem;
+  font-size: 1.2rem;
   color: #555; /* 진한 회색 */
   font-weight: 500;
 }
@@ -298,16 +299,18 @@ onMounted(() => {
 }
 
 .author-message-title {
-  font-size: 1.1rem;
+  font-size: 1.5rem;
   font-weight: 600;
   color: #333; /* 검은색 */
   margin: 0 0 0.75rem 0;
 }
 
 .author-message-content {
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   line-height: 1.7;
   color: #555;
+  font-family: 'ChosunCentennial', sans-serif;
+  white-space: pre-wrap;
 }
 
 /* --- 콘텐츠 섹션 --- */
@@ -436,7 +439,10 @@ onMounted(() => {
   color: #c92a2a;
   text-decoration: underline;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 1.4rem;
+  line-height: 1.7;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  white-space: pre-wrap;
 }
 
 .btn-link-danger:hover {
@@ -447,11 +453,14 @@ onMounted(() => {
 .no-content-message {
   text-align: center;
   color: #868e96; /* 회색 */
-  font-size: 1rem;
+  font-size: 1.1rem;
   padding: 3rem 0;
   background-color: #ffffff; /* 흰색 배경 */
   border-radius: 8px;
   margin-top: 1.5rem;
+  line-height: 1.7;
+  font-family: 'ChosunCentennial', sans-serif;
+  white-space: pre-wrap;
 }
 
 .divider {
