@@ -57,6 +57,14 @@ public class ConversationMessage {
         this.createdAt = LocalDateTime.now();
         this.updatedAt = this.createdAt;
     }
+    /**
+     * 메시지 내용을 수정합니다.
+     * 이 메소드는 ConversationServiceImpl의 updateMessage에서 호출됩니다.
+     * @param newContent 수정할 새로운 내용
+     */
+    public void updateContent(String newContent) {
+        this.content = newContent;
+    }
 
     @PreUpdate
     protected void onUpdate() {

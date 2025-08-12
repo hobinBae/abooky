@@ -145,7 +145,7 @@
 
         try {
             // 1단계: POST /api/conversation API를 호출하여 세션을 "생성"합니다.
-            const response = await axios.post('http://localhost:8080/api/v1/conversation');
+            const response = await axios.post('http://localhost:8080/api/v1/conversation/{bookId}/episodes/{episodeId}/sessions"');
 
             // 서버로부터 받은 sessionId를 전역 변수에 저장합니다.
             sessionId = response.data.data.sessionId;
