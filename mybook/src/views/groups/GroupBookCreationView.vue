@@ -627,21 +627,21 @@ function setupRoomEventListeners() {
 
   // 로컬 트랙 발행 이벤트
   livekitRoom.on(RoomEvent.LocalTrackPublished, (publication: any) => {
-    console.log('로컬 트랙 발행:', publication.kind);
+    console.log('로컬 트랙 발행:', publication.kind, publication.source);
     if (publication.kind === 'video') {
       // 로비 비디오 스트림을 중단하고 LiveKit 트랙으로 교체
-      if (localVideo.value?.srcObject) {
+      if (localVideo.value?.srcObject && publication.source === 'camera') {
         const stream = localVideo.value.srcObject as MediaStream;
         stream.getTracks().forEach(track => track.stop());
         localVideo.value.srcObject = null;
       }
       
-      // 비디오 엘리먼트에 연결
+      // 비디오 엘리먼트에 연결 (카메라 또는 화면공유 모두 처리)
       const attachVideoTrack = () => {
         if (publication.track && localVideoElement.value) {
           try {
             publication.track.attach(localVideoElement.value);
-            console.log('로컬 비디오 트랙이 localVideoElement에 연결되었습니다.');
+            console.log(`로컬 ${publication.source} 트랙이 localVideoElement에 연결되었습니다.`);
             return true;
           } catch (error) {
             console.warn('비디오 트랙 연결 실패:', error);
@@ -1006,12 +1006,14 @@ async function toggleScreenShare() {
     const enabled = !isScreenSharing.value;
     
     if (enabled) {
-      // 화면 공유 시작 시 카메라 끄기
+      // 화면 공유 시작
       await livekitRoom.localParticipant.setScreenShareEnabled(true);
+      // 화면공유 중에는 카메라를 끄되, 상태는 유지
       await livekitRoom.localParticipant.setCameraEnabled(false);
     } else {
-      // 화면 공유 종료 시 카메라 다시 켜기
+      // 화면 공유 종료
       await livekitRoom.localParticipant.setScreenShareEnabled(false);
+      // 비디오가 활성화 상태였다면 카메라 다시 켜기
       if (isVideoEnabled.value) {
         await livekitRoom.localParticipant.setCameraEnabled(true);
       }
@@ -1025,7 +1027,6 @@ async function toggleScreenShare() {
       type: 'error', 
       message: '화면 공유를 시작할 수 없습니다. 권한을 확인해주세요.' 
     };
-    // 5초 후 오류 메시지 자동 숨김
     setTimeout(() => {
       if (connectionStatus.value?.type === 'error') {
         connectionStatus.value = null;
