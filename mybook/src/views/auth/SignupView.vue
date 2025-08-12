@@ -194,12 +194,15 @@ async function handleSignup() {
 
 <style scoped>
 .auth-page {
+  padding: 2rem 2rem 2rem 2rem;
+  background-color: var(--background-color);
+  color: var(--primary-text-color);
+  min-height: calc(100vh - 56px);
+  font-family: 'SCDream4', sans-serif;
   display: flex;
-  min-height: 100vh;
+  min-height: 80vh;
   align-items: center;
   justify-content: center;
-  background-color: #f8f9fa;
-  padding: 2rem;
 }
 
 .auth-wrapper {
@@ -209,6 +212,7 @@ async function handleSignup() {
   min-height: 680px; /* 고정 최소 높이 설정 */
   background-color: #fff;
   border-radius: 12px;
+  border: 3px solid #657143;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
