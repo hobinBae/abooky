@@ -43,16 +43,15 @@
       <!-- 좌우 화살표 네비게이션 -->
       <div class="nav-control left" @click="navigateLeft">
         <div class="nav-arrow">
-          <span>&larr;</span>
+          <i class="bi bi-arrow-left"></i>
         </div>
         <span class="nav-text">{{ leftHotspotLabel }}</span>
       </div>
       <div class="nav-control right" @click="navigateRight">
         <span class="nav-text">{{ rightHotspotLabel }}</span>
         <div class="nav-arrow">
-          <span>&rarr;</span>
+          <i class="bi bi-arrow-right"></i>
         </div>
-        
       </div>
     </div>
 
@@ -70,7 +69,7 @@
     <div v-if="!activeHotspot && hasEntered && isYardReady" class="hotspot-ui-container">
       <div class="nav-control left" @click="goToHotspot('library')">
         <div class="nav-arrow">
-          <span>&larr;</span>
+          <i class="bi bi-arrow-left"></i>
         </div>
         <span class="nav-text">서재</span>
       </div>
@@ -82,7 +81,7 @@
       <div class="nav-control right" @click="goToHotspot('create')">
         <span class="nav-text">책 집필</span>
         <div class="nav-arrow">
-          <span>&rarr;</span>
+          <i class="bi bi-arrow-right"></i>
         </div>
       </div>
     </div>
@@ -446,7 +445,7 @@ const goToPage = () => {
   align-items: center;
   transition: all 0.5s ease-in-out;
   overflow: hidden;
-    font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
 
 }
 
@@ -504,12 +503,12 @@ const goToPage = () => {
   padding: 8px 20px;
   font-size: 1.2rem;
   border-radius: 30px;
-  border: 1px solid white;
+  border: 2px solid white;
   background: transparent;
   color: #fff;
   cursor: pointer;
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  margin-bottom: 200px; /* 마당으로 가기 버튼과의 간격 */
+  margin-bottom: 230px; /* 마당으로 가기 버튼과의 간격 */
   transition: transform 0.2s ease-in-out, color 0.4s ease;
 }
 
@@ -537,13 +536,13 @@ const goToPage = () => {
   transform: scaleY(1);
 }
 
-.return-button {
+.return-button { /* 마당으로 가기 버튼 */
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
-  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  font-size: 2rem;
+  font-family: 'SuseongHyejeong', sans-serif;
+  font-size: 3rem;
   font-weight: normal;
   text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
   transition: transform 0.2s ease-in-out;
@@ -557,7 +556,6 @@ const goToPage = () => {
 .nav-control {
   display: flex;
   align-items: center;
-  gap: 1rem;
   color: white;
   cursor: pointer;
   transition: transform 0.2s ease-in-out;
@@ -566,22 +564,28 @@ const goToPage = () => {
 .nav-control:hover {
   transform: scale(1.1);
 }
-.nav-arrow {
-  font-family: 'MaruBuri', sans-serif;
+
+.nav-arrow { /* 화살표버튼 */
   background: none;
   color: rgb(255, 255, 255);
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
-  font-size: 3rem;
+  width: 60px;
+  font-size: 4rem;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
+}   
+
+.nav-control.left .nav-arrow {
+  margin-right: 1rem;
+}
+
+.nav-control.right .nav-arrow {
+  margin-left: 1rem;
 }
 .nav-text {
-  font-family: 'EBSHunminjeongeumSaeronL', sans-serif; /* 새로 추가한 폰트 적용 */
-  font-size: 3rem; /* 폰트 크기 조정 */
+  font-family: 'SSRockRegular', sans-serif; /* 새로 추가한 폰트 적용 */
+  font-size: 4.5rem; /* 폰트 크기 조정 */
   font-weight: normal; /* ttf 폰트는 bold 대신 normal로 설정 */
   text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
   color: rgb(255, 255, 255);
@@ -601,7 +605,7 @@ const goToPage = () => {
 
 .hotspot-title-text {
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  font-size: 6rem;
+  font-size: 5rem;
   font-weight: normal;
   white-space: pre-wrap;
   color: rgb(255, 255, 255);

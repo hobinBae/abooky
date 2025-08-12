@@ -163,7 +163,7 @@ onMounted(() => {
 }
 
 .navbar.scrolled {
-  background-color: rgb(255, 255, 255, 0.1) !important;
+  background-color: rgba(152, 164, 115, 0.3) !important;
   backdrop-filter: blur(10px);
 }
 
@@ -300,7 +300,7 @@ onMounted(() => {
   font-size: 14px !important;
   white-space: nowrap;
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  transition: color 0.4s ease;
+  transition: color 0.5s ease;
 }
 
 .auth-button::before {
@@ -318,8 +318,12 @@ onMounted(() => {
 }
 
 .auth-button:hover::before {
-  transform-origin: top;
+  transform-origin: bottom;
   transform: scaleY(1);
+}
+
+.auth-button:hover {
+  color: white !important;
 }
 
 .logo-container {
@@ -372,7 +376,7 @@ onMounted(() => {
 .center-nav .nav-link {
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
   font-size: 20px !important; /* 글씨 크기 조정 */
-  font-weight: bold !important; /* 항상 두껍게 */
+  /* font-weight: bold !important;  */
 }
 
 .navbar-dark .center-nav .nav-link {
