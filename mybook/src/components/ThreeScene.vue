@@ -16,9 +16,9 @@ import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLigh
 
 import { gsap } from 'gsap'
 
-const emit = defineEmits(['loaded', 'hotspot', 'background-loaded'])
+const emit = defineEmits(['loaded', 'hotspot', 'background-loaded', 'yard-animation-finished'])
 
-defineExpose({ moveToYard, moveCameraTo, loadModel });
+defineExpose({ moveToYard, moveCameraTo, loadModel, getHotspotByName });
 
 const container = ref<HTMLDivElement | null>(null)
 let camera: THREE.PerspectiveCamera
@@ -248,7 +248,7 @@ function createHotspots() {
   const texture = new THREE.TextureLoader().load('/3D/star.png')
 
   // 첫번째 핫스팟 - 내서재
-  hotspots.push(createHotspot(new THREE.Vector3(-9.5, 2, 1), texture, () => {
+  hotspots.push(createHotspot(new THREE.Vector3(-9.5, 2, 1), texture, 'library', () => {
     console.log("내서재 핫스팟 클릭됨! 카메라 이동 시작.");
     moveCameraTo(-9.5, 3, 0, -11, 3, 0, () => {
       emit('hotspot', 'library')
@@ -256,7 +256,7 @@ function createHotspots() {
   }))
 
   // 두번째 핫스팟 - 서점
-  hotspots.push(createHotspot(new THREE.Vector3(-2.5, 2, -6), texture, () => {
+  hotspots.push(createHotspot(new THREE.Vector3(-2.5, 2, -6), texture, 'store', () => {
     console.log("서점 핫스팟 클릭됨! 카메라 이동 시작.");
     moveCameraTo(-2, 2, -6.5, -2, 2, -10.5, () => {
       emit('hotspot', 'store')
@@ -264,7 +264,7 @@ function createHotspots() {
   }))
 
   // 세번째 핫스팟 - 책만들기
-  hotspots.push(createHotspot(new THREE.Vector3(8.5, 2, 3), texture, () => {
+  hotspots.push(createHotspot(new THREE.Vector3(8.5, 2, 3), texture, 'create', () => {
     console.log("책 만들기 핫스팟 클릭됨! 카메라 이동 시작.");
     controls.enabled = false;
     const tl = gsap.timeline({
@@ -284,13 +284,18 @@ function createHotspots() {
   hotspots.forEach(h => scene.add(h))
 }
 
-function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, onClick: () => void) {
+function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, name: string, onClick: () => void) {
   const material = new THREE.SpriteMaterial({ map: texture })
   const sprite = new THREE.Sprite(material)
   sprite.scale.set(1, 1, 1)
   sprite.position.copy(pos)
-  sprite.userData.onClick = onClick; // userData에 onClick 함수 저장
+  sprite.name = name; // hotspot에 이름 할당
+  sprite.userData.onClick = onClick;
   return sprite
+}
+
+function getHotspotByName(name: string) {
+  return hotspots.find(h => h.name === name);
 }
 
 function moveCameraTo(px: number, py: number, pz: number, tx: number, ty: number, tz: number, onCompleteCallback?: () => void) {
@@ -317,6 +322,7 @@ function moveToYard() {
         onComplete: () => {
             controls.enabled = true;
             console.log("moveToYard: 마당으로 카메라 이동 완료.");
+            emit('yard-animation-finished');
         }
     });
     tl.to(camera.position, { x: 7.3, y: 2.5, z: 30, duration: 4 });
