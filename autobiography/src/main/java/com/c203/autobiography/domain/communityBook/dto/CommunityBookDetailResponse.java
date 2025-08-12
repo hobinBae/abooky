@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.communityBook.dto;
 
+import com.c203.autobiography.domain.book.entity.Tag;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookEpisode;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -51,10 +52,13 @@ public class CommunityBookDetailResponse {
     // 에피소드 목록
     private List<CommunityBookEpisodeDetailResponse> communityEpisodes;
 
+    // 태그 목록
+    private List<CommunityBookTagResponse> tags;
+
     /**
      * Entity에서 Response 객체로 변환
      */
-    public static CommunityBookDetailResponse of(CommunityBook communityBook, List<CommunityBookEpisode> episodes) {
+    public static CommunityBookDetailResponse of(CommunityBook communityBook, List<CommunityBookEpisode> episodes, List<CommunityBookTagResponse> tags) {
         return CommunityBookDetailResponse.builder()
                 .communityBookId(communityBook.getCommunityBookId())
                 .memberId(communityBook.getMember().getMemberId())
@@ -70,6 +74,7 @@ public class CommunityBookDetailResponse {
                 .averageRating(communityBook.getAverageRating())
                 .createdAt(communityBook.getCreatedAt())
                 .updatedAt(communityBook.getUpdatedAt())
+                .tags(tags)
                 .communityEpisodes(episodes.stream()
                         .map(CommunityBookEpisodeDetailResponse::of)
                         .toList())

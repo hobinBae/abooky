@@ -6,8 +6,10 @@ import com.c203.autobiography.domain.book.repository.*;
 import com.c203.autobiography.domain.book.util.BookSpecifications;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
 import com.c203.autobiography.domain.communityBook.entity.CommunityBookEpisode;
+import com.c203.autobiography.domain.communityBook.entity.CommunityBookTag;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
+import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.entity.Episode;
@@ -52,6 +54,8 @@ public class BookServiceImpl implements BookService {
     private final MemberRatingSummaryRespository memberRatingSummaryRespository;
     private final CommunityBookRepository communityBookRepository;
     private final CommunityBookEpisodeRepository communityBookEpisodeRepository;
+    private final CommunityBookTagRepository communityBookTagRepository;
+    private final BookTagRepository bookTagRepository;
 
     @Override
     @Transactional
@@ -59,7 +63,7 @@ public class BookServiceImpl implements BookService {
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        BookCategory category = switch (request.getBookType()) {
+        BookCategory category = switch (request.getBookType( )) {
             case AUTO -> bookCategoryRepository
                     .findByCategoryName("자서전")
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
@@ -432,6 +436,10 @@ public class BookServiceImpl implements BookService {
         List<Episode> episodes = episodeRepository.findByBookBookIdOrderByEpisodeOrderAsc(bookId);
         int copiedEpisodeCount = copyEpisodesToCommunity(episodes, savedCommunityBook);
 
+        // 태그 복사
+        Long communityBookId = savedCommunityBook.getCommunityBookId();
+        copyTagsToCommunityBookTags(originalBook, savedCommunityBook);
+
         // 원본 책, 에피소드 삭제
         originalBook.softDelete();
 
@@ -468,7 +476,6 @@ public class BookServiceImpl implements BookService {
                 .likeCount(0)
                 .viewCount(0)
                 .averageRating(BigDecimal.ZERO)
-
                 .build();
     }
 
@@ -508,5 +515,34 @@ public class BookServiceImpl implements BookService {
                 .content(episode.getContent())
                 .audioUrl(episode.getAudioUrl())
                 .build();
+    }
+
+    private int copyTagsToCommunityBookTags(Book originalBook, CommunityBook communityBook) {
+        try {
+            // 1. book_tags 테이블에서 book_id로 BookTag 목록 조회
+            List<BookTag> originalBookTags = bookTagRepository.findBookTagsByBookBookId(originalBook.getBookId());
+
+            if (originalBookTags.isEmpty()) {
+                log.debug("No tags found for book: {}", originalBook.getBookId());
+                return 0;
+            }
+
+            // 2. BookTag에서 Tag 엔티티들을 추출하여 CommunityBookTag 생성
+            List<CommunityBookTag> communityBookTags = originalBookTags.stream()
+                    .map(bookTag -> CommunityBookTag.of(communityBook, bookTag.getTag()))
+                    .collect(java.util.stream.Collectors.toList()); // Java 8 호환
+
+            // 3. community_book_tags 테이블에 저장
+            communityBookTagRepository.saveAll(communityBookTags);
+
+            log.debug("Copied {} tags for community book: {}",
+                    communityBookTags.size(), communityBook.getCommunityBookId());
+
+            return communityBookTags.size();
+        } catch (Exception e) {
+            log.error("Failed to copy tags for community book: {}",
+                    communityBook.getCommunityBookId(), e);
+            return 0;
+        }
     }
 }

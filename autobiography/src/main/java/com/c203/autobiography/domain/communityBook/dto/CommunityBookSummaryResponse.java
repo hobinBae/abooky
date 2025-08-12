@@ -11,6 +11,7 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @NoArgsConstructor
@@ -52,6 +53,9 @@ public class CommunityBookSummaryResponse {
     @Schema(description = "완료 여부", example = "true")
     private Boolean completed;
 
+    @Schema(description = "책 태그")
+    private List<CommunityBookTagResponse> tags;
+
     @Schema(description = "생성 시간", example = "2025-07-20T10:00:00Z")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private LocalDateTime createdAt;
@@ -63,7 +67,7 @@ public class CommunityBookSummaryResponse {
     /**
      * Entity에서 Response 객체로 변환
      */
-    public static CommunityBookSummaryResponse of(CommunityBook communityBook) {
+    public static CommunityBookSummaryResponse of(CommunityBook communityBook, List<CommunityBookTagResponse> tags) {
         return CommunityBookSummaryResponse.builder()
                 .communityBookId(communityBook.getCommunityBookId())
                 .title(communityBook.getTitle())
@@ -76,6 +80,7 @@ public class CommunityBookSummaryResponse {
                 .viewCount(communityBook.getViewCount())
                 .averageRating(communityBook.getAverageRating())
                 .completed(communityBook.getCompleted())
+                .tags(tags)
                 .createdAt(communityBook.getCreatedAt())
                 .updatedAt(communityBook.getUpdatedAt())
                 .build();

@@ -27,9 +27,6 @@ public class CommunityBookEpisodeDetailResponse {
     private LocalDate episodeDate;
     private Integer episodeOrder;
 
-    // 태그 정보 (현재 스키마에는 없지만 응답 예시에 있으므로 포함)
-    private List<CommunityBookEpisodeTagResponse> tags;
-
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private LocalDateTime createdAt;
 
@@ -47,21 +44,8 @@ public class CommunityBookEpisodeDetailResponse {
                 .content(episode.getContent())
                 .episodeDate(episode.getEpisodeDate())
                 .episodeOrder(episode.getEpisodeOrder())
-                .tags(createDummyTags()) // 실제 태그 시스템이 있다면 여기서 조회
                 .createdAt(episode.getCreatedAt())
                 .updatedAt(episode.getUpdatedAt())
                 .build();
     }
-
-    /**
-     * 임시 태그 데이터 (실제 태그 시스템 구현 시 제거)
-     */
-    private static List<CommunityBookEpisodeTagResponse> createDummyTags() {
-        return List.of(
-                CommunityBookEpisodeTagResponse.builder().communityBookEpisodeTagId(10L).communityBookEpisodeTagName("추억").build(),
-                CommunityBookEpisodeTagResponse.builder().communityBookEpisodeTagId(11L).communityBookEpisodeTagName("가족").build(),
-                CommunityBookEpisodeTagResponse.builder().communityBookEpisodeTagId(12L).communityBookEpisodeTagName("여행").build()
-        );
-    }
-
 }
