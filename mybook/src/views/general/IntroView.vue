@@ -59,7 +59,10 @@
     <!-- Hotspot Title Text -->
     <div v-if="activeHotspot" class="hotspot-title-container">
       <p :key="activeHotspot" class="hotspot-title-text">
-        <span v-for="(char, index) in hotspotTitleChars" :key="index" class="char">{{ char === ' ' ? '&nbsp;' : char }}</span>
+        <template v-for="(item, index) in hotspotTitleChars" :key="index">
+          <br v-if="item.type === 'br'">
+          <span v-else class="char">{{ item.value === ' ' ? '&nbsp;' : item.value }}</span>
+        </template>
       </p>
     </div>
 
@@ -98,7 +101,7 @@ import { useRouter, useRoute } from 'vue-router'
 import ThreeScene from '@/components/ThreeScene.vue'
 import { gsap } from 'gsap'
 
-const emit = defineEmits(['intro-finished'])
+const emit = defineEmits(['intro-finished', 'yard-ready'])
 const router = useRouter()
 const route = useRoute()
 const threeSceneRef = ref<InstanceType<typeof ThreeScene> | null>(null)
@@ -130,7 +133,15 @@ const rightHotspotLabel = computed(() => {
 
 const hotspotTitleChars = computed(() => {
   if (!activeHotspot.value) return [];
-  return getHotspotTitle(activeHotspot.value).split('');
+  const chars = [];
+  for (const char of getHotspotTitle(activeHotspot.value)) {
+    if (char === '\n') {
+      chars.push({ type: 'br' });
+    } else {
+      chars.push({ type: 'char', value: char });
+    }
+  }
+  return chars;
 });
 
 const hotspotCameraPositions: { [key: string]: any } = {
@@ -223,6 +234,12 @@ const onYardAnimationFinished = () => {
   isYardReady.value = true;
 }
 
+watch(isYardReady, (newValue) => {
+  if (newValue) {
+    emit('yard-ready');
+  }
+});
+
 const returnToYard = () => {
   if (threeSceneRef.value?.moveCameraTo) {
     const { x, y, z, targetX, targetY, targetZ } = hotspotCameraPositions.center;
@@ -273,11 +290,11 @@ const goToHotspot = (hotspotName: string) => {
 const getHotspotTitle = (hotspot: string) => {
   switch (hotspot) {
     case 'library':
-      return '추억을 보관하는 서재'
+      return '추억을 보관하고\n함께 읽어보세요'
     case 'store':
-      return '이야기가 있는 서점'
+      return '사람들의 이야기를\n 둘러보세요'
     case 'create':
-      return '나만의 책 집필'
+      return '세상에 단 하나뿐인\n 책을 만들어보세요'
     default:
       return ''
   }
@@ -337,10 +354,12 @@ const goToPage = () => {
   white-space: nowrap;
   margin: 10px 0;
   font-weight: bold;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
 }
 
 .text-line.wipe-in-1 {
   font-size: 5rem;
+  
 }
 
 .text-line.wipe-in-2 {
@@ -367,6 +386,8 @@ const goToPage = () => {
   position: relative;
   width: 100px;
   border-radius: 100%;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+
 }
 
 .loading-container {
@@ -384,7 +405,7 @@ const goToPage = () => {
 #loading-text {
   animation: loading-text-opacity 2s linear 0s infinite normal;
   color: #ffffff;
-  font-family: "Helvetica Neue", "Helvetica", "arial", sans-serif;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
   font-size: 14px;
   font-weight: bold;
   margin-top: 41px;
@@ -425,6 +446,8 @@ const goToPage = () => {
   align-items: center;
   transition: all 0.5s ease-in-out;
   overflow: hidden;
+    font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+
 }
 
 .enter-button::before {
@@ -439,6 +462,7 @@ const goToPage = () => {
   animation: rotate-loading 2s linear infinite;
   opacity: 0;
   transition: opacity 0.5s ease-in-out;
+  
 }
 
 .enter-button:hover {
@@ -474,13 +498,43 @@ const goToPage = () => {
 }
 
 .action-button {
-  padding: 12px 24px;
-  font-size: 1rem;
-  border-radius: 8px;
-  border: none;
-  background: rgba(45, 92, 47, 0.8);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  padding: 8px 20px;
+  font-size: 1.2rem;
+  border-radius: 30px;
+  border: 1px solid white;
+  background: transparent;
   color: #fff;
   cursor: pointer;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  margin-bottom: 200px; /* 마당으로 가기 버튼과의 간격 */
+  transition: transform 0.2s ease-in-out, color 0.4s ease;
+}
+
+.action-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(138, 154, 91, 0.5);
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 0.4s ease-in-out;
+  z-index: -1;
+}
+
+.action-button:hover {
+  transform: scale(1.1);
+  color: white; /* 텍스트 색상 유지 또는 변경 */
+}
+
+.action-button:hover::before {
+  transform-origin: bottom;
+  transform: scaleY(1);
 }
 
 .return-button {
@@ -488,12 +542,12 @@ const goToPage = () => {
   border: none;
   cursor: pointer;
   padding: 0;
-  color: white;
-  font-family: 'SSRock', sans-serif;
-  font-size: 3rem;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  font-size: 2rem;
   font-weight: normal;
   text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
   transition: transform 0.2s ease-in-out;
+  color: rgb(255, 255, 255);
 }
 
 .return-button:hover {
@@ -513,9 +567,9 @@ const goToPage = () => {
   transform: scale(1.1);
 }
 .nav-arrow {
-  font-family: sans-serif;
+  font-family: 'MaruBuri', sans-serif;
   background: none;
-  color: white;
+  color: rgb(255, 255, 255);
   width: 50px;
   height: 50px;
   border-radius: 50%;
@@ -526,10 +580,11 @@ const goToPage = () => {
   transition: all 0.3s ease;
 }
 .nav-text {
-  font-family: 'SSRock', sans-serif; /* 새로 추가한 폰트 적용 */
-  font-size: 4rem; /* 폰트 크기 조정 */
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif; /* 새로 추가한 폰트 적용 */
+  font-size: 3rem; /* 폰트 크기 조정 */
   font-weight: normal; /* ttf 폰트는 bold 대신 normal로 설정 */
   text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
+  color: rgb(255, 255, 255);
 }
 
 .hotspot-title-container {
@@ -545,10 +600,11 @@ const goToPage = () => {
 }
 
 .hotspot-title-text {
-  font-family: 'SSRock', sans-serif;
-  font-size: 5rem;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  font-size: 6rem;
   font-weight: normal;
   white-space: pre-wrap;
+  color: rgb(255, 255, 255);
 }
 
 .char {

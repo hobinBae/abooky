@@ -52,6 +52,7 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', onWindowResize);
   container.value?.removeEventListener('click', onCanvasClick);
+  container.value?.removeEventListener('mousemove', onMouseMove);
   stopAnimation();
 });
 
@@ -82,6 +83,7 @@ function initScene() {
 
   container.value?.appendChild(renderer.domElement)
   container.value?.addEventListener('click', onCanvasClick);
+  container.value?.addEventListener('mousemove', onMouseMove);
 
   controls = new OrbitControls(camera, renderer.domElement)
   controls.target.set(0.3, 35, 25)
@@ -370,6 +372,42 @@ function onCanvasClick(event: MouseEvent) {
     }
   } else {
     console.log("교차된 객체가 없습니다.");
+  }
+}
+
+let hoveredHotspot: THREE.Object3D | null = null;
+
+function onMouseMove(event: MouseEvent) {
+  if (!container.value) return;
+
+  const rect = container.value.getBoundingClientRect();
+  const mouse = new THREE.Vector2(
+    ((event.clientX - rect.left) / rect.width) * 2 - 1,
+    -((event.clientY - rect.top) / rect.height) * 2 + 1
+  );
+
+  const raycaster = new THREE.Raycaster();
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersects = raycaster.intersectObjects(hotspots, true);
+
+  if (intersects.length > 0) {
+    const firstIntersect = intersects[0].object;
+    if (hoveredHotspot !== firstIntersect) {
+      // 이전에 호버된 핫스팟이 있으면 원래 크기로 되돌림
+      if (hoveredHotspot) {
+        gsap.to(hoveredHotspot.scale, { x: 1, y: 1, z: 1, duration: 0.3 });
+      }
+      // 새로 호버된 핫스팟을 확대
+      hoveredHotspot = firstIntersect;
+      gsap.to(hoveredHotspot.scale, { x: 1.2, y: 1.2, z: 1.2, duration: 0.3 });
+    }
+  } else {
+    // 호버된 핫스팟이 없으면 이전에 호버된 핫스팟을 원래 크기로 되돌림
+    if (hoveredHotspot) {
+      gsap.to(hoveredHotspot.scale, { x: 1, y: 1, z: 1, duration: 0.3 });
+      hoveredHotspot = null;
+    }
   }
 }
 </script>
