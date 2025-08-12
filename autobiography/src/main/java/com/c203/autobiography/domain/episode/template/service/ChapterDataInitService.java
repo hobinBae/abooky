@@ -47,7 +47,7 @@ public class ChapterDataInitService {
                 .chapterId("chapter1")
                 .chapterName("시작/기본정보")
                 .chapterOrder(1)
-                .description("현재 자기소개, 거주지, 역할, 기록 목적 파악")
+                .description("현재 감정, 자기소개, 출생, 기록 목적, 기대, 대표 장면")
                 .build();
         chapterRepo.save(chapter);
 

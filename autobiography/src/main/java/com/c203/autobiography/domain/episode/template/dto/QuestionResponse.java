@@ -18,7 +18,13 @@ public class QuestionResponse {
     
     @Schema(description = "현재 챕터 정보")
     private String currentChapter;
-    
+
+    @Schema(description = "챕터 이름")
+    private String currentChapterName;
+
+    @Schema(description = "스테이지 이름")
+    private String currentStageName;
+
     @Schema(description = "현재 단계 정보")
     private String currentStage;
     
