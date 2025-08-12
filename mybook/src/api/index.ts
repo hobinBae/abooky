@@ -41,7 +41,7 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config;
 
     // 401 에러이고, 실패한 요청이 토큰 재발급 요청이 아니고, 이미 재시도하지 않은 경우에만 재시도
-    if (error.response?.status === 401 && 
+    if (error.response?.status === 401 &&
         originalRequest.url !== '/api/v1/auth/refresh-token' &&
         !originalRequest._retry) {
       originalRequest._retry = true;
