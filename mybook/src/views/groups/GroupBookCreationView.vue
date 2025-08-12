@@ -5,7 +5,7 @@
       <div class="lobby-card">
         <h1 class="lobby-title">화면 미리보기</h1>
         <p class="lobby-subtitle">입장하기 전, 카메라와 마이크 상태를 확인해 주세요.</p>
-        
+
         <div class="video-preview-container">
           <video ref="localVideo" autoplay muted playsinline class="video-preview"></video>
           <div class="media-controls">
@@ -17,13 +17,13 @@
             </button>
           </div>
         </div>
-        
+
         <!-- 수정된 연결 상태 표시 부분 -->
         <div v-if="connectionStatus" class="connection-status" :class="`connection-status--${connectionStatus.type}`">
           <i class="connection-status__icon" :class="getStatusIcon(connectionStatus.type)"></i>
           <span class="connection-status__message">{{ connectionStatus.message }}</span>
         </div>
-        
+
         <button @click="joinRoom" class="btn btn-primary btn-join" :disabled="!canJoin || isConnecting">
           {{ isConnecting ? '입장 중...' : '그룹책 만들기 입장' }}
         </button>
@@ -42,17 +42,17 @@
               </span>
             </h3>
           </div>
-          
+
           <div class="video-grid-wrapper">
             <!-- 화면 공유 모드가 아닐 때 - 기존 그리드 레이아웃 -->
             <div v-if="!isScreenSharing" class="video-grid" :class="`participants-${totalParticipants}`">
               <!-- 로컬 참여자 (나) -->
               <div class="video-participant local-participant">
-                <video 
+                <video
                   ref="localVideoElement"
-                  autoplay 
-                  muted 
-                  playsinline 
+                  autoplay
+                  muted
+                  playsinline
                   class="participant-video">
                 </video>
                 <div class="participant-info">
@@ -62,16 +62,16 @@
                   </div>
                 </div>
               </div>
-              
+
               <!-- 원격 참여자들 -->
-              <div 
-                v-for="participant in remoteParticipants" 
-                :key="participant.identity" 
+              <div
+                v-for="participant in remoteParticipants"
+                :key="participant.identity"
                 class="video-participant remote-participant">
-                <video 
+                <video
                   :ref="el => setParticipantVideoRef(el, participant.identity)"
-                  autoplay 
-                  playsinline 
+                  autoplay
+                  playsinline
                   class="participant-video">
                 </video>
                 <div v-if="!participant.videoTrack" class="participant-video-placeholder">
@@ -93,11 +93,11 @@
             <div v-else class="screen-share-layout">
               <!-- 메인 화면 공유 영역 (화면 공유하는 사람의 화면) -->
               <div class="main-screen-area">
-                <video 
+                <video
                   ref="localVideoElement"
-                  autoplay 
-                  muted 
-                  playsinline 
+                  autoplay
+                  muted
+                  playsinline
                   class="main-screen-video">
                 </video>
                 <div class="main-screen-info">
@@ -113,11 +113,11 @@
                 <div class="thumbnails-container">
                   <!-- 내 카메라 썸네일 (화면 공유 중이므로 카메라는 별도 표시) -->
                   <div class="thumbnail-participant">
-                    <video 
+                    <video
                       ref="localCameraThumbnail"
-                      autoplay 
-                      muted 
-                      playsinline 
+                      autoplay
+                      muted
+                      playsinline
                       class="thumbnail-video">
                     </video>
                     <div class="thumbnail-info">
@@ -129,14 +129,14 @@
                   </div>
 
                   <!-- 원격 참여자 썸네일들 -->
-                  <div 
-                    v-for="participant in remoteParticipants" 
-                    :key="participant.identity" 
+                  <div
+                    v-for="participant in remoteParticipants"
+                    :key="participant.identity"
                     class="thumbnail-participant">
-                    <video 
+                    <video
                       :ref="el => setParticipantVideoRef(el, participant.identity)"
-                      autoplay 
-                      playsinline 
+                      autoplay
+                      playsinline
                       class="thumbnail-video">
                     </video>
                     <div v-if="!participant.videoTrack" class="thumbnail-video-placeholder">
@@ -153,29 +153,29 @@
               </div>
             </div>
           </div>
-          
+
           <div class="controls-section">
             <div class="main-controls">
               <button @click="toggleMicrophone" class="btn btn-control" :class="{ 'is-muted': !isAudioEnabled }">
                 <i class="bi" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
                 <span>{{ isAudioEnabled ? '음소거' : '음소거 해제' }}</span>
               </button>
-              
+
               <button @click="toggleCamera" class="btn btn-control" :class="{ 'is-muted': !isVideoEnabled }">
                 <i class="bi" :class="isVideoEnabled ? 'bi-camera-video-fill' : 'bi-camera-video-off-fill'"></i>
                 <span>{{ isVideoEnabled ? '비디오 중지' : '비디오 시작' }}</span>
               </button>
-              
+
               <button @click="toggleScreenShare" class="btn btn-control" :class="{ 'active': isScreenSharing }">
                 <i class="bi" :class="isScreenSharing ? 'bi-stop-circle-fill' : 'bi-share-fill'"></i>
                 <span>{{ isScreenSharing ? '화면공유 중지' : '화면 공유' }}</span>
               </button>
-              
+
               <button @click="goToBookEditor" class="btn btn-control btn-book">
                 <i class="bi bi-book-fill"></i>
                 <span>책 만들기</span>
               </button>
-              
+
               <button @click="leaveRoom" class="btn btn-control btn-leave">
                 <i class="bi bi-box-arrow-right"></i>
                 <span>나가기</span>
@@ -193,10 +193,10 @@
             그룹 채팅
           </h4>
         </div>
-        
+
         <div class="chat-messages" ref="chatMessagesContainer">
-          <div 
-            v-for="message in chatMessages" 
+          <div
+            v-for="message in chatMessages"
             :key="message.id"
             class="chat-message"
             :class="{ 'chat-message--own': message.isOwn }">
@@ -210,7 +210,7 @@
             아직 메시지가 없습니다. 첫 번째 메시지를 보내보세요!
           </div>
         </div>
-        
+
         <div class="chat-input-section">
           <div class="chat-input-wrapper">
             <input
@@ -347,19 +347,19 @@ function setParticipantVideoRef(el: any, identity: string) {
 async function getAccessToken(): Promise<{ url: string, token: string}> {
   try {
     const userName = `User_${Date.now()}`;
-    
+
     // 로컬 테스트를 위한 더미 토큰/URL 반환
     console.log('🔧 로컬 테스트 모드: 더미 토큰 사용');
-    return { 
-      url: 'ws://localhost:7880', 
-      token: 'dummy-token-for-local-test' 
+    return {
+      url: 'ws://localhost:7880',
+      token: 'dummy-token-for-local-test'
     };
-    
+
     // 실제 API 호출은 주석 처리
     // const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
     //   userName
     // });
-    // 
+    //
     // const data = response.data.data ?? response.data;
     // if (!data?.token || !data?.url) {
     //   throw new Error('응답에 url/token 없음');
@@ -374,9 +374,9 @@ async function getAccessToken(): Promise<{ url: string, token: string}> {
 async function setupLocalMedia() {
   try {
     // 초기 로딩 상태 표시
-    connectionStatus.value = { 
-      type: 'info', 
-      message: '카메라와 마이크 권한을 확인하고 있습니다...' 
+    connectionStatus.value = {
+      type: 'info',
+      message: '카메라와 마이크 권한을 확인하고 있습니다...'
     };
 
     const stream = await navigator.mediaDevices.getUserMedia({
@@ -389,15 +389,15 @@ async function setupLocalMedia() {
     }
 
     canJoin.value = true;
-    connectionStatus.value = { 
-      type: 'success', 
-      message: '카메라와 마이크가 준비되었습니다.' 
+    connectionStatus.value = {
+      type: 'success',
+      message: '카메라와 마이크가 준비되었습니다.'
     };
   } catch (error) {
     console.error('미디어 접근 실패:', error);
-    connectionStatus.value = { 
-      type: 'warning', 
-      message: '카메라/마이크에 접근할 수 없습니다. 오디오만으로 참여할 수 있습니다.' 
+    connectionStatus.value = {
+      type: 'warning',
+      message: '카메라/마이크에 접근할 수 없습니다. 오디오만으로 참여할 수 있습니다.'
     };
     canJoin.value = true; // 미디어 없이도 입장 허용
   }
@@ -405,16 +405,16 @@ async function setupLocalMedia() {
 
 async function joinRoom() {
   if (isConnecting.value) return;
-  
+
   isConnecting.value = true;
   connectionState.value = 'connecting';
 
   try {
     console.log('🔧 로컬 테스트 모드: 실제 LiveKit 연결 없이 진행');
-    
+
     // 로컬 테스트를 위한 더미 연결 시뮬레이션
     await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5초 로딩 시뮬레이션
-    
+
     // 더미 livekitRoom 객체 생성 (기본 기능만)
     livekitRoom = {
       localParticipant: {
@@ -424,7 +424,7 @@ async function joinRoom() {
         setMicrophoneEnabled: async (enabled: boolean) => {
           console.log('더미: 마이크', enabled ? '활성화' : '비활성화');
           isAudioEnabled.value = enabled;
-          
+
           // 실제 오디오 스트림 제어
           if (localVideoElement.value?.srcObject) {
             const stream = localVideoElement.value.srcObject as MediaStream;
@@ -437,7 +437,7 @@ async function joinRoom() {
         setCameraEnabled: async (enabled: boolean) => {
           console.log('더미: 카메라', enabled ? '활성화' : '비활성화');
           isVideoEnabled.value = enabled;
-          
+
           // 실제 비디오 스트림 제어
           if (localVideoElement.value?.srcObject) {
             const stream = localVideoElement.value.srcObject as MediaStream;
@@ -450,59 +450,58 @@ async function joinRoom() {
         setScreenShareEnabled: async (enabled: boolean) => {
           console.log('더미: 화면공유', enabled ? '시작' : '중지');
           isScreenSharing.value = enabled;
-          
+
           try {
             if (enabled) {
               // 화면 공유 시작
               console.log('화면 공유 스트림 요청 시작...');
-              const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
-                video: { 
-                  mediaSource: 'screen',
+              const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
                   width: { max: 1920 },
                   height: { max: 1080 },
                   frameRate: { max: 30 }
-                }, 
-                audio: true 
+                },
+                audio: true
               });
-              
+
               console.log('화면 공유 스트림 획득:', screenStream);
               console.log('비디오 트랙:', screenStream.getVideoTracks());
               console.log('오디오 트랙:', screenStream.getAudioTracks());
-              
+
               if (localVideoElement.value) {
                 console.log('비디오 요소에 화면 공유 스트림 설정');
-                
+
                 // 비디오 요소 속성 설정
                 localVideoElement.value.muted = true; // 화면 공유는 음소거
                 localVideoElement.value.autoplay = true;
                 localVideoElement.value.playsInline = true;
-                
+
                 // 스트림 설정
                 localVideoElement.value.srcObject = screenStream;
-                
+
                 // loadedmetadata 이벤트 대기
                 const waitForMetadata = new Promise<void>((resolve, reject) => {
                   const timeout = setTimeout(() => {
                     reject(new Error('비디오 메타데이터 로딩 타임아웃'));
                   }, 5000);
-                  
+
                   localVideoElement.value!.onloadedmetadata = () => {
                     clearTimeout(timeout);
                     console.log('비디오 메타데이터 로드 완료');
                     console.log('비디오 크기:', localVideoElement.value!.videoWidth, 'x', localVideoElement.value!.videoHeight);
                     resolve();
                   };
-                  
+
                   localVideoElement.value!.onerror = (error) => {
                     clearTimeout(timeout);
                     console.error('비디오 로딩 에러:', error);
                     reject(error);
                   };
                 });
-                
+
                 // 메타데이터 로딩 대기
                 await waitForMetadata;
-                
+
                 // 카메라 썸네일에 원래 카메라 스트림 설정
                 if (localCameraThumbnail.value && localVideo.value?.srcObject) {
                   localCameraThumbnail.value.srcObject = localVideo.value.srcObject;
@@ -513,16 +512,16 @@ async function joinRoom() {
                     console.warn('카메라 썸네일 자동 재생 실패:', thumbError);
                   }
                 }
-                
+
                 // 비디오 재생 시작 (여러 번 시도)
                 let playAttempts = 0;
                 const maxPlayAttempts = 3;
-                
+
                 const attemptPlay = async () => {
                   try {
                     await localVideoElement.value!.play();
                     console.log('화면 공유 스트림 재생 시작 성공');
-                    
+
                     // 재생 성공 후 상태 확인
                     setTimeout(() => {
                       console.log('재생 후 비디오 요소 상태:');
@@ -532,11 +531,11 @@ async function joinRoom() {
                       console.log('- videoHeight:', localVideoElement.value?.videoHeight);
                       console.log('- readyState:', localVideoElement.value?.readyState);
                     }, 500);
-                    
+
                   } catch (playError) {
                     playAttempts++;
                     console.warn(`화면 공유 비디오 재생 실패 (시도 ${playAttempts}/${maxPlayAttempts}):`, playError);
-                    
+
                     if (playAttempts < maxPlayAttempts) {
                       setTimeout(attemptPlay, 1000);
                     } else {
@@ -546,9 +545,9 @@ async function joinRoom() {
                     }
                   }
                 };
-                
+
                 await attemptPlay();
-                
+
                 // 화면 공유 종료 감지
                 screenStream.getVideoTracks()[0].onended = () => {
                   console.log('화면 공유가 사용자에 의해 종료됨');
@@ -583,7 +582,7 @@ async function joinRoom() {
 
     // DOM 업데이트 대기
     await nextTick();
-    
+
     // DOM이 준비된 후 로컬 비디오를 워킹스페이스 영역으로 이동
     setTimeout(async () => {
       await publishLocalMedia();
@@ -598,9 +597,9 @@ async function joinRoom() {
 
   } catch (error: any) {
     console.error('룸 입장 실패:', error);
-    connectionStatus.value = { 
-      type: 'error', 
-      message: `입장 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}` 
+    connectionStatus.value = {
+      type: 'error',
+      message: `입장 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}`
     };
     connectionState.value = 'disconnected';
   } finally {
@@ -635,7 +634,7 @@ function setupRoomEventListeners() {
         stream.getTracks().forEach(track => track.stop());
         localVideo.value.srcObject = null;
       }
-      
+
       // 비디오 엘리먼트에 연결 (카메라 또는 화면공유 모두 처리)
       const attachVideoTrack = () => {
         if (publication.track && localVideoElement.value) {
@@ -650,7 +649,7 @@ function setupRoomEventListeners() {
         }
         return false;
       };
-      
+
       // 즉시 시도
       if (!attachVideoTrack()) {
         // 100ms 후 재시도
@@ -715,17 +714,17 @@ function setupRoomEventListeners() {
   // 재연결 이벤트
   livekitRoom.on(RoomEvent.Reconnecting, () => {
     connectionState.value = 'reconnecting';
-    connectionStatus.value = { 
-      type: 'warning', 
-      message: '연결이 불안정합니다. 재연결을 시도하고 있습니다...' 
+    connectionStatus.value = {
+      type: 'warning',
+      message: '연결이 불안정합니다. 재연결을 시도하고 있습니다...'
     };
   });
 
   livekitRoom.on(RoomEvent.Reconnected, () => {
     connectionState.value = 'connected';
-    connectionStatus.value = { 
-      type: 'success', 
-      message: '연결이 복구되었습니다.' 
+    connectionStatus.value = {
+      type: 'success',
+      message: '연결이 복구되었습니다.'
     };
     // 3초 후 메시지 자동 숨김
     setTimeout(() => {
@@ -736,20 +735,20 @@ function setupRoomEventListeners() {
 
 async function publishLocalMedia() {
   console.log('🔧 로컬 테스트 모드: 더미 퍼블리시');
-  
+
   try {
     // 잠시 기다린 후 DOM이 준비되었는지 확인
     await nextTick();
-    
+
     console.log('localVideo.value:', !!localVideo.value);
     console.log('localVideoElement.value:', !!localVideoElement.value);
     console.log('localVideo stream:', !!localVideo.value?.srcObject);
-    
+
     // 로컬 테스트에서는 단순히 로비 비디오를 메인 화면으로 복사
     if (localVideo.value?.srcObject && localVideoElement.value) {
       console.log('로비 비디오 스트림을 메인 화면에 복사');
       localVideoElement.value.srcObject = localVideo.value.srcObject;
-      
+
       // 비디오 재생 시작
       try {
         await localVideoElement.value.play();
@@ -759,7 +758,7 @@ async function publishLocalMedia() {
       }
     } else {
       console.warn('로비 비디오 스트림이 없거나 메인 비디오 엘리먼트가 없음');
-      
+
       // 대안: 새로운 미디어 스트림 생성
       if (localVideoElement.value && isVideoEnabled.value) {
         console.log('새로운 미디어 스트림 생성 시도');
@@ -776,7 +775,7 @@ async function publishLocalMedia() {
         }
       }
     }
-    
+
     console.log('더미 로컬 미디어 퍼블리시 완료');
 
   } catch (error) {
@@ -796,18 +795,18 @@ async function restoreCameraStream() {
           track.stop();
         });
       }
-      
+
       // 비디오 요소 속성 복구
       localVideoElement.value.controls = false;
       localVideoElement.value.muted = true;
       localVideoElement.value.autoplay = true;
       localVideoElement.value.playsInline = true;
-      
+
       if (localVideo.value?.srcObject) {
         // 로비에서 사용하던 카메라 스트림으로 복구
         console.log('로비 카메라 스트림으로 복구 중...');
         localVideoElement.value.srcObject = localVideo.value.srcObject;
-        
+
         // 비디오 재생 시작
         try {
           await localVideoElement.value.play();
@@ -822,9 +821,9 @@ async function restoreCameraStream() {
           video: { width: 1280, height: 720 },
           audio: true
         });
-        
+
         localVideoElement.value.srcObject = cameraStream;
-        
+
         // 비디오 재생 시작
         try {
           await localVideoElement.value.play();
@@ -842,16 +841,16 @@ async function restoreCameraStream() {
 // 더미 원격 참여자 추가 함수 (로컬 테스트용)
 function addDummyRemoteParticipant() {
   console.log('🔧 더미 원격 참여자 추가');
-  
+
   const dummyParticipant: RemoteParticipant = {
     identity: '테스트유저1',
     isMicrophoneEnabled: true,
     isCameraEnabled: false, // 비디오 없는 참여자로 시뮬레이션
     connectionQuality: 3
   };
-  
+
   remoteParticipants.value.push(dummyParticipant);
-  
+
   // 5초 후 다른 참여자 추가
   setTimeout(() => {
     const dummyParticipant2: RemoteParticipant = {
@@ -860,7 +859,7 @@ function addDummyRemoteParticipant() {
       isCameraEnabled: true,
       connectionQuality: 4
     };
-    
+
     remoteParticipants.value.push(dummyParticipant2);
     console.log('🔧 두 번째 더미 참여자 추가');
   }, 5000);
@@ -904,7 +903,7 @@ function handleTrackSubscribed(track: any, participant: any) {
 
   if (track.kind === 'video') {
     participantData.videoTrack = track;
-    
+
     // 비디오 엘리먼트에 연결
     nextTick(() => {
       const videoElement = participantVideoRefs.value.get(participant.identity);
@@ -992,7 +991,7 @@ async function toggleCamera() {
     const enabled = !isVideoEnabled.value;
     await livekitRoom.localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
-    
+
     console.log('카메라 토글:', enabled ? '온' : '오프');
   } catch (error) {
     console.error('카메라 토글 실패:', error);
@@ -1004,7 +1003,7 @@ async function toggleScreenShare() {
 
   try {
     const enabled = !isScreenSharing.value;
-    
+
     if (enabled) {
       // 화면 공유 시작
       await livekitRoom.localParticipant.setScreenShareEnabled(true);
@@ -1018,14 +1017,14 @@ async function toggleScreenShare() {
         await livekitRoom.localParticipant.setCameraEnabled(true);
       }
     }
-    
+
     isScreenSharing.value = enabled;
     console.log('화면 공유:', enabled ? '시작' : '종료');
   } catch (error) {
     console.error('화면 공유 토글 실패:', error);
-    connectionStatus.value = { 
-      type: 'error', 
-      message: '화면 공유를 시작할 수 없습니다. 권한을 확인해주세요.' 
+    connectionStatus.value = {
+      type: 'error',
+      message: '화면 공유를 시작할 수 없습니다. 권한을 확인해주세요.'
     };
     setTimeout(() => {
       if (connectionStatus.value?.type === 'error') {
@@ -1091,7 +1090,7 @@ async function sendMessage() {
   console.log('🔧 로컬 테스트 모드: 채팅 메시지 전송');
   const message = newMessage.value.trim();
   console.log('메시지 내용:', message);
-  
+
   if (!message) {
     console.log('메시지가 비어있음');
     return;
@@ -1125,7 +1124,7 @@ async function sendMessage() {
         timestamp: Date.now(),
         isOwn: false
       };
-      
+
       chatMessages.value.push(dummyResponse);
       scrollToBottom();
       console.log('🔧 더미 응답 메시지 추가');
@@ -1170,7 +1169,7 @@ function scrollToBottom() {
 // --- Lifecycle Hooks ---
 onMounted(async () => {
   console.log('🔧 로컬 테스트 모드: LiveKit SDK 로딩 건너뛰기');
-  
+
   // LiveKit SDK 로드 건너뛰고 바로 로컬 미디어 설정
   await setupLocalMedia();
 });
