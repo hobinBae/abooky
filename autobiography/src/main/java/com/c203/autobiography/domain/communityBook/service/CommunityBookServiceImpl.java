@@ -22,8 +22,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 
 @Service
@@ -96,8 +96,20 @@ public class CommunityBookServiceImpl implements CommunityBookService {
         // 2. 필터링 조건에 따른 조회
         Page<CommunityBook> communityBooks = getCommunityBooksWithFilters(sortedPageable, categoryId, bookType);
 
-        // 3. DTO 변환
-        Page<CommunityBookSummaryResponse> responsePage = communityBooks.map(CommunityBookSummaryResponse::of);
+        // 3. 모든 책의 ID 추출
+        List<Long> communityBookIds = communityBooks.getContent()
+                .stream()
+                .map(CommunityBook::getCommunityBookId)
+                .collect(Collectors.toList());
+
+        // 4. 태그 정보 일괄 조회 (N+1 문제 방지)
+        Map<Long, List<CommunityBookTagResponse>> tagMap = getCommunityBookTagsMap(communityBookIds);
+
+        // 5. DTO 변환 (태그 정보 포함)
+        Page<CommunityBookSummaryResponse> responsePage = communityBooks.map(book -> {
+            List<CommunityBookTagResponse> tags = tagMap.getOrDefault(book.getCommunityBookId(), new ArrayList<>());
+            return CommunityBookSummaryResponse.of(book, tags);
+        });
 
         return CommunityBookListResponse.of(responsePage);
     }
@@ -145,6 +157,25 @@ public class CommunityBookServiceImpl implements CommunityBookService {
         return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
     }
 
+    /**
+     * 여러 커뮤니티 책의 태그 정보를 한 번에 조회하여 Map으로 반환 (N+1 문제 방지)
+     */
+    private Map<Long, List<CommunityBookTagResponse>> getCommunityBookTagsMap(List<Long> communityBookIds) {
+        if (communityBookIds.isEmpty()) {
+            return new HashMap<>();
+        }
+
+        // 모든 태그 정보를 한 번에 조회
+        Map<Long, List<CommunityBookTagResponse>> tagMap = new HashMap<>();
+
+        for (Long bookId : communityBookIds) {
+            List<CommunityBookTagResponse> tags = communityBookTagRepository.findTagInfoByCommunityBookId(bookId);
+            tagMap.put(bookId, tags);
+        }
+
+        return tagMap;
+    }
+
 
     @Transactional
     @Override
@@ -163,8 +194,20 @@ public class CommunityBookServiceImpl implements CommunityBookService {
         Page<CommunityBook> communityBooks = getMemberCommunityBooksWithFilters(
                 memberId, sortedPageable, categoryId, bookType);
 
-        // DTO 변환
-        Page<CommunityBookSummaryResponse> responsePage = communityBooks.map(CommunityBookSummaryResponse::of);
+        // 3. 모든 책의 ID 추출
+        List<Long> communityBookIds = communityBooks.getContent()
+                .stream()
+                .map(CommunityBook::getCommunityBookId)
+                .collect(Collectors.toList());
+
+        // 4. 태그 정보 일괄 조회 (N+1 문제 방지)
+        Map<Long, List<CommunityBookTagResponse>> tagMap = getCommunityBookTagsMap(communityBookIds);
+
+        // 5. DTO 변환 (태그 정보 포함)
+        Page<CommunityBookSummaryResponse> responsePage = communityBooks.map(book -> {
+            List<CommunityBookTagResponse> tags = tagMap.getOrDefault(book.getCommunityBookId(), new ArrayList<>());
+            return CommunityBookSummaryResponse.of(book, tags);
+        });
 
         return CommunityBookListResponse.of(responsePage);
     }
@@ -207,6 +250,17 @@ public class CommunityBookServiceImpl implements CommunityBookService {
             return communityBookRepository.findByMemberMemberIdAndDeletedAtIsNull(memberId, pageable);
         }
     }
+
+    /**
+     * CommunityBook을 CommunityBookSummaryResponse로 변환 (태그 정보 포함)
+     */
+    private CommunityBookSummaryResponse convertToSummaryResponse(CommunityBook communityBook) {
+        // 해당 책의 태그 정보 조회
+        List<CommunityBookTagResponse> tags = communityBookTagRepository.findTagInfoByCommunityBookId(communityBook.getCommunityBookId());
+
+        return CommunityBookSummaryResponse.of(communityBook, tags);
+    }
+
 
     @Transactional
     @Override
