@@ -271,7 +271,7 @@ function handleSocialLogin(provider: 'google') {
 .form-control:focus {
   background-color: #fff;
   border-color: #8A9A5B; /* 올리브색 */
-  box-shadow: 0 0 0 0.2rem rgba(138, 154, 91, 0.25); /* 올리브색 */
+  box-shadow: 0 0 0 0.2rem rgba(138, 154, 91, 0.25); 
 }
 
 .btn-auth {
