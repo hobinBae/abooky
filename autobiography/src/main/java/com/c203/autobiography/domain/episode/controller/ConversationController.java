@@ -133,7 +133,12 @@ public class ConversationController {
             try {
                 String lastAnswer = conversationService.getLastAnswer(sessionId);
                 nextQuestionDto = conversationService.getNextQuestion(memberId, bookId, episodeId ,sessionId, lastAnswer);
+                if (nextQuestionDto == null) {
+                    log.info("서비스에서 모든 처리를 완료하고 null을 반환했습니다. 컨트롤러는 즉시 종료합니다. SessionId: {}", sessionId);
+                    return ResponseEntity.ok().build();
+                }
                 next = nextQuestionDto.getQuestionText();
+
             } catch (Exception e) {
                 // 오류시 레거시 모드로 fallback
                 e.printStackTrace();

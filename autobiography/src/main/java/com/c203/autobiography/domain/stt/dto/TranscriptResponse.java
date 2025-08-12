@@ -13,6 +13,9 @@ import lombok.NoArgsConstructor;
 @Schema(description = "서버가 클라이언트로 보내는 STT 결과 DTO")
 public class TranscriptResponse {
 
+    @Schema(description = "메시지 ID", example = "2002")
+    private Long messageId;
+
     @Schema(description = "청크 순서 인덱스", example = "0")
     private Integer chunkIndex;
 

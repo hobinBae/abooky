@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.episode.service;
 
 import com.c203.autobiography.domain.ai.client.AiClient;
+import com.c203.autobiography.domain.ai.dto.ChatCompletionResponse;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.repository.BookRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
@@ -159,20 +160,20 @@ public class EpisodeServiceImpl implements EpisodeService{
       %s
       """, dialog);
 
-        String episodeJsonContent = aiClient.generateEpisode(prompt);
-        ObjectMapper om = new ObjectMapper();
-        JsonNode node = om.readTree(episodeJsonContent);
-        String title   = node.get("title").asText();
-        String content = node.get("content").asText();
-
-         episode.updateEpisode(
-                 title,
-                 episode.getEpisodeDate(),
-                 episode.getEpisodeOrder(),
-                 content,
-                 episode.getAudioUrl()
-         );
-        episodeRepository.save(episode);
+//        String episodeJsonContent = aiClient.generateEpisode(prompt);
+//        ObjectMapper om = new ObjectMapper();
+//        JsonNode node = om.readTree(episodeJsonContent);
+//        String title   = node.get("title").asText();
+//        String content = node.get("content").asText();
+//
+//         episode.updateEpisode(
+//                 title,
+//                 episode.getEpisodeDate(),
+//                 episode.getEpisodeOrder(),
+//                 content,
+//                 episode.getAudioUrl()
+//         );
+//        episodeRepository.save(episode);
 
 //        // 세션에 연결(선택) + 다음 에피소드 구간 시작점 갱신
 //        // 다음 장부터는 다음 메시지부터 새 에피소드로 묶임
@@ -181,8 +182,68 @@ public class EpisodeServiceImpl implements EpisodeService{
 //                .episodeStartMessageNo(endNo + 1)  // ✅ 다음 구간 시작점 점프
 //                .build();
 //        conversationSessionRepository.save(updated);
+        String rawApiResponse = aiClient.generateEpisode(prompt);
+
+        String title;
+        String content;
+        try {
+            // 2. 응답 문자열에서 Markdown 코드 블록 등 불필요한 부분 제거
+            String cleanedJson = cleanApiResponse(rawApiResponse);
+
+            // 3. ObjectMapper를 사용하여 정리된 JSON을 DTO 객체로 1차 파싱
+            ObjectMapper om = new ObjectMapper();
+            ChatCompletionResponse responseDto = om.readValue(cleanedJson, ChatCompletionResponse.class);
+
+            // 4. DTO 구조를 따라 최종적으로 원하는 내용(content)을 추출
+            String innerJsonContent = null;
+            if (responseDto != null && responseDto.getChoices() != null && !responseDto.getChoices().isEmpty()) {
+                ChatCompletionResponse.MessageResponse message = responseDto.getChoices().get(0).getMessage();
+                if (message != null && message.getContent() != null) {
+                    innerJsonContent = message.getContent();
+                }
+            }
+
+            if (innerJsonContent == null) {
+                throw new IllegalStateException("OpenAI 응답에서 유효한 content를 찾을 수 없습니다.");
+            }
+
+            // 5. 추출된 내용(innerJsonContent)은 우리가 요청한 JSON 형식이므로, 이를 2차 파싱하여 title과 content를 최종 추출
+            JsonNode finalNode = om.readTree(innerJsonContent);
+            title = finalNode.get("title").asText();
+            content = finalNode.get("content").asText();
+
+        } catch (Exception e) {
+            log.error("OpenAI 응답 처리 중 심각한 오류 발생", e);
+            // 에러 발생 시 기본값 또는 예외 처리
+            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE);
+        }
+
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★
+        //          수정된 로직 종료
+        // ★★★★★★★★★★★★★★★★★★★★★★★★★★★
+
+        // 6. 추출한 title과 content로 에피소드 업데이트 (기존과 동일)
+        episode.updateEpisode(
+                title,
+                episode.getEpisodeDate(),
+                episode.getEpisodeOrder(),
+                content,
+                episode.getAudioUrl()
+        );
+        episodeRepository.save(episode);
+
 
         return EpisodeResponse.of(episode);
+    }
+    // 문자열 전처리 헬퍼 메소드
+    private String cleanApiResponse(String rawResponse) {
+        String cleaned = rawResponse.trim();
+        if (cleaned.startsWith("```json")) {
+            cleaned = cleaned.substring(7, cleaned.length() - 3).trim();
+        } else if (cleaned.startsWith("```")) {
+            cleaned = cleaned.substring(3, cleaned.length() - 3).trim();
+        }
+        return cleaned;
     }
 
 

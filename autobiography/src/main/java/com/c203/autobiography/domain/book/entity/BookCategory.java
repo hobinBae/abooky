@@ -43,4 +43,9 @@ public class BookCategory {
         public void updateName(String categoryName) {
                 this.categoryName = categoryName;
         }
+        public static BookCategory of(String categoryName) {
+                return BookCategory.builder()
+                        .categoryName(categoryName)
+                        .build();
+        }
 }

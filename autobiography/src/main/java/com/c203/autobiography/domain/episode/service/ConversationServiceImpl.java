@@ -34,6 +34,8 @@ import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import java.util.UUID;
+
+import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -373,8 +375,8 @@ public class ConversationServiceImpl implements ConversationService {
 
     // == 내부 헬퍼 메서드들 (구. ChapterBasedQuestionService) ==
 
-    private NextQuestionDto moveToNextMainQuestion(Member member, Book book, Episode episode,
-                                                   ConversationSession session) {
+    private @Nullable NextQuestionDto moveToNextMainQuestion(Member member, Book book, Episode episode,
+                                                             ConversationSession session) {
         ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
                 session.getCurrentChapterOrder(),
                 session.getCurrentTemplateOrder() + 1
@@ -397,6 +399,7 @@ public class ConversationServiceImpl implements ConversationService {
                     session.getSessionId());
             log.info("✅ 챕터 에피소드 생성 완료");
             sseService.pushEpisode(session.getSessionId(), savedEpisode);
+            log.info("에피소드 생성 완료. content: {}", savedEpisode.getContent());
         } catch (Exception ex) {
             log.warn("챕터 에피소드 생성 실패(다음 챕터 진행은 계속): {}", ex.getMessage());
         }
@@ -410,44 +413,29 @@ public class ConversationServiceImpl implements ConversationService {
         // 모든 대화 종료
         if (nextChapter != null) {
             // 다음 질문 대신, 인터뷰가 한 단락 끝났음을 알리는 특별한 DTO를 반환합니다.
-            return NextQuestionDto.builder()
-                    .questionText(String.format("챕터 %d이(가) 완료되었습니다. 왼쪽 목차에서 새 이야기를 추가하고 'AI 인터뷰 시작'을 눌러 다음 챕터를 시작해주세요.", session.getCurrentChapterOrder()))
-                    .questionType("CHAPTER_COMPLETE") // ★ 새로운 타입 정의
-                    .isLastQuestion(true) // 현재 세션의 인터뷰는 끝났음을 의미
+           String completionMessage = String.format(
+                   "챕터 %d이(가) 완료되었습니다. 왼쪽 목차에 새 에피소드를 추가하고 'AI 인터뷰 시작'을 눌러 다음 챕터를 시작해주세요.",
+                   session.getCurrentChapterOrder()
+           );
+
+            QuestionResponse chapterCompleteResponse = QuestionResponse.builder()
+                    .text(completionMessage)
+                    .questionType("CHAPTER_COMPLETE")
+                    .isLastQuestion(true)
                     .currentChapterName(currentChapter.getChapterName())
                     .currentStageName("챕터 완료")
                     .chapterProgress(100)
-                    .overallProgress(calculateOverallProgress(session)) // 전체 진행률은 계산
+                    .overallProgress(calculateOverallProgress(session))
                     .build();
+            sseService.pushQuestion(session.getSessionId(), chapterCompleteResponse);
+            return null;
         } else {
             // 모든 챕터가 끝났을 때의 로직은 그대로 유지
             ConversationSession finalSession = sessionRepo.findById(session.getSessionId()).get();
             return createCompletionQuestion(finalSession);
         }
 
-////        // 다음 챕터로 넘어가기 위한 상태 초기화
-////        // 다음 챕터의 첫 템플릿을 찾는다.
-////        ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
-////                nextChapter.getChapterOrder(), 1).orElseThrow(() -> new ApiException(ErrorCode.INVALID_INPUT_VALUE));
-////
-////        // 다음 에피소드의 시작점을 "현재까지의 마지막 메시지 번호 + 1"로 리셋한다.
-////        Integer nextEpisodeStartNo = messageRepo.findMaxMessageNo(session.getSessionId()) + 1;
-////
-////        // 세션의 상트를 다음 챕터 기준으로 완전히 새로 설정하여 저장합니다.
-////        ConversationSession sessionForNextChapter = sessionRepo.save(
-////                session.toBuilder()
-////                        .currentChapterId(nextChapter.getChapterId())
-////                        .currentTemplateId(nextTemplate.getTemplateId())
-////                        .followUpQuestionIndex(0)
-////                        .currentChapterOrder(nextChapter.getChapterOrder())
-////                        .currentTemplateOrder(1)
-////                        .episodeStartMessageNo(nextEpisodeStartNo) // ★ 상태 리셋 ★
-////                        .build()
-////
-////        );
-//
-//        dynamicFollowUpQueues.remove(session.getSessionId());
-//        return createNextQuestionDto(sessionForNextChapter, nextTemplate.getMainQuestion(), "MAIN", nextTemplate);
+
     }
 
     private NextQuestionDto moveToNextTemplate(ConversationSession session, ChapterTemplate nextTemplate) {

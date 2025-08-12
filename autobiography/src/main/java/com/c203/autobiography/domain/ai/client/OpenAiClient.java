@@ -100,7 +100,7 @@ public class OpenAiClient implements AiClient {
         ChatCompletionRequest request = ChatCompletionRequest.builder()
                 .model(props.getModel())
                 .messages(List.of(system, user))
-                .maxTokens(1000) // 에피소드는 더 긴 텍스트 필요
+                .maxTokens(1500) // 에피소드는 더 긴 텍스트 필요
                 .temperature(0.8) // 창의적인 글쓰기를 위해 temperature 높임
                 .build();
 
