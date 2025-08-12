@@ -376,7 +376,7 @@ async function createGroupHandler() {
     return;
   }
 
-  const members = [authStore.user?.nickname];
+  const members = [authStore.user?.nickname].filter(Boolean) as string[];
   const newGroup: Group = {
     id: `group${Date.now()}`,
     groupName: groupName,
