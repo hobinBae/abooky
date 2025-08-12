@@ -9,19 +9,25 @@ import com.c203.autobiography.domain.episode.dto.ConversationSessionRequest;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionResponse;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionUpdateRequest;
 import com.c203.autobiography.domain.episode.dto.MessageType;
+import com.c203.autobiography.domain.episode.dto.StartConversationResponse;
 import com.c203.autobiography.domain.episode.entity.ConversationSession;
+import com.c203.autobiography.domain.episode.repository.ConversationMessageRepository;
 import com.c203.autobiography.domain.episode.service.ConversationService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
-import com.c203.autobiography.domain.episode.template.service.QuestionTemplateService;
-import com.c203.autobiography.domain.episode.template.service.ChapterBasedQuestionService;
 import com.c203.autobiography.domain.episode.template.dto.NextQuestionDto;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import com.c203.autobiography.global.dto.ApiResponse;
+import com.c203.autobiography.global.security.jwt.CustomUserDetails;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import java.util.List;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,85 +38,54 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import retrofit2.http.Path;
 
-
-@Tag(name = "AI와 대화 기능 API", description = "책 생성 시 AI 관련 API")
 @RestController
-@RequestMapping("/api/conversation")
+@RequestMapping("/api/v1/conversation")
 @RequiredArgsConstructor
+@Slf4j
 @Validated
 public class ConversationController {
-    private final ConversationService convService;
+    private final ConversationService conversationService;
     private final SseService sseService;
-    private final QuestionTemplateService templateService;
-    private final ChapterBasedQuestionService chapterBasedService;
+    private final ConversationMessageRepository conversationMessageRepository;
 
     /**
-     * 에피소드 시작 및 SSE 연결
+     * 새로운 대화 시작
+     *
+     * @return 생성된 세션 ID
      */
-    @GetMapping(value = "/stream", produces = TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter stream(@RequestParam String sessionId, 
-                            @RequestParam(value = "useChapterMode", defaultValue = "true") boolean useChapterMode) {
-        convService.createSession(new ConversationSessionRequest(sessionId, null));
-        SseEmitter emitter = new SseEmitter(0L);
-        emitter.onTimeout(() -> sseService.remove(sessionId));
-        emitter.onCompletion(() -> sseService.remove(sessionId));
-        emitter.onError(e -> sseService.remove(sessionId));
-        sseService.register(sessionId, emitter);
-        
-        String first = null;
-        NextQuestionDto firstQuestion = null;
-        if (useChapterMode) {
-            // 새로운 챕터 기반 모드 사용
-            try {
-                firstQuestion = chapterBasedService.initializeSession(sessionId);
-                first = firstQuestion.getQuestionText();
-            } catch (Exception e) {
-                // 챕터 기반 서비스 실패시 레거시 모드로 fallback
-                first = convService.getNextQuestion(sessionId);
-            }
-        } else {
-            // 레거시 모드
-            first = convService.getNextQuestion(sessionId);
-        }
-        
-        if (first != null) {
-            // DB 저장(QUESTION 메시지)도 여기서 해주면 추적이 명확해집니다.
-            convService.createMessage(
-                    ConversationMessageRequest.builder()
-                            .sessionId(sessionId)
-                            .messageType(MessageType.QUESTION)
-                            .content(first)
-                            .build()
-            );
-            
-            // QuestionResponse 생성 (챕터 정보 포함)
-            QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
-                    .text(first);
-            
-            if (firstQuestion != null) {
-                responseBuilder
-                        .currentChapter(firstQuestion.getCurrentChapterName())
-                        .currentStage(firstQuestion.getCurrentStageName())
-                        .questionType(firstQuestion.getQuestionType())
-                        .overallProgress(firstQuestion.getOverallProgress())
-                        .chapterProgress(firstQuestion.getChapterProgress())
-                        .isLastQuestion(firstQuestion.isLastQuestion());
-            }
-            
-            sseService.pushQuestion(sessionId, responseBuilder.build());
-        }
+    @PostMapping("{bookId}/episodes/{episodeId}/sessions")
+    public ResponseEntity<ApiResponse<Map<String, String>>> startConversation(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            @PathVariable Long episodeId,
+            HttpServletRequest httpRequest) {
+        Long memberId = userDetails.getMemberId();
+        String sessionId = conversationService.startNewConversation(memberId, bookId, episodeId);
+        Map<String, String> response = Map.of("sessionId", sessionId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "새로운 대화 세션이 생성되었습니다.", response, httpRequest.getRequestURI()));
+    }
 
-        return emitter;
+    /**
+     * 지정된 세션에 대한 SSE 스트림을 "연결"하고 대화를 시작/재개합니다.
+     * @param sessionId 대화 세션 ID
+     * @return SseEmitter 객체
+     */
+    @GetMapping(value = "{bookId}/{sessionId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(@PathVariable String sessionId, @PathVariable Long bookId) {
+        return conversationService.establishConversationStream(sessionId, bookId);
     }
 
     /**
      * 세션 업데이트
      */
     @PutMapping("/session")
+
     public ResponseEntity<ConversationSessionResponse> updateSession(
             @Valid @RequestBody ConversationSessionUpdateRequest req) {
-        return ResponseEntity.ok(convService.updateSession(req));
+        return ResponseEntity.ok(conversationService.updateSession(req));
     }
 
     /**
@@ -119,16 +94,7 @@ public class ConversationController {
     @GetMapping("/session/{sessionId}")
     public ResponseEntity<ConversationSessionResponse> getSession(
             @PathVariable String sessionId) {
-        return ResponseEntity.ok(convService.getSession(sessionId));
-    }
-
-    /**
-     * 메시지 생성
-     */
-    @PostMapping("/message")
-    public ResponseEntity<ConversationMessageResponse> createMessage(
-            @Valid @RequestBody ConversationMessageRequest req) {
-        return ResponseEntity.ok(convService.createMessage(req));
+        return ResponseEntity.ok(conversationService.getSession(sessionId));
     }
 
     /**
@@ -137,7 +103,7 @@ public class ConversationController {
     @PutMapping("/message")
     public ResponseEntity<ConversationMessageResponse> updateMessage(
             @Valid @RequestBody ConversationMessageUpdateRequest req) {
-        return ResponseEntity.ok(convService.updateMessage(req));
+        return ResponseEntity.ok(conversationService.updateMessage(req));
     }
 
     /**
@@ -146,44 +112,57 @@ public class ConversationController {
     @GetMapping("/{sessionId}/history")
     public ResponseEntity<List<ConversationMessageResponse>> getHistory(
             @PathVariable String sessionId) {
-        return ResponseEntity.ok(convService.getHistory(sessionId));
+        return ResponseEntity.ok(conversationService.getHistory(sessionId));
     }
-    @PostMapping("/next")
-    public ResponseEntity<Void> nextQuestion(@RequestParam String sessionId) {
+
+    @PostMapping("{bookId}/episodes/{episodeId}/next")
+    public ResponseEntity<Void> nextQuestion(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            @PathVariable Long episodeId,
+            @RequestParam String sessionId
+    ) {
         // 1) 서비스에서 다음 질문 꺼내기 - 챕터 기반 모드 우선 시도
-        ConversationSession session = convService.getSessionEntity(sessionId);
+        ConversationSession session = conversationService.getSessionEntity(sessionId);
         NextQuestionDto nextQuestionDto = null;
         String next = null;
-        
+        Long memberId = userDetails.getMemberId();
+
         if (session != null && session.getCurrentChapterId() != null) {
             // 챕터 기반 모드
             try {
-                String lastAnswer = convService.getLastAnswer(sessionId);
-                nextQuestionDto = chapterBasedService.getNextQuestion(sessionId, lastAnswer);
+                String lastAnswer = conversationService.getLastAnswer(sessionId);
+                nextQuestionDto = conversationService.getNextQuestion(memberId, bookId, episodeId ,sessionId, lastAnswer);
+                if (nextQuestionDto == null) {
+                    log.info("서비스에서 모든 처리를 완료하고 null을 반환했습니다. 컨트롤러는 즉시 종료합니다. SessionId: {}", sessionId);
+                    return ResponseEntity.ok().build();
+                }
                 next = nextQuestionDto.getQuestionText();
+
             } catch (Exception e) {
                 // 오류시 레거시 모드로 fallback
-                next = convService.getNextQuestion(sessionId);
+                e.printStackTrace();
+                return ResponseEntity.internalServerError().build();
             }
         } else {
-            // 레거시 모드
-            next = convService.getNextQuestion(sessionId);
+            log.error("챕터 기반 대화가 시작되지 않은 세션입니다. SessionId: {}", sessionId);
+            return ResponseEntity.badRequest().build();
         }
-        
+
         if (next != null) {
             // 2) DB에 QUESTION 메시지 저장
-            convService.createMessage(
+            conversationService.createMessage(
                     ConversationMessageRequest.builder()
                             .sessionId(sessionId)
                             .messageType(MessageType.QUESTION)
                             .content(next)
                             .build()
             );
-            
+
             // 3) SSE로 클라이언트에 푸시 (챕터 정보 포함)
             QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
                     .text(next);
-            
+
             if (nextQuestionDto != null) {
                 responseBuilder
                         .currentChapter(nextQuestionDto.getCurrentChapterName())
@@ -193,9 +172,15 @@ public class ConversationController {
                         .chapterProgress(nextQuestionDto.getChapterProgress())
                         .isLastQuestion(nextQuestionDto.isLastQuestion());
             }
-            
+
             sseService.pushQuestion(sessionId, responseBuilder.build());
         }
         return ResponseEntity.ok().build();
+    }
+
+    private Integer computeEpisodeStartNo(String sessionId) {
+        // 세션 시작 시점에 포함할 구간 시작점: 현재 최대 messageNo + 1 (기록이 없으면 1)
+        Integer maxNo = conversationMessageRepository.findMaxMessageNo(sessionId);
+        return (maxNo == null) ? 1 : (maxNo + 1);
     }
 }

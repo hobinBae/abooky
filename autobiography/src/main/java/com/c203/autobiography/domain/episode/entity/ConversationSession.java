@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-@Builder
+@Builder(toBuilder = true)
 public class ConversationSession {
     @Id
     @Column(name = "session_id", length = 36)
@@ -68,6 +68,9 @@ public class ConversationSession {
 
     @Column(name = "last_message_at")
     private LocalDateTime lastMessageAt;
+
+    @Column(name = "episode_start_message_no")
+    private Integer episodeStartMessageNo;
 
     @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;

@@ -4,6 +4,12 @@ import com.c203.autobiography.domain.book.dto.*;
 import com.c203.autobiography.domain.book.entity.*;
 import com.c203.autobiography.domain.book.repository.*;
 import com.c203.autobiography.domain.book.util.BookSpecifications;
+import com.c203.autobiography.domain.communityBook.entity.CommunityBook;
+import com.c203.autobiography.domain.communityBook.entity.CommunityBookEpisode;
+import com.c203.autobiography.domain.communityBook.entity.CommunityBookTag;
+import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
+import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
+import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.entity.Episode;
@@ -46,6 +52,10 @@ public class BookServiceImpl implements BookService {
     private final BookLikeRepository bookLikeRepository;
     private final RatingRepository ratingRepository;
     private final MemberRatingSummaryRespository memberRatingSummaryRespository;
+    private final CommunityBookRepository communityBookRepository;
+    private final CommunityBookEpisodeRepository communityBookEpisodeRepository;
+    private final CommunityBookTagRepository communityBookTagRepository;
+    private final BookTagRepository bookTagRepository;
 
     @Override
     @Transactional
@@ -53,7 +63,7 @@ public class BookServiceImpl implements BookService {
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        BookCategory category = switch (request.getBookType()) {
+        BookCategory category = switch (request.getBookType( )) {
             case AUTO -> bookCategoryRepository
                     .findByCategoryName("자서전")
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
@@ -147,7 +157,7 @@ public class BookServiceImpl implements BookService {
 
         // 4) 태그 설정 (null/empty 스킵)
         if (tags != null && !tags.isEmpty()) {
-            book.getTags().clear();
+            book.clearTags();
             tags.stream().distinct().forEach(name -> {
                 Tag tag = tagRepository.findByTagName(name)
                         .orElseGet(() -> tagRepository.save(
@@ -400,4 +410,139 @@ public class BookServiceImpl implements BookService {
                 .build();
     }
 
+    @Transactional
+    @Override
+    public CommunityBookCreateResponse exportBookToCommunity(Long memberId, Long bookId) {
+        // 1. 원본 책 조회 및 권한 검증
+        Book originalBook = bookRepository.findById(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 2. 작성자 권한 검증
+        if (!originalBook.getMember().getMemberId().equals(memberId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
+        if (!originalBook.getCompleted()) {
+            throw new ApiException(ErrorCode.BOOK_NOT_COMPLETED);
+        }
+
+        // 원본 책 조회
+        CommunityBook communityBook = createCommunityBook(originalBook);
+
+        // Book → CommunityBook 복사
+        CommunityBook savedCommunityBook = communityBookRepository.save(communityBook);
+
+        // Episode → CommunityBookEpisode 복사
+        List<Episode> episodes = episodeRepository.findByBookBookIdOrderByEpisodeOrderAsc(bookId);
+        int copiedEpisodeCount = copyEpisodesToCommunity(episodes, savedCommunityBook);
+
+        // 태그 복사
+        Long communityBookId = savedCommunityBook.getCommunityBookId();
+        copyTagsToCommunityBookTags(originalBook, savedCommunityBook);
+
+        // 원본 책, 에피소드 삭제
+        originalBook.softDelete();
+
+        for (Episode episode : episodes) {
+            episode.softDelete();
+        }
+
+        // 배치로 저장하여 성능 최적화
+        episodeRepository.saveAll(episodes);
+
+        // 응답 생성
+        return CommunityBookCreateResponse.of(bookId, savedCommunityBook, copiedEpisodeCount);
+    }
+
+    /**
+     * Book 엔티티를 CommunityBook으로 복사
+     */
+    private CommunityBook createCommunityBook(Book originalBook) {
+        return CommunityBook.builder()
+                // 기본 정보 복사
+                .title(originalBook.getTitle())
+                .coverImageUrl(originalBook.getCoverImageUrl())
+                .summary(originalBook.getSummary())
+
+                // 관계 정보 복사
+                .member(originalBook.getMember())
+                .bookType(originalBook.getBookType())
+                .category(originalBook.getCategory())
+
+                // 상태 정보 복사
+                .completed(originalBook.getCompleted())
+
+                // 통계 정보 초기화
+                .likeCount(0)
+                .viewCount(0)
+                .averageRating(BigDecimal.ZERO)
+                .build();
+    }
+
+    /**
+     * Episode 리스트를 CommunityBookEpisode로 복사
+     */
+    private int copyEpisodesToCommunity(List<Episode> episodes, CommunityBook communityBook) {
+        // 책에 에피소드가 하나도 없는 경우
+        if (episodes.isEmpty()) {
+            throw new ApiException(ErrorCode.BOOK_HAS_NO_EPISODES);
+        }
+
+        List<CommunityBookEpisode> communityEpisodes = episodes.stream()
+                .map(episode -> createCommunityBookEpisode(episode, communityBook))
+                .toList();
+
+        System.out.println("community Episodes");
+        for(CommunityBookEpisode e : communityEpisodes){
+            System.out.println(e.toString());
+        }
+
+        // 배치로 저장 (성능 최적화)
+        List<CommunityBookEpisode> savedEpisodes = communityBookEpisodeRepository.saveAll(communityEpisodes);
+
+        return savedEpisodes.size();
+    }
+
+    /**
+     * Episode 엔티티를 CommunityBookEpisode로 복사
+     */
+    private CommunityBookEpisode createCommunityBookEpisode(Episode episode, CommunityBook communityBook) {
+        return CommunityBookEpisode.builder()
+                .communityBook(communityBook)
+                .title(episode.getTitle())
+                .episodeDate(episode.getEpisodeDate())
+                .episodeOrder(episode.getEpisodeOrder())
+                .content(episode.getContent())
+                .audioUrl(episode.getAudioUrl())
+                .build();
+    }
+
+    private int copyTagsToCommunityBookTags(Book originalBook, CommunityBook communityBook) {
+        try {
+            // 1. book_tags 테이블에서 book_id로 BookTag 목록 조회
+            List<BookTag> originalBookTags = bookTagRepository.findBookTagsByBookBookId(originalBook.getBookId());
+
+            if (originalBookTags.isEmpty()) {
+                log.debug("No tags found for book: {}", originalBook.getBookId());
+                return 0;
+            }
+
+            // 2. BookTag에서 Tag 엔티티들을 추출하여 CommunityBookTag 생성
+            List<CommunityBookTag> communityBookTags = originalBookTags.stream()
+                    .map(bookTag -> CommunityBookTag.of(communityBook, bookTag.getTag()))
+                    .collect(java.util.stream.Collectors.toList()); // Java 8 호환
+
+            // 3. community_book_tags 테이블에 저장
+            communityBookTagRepository.saveAll(communityBookTags);
+
+            log.debug("Copied {} tags for community book: {}",
+                    communityBookTags.size(), communityBook.getCommunityBookId());
+
+            return communityBookTags.size();
+        } catch (Exception e) {
+            log.error("Failed to copy tags for community book: {}",
+                    communityBook.getCommunityBookId(), e);
+            return 0;
+        }
+    }
 }

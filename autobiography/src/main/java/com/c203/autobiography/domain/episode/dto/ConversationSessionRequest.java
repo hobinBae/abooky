@@ -21,4 +21,7 @@ public class ConversationSessionRequest {
     @Schema(description = "연결할 에피소드 ID", example = "1001")
     private Long episodeId;
 
+    @Schema(description = "이번 에피소드 시작 messageNo(미지정 시 1로 초기화)", example = "1")
+    private Integer episodeStartMessageNo; // Optional
+
 }

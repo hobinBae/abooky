@@ -7,10 +7,11 @@ import com.c203.autobiography.domain.auth.dto.LoginRequest;
 import com.c203.autobiography.domain.auth.dto.ResetPasswordRequest;
 import com.c203.autobiography.domain.auth.service.AuthService;
 import com.c203.autobiography.domain.auth.service.EmailService;
-import com.c203.autobiography.domain.auth.dto.RefreshTokenRequest;
 import com.c203.autobiography.domain.auth.dto.SocialLoginRequest;
 import com.c203.autobiography.domain.member.dto.TokenResponse;
 import com.c203.autobiography.global.dto.ApiResponse;
+import com.c203.autobiography.global.exception.ApiException;
+import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import com.c203.autobiography.global.util.CookieUtil;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -29,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
+@Slf4j
 public class AuthController {
 
     private final AuthService authService;
@@ -67,14 +70,21 @@ public class AuthController {
     @PostMapping("/refresh-token")
     public ResponseEntity<ApiResponse<TokenResponse>> refresh(
             @CookieValue(value = CookieUtil.REFRESH_TOKEN_COOKIE, required = false) String rtCookie,
-            @RequestBody @Valid RefreshTokenRequest refreshTokenRequest,
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse
     ) {
-        String refreshToken = (rtCookie != null && !rtCookie.isBlank())
-                ? rtCookie
-                : (refreshTokenRequest != null ? refreshTokenRequest.getRefreshToken() : null);
-        TokenResponse token = authService.reissueToken(refreshToken, httpResponse);
+//        log.info("[refresh] hit. rtCookie param={}", rtCookie);
+//        if(httpRequest.getCookies() != null) {
+//            for (var c : httpRequest.getCookies()) {
+//                log.info("[refresh] req cookie {}={}", c.getName(), c.getValue());
+//            }
+//        } else {
+//            log.info("[refresh] req has NO cookies");
+//        }
+        if (rtCookie == null && rtCookie.isEmpty()) {
+            throw new ApiException(ErrorCode.INVALID_TOKEN);
+        }
+        TokenResponse token = authService.reissueToken(rtCookie, httpResponse);
         return ResponseEntity.ok(
                 ApiResponse.of(HttpStatus.OK, "토큰 재발급 성공", token, httpRequest.getRequestURI())
         );

@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -17,13 +19,16 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
  */
 @Service
 @Slf4j
+@EnableScheduling
 public class SseServiceImpl implements SseService {
 
     private final Map<String, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     @Override
     public void register(String sessionId, SseEmitter emitter) {
+        SseEmitter old = emitters.put(sessionId, emitter);
         emitters.put(sessionId, emitter);
+        if (old != null) { try { old.complete(); } catch (Exception ignored) {} }
         log.info("[SSE] Registered emitter for sessionId={}", sessionId);
     }
 
@@ -66,16 +71,23 @@ public class SseServiceImpl implements SseService {
             return;
         }
         try {
-            emitter.send(
-                    SseEmitter.event()
-                            .id(eventName + "-" + System.currentTimeMillis())
-                            .name(eventName)
-                            .data(payload, MediaType.APPLICATION_JSON)
-            );
+            synchronized (emitter) {          // 동기화
+                emitter.send(SseEmitter.event()
+                        .id(eventName + '-' + System.currentTimeMillis())
+                        .name(eventName)
+                        .data(payload, MediaType.APPLICATION_JSON));
+            }
             log.info("[SSE] Pushed event='{}' for sessionId={}", eventName, sessionId);
         } catch (IOException ex) {
-            log.error("[SSE] Failed to push event='{}' to sessionId={}'", eventName, sessionId, ex);
+            log.error("[SSE] send fail → remove {}", sessionId);
             remove(sessionId);
         }
+    }
+    @Scheduled(fixedRate = 15_000)
+    public void heartbeat() {
+        emitters.forEach((id, emitter) -> {
+            try { synchronized (emitter) { emitter.send(SseEmitter.event().comment("ping")); } }
+            catch (IOException ex) { remove(id); }
+        });
     }
 }
