@@ -30,4 +30,6 @@ public interface CommunityBookService {
     long getLikeCount(Long communityBookId);
 
     boolean toggleBookmark(Long communityBookId, Long memberId);
+
+    CommunityBookRatingResponse createRating(Long memberId, @Valid CommunityBookRatingRequest request);
 }

@@ -203,4 +203,19 @@ public class CommunityBookController {
                 .body(ApiResponse.of(HttpStatus.OK, message, null, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "커뮤니티 책 평점 생성", description = "커뮤니티 책에 평점을 생성합니다")
+    @PostMapping("/ratings")
+    public ResponseEntity<ApiResponse<CommunityBookRatingResponse>> createOrUpdateRating(
+            @Valid @RequestBody CommunityBookRatingRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest) {
+
+        Long memberId = userDetails.getMemberId();
+        CommunityBookRatingResponse response = communityBookService.createRating(memberId, request);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "평점이 등록되었습니다.", response, httpRequest.getRequestURI()));
+    }
+
+
 }
