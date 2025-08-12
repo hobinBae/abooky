@@ -10,9 +10,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class EpisodeCreateRequest {
+public class GroupEpisodeUpdateRequest {
     @NotBlank private String template;
     @NotBlank
     private String title;
     private Integer orderNo;
+    private String editedContent;
 }

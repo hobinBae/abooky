@@ -9,7 +9,7 @@ import lombok.*;
 @Builder
 @Entity
 @Table(name = "episode_guide_state", indexes = @Index(name = "idx_egs_episode_step", columnList="group_episode_id, step_no"))
-public class EpisodeGuideState {
+public class GroupEpisodeGuideState {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

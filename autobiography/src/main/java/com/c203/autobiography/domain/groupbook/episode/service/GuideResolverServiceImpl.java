@@ -1,8 +1,13 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
+import com.c203.autobiography.domain.groupbook.entity.GroupBook;
 import com.c203.autobiography.domain.groupbook.entity.GroupType;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisode;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
+
+@Service
 
 public class GuideResolverServiceImpl implements GuideResolverService{
     private final Map<String, List<GuideQuestion>> templates = new HashMap<>();
@@ -67,6 +72,19 @@ public class GuideResolverServiceImpl implements GuideResolverService{
             return new GuideQuestion("FALLBACK_1", "이 에피소드에서 가장 먼저 기록하고 싶은 이야기는 무엇인가요?");
         }
         return list.get(0);
+    }
+
+    @Override
+    public String solveFirst(GroupBook gb, String template) {
+        GuideQuestion firstQuestion = resolveFirst(gb.getGroupType(), template);
+        return firstQuestion.question();
+    }
+
+    @Override
+    public GuideQuestion questionForStep(GroupEpisode ep, int stepNo) {
+        // EpisodeGuideState에서 해당 step의 질문을 찾는 로직
+        // 현재는 간단히 구현
+        return new GuideQuestion("STEP_" + stepNo, "Step " + stepNo + " 질문");
     }
 
     @Override

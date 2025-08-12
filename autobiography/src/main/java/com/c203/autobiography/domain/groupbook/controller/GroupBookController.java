@@ -1,9 +1,10 @@
 package com.c203.autobiography.domain.groupbook.controller;
 
-import com.c203.autobiography.domain.episode.service.EpisodeService;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateRequest;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookResponse;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookUpdateRequest;
+import com.c203.autobiography.domain.groupbook.dto.GroupBookCompleteRequest;
+import com.c203.autobiography.domain.groupbook.episode.service.GroupEpisodeService;
 import com.c203.autobiography.domain.groupbook.service.GroupBookService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
@@ -28,7 +29,7 @@ import java.util.List;
 public class GroupBookController {
 
     private final GroupBookService groupBookService;
-    private final EpisodeService episodeService;
+    private final GroupEpisodeService episodeService;
 
     @Operation(summary = "그룹 책 생성", description = "그룹 책 정보 등록합니다.")
     @PostMapping
@@ -118,6 +119,5 @@ public class GroupBookController {
                 .body(ApiResponse.of(HttpStatus.NO_CONTENT, "그룹책 삭제 성공", null, httpRequest.getRequestURI()));
     }
 
-    // 에피소드 관련 API
 
 }

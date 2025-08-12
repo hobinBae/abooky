@@ -41,7 +41,7 @@ public class GroupBookCreateRequest {
 
 
     // 필요 시 서비스 계층에서 사용
-    public GroupBook toEntity(Member member, Group group, BookCategory category) {
+    public GroupBook toEntity(Member member, Group group, BookCategory category, String coverImageUrl) {
 
         GroupType resolvedType = (groupType != null) ? groupType : GroupType.OTHER;
 

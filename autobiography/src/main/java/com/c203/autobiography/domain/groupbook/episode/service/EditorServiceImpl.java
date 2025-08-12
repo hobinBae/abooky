@@ -1,8 +1,11 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
+import org.springframework.stereotype.Service;
+
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+@Service
 public class EditorServiceImpl implements EditorService {
     @Override
     public String polish(String rawAnswer, String priorContext) {

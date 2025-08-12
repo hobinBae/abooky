@@ -34,7 +34,7 @@ public class GroupBook {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "group_book_id")
-    private Long GroupBookId;
+    private Long groupBookId;
 
     @NotBlank
     @Size(max = 100)
@@ -119,8 +119,8 @@ public class GroupBook {
      * 태그 추가
      *
      */
-//    @OneToMany(mappedBy="group_book")
-//    private List<GroupBookTag> tags = new ArrayList<>();
+    @OneToMany(mappedBy="groupBook")
+    private List<GroupBookTag> tags = new ArrayList<>();
 
 
     // — 도메인 행위 메서드 —
@@ -174,18 +174,18 @@ public class GroupBook {
 //        this.completedAt = null;
 //    }
 
-//    /**
-//     * 태그를 추가합니다.
-//     */
-//    public void addTag(Tag tag) {
-//        BookTag link = GroupBookTag.of(this, tag);
-//        tags.add(link);
-//    }
-//    /**
-//     * 태그를 제거합니다.
-//     */
-//    public void removeTag(Tag tag) {
-//        tags.removeIf(link -> link.getTag().equals(tag));
-//    }
+    /**
+     * 태그를 추가합니다.
+     */
+    public void addTag(Tag tag) {
+        GroupBookTag link = GroupBookTag.of(this, tag);
+        tags.add(link);
+    }
+    /**
+     * 태그를 제거합니다.
+     */
+    public void removeTag(Tag tag) {
+        tags.removeIf(link -> link.getTag().equals(tag));
+    }
 
 }

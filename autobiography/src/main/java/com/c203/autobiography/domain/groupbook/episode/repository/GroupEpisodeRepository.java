@@ -6,5 +6,5 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface GroupEpisodeRepository extends JpaRepository<GroupEpisode, Long> {
-    List<GroupEpisode> findByGroupBook_IdOrderByOrderNoAscCreatedAtAsc(Long groupBookId);
+    List<GroupEpisode> findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(Long groupBookId);
 }
