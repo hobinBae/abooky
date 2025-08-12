@@ -170,4 +170,18 @@ public class CommunityBookController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.CREATED, message, null, httpRequest.getRequestURI()));
     }
+
+    @Operation(summary = "커뮤니티 북 좋아요 수 조회", description = "해당 커뮤니티 북의 총 좋아요 수를 조회합니다")
+    @GetMapping("/{communityBookId}/likes/count")
+    public ResponseEntity<ApiResponse<CommunityBookLikeCntResponse>> getLikeCount(
+            @Parameter(description = "커뮤니티 북 ID", required = true)
+            @PathVariable Long communityBookId,
+            HttpServletRequest httpRequest) {
+
+        long likeCount = communityBookService.getLikeCount(communityBookId);
+
+        CommunityBookLikeCntResponse response = CommunityBookLikeCntResponse.of(communityBookId, likeCount);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.CREATED, "커뮤니티 북 좋아요 수 조회 성공", response, httpRequest.getRequestURI()));
+    }
 }

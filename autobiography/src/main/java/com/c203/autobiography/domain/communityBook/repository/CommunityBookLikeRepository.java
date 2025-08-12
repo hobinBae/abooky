@@ -11,4 +11,6 @@ public interface CommunityBookLikeRepository extends JpaRepository<CommunityBook
     boolean existsByCommunityBookAndMember(CommunityBook communityBook, Member member);
 
     void deleteByCommunityBookAndMember(CommunityBook communityBook, Member member);
+
+    long countByCommunityBook(CommunityBook communityBook);
 }

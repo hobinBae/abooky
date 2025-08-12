@@ -26,4 +26,6 @@ public interface CommunityBookService {
     CommunityBookListResponse getMemberCommunityBooks(Long userId, Long memberId, Pageable pageable, Long categoryId, String bookType, String sortBy);
 
     boolean toggleLike(Long bookId, Long memberId);
+
+    long getLikeCount(Long communityBookId);
 }

@@ -461,4 +461,14 @@ public class CommunityBookServiceImpl implements CommunityBookService {
         }
     }
 
+    /**
+     * 커뮤니티 북 좋아요 수 조회
+     */
+    @Transactional(readOnly = true)
+    public long getLikeCount(Long communityBookId) {
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        return communityBookLikeRepository.countByCommunityBook(communityBook);
+    }
 }
