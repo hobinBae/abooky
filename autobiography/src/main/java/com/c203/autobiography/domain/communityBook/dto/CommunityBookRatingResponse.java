@@ -7,6 +7,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
+
 // 평점 응답 DTO
 @Getter
 @NoArgsConstructor
@@ -20,12 +22,12 @@ public class CommunityBookRatingResponse {
     private Long communityBookId;
 
     @Schema(description = "평점", example = "4")
-    private Integer score;
+    private BigDecimal score;
 
     /**
      * 팩토리 메서드
      */
-    public static CommunityBookRatingResponse of(Long communityBookId, Integer score) {
+    public static CommunityBookRatingResponse of(Long communityBookId, BigDecimal score) {
         return CommunityBookRatingResponse.builder()
                 .communityBookId(communityBookId)
                 .score(score)

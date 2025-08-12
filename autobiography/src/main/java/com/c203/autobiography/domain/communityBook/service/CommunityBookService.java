@@ -32,4 +32,6 @@ public interface CommunityBookService {
     boolean toggleBookmark(Long communityBookId, Long memberId);
 
     CommunityBookRatingResponse createRating(Long memberId, @Valid CommunityBookRatingRequest request);
+
+    CommunityBookRatingResponse getAverageRating(Long communityBookId);
 }

@@ -8,6 +8,7 @@ import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -34,7 +35,7 @@ public class CommunityBookRating {
     @Min(value = 1, message = "평점은 1점 이상이어야 합니다.")
     @Max(value = 5, message = "평점은 5점 이하여야 합니다.")
     @Column(name = "score", nullable = false)
-    private Integer score;
+    private BigDecimal score;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false, columnDefinition = "DATETIME DEFAULT CURRENT_TIMESTAMP")
@@ -47,7 +48,7 @@ public class CommunityBookRating {
     /**
      * 커뮤니티 책 평점 생성 팩토리 메서드
      */
-    public static CommunityBookRating of(CommunityBook communityBook, Member member, Integer score) {
+    public static CommunityBookRating of(CommunityBook communityBook, Member member, BigDecimal score) {
         return CommunityBookRating.builder()
                 .id(CommunityBookRatingId.of(communityBook.getCommunityBookId(), member.getMemberId()))
                 .communityBook(communityBook)

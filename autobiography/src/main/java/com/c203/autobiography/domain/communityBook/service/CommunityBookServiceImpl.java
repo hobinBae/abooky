@@ -547,4 +547,27 @@ public class CommunityBookServiceImpl implements CommunityBookService {
             communityBook.updateAverageRating(BigDecimal.valueOf(0.0));
         }
     }
+
+    /**
+     * 커뮤니티 책 평균 평점 조회
+     */
+    @Transactional(readOnly = true)
+    public CommunityBookRatingResponse getAverageRating(Long communityBookId) {
+        // 1. 커뮤니티 북 존재 여부 확인
+        CommunityBook communityBook = communityBookRepository.findByCommunityBookIdAndDeletedAtIsNull(communityBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 2. 평균 평점 조회
+        Optional<Double> averageRatingOpt = communityBookRatingRepository.findAverageRatingByCommunityBookId(communityBookId);
+
+        // 3. 총 평점 개수 조회
+        long totalCount = communityBookRatingRepository.countByCommunityBookId(communityBookId);
+
+        // 4. 평균 평점 계산 (평점이 없으면 0.0)
+        BigDecimal averageRating = averageRatingOpt
+                .map(rating -> BigDecimal.valueOf(rating).setScale(1, RoundingMode.HALF_UP))
+                .orElse(BigDecimal.valueOf(0.0));
+
+        return CommunityBookRatingResponse.of(communityBookId, averageRating);
+    }
 }
