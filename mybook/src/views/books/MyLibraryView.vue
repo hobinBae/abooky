@@ -9,15 +9,15 @@
           <div class="rep-book-shadow"></div>
           <div class="book-3d-wrapper" :style="repBookStyle">
             <div class="book-3d">
-              <div class="book-face front" :style="{ backgroundImage: `url(${currentRepBook.coverUrl})` }">
+              <div class="book-face front" :style="{ backgroundImage: `url(${currentRepBook.coverImageUrl})` }">
                 <div class="bright-edge-effect"></div>
                 <div class="book-title-overlay">
                   <div class="book-title">{{ currentRepBook.title }}</div>
                   <div class="book-author">{{ currentRepBook.authorName }}</div>
                 </div>
               </div>
-              <div class="book-face back" :style="{ backgroundImage: `url(${currentRepBook.coverUrl})` }"></div>
-              <div class="book-face left" :style="{ backgroundImage: `url(${currentRepBook.coverUrl})` }"></div>
+              <div class="book-face back" :style="{ backgroundImage: `url(${currentRepBook.coverImageUrl})` }"></div>
+              <div class="book-face left" :style="{ backgroundImage: `url(${currentRepBook.coverImageUrl})` }"></div>
               <div class="book-face right"></div>
               <div class="book-face top"></div>
               <div class="book-face bottom"></div>
@@ -67,14 +67,14 @@
           </div>
         </div>
         <div class="shelf-book-container my-books-container">
-          <draggable v-model="myBooks" item-key="id" :group="{ name: 'myBooksSource', pull: 'clone' }"
+          <draggable v-model="myBooks" item-key="bookId" :group="{ name: 'myBooksSource', pull: 'clone' }"
             class="shelf-book-list" tag="div">
             <template #item="{ element: book }">
               <div class="shelf-book-item-3d" @click="selectShelfBook(book)" :title="book.title">
                 <div class="shelf-book-model">
                   <div class="shelf-book-face shelf-book-cover"
-                    :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
-                    <img v-if="book.isPublished" src="/images/complete.png" alt="출판 완료"
+                    :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                    <img v-if="book.completed" src="/images/complete.png" alt="출판 완료"
                       class="published-sticker-shelf" />
                     <div class="shelf-bright-edge-effect"></div>
                     <div class="shelf-book-title-overlay">
@@ -82,13 +82,13 @@
                       <div class="shelf-book-author">{{ book.authorName }}</div>
                     </div>
                     <div class="post-it-container">
-                      <div v-for="groupIndex in bookGroupIndices[book.id]" :key="groupIndex" class="post-it">
+                      <div v-for="groupIndex in bookGroupIndices[book.bookId]" :key="groupIndex" class="post-it">
                         {{ toRoman(groupIndex + 1) }}
                       </div>
                     </div>
                   </div>
                   <div class="shelf-book-face shelf-book-spine"
-                    :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                    :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
                     <div class="spine-title-box">
                       <div class="spine-title">{{ book.title }}</div>
                     </div>
@@ -119,7 +119,7 @@
           </div>
           <div class="group-bookshelf-inner">
             <div class="shelf-book-container">
-              <draggable :list="group.books" item-key="id"
+              <draggable :list="group.books" item-key="bookId"
                 :group="{ name: 'groupBooksTarget', pull: true, put: ['myBooksSource'] }"
                 class="shelf-book-list group-shelf-horizontal" tag="div" @add="handleBookDrop($event, group.id)"
                 :disabled="editingGroupId !== null">
@@ -130,7 +130,7 @@
                       :class="{ 'editing': editingGroupId === group.id }">
                       <div class="shelf-book-model">
                         <div class="shelf-book-face shelf-book-cover"
-                          :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                          :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
                           <div class="shelf-bright-edge-effect"></div>
                           <div class="shelf-book-title-overlay">
                             <div class="shelf-book-title">{{ book.title }}</div>
@@ -138,7 +138,7 @@
                           </div>
                         </div>
                         <div class="shelf-book-face shelf-book-spine"
-                          :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                          :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
                           <div class="spine-title-box">
                             <div class="spine-title">{{ book.title }}</div>
                           </div>
@@ -150,7 +150,7 @@
                       </div>
                     </div>
 
-                    <button v-if="editingGroupId === group.id" @click.stop="removeBookFromGroup(group.id, book.id)"
+                    <button v-if="editingGroupId === group.id" @click.stop="removeBookFromGroup(group.id, book.bookId)"
                       class="remove-book-btn-spine" title="그룹에서 책 제거">
                       <i class="bi bi-trash"></i>
                     </button>
@@ -171,9 +171,9 @@
           <h2 class="modal-title">대표 인생책 선택</h2>
           <p class="modal-description">나의 대표 인생책을 한권 선택해주세요.</p>
           <div class="book-selection-list">
-            <label v-for="book in myBooks" :key="book.id" class="book-selection-item">
-              <input type="radio" :value="book.id" v-model="selectedRepBookId" name="rep-book" />
-              <img :src="book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'"
+            <label v-for="book in myBooks" :key="book.bookId" class="book-selection-item">
+              <input type="radio" :value="book.bookId" v-model="selectedRepBookId" name="rep-book" />
+              <img :src="book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'"
                 alt="Book Cover" class="book-cover-thumbnail" />
               <span class="book-title-radio">{{ book.title }}</span>
             </label>
@@ -203,32 +203,33 @@
 import { ref, computed, nextTick, onMounted } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
+import apiClient from '@/api';
+import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
+const authStore = useAuthStore();
 
 // --- Interfaces & Types ---
-interface Book { id: string; title: string; authorId: string; authorName?: string; coverUrl?: string; isPublished?: boolean; }
+interface Book {
+  bookId: string;
+  title: string;
+  memberId: string;
+  authorName?: string;
+  coverImageUrl?: string;
+  completed?: boolean;
+}
 interface Group { id: string; groupName: string; ownerId: string; managers: string[]; members: string[]; books: Book[]; createdAt: Date; }
 interface DraggableEvent { added?: { element: Book; newIndex: number }; }
 
 // --- Dummy Data ---
-const currentUserNickname = ref('김작가');
-const DUMMY_MY_BOOKS: Book[] = [
-  { id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974' },
-  { id: 'mybook2', title: '꿈을 향한 도전', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1484480974693-6ca0a78fb36b?w=500' },
-  { id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500' },
-  { id: 'mybook4', title: '개발자의 삶', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=500' },
-  { id: 'mybook5', title: '다섯번째 책', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=500' },
-  { id: 'mybook6', title: '여섯번째 책', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?w=500' },
-];
 const DUMMY_GROUPS: Group[] = [
-  { id: 'group1', groupName: '독서 토론 모임', ownerId: '김작가', managers: ['이영희'], members: ['김작가', '이영희', '박철수'], books: [{ id: 'mybook1', title: '나의 어린 시절 이야기', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1506894824902-72895a783ac0?w=500' }], createdAt: new Date() },
+  { id: 'group1', groupName: '독서 토론 모임', ownerId: '김작가', managers: ['이영희'], members: ['김작가', '이영희', '박철수'], books: [{ bookId: 'mybook1', title: '나의 어린 시절 이야기', memberId: 'dummyUser1', authorName: '김작가', coverImageUrl: 'https://images.unsplash.com/photo-1506894824902-72895a783ac0?w=500' }], createdAt: new Date() },
   { id: 'group2', groupName: '글쓰기 동호회', ownerId: '김작가', managers: [], members: ['김작가', '최수진'], books: [], createdAt: new Date() },
-  { id: 'group3', groupName: '여행 에세이 클럽', ownerId: '정민준', managers: [], members: ['정민준', '김작가', '하은지'], books: [{ id: 'mybook3', title: '여행의 기록', authorId: 'dummyUser1', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500' }], createdAt: new Date() },
+  { id: 'group3', groupName: '여행 에세이 클럽', ownerId: '정민준', managers: [], members: ['정민준', '김작가', '하은지'], books: [{ bookId: 'mybook3', title: '여행의 기록', memberId: 'dummyUser1', authorName: '김작가', coverImageUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500' }], createdAt: new Date() },
 ];
 
 // --- Reactive State ---
-const representativeBooks = ref<Book[]>([DUMMY_MY_BOOKS[0]]);
+const representativeBooks = ref<Book[]>([]);
 const myBooks = ref<Book[]>([]);
 const allGroups = ref<Group[]>(DUMMY_GROUPS);
 const isRepBookModalVisible = ref(false);
@@ -249,10 +250,10 @@ const repBookStyle = computed(() => ({ transform: `rotateY(${repBookRotationY.va
 const bookGroupIndices = computed(() => {
   const indices: { [bookId: string]: number[] } = {};
   myBooks.value.forEach(book => {
-    indices[book.id] = [];
+    indices[book.bookId] = [];
     allGroups.value.forEach((group, groupIndex) => {
-      if (group.books.some(b => b.id === book.id)) {
-        indices[book.id].push(groupIndex);
+      if (group.books.some(b => b.bookId === book.bookId)) {
+        indices[book.bookId].push(groupIndex);
       }
     });
   });
@@ -275,17 +276,22 @@ const displayedGroups = computed(() => {
 });
 
 // --- Functions ---
-function loadMyBooks() {
-  const publishedBooks = JSON.parse(localStorage.getItem('publishedBooks') || '[]') as Book[];
-  myBooks.value = DUMMY_MY_BOOKS.map(book => {
-    const publishedBook = publishedBooks.find(pb => pb.id === book.id);
-    return { ...book, isPublished: !!publishedBook };
-  });
+async function loadMyBooks() {
+  try {
+    const response = await apiClient.get('/api/v1/books');
+    myBooks.value = response.data.data;
+    // 임시로 첫번째 책을 대표책으로 설정
+    if (myBooks.value.length > 0) {
+      representativeBooks.value = [myBooks.value[0]];
+    }
+  } catch (error) {
+    console.error("내 책 목록을 불러오는데 실패했습니다:", error);
+  }
 }
 // 클릭 시 바로 상세 페이지로 이동하도록 변경
 function selectShelfBook(book: Book) {
   if (editingGroupId.value) return;
-  router.push(`/book-detail/${book.id}`);
+  router.push(`/book-detail/${book.bookId}`);
 }
 function closeAllModals() {
   isRepBookModalVisible.value = false;
@@ -311,7 +317,7 @@ async function handleBookDrop(event: DraggableEvent, groupId: string) {
 
   // vuedraggable이 책을 배열에 자동으로 추가한 후 이 함수가 호출됩니다.
   // 따라서 중복 여부를 확인하기 위해 배열에 해당 책 ID가 몇 번 나타나는지 셉니다.
-  const occurrences = group.books.filter(b => b.id === droppedBook.id).length;
+  const occurrences = group.books.filter(b => b.bookId === droppedBook.bookId).length;
 
   // 책을 배열에서 제거해야 할 때 사용할 함수입니다.
   const removeBook = () => {
@@ -342,20 +348,20 @@ async function handleBookDrop(event: DraggableEvent, groupId: string) {
 function removeBookFromGroup(groupId: string, bookId: string) {
   const group = allGroups.value.find(g => g.id === groupId);
   if (group) {
-    const book = group.books.find(b => b.id === bookId);
+    const book = group.books.find(b => b.bookId === bookId);
     if (book && confirm(`'${book.title}' 책을 '${group.groupName}' 그룹에서 제거하시겠습니까?`)) {
-      group.books = group.books.filter(b => b.id !== bookId);
+      group.books = group.books.filter(b => b.bookId !== bookId);
       showMessageBox(`책이 '${group.groupName}' 그룹에서 제거되었습니다.`);
     }
   }
 }
 function openRepBookModal() {
-  selectedRepBookId.value = representativeBooks.value.length > 0 ? representativeBooks.value[0].id : null;
+  selectedRepBookId.value = representativeBooks.value.length > 0 ? representativeBooks.value[0].bookId : null;
   isRepBookModalVisible.value = true;
 }
 function saveRepresentativeBookHandler() {
   if (selectedRepBookId.value) {
-    const selectedBook = myBooks.value.find(book => book.id === selectedRepBookId.value);
+    const selectedBook = myBooks.value.find(book => book.bookId === selectedRepBookId.value);
     if (selectedBook) {
       representativeBooks.value = [selectedBook];
       isRepBookModalVisible.value = false;
@@ -370,11 +376,11 @@ async function createGroupHandler() {
     return;
   }
 
-  const members = [currentUserNickname.value];
+  const members = [authStore.user?.nickname].filter(Boolean) as string[];
   const newGroup: Group = {
     id: `group${Date.now()}`,
     groupName: groupName,
-    ownerId: currentUserNickname.value,
+    ownerId: String(authStore.user?.memberId),
     managers: [],
     members: members,
     books: [],
@@ -399,8 +405,6 @@ function toggleGroupList() {
 function scrollToGroup(groupId: string) {
   const groupElement = document.getElementById(`group-shelf-${groupId}`);
   if (groupElement) {
-    groupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    isGroupToggleVisible.value = false; // 메뉴 닫기
   }
 }
 
@@ -615,7 +619,7 @@ onMounted(loadMyBooks);
   padding-top: 1rem;
   box-sizing: border-box;
   position: relative;
- 
+
 }
 
 /* [추가] 그림자 효과를 위한 가상 요소 */
@@ -1049,7 +1053,7 @@ onMounted(loadMyBooks);
   width: var(--shelf-book-width);
   height: var(--shelf-book-height);
   flex-shrink: 0; /* flex 컨테이너 내에서 크기가 줄어들지 않도록 방지 */
-  
+
 }
 
 .remove-book-btn-spine {

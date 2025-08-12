@@ -206,7 +206,8 @@ import { useAuthStore } from '@/stores/auth';
 
 // --- 인터페이스 정의 ---
 interface Story { id?: number; title: string; content: string; }
-interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; }
+interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; completed?: boolean; }
+interface ApiEpisode { episodeId: number; title: string; content: string; }
 
 // --- 정적 데이터 ---
 const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-person-badge' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-pen' },];
@@ -239,12 +240,20 @@ const tagInput = ref(''); // 현재 입력 중인 태그
 const tags = ref<string[]>([]); // 등록된 태그 목록
 const isSavedOrPublished = ref(false);
 
+//상태 추가
+const currentSessionId = ref<string | null>(null);
+// SSE EventSource 객체를 저장할 변수
+let eventSource: EventSource | null = null;
+
 // --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
 let audioContext: AudioContext | null = null;
 let analyser: AnalyserNode | null = null;
 let animationFrameId: number | null = null;
 let mediaStream: MediaStream | null = null;
+
+let audioChunks: Blob[] = [];
+let mediaRecorder: MediaRecorder | null = null;
 
 // --- 계산된 속성 ---
 const currentStory = computed(() => {
@@ -253,6 +262,7 @@ const currentStory = computed(() => {
   }
   return null;
 });
+
 
 // --- 함수 ---
 
@@ -311,23 +321,56 @@ async function moveToEditingStep() {
 // 단계 2: 편집
 async function startRecording() {
   if (isRecording.value) return;
-  isRecording.value = true;
-  await nextTick();
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    alert('음성 녹음이 지원되지 않는 브라우저입니다.');
-    isRecording.value = false;
-    return;
-  }
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    audioContext = new AudioContext();
-    analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(mediaStream);
-    source.connect(analyser);
-    analyser.fftSize = 256;
-    visualize();
+    isRecording.value = true;
+    audioChunks = []; // 새 녹음을 위해 청크 배열 초기화
+
+    // MediaRecorder 인스턴스 생성
+    mediaRecorder = new MediaRecorder(mediaStream);
+
+    // ondataavailable 이벤트 핸들러: 녹음 데이터 조각을 배열에 추가
+    mediaRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) {
+        audioChunks.push(event.data);
+      }
+    };
+
+    // onstop 이벤트 핸들러: 녹음이 중지되면, 모아둔 모든 조각을 합쳐 서버로 전송
+    mediaRecorder.onstop = async () => {
+      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
+
+      // // 유의미한 녹음인지 확인 (클라이언트 1차 방어)
+      // if (audioBlob.size < 1024) {
+      //   console.log('녹음된 오디오가 너무 짧아 전송하지 않습니다.');
+      //   return;
+      // }
+
+      const formData = new FormData();
+      formData.append('sessionId', currentSessionId.value!);
+      formData.append('chunkIndex', String(0));  // 이제 하나의 완성된 답변이므로 chunkIndex는 0
+      formData.append('audio', audioBlob, 'audio.webm');
+
+      try {
+        console.log('음성 답변 서버로 전송 시작...');
+        await apiClient.post('/api/v1/stt/chunk', formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+        console.log('음성 답변 전송 성공.');
+        // STT 결과는 partialTranscript 이벤트로 비동기적으로 수신됨
+        isContentChanged.value = true; // 답변이 완료되었음을 표시
+      } catch (error) {
+        console.error('음성 답변 전송 실패:', error);
+        alert('음성 답변 처리에 실패했습니다.');
+      }
+    };
+
+    // 녹음 시작
+    mediaRecorder.start();
+
   } catch (err) {
     console.error('마이크 접근 오류:', err);
     alert('마이크에 접근할 수 없습니다. 권한을 확인해주세요.');
@@ -336,22 +379,17 @@ async function startRecording() {
 }
 
 function stopRecording() {
-  if (!isRecording.value) return;
-  isRecording.value = false;
+  if (!isRecording.value || !mediaRecorder) return;
 
+  // 녹음 중지를 요청. 이 호출 이후 onstop 핸들러가 자동으로 실행됩니다.
+  mediaRecorder.stop();
+
+  // 미디어 스트림과 시각화 정리
+  isRecording.value = false;
   mediaStream?.getTracks().forEach(track => track.stop());
   mediaStream = null;
-
-  if (audioContext) {
-    audioContext.close();
-    audioContext = null;
-  }
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-  }
-  isContentChanged.value = true;
 }
+
 
 function visualize() {
   if (!analyser || !visualizerCanvas.value) return;
@@ -379,9 +417,36 @@ function visualize() {
   draw();
 }
 
+async function loadBookForEditing(bookId: string) {
+  try {
+    const response = await apiClient.get(`/api/v1/books/${bookId}`);
+    const bookData = response.data.data;
+    currentBook.value = {
+      id: bookData.bookId,
+      title: bookData.title,
+      summary: bookData.summary,
+      stories: bookData.episodes?.map((e: ApiEpisode) => ({ id: e.episodeId, title: e.title, content: e.content })) || [],
+      tags: bookData.tags || [],
+      categoryId: bookData.categoryId,
+      type: bookData.bookType.toLowerCase(),
+      completed: bookData.completed,
+    };
+    tags.value = bookData.tags || []; // [수정] 불러온 태그를 상태에 할당
+    selectedCategoryId.value = bookData.categoryId;
+    creationStep.value = 'editing';
+    if (currentBook.value.stories && currentBook.value.stories.length > 0) {
+      selectStory(0);
+    }
+  } catch (error) {
+    console.error('책 정보를 불러오는데 실패했습니다:', error);
+    alert('책 정보를 불러오는데 실패했습니다. 이전 페이지로 돌아갑니다.');
+    router.back();
+  }
+}
+
 function loadOrCreateBook(bookId: string | null) {
   if (bookId) {
-    // TODO: API를 통해 기존 책 데이터를 불러오는 로직 추가
+    loadBookForEditing(bookId);
   } else {
     creationStep.value = 'setup';
   }
@@ -416,13 +481,20 @@ async function addStory() {
   try {
     const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/episodes`);
     const newEpisode = response.data.data;
+
+    if (!currentBook.value.stories) {
+      currentBook.value.stories = [];
+    }
+
     const newStory: Story = {
       id: newEpisode.episodeId,
-      title: newEpisode.title || `${(currentBook.value.stories?.length || 0) + 1}번째 이야기`,
+      title: newEpisode.title || `${currentBook.value.stories.length + 1}번째 이야기`,
       content: newEpisode.content || ''
     };
-    currentBook.value.stories = [...(currentBook.value.stories || []), newStory];
-    currentStoryIndex.value = (currentBook.value.stories?.length || 1) - 1;
+
+    currentBook.value.stories.push(newStory);
+    currentStoryIndex.value = currentBook.value.stories.length - 1;
+
   } catch (error) {
     console.error('이야기 추가 오류:', error);
     alert('새로운 이야기를 추가하는데 실패했습니다.');
@@ -454,19 +526,165 @@ async function saveStory() {
   }
 }
 
-function startAiInterview() {
-  isInterviewStarted.value = true;
-  isContentChanged.value = false;
-  aiQuestion.value = '당신의 어린 시절, 가장 기억에 남는 장소는 어디인가요? 그곳에서의 특별한 경험을 이야기해주세요.';
+// 수정함
+async function startAiInterview() {
+  if (!currentBook.value?.id) {
+    alert('책 정보가 올바르지 않습니다.');
+    return;
+  }
+  if (!currentStory.value?.id) {
+    alert('먼저 이야기를 추가/선택해주세요.');
+    return;
+  }
+  try {
+    const res = await apiClient.post(
+      `/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value.id}/sessions`
+    );
+    currentSessionId.value = res.data.data.sessionId;
+
+    isInterviewStarted.value = true;
+    isContentChanged.value = false;
+
+    // (선택) 백엔드가 첫 질문을 즉시 생성/반환하지 않는다면 안내 문구 유지
+    aiQuestion.value = 'AI 인터뷰 세션에 연결 중... 첫 질문을 기다립니다.';
+
+    // 발급받은 sessionId로 SSE 스트림에 "연결"
+
+    connectToSseStream();
+  } catch (e) {
+    console.error('세션 시작 실패:', e);
+    alert('AI 인터뷰 세션 시작에 실패했습니다.');
+  }
 }
 
-function submitAnswerAndGetFollowUp() {
-  if (currentStory.value && currentStory.value.content.trim() !== '') {
-    aiQuestion.value = `AI가 당신의 답변에 대한 꼬리 질문을 생성했습니다: ${currentStory.value.content.substring(0, 20)}...에 대해 더 자세히 이야기해주세요.`;
-    alert('질문 답변이 완료되었고, 꼬리 질문을 받았습니다.');
+
+// ★ 추가: SSE 연결 및 이벤트 리스너 설정 함수
+function connectToSseStream() {
+  if (!currentSessionId.value) return;
+
+  // 기존 연결이 있다면 종료
+  if (eventSource) {
+    eventSource.close();
+  }
+
+  const url = `${apiClient.defaults.baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
+  eventSource = new EventSource(url, { withCredentials: true });
+
+  eventSource.onopen = () => {
+    console.log('SSE 연결 성공');
+  };
+
+  eventSource.addEventListener('question', (event) => {
+    const questionData = JSON.parse(event.data);
+    aiQuestion.value = questionData.text; // 질문 텍스트는 항상 업데이트
+
+    // TODO: setProgress(questionData) 와 같은 진행률 UI 업데이트 로직 호출
+
+    if (questionData.questionType === 'CHAPTER_COMPLETE') {
+      // [챕터 완료 시나리오]
+      console.log('챕터 완료 신호 수신');
+      append(questionData.text, 'system'); // 시스템 메시지로 안내
+      isInterviewStarted.value = false; // 현재 "이야기"에 대한 인터뷰는 종료됨
+      // 추가 답변 및 다음 질문 요청 버튼 비활성화
+      isContentChanged.value = false;
+
+    } else if (questionData.isLastQuestion) {
+      // [모든 대화 종료 시나리오]
+      console.log('모든 인터뷰 완료 신호 수신');
+      append(questionData.text, 'system');
+      isInterviewStarted.value = false;
+      isContentChanged.value = false;
+      // 필요하다면 모든 인터뷰 관련 버튼을 비활성화 할 수 있습니다.
+
+    } else {
+      // [일반 질문 시나리오]
+      append(questionData.text, 'ai');
+      // 다음 답변을 위해 상태 초기화
+      isContentChanged.value = false;
+      if (currentStory.value) currentStory.value.content = '';
+    }
+  });
+
+
+  // 2. ★★★ 버그 수정: 'partialTranscript' 이벤트 리스너 ★★★
+  eventSource.addEventListener('partialTranscript', (event) => {
+    const transcriptData = JSON.parse(event.data);
+    if (currentStory.value) {
+      // 서버에서 받은 음성 인식 결과를 content에 추가
+      currentStory.value.content += transcriptData.text + ' ';
+    }
+  });
+
+  // 'episode' 이벤트 리스너 (수정 완료)
+  eventSource.addEventListener('episode', (event) => {
+    const episodeData = JSON.parse(event.data);
+    append(`✅ AI가 이전 챕터의 대화를 바탕으로 '${episodeData.title}' 이야기의 초안을 작성했습니다. 내용을 확인하고 자유롭게 수정하세요.`, 'system');
+
+    if (currentBook.value && currentBook.value.stories) {
+
+      // 1. .find() 대신 .findIndex()를 사용하여 업데이트할 이야기의 "인덱스"를 찾습니다.
+      const storyIndexToUpdate = currentBook.value.stories.findIndex(story => story.id === episodeData.episodeId);
+
+      // 2. 일치하는 이야기가 있다면 (인덱스가 -1이 아니라면)
+      if (storyIndexToUpdate > -1) {
+
+        // 3. 기존 객체의 속성을 유지하면서, 새로운 제목과 내용으로 "새로운 객체"를 만듭니다.
+        const updatedStory = {
+          ...currentBook.value.stories[storyIndexToUpdate], // 기존 id 등 다른 속성 복사
+          title: episodeData.title,
+          content: episodeData.content
+        };
+
+        // 4. 배열의 해당 인덱스 위치를 새로운 객체로 "교체"합니다.
+        currentBook.value.stories[storyIndexToUpdate] = updatedStory;
+
+        // isContentChanged 플래그 업데이트 로직은 그대로 유지
+        if (currentStoryIndex.value === storyIndexToUpdate) {
+          isContentChanged.value = true;
+        }
+      }
+    }
+  });
+
+  eventSource.onerror = (error) => {
+    console.error('SSE 에러:', error);
+    aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다. 페이지를 새로고침 해주세요.';
+    eventSource?.close();
+  };
+}
+
+
+
+// 질문 답변 완료 버튼 클릭 시
+async function submitAnswerAndGetFollowUp() {
+  if (!isInterviewStarted.value || !currentSessionId.value) return;
+
+  // 텍스트로 답변한 경우, 해당 내용을 먼저 ANSWER 메시지로 저장
+  if (isContentChanged.value && currentStory.value) {
+    try {
+      await apiClient.post('/api/v1/messages', { // (가칭) 메시지 생성 API
+        sessionId: currentSessionId.value,
+        messageType: 'ANSWER',
+        content: currentStory.value.content
+      });
+    } catch (e) {
+      console.error('텍스트 답변 저장 실패:', e);
+    }
+  }
+
+  try {
+    console.log('다음 질문 요청...');
+    // "다음 질문"을 요청하는 API 호출
+    await apiClient.post(`/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value.id}/next?sessionId=${currentSessionId.value}`);
+
+    // 다음 질문은 SSE의 'question' 이벤트 리스너가 받아서 자동으로 화면에 표시합니다.
+
+    // 다음 질문을 위해 답변 내용 초기화 및 상태 변경
+    if (currentStory.value) currentStory.value.content = '';
     isContentChanged.value = false;
-  } else {
-    alert('답변 내용을 입력하거나 음성 녹음을 완료해주세요.');
+  } catch (error) {
+    console.error('다음 질문 요청 실패:', error);
+    alert('다음 질문을 가져오는데 실패했습니다.');
   }
 }
 
@@ -557,16 +775,7 @@ async function finalizePublication() {
   if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
 
   try {
-    const bookData = new FormData();
-    bookData.append('title', currentBook.value.title);
-    bookData.append('summary', currentBook.value.summary || '');
-    if (selectedCategoryId.value) {
-      bookData.append('categoryId', String(selectedCategoryId.value));
-    }
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-
+    // 1. 에피소드(이야기)들을 먼저 저장합니다.
     const savePromises = currentBook.value.stories?.map(story => {
       if (story.id) {
         return apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`, {
@@ -578,8 +787,28 @@ async function finalizePublication() {
     }) || [];
     await Promise.all(savePromises);
 
-    // 상태 배열에 저장된 태그를 사용
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
+    // 2. 책의 기본 정보(제목, 줄거리, 카테고리)를 업데이트하기 위한 데이터를 준비합니다.
+    const bookData = new FormData();
+    bookData.append('title', currentBook.value.title);
+    bookData.append('summary', currentBook.value.summary || '');
+    if (selectedCategoryId.value) {
+      bookData.append('categoryId', String(selectedCategoryId.value));
+    }
+
+    // 3. 이미 발행된 책을 수정하는 경우, 태그 정보를 기본 정보 업데이트 요청에 포함시킵니다.
+    if (currentBook.value.completed) {
+      tags.value.forEach(tag => bookData.append('tags', tag));
+    }
+
+    // 책의 기본 정보 (+태그)를 업데이트합니다.
+    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+
+    // 4. 최초로 책을 발행하는 경우에만 /complete 엔드포인트를 호출하여 발행을 완료하고 태그를 저장합니다.
+    if (!currentBook.value.completed) {
+      await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
+    }
 
     alert('책이 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
@@ -616,11 +845,29 @@ async function finalizePublicationAsCopy() {
     summary: currentBook.value.summary,
     categoryId: selectedCategoryId.value,
     episodes: episodesToCopy,
+    tags: tags.value, // 태그는 copy 요청에 포함
   };
 
   try {
+    // 1. 책 복사 API 호출
     const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/copy`, copyRequest);
     const newBook = response.data.data;
+
+    // 2. 복사된 책의 카테고리 업데이트
+    if (selectedCategoryId.value) {
+      const bookData = new FormData();
+      bookData.append('title', `${currentBook.value.title} - 복사본`);
+      bookData.append('summary', currentBook.value.summary || '');
+      bookData.append('categoryId', String(selectedCategoryId.value));
+
+      await apiClient.patch(`/api/v1/books/${newBook.bookId}`, bookData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+
+    // 3. 복사된 책을 complete 상태로 만들기
+    await apiClient.patch(`/api/v1/books/${newBook.bookId}/complete`, { tags: tags.value });
+
     alert('책이 복사본으로 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
     router.push(`/book-detail/${newBook.bookId}`);
@@ -659,11 +906,21 @@ onBeforeRouteLeave((to, from, next) => {
 
 onMounted(() => {
   const bookId = route.params.bookId as string | undefined;
-  loadOrCreateBook(bookId || null);
+  if (route.query.start_editing === 'true' && bookId) {
+    loadBookForEditing(bookId);
+  } else {
+    loadOrCreateBook(bookId || null);
+  }
   window.addEventListener('beforeunload', handleBeforeUnload);
 });
 
 onBeforeUnmount(() => {
+
+    if (eventSource) {
+    eventSource.close();
+    console.log('SSE 연결 종료');
+  }
+
   window.removeEventListener('beforeunload', handleBeforeUnload);
 
   if (creationStep.value !== 'setup' && !isSavedOrPublished.value && currentBook.value.id) {
