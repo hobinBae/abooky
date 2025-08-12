@@ -138,5 +138,46 @@ public class OpenAiClient implements AiClient {
         return analysis.isBlank() ? null : analysis;
     }
 
+    @Override
+    public String editText(String rawAnswer, String priorContext, String tone) {
+        ChatMessage system = ChatMessage.of("system", props.getTextEditSystem());
+
+        String userPrompt = buildEditPrompt(rawAnswer, priorContext, tone);
+        ChatMessage user = ChatMessage.of("user", userPrompt);
+
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model(props.getModel())
+                .messages(List.of(system, user))
+                .maxTokens(props.getMaxTokensEdit())
+                .temperature(props.getEditTemperature())
+                .build();
+
+        String editedText = openAiService.createChatCompletion(request)
+                .getChoices()
+                .get(0)
+                .getMessage()
+                .getContent()
+                .trim();
+
+        return editedText.isBlank() ? rawAnswer : editedText;
+    }
+
+    private String buildEditPrompt(String rawAnswer, String priorContext, String tone) {
+        StringBuilder prompt = new StringBuilder();
+
+        if(priorContext != null && !priorContext.isBlank()) {
+            prompt.append("이전 맥락:\n").append(priorContext).append("\n\n");
+        }
+        prompt.append("편집할 텍스트:\n").append(rawAnswer).append("\n\n");
+
+        switch(tone.toUpperCase()) {
+            case "FORMAL" -> prompt.append(props.getToneFormal());
+            case "CASUAL" -> prompt.append(props.getToneCasual());
+            case "EMOTIONAL" -> prompt.append(props.getToneEmotional());
+            default -> prompt.append(props.getTonePlain());
+        }
+        return prompt.toString();
+    }
+
 
 }
