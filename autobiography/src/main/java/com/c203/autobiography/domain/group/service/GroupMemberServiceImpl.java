@@ -67,7 +67,9 @@ public class GroupMemberServiceImpl implements GroupMemberService {
     @Override
     public List<GroupResponse> listMyGroups(Long memberId) {
         return groupMemberRepository.findByMemberIdAndDeletedAtIsNull(memberId).stream()
-                .map(gm -> GroupResponse.from(gm.getGroup()))
+                .map(GroupMember::getGroup)
+                .filter(group -> group.getDeletedAt() == null) // 그룹이 삭제된 경우도 제외해야함
+                .map(GroupResponse::from)
                 .collect(Collectors.toList());
     }
 }

@@ -9,6 +9,9 @@ import com.c203.autobiography.domain.group.service.GroupService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -38,6 +41,13 @@ public class GroupController {
     public ResponseEntity<ApiResponse<GroupResponse>> createGroup(
             @AuthenticationPrincipal CustomUserDetails currentUserId,
             @Valid @ModelAttribute GroupCreateRequest request,
+            @Parameter(
+                    description = "커버 이미지 파일",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_OCTET_STREAM_VALUE,
+                            schema = @Schema(type="string", format="binary")
+                    )
+            )
             @RequestPart(value = "file", required = false)MultipartFile file,
             HttpServletRequest httpRequest
             ) {
@@ -74,7 +84,7 @@ public class GroupController {
             @AuthenticationPrincipal CustomUserDetails currentUserId,
             @PathVariable Long groupId, HttpServletRequest httpRequest) {
         groupService.deleteGroup(currentUserId.getMemberId(), groupId);
-        return ResponseEntity.status(HttpStatus.NO_CONTENT)
+        return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.NO_CONTENT, "그룹 삭제가 완료되었습니다.", null, httpRequest.getRequestURI()));
     }
 
