@@ -1,6 +1,5 @@
 package com.c203.autobiography.domain.groupbook.repository;
 
-import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;

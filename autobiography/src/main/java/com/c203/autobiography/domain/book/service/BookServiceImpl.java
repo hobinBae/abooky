@@ -10,6 +10,15 @@ import com.c203.autobiography.domain.communityBook.entity.CommunityBookTag;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRepository;
+import com.c203.autobiography.domain.group.entity.Group;
+import com.c203.autobiography.domain.group.repository.GroupRepository;
+import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateResponse;
+import com.c203.autobiography.domain.groupbook.entity.GroupBook;
+import com.c203.autobiography.domain.groupbook.entity.GroupType;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisode;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeStatus;
+import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeRepository;
+import com.c203.autobiography.domain.groupbook.repository.GroupBookRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.entity.Episode;
@@ -24,8 +33,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Optional;
 
+import java.util.Set;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -43,6 +55,9 @@ import static com.c203.autobiography.domain.book.dto.BookType.FREE_FORM;
 @Transactional(readOnly = true)
 public class BookServiceImpl implements BookService {
 
+    @Value("${aws.s3.base-url}")
+    private String s3BaseUrl;
+
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
     private final BookCategoryRepository bookCategoryRepository;
@@ -56,6 +71,9 @@ public class BookServiceImpl implements BookService {
     private final CommunityBookEpisodeRepository communityBookEpisodeRepository;
     private final CommunityBookTagRepository communityBookTagRepository;
     private final BookTagRepository bookTagRepository;
+    private final GroupRepository groupRepository;
+    private final GroupBookRepository groupBookRepository;
+    private final GroupEpisodeRepository groupEpisodeRepository;
 
     @Override
     @Transactional
@@ -110,18 +128,57 @@ public class BookServiceImpl implements BookService {
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
         }
 
-        String newImageUrl = book.getCoverImageUrl();
+        String currentImageUrl = book.getCoverImageUrl();
+        String newImageUrl = currentImageUrl; // 기본값은 현재 이미지 URL
         if (file != null && !file.isEmpty()) {
-            String currentImageUrl = book.getCoverImageUrl();
-            if (currentImageUrl != null && !currentImageUrl.isBlank()) {
+
+            currentImageUrl = book.getCoverImageUrl();
+
+            if (isDeletableS3File(currentImageUrl)) {
                 fileStorageService.delete(currentImageUrl);
             }
 
             newImageUrl = fileStorageService.store(file, "book");
 
+        } else if (request.getCoverImageUrl() != null && !request.getCoverImageUrl().equals(currentImageUrl)) {
+            // [CASE 2] 새로운 파일 업로드는 없지만, 요청에 다른 이미지 URL(예: 다른 기본 이미지 선택)이 포함된 경우
+
+            // 기존 이미지가 S3에 업로드된 파일인 경우에만 삭제
+            if (isDeletableS3File(currentImageUrl)) {
+                fileStorageService.delete(currentImageUrl);
+            }
+            // 요청으로 받은 URL을 새 URL로 설정
+            newImageUrl = request.getCoverImageUrl();
         }
+
         book.updateBook(request.getTitle(), newImageUrl, request.getSummary(), category);
+
+        List<String> tagNames = request.getTags();
+        if (tagNames != null) {
+            // 1. 요청으로 들어온 태그 이름들을 Tag 엔티티 Set으로 변환
+            Set<Tag> newTags = tagNames.stream().distinct()
+                    .map(name -> tagRepository.findByTagName(name)
+                            .orElseGet(() -> tagRepository.save(Tag.builder().tagName(name).build()))
+                    ).collect(Collectors.toSet());
+
+            // 2. Book 엔티티의 동기화 메소드를 호출하여 한번에 업데이트
+            book.updateTags(newTags);
+        }
+
         return BookResponse.of(book);
+    }
+
+    private boolean isDeletableS3File(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+
+        // ★★★ 핵심 수정 사항 ★★★
+        // URL에 '/default_' 라는 문자열이 포함되어 있는지 확인하여 기본 이미지인지 판별합니다.
+        boolean isDefaultImage = url.contains("/default_");
+
+        // 삭제 가능한 파일의 조건: 우리 S3 URL로 시작하고, 기본 이미지는 아니어야 함.
+        return url.startsWith(s3BaseUrl) && !isDefaultImage;
     }
 
     @Override
@@ -155,18 +212,19 @@ public class BookServiceImpl implements BookService {
         // 3) 완료 처리
         book.markCompleted();
 
-        // 4) 태그 설정 (null/empty 스킵)
-        if (tags != null && !tags.isEmpty()) {
-            book.clearTags();
-            tags.stream().distinct().forEach(name -> {
-                Tag tag = tagRepository.findByTagName(name)
-                        .orElseGet(() -> tagRepository.save(
-                                Tag.builder().tagName(name).build()
-                        ));
-                book.addTag(tag);
-            });
+        // 2) ★★★ 태그 설정 로직 수정 ★★★
+        if (tags != null) { // 비어있는 리스트도 처리하기 위해 !tags.isEmpty() 조건 제거
+            // 2-1. 요청으로 들어온 태그 이름들을 Tag 엔티티 Set으로 변환
+            Set<Tag> newTags = tags.stream().distinct()
+                    .map(name -> tagRepository.findByTagName(name)
+                            .orElseGet(() -> tagRepository.save(Tag.builder().tagName(name).build()))
+                    ).collect(Collectors.toSet());
+
+            // 2-2. Book 엔티티의 동기화 메소드를 호출하여 한번에 업데이트
+            book.updateTags(newTags);
         }
 
+        // 3) DTO 변환을 위한 데이터 조회 (기존과 동일)
         List<EpisodeResponse> episodes = episodeRepository
                 .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId)
                 .stream()
@@ -177,7 +235,6 @@ public class BookServiceImpl implements BookService {
                 .map(bt -> bt.getTag().getTagName())
                 .toList();
 
-        // 6) DTO 변환
         return BookResponse.of(book, episodes, tagNames);
 
     }
@@ -307,14 +364,13 @@ public class BookServiceImpl implements BookService {
 
         Page<Book> page = bookRepository.findAll(spec, pageable);
 
-
         return page.map(book -> {
             List<String> tagNames = book.getTags().stream()
                     .map(bt -> bt.getTag().getTagName())
                     .toList();
             return BookResponse.of(book, List.of(), tagNames);
         });
-        }
+    }
 
     @Override
     @Transactional
@@ -327,13 +383,13 @@ public class BookServiceImpl implements BookService {
 
         boolean exists = bookLikeRepository.existsByBookAndMember(book, member);
 
-        if(!exists){
+        if (!exists) {
             BookLike like = BookLike.of(book, member);
             bookLikeRepository.save(like);
             book.incrementLike();
             return new LikeResponse(true, bookLikeRepository.countByBook(book));
 
-        }else{
+        } else {
             bookLikeRepository.deleteByBookAndMember(book, member);
             book.decrementLike();
             return new LikeResponse(false, bookLikeRepository.countByBook(book));
@@ -353,7 +409,10 @@ public class BookServiceImpl implements BookService {
         // upsert
         RatingId ratingId = new RatingId(bookId, memberId);
         Rating rating = ratingRepository.findById(ratingId)
-                .map(r -> { r.updateScore(request.getScore()); return r; })
+                .map(r -> {
+                    r.updateScore(request.getScore());
+                    return r;
+                })
                 .orElseGet(() -> Rating.create(book, member, request.getScore()));
         ratingRepository.save(rating);
 
@@ -493,7 +552,7 @@ public class BookServiceImpl implements BookService {
                 .toList();
 
         System.out.println("community Episodes");
-        for(CommunityBookEpisode e : communityEpisodes){
+        for (CommunityBookEpisode e : communityEpisodes) {
             System.out.println(e.toString());
         }
 
@@ -542,6 +601,112 @@ public class BookServiceImpl implements BookService {
         } catch (Exception e) {
             log.error("Failed to copy tags for community book: {}",
                     communityBook.getCommunityBookId(), e);
+            return 0;
+        }
+    }
+
+    @Transactional
+    @Override
+    public GroupBookCreateResponse exportBookToGroup(Long memberId, Long bookId, Long groupId) {
+        // 1. 원본 책 조회 및 권한 검증
+        Book originalBook = bookRepository.findById(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 2. 작성자 권한 검증
+        if (!originalBook.getMember().getMemberId().equals(memberId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
+        // 3. 완성된 책만 그룹책으로 변환 가능
+        if (!originalBook.getCompleted()) {
+            throw new ApiException(ErrorCode.BOOK_NOT_COMPLETED);
+        }
+
+        // 4. 그룹 존재 확인
+        Group group = groupRepository.findByGroupIdAndDeletedAtIsNull(groupId)
+                .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
+
+        // 5. GroupBook 생성
+        GroupBook groupBook = createGroupBook(originalBook, group);
+        GroupBook savedGroupBook = groupBookRepository.save(groupBook);
+
+        // 6. Episode → GroupEpisode 복사
+        List<Episode> episodes = episodeRepository.findByBookBookIdOrderByEpisodeOrderAsc(bookId);
+        copyEpisodesToGroup(episodes, savedGroupBook);
+
+        // 7. 태그 복사 (만약 GroupBookTag가 있다면)
+        copyTagsToGroupBookTags(originalBook, savedGroupBook);
+
+        // 8. 원본 책과 에피소드 소프트 삭제
+        originalBook.softDelete();
+        for (Episode episode : episodes) {
+            episode.softDelete();
+        }
+        episodeRepository.saveAll(episodes);
+
+        // 9. 응답 생성
+        return GroupBookCreateResponse.from(savedGroupBook, bookId, originalBook.getTitle());
+    }
+
+    /**
+     * Book 엔티티를 GroupBook으로 복사
+     */
+    private GroupBook createGroupBook(Book originalBook, Group group) {
+        return GroupBook.builder()
+                .member(originalBook.getMember())
+                .group(group)
+                .title(originalBook.getTitle())
+                .coverImageUrl(originalBook.getCoverImageUrl())
+                .summary(originalBook.getSummary())
+                .bookType(originalBook.getBookType())
+                .category(originalBook.getCategory())
+                .completed(originalBook.getCompleted())
+                .completedAt(originalBook.getCompletedAt())
+                .groupType(GroupType.OTHER)
+                .build();
+    }
+
+    /**
+     * Episode들을 GroupEpisode로 복사
+     */
+    private int copyEpisodesToGroup(List<Episode> episodes, GroupBook groupBook) {
+        if (episodes.isEmpty()) {
+            return 0;
+        }
+
+        try {
+            List<GroupEpisode> groupEpisodes = episodes.stream()
+                    .map(episode -> GroupEpisode.builder()
+                            .groupBook(groupBook)
+                            .title(episode.getTitle())
+                            .orderNo(episode.getEpisodeOrder())
+                            .status(GroupEpisodeStatus.COMPLETE)
+                            .rawNotes(episode.getContent())
+                            .editedContent(episode.getContent())
+                            .currentStep(0)
+                            .template("IMPORTED")
+                            .build())
+                    .collect(Collectors.toList());
+
+            groupEpisodeRepository.saveAll(groupEpisodes);
+            return groupEpisodes.size();
+        } catch (Exception e) {
+            log.error("Failed to copy episodes to group book: {}", groupBook.getGroupBookId(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * Book의 태그들을 GroupBook으로 복사 (향후 GroupBookTag 구현 시 사용)
+     */
+    private int copyTagsToGroupBookTags(Book originalBook, GroupBook groupBook) {
+        try {
+            // GroupBookTag 엔티티가 구현되면 여기에 태그 복사 로직 추가
+            // 현재는 GroupBookTag 엔티티가 없으므로 0 반환
+            log.debug("GroupBookTag entity not implemented yet for group book: {}", groupBook.getGroupBookId());
+            return 0;
+        } catch (Exception e) {
+            log.error("Failed to copy tags for group book: {}", groupBook.getGroupBookId(), e);
             return 0;
         }
     }

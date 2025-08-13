@@ -6,5 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface GroupEpisodeRepository extends JpaRepository<GroupEpisode, Long> {
+    List<GroupEpisode> findByGroupBook_GroupBookIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(Long groupBookId);
+    
+    // 기존 메서드도 유지 (하위 호환성)
     List<GroupEpisode> findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(Long groupBookId);
 }

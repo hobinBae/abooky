@@ -28,9 +28,6 @@ public class GroupEpisode {
     @Column(name ="title", nullable = false, length = 255)
     private String title;
 
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
-
     @Column(name = "order_no")
     private Integer orderNo;
 

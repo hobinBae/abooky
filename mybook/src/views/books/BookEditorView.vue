@@ -214,7 +214,7 @@ const categories = [
   { id: 10, name: '어린이/동화' }, { id: 11, name: '문화/예술' }, { id: 12, name: '종교' },
   { id: 13, name: '여행' }, { id: 14, name: '스포츠' }
 ];
-const coverOptions = ['https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=400', 'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=400', 'https://images.unsplash.com/photo-1495446815901-a7297e633e8d?q=80&w=400', 'https://images.unsplash.com/photo-1589998059171-988d887df646?q=80&w=400', 'https://images.unsplash.com/photo-1512820790803-83ca734da794?q=80&w=400',];
+const coverOptions = ['https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_1.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_2.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_3.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_4.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_5.jpg',];
 
 // --- 라우터 및 라우트 ---
 const router = useRouter();
@@ -231,7 +231,6 @@ const isInterviewStarted = ref(false);
 const isRecording = ref(false);
 const isContentChanged = ref(false);
 const correctedContent = ref<string | null>(null);
-const selectedCover = ref(coverOptions[0]);
 const tagInput = ref(''); // 현재 입력 중인 태그
 const tags = ref<string[]>([]); // 등록된 태그 목록
 const isSavedOrPublished = ref(false);
@@ -242,6 +241,9 @@ const currentSessionId = ref<string | null>(null);
 const currentAnswerMessageId = ref<number | null>(null);
 // SSE EventSource 객체를 저장할 변수
 let eventSource: EventSource | null = null;
+
+const selectedCover = ref(coverOptions[0]);
+const uploadedCoverFile = ref<File | null>(null);
 
 // --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
@@ -751,13 +753,19 @@ async function saveDraft() {
 
 function moveToPublishingStep() { creationStep.value = 'publishing'; }
 
-// 단계 3: 발행
+// handleCoverUpload 함수 수정
 function handleCoverUpload(event: Event) {
   const target = event.target as HTMLInputElement;
   if (target.files && target.files[0]) {
+    const file = target.files[0];
+    uploadedCoverFile.value = file; // ★★★ 파일 객체를 ref에 저장
+
     const reader = new FileReader();
-    reader.onload = (e) => { selectedCover.value = e.target?.result as string; };
-    reader.readAsDataURL(target.files[0]);
+    reader.onload = (e) => {
+      // 미리보기 이미지를 업데이트
+      selectedCover.value = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
     alert('표지가 첨부되었습니다.');
   }
 }
@@ -782,17 +790,16 @@ function removeTag(index: number) {
   tags.value.splice(index, 1);
 }
 
-
 async function finalizePublication() {
   if (!currentBook.value.id || !currentBook.value.title) {
     alert('책 정보가 올바르지 않습니다.');
     return;
   }
-
   if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
 
   try {
-    // 1. 에피소드(이야기)들을 먼저 저장합니다.
+    // 1. (선택사항) 에피소드 내용을 최종 저장합니다.
+    //    '임시 저장' 등에서 이미 저장이 되었다면 생략 가능하지만, 안전을 위해 수행하는 것이 좋습니다.
     const savePromises = currentBook.value.stories?.map(story => {
       if (story.id) {
         return apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`, {
@@ -804,28 +811,34 @@ async function finalizePublication() {
     }) || [];
     await Promise.all(savePromises);
 
-    // 2. 책의 기본 정보(제목, 줄거리, 카테고리)를 업데이트하기 위한 데이터를 준비합니다.
-    const bookData = new FormData();
-    bookData.append('title', currentBook.value.title);
-    bookData.append('summary', currentBook.value.summary || '');
+    // 2. 책 정보 수정을 위한 FormData 준비
+    const bookUpdateData = new FormData();
+    bookUpdateData.append('title', currentBook.value.title);
+    bookUpdateData.append('summary', currentBook.value.summary || '');
     if (selectedCategoryId.value) {
-      bookData.append('categoryId', String(selectedCategoryId.value));
+      bookUpdateData.append('categoryId', String(selectedCategoryId.value));
+    }
+    // 모든 태그를 FormData에 추가
+    tags.value.forEach(tag => bookUpdateData.append('tags', tag));
+
+    // 3. 표지 이미지 정보 추가
+    if (uploadedCoverFile.value) {
+      // 사용자가 직접 파일을 업로드한 경우
+      bookUpdateData.append('file', uploadedCoverFile.value);
+    } else {
+      // 기본 이미지를 선택한 경우, 해당 URL을 전송
+      bookUpdateData.append('coverImageUrl', selectedCover.value);
     }
 
-    // 3. 이미 발행된 책을 수정하는 경우, 태그 정보를 기본 정보 업데이트 요청에 포함시킵니다.
-    if (currentBook.value.completed) {
-      tags.value.forEach(tag => bookData.append('tags', tag));
-    }
-
-    // 책의 기본 정보 (+태그)를 업데이트합니다.
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
+    // 4. 책 정보(제목, 줄거리, 카테고리, 태그, 표지) 일괄 업데이트
+    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookUpdateData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
-    // 4. 최초로 책을 발행하는 경우에만 /complete 엔드포인트를 호출하여 발행을 완료하고 태그를 저장합니다.
-    if (!currentBook.value.completed) {
-      await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
-    }
+    // 5. 책을 '완성' 상태로 변경
+    // 이 API는 이제 상태 변경 역할만 하거나, 태그가 없는 경우를 위해 호출할 수 있습니다.
+    // 백엔드 수정이 잘 되었다면 태그는 위에서 이미 업데이트됩니다.
+    await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
 
     alert('책이 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;

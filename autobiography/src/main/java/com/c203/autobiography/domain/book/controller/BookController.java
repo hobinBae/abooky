@@ -5,6 +5,7 @@ import com.c203.autobiography.domain.book.service.BookService;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
 import com.c203.autobiography.domain.episode.service.EpisodeService;
+import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateResponse;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.dto.PageResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
@@ -261,6 +262,26 @@ public class BookController {
                 .body(ApiResponse.of(
                         HttpStatus.CREATED,
                         "책 커뮤니티 내보내기 성공",
+                        response,
+                        httpRequest.getRequestURI()
+                ));
+    }
+
+    @Operation(summary = "그룹책 생성", description = "개인 책을 그룹책으로 내보냅니다 (Book → GroupBook, Episode → GroupEpisode)")
+    @PostMapping("/{bookId}/export/group/{groupId}")
+    public ResponseEntity<ApiResponse<GroupBookCreateResponse>> exportBookToGroup(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @Parameter(description = "책 ID") @PathVariable Long bookId,
+            @Parameter(description = "그룹 ID") @PathVariable Long groupId,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = user.getMemberId();
+        GroupBookCreateResponse response = bookService.exportBookToGroup(memberId, bookId, groupId);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(
+                        HttpStatus.CREATED,
+                        "책 그룹 내보내기 성공",
                         response,
                         httpRequest.getRequestURI()
                 ));

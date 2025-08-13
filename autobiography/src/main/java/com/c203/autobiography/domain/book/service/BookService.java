@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.book.service;
 
 import com.c203.autobiography.domain.book.dto.*;
+import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,4 +32,6 @@ public interface BookService {
     BookRatingResponse getBookRating(Long memberId, Long bookId);
 
     CommunityBookCreateResponse exportBookToCommunity(Long memberId, Long bookId);
+
+    GroupBookCreateResponse exportBookToGroup(Long memberId, Long bookId, Long groupId);
 }
