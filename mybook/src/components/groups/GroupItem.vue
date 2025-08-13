@@ -10,7 +10,13 @@
       <i v-else class="bi bi-people-fill"></i>
     </div>
     <div class="group-info">
-      <h3>{{ group.groupName }}</h3>
+      <div class="group-name-section">
+        <h3>{{ group.groupName }}</h3>
+        <span v-if="isActive" class="active-badge">
+          <i class="bi bi-circle-fill"></i>
+          활성화
+        </span>
+      </div>
       <p v-if="group.description" class="group-description">{{ group.description }}</p>
       <div class="group-details">
         <span class="leader-info">
@@ -48,6 +54,7 @@ interface Group {
 interface Props {
   group: Group;
   currentUserId?: number;
+  isActive?: boolean;
 }
 
 const props = defineProps<Props>();
@@ -172,6 +179,34 @@ const formatDate = (dateString: string): string => {
 .owner-badge {
   background-color: #ffd700;
   color: #8b6914;
+}
+
+.group-name-section {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.group-name-section h3 {
+  margin: 0;
+}
+
+.active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.active-badge i {
+  font-size: 0.5rem;
+  color: #28a745;
 }
 
 .group-arrow {

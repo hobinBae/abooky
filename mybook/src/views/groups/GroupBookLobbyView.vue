@@ -9,14 +9,9 @@
       <section class="choice-section">
         <div class="choice-cards">
           <div class="choice-card" @click="openGroupModal">
-            <div class="card-icon"><i class="bi bi-house-door"></i></div>
-            <h3 class="card-title">그룹책 방 만들기</h3>
-            <p class="card-description">새로운 그룹 책을 시작하고 친구들을 초대해보세요.</p>
-          </div>
-          <div class="choice-card" @click="openJoinModal">
             <div class="card-icon"><i class="bi bi-door-open"></i></div>
-            <h3 class="card-title">그룹책 방 참여하기</h3>
-            <p class="card-description">활성화된 나의 그룹 책에 참여하여 함께 작성하세요.</p>
+            <h3 class="card-title">그룹책 방 입장하기</h3>
+            <p class="card-description">내가 속한 그룹에서 새로운 책을 만들거나 활성화된 방에 참여하세요.</p>
           </div>
           <div class="choice-card" @click="goToGroupCreate">
             <div class="card-icon"><i class="bi bi-people"></i></div>
@@ -55,6 +50,7 @@
           :key="group.groupId"
           :group="group"
           :current-user-id="currentUserId"
+          :is-active="isGroupActive(group.groupId)"
           @select="selectGroup"
         />
       </div>
@@ -174,7 +170,10 @@ const fetchAllActiveGroupBookSessions = async () => {
 // 모달 열기 함수들
 const openGroupModal = async () => {
   showGroupModal.value = true;
-  await fetchMyGroups();
+  await Promise.all([
+    fetchMyGroups(),
+    fetchAllActiveGroupBookSessions()
+  ]);
 };
 
 const openJoinModal = async () => {
@@ -254,33 +253,35 @@ const selectGroup = async (group: Group) => {
   console.log('선택된 그룹:', group);
   
   try {
-    // 먼저 활성화된 세션이 있는지 확인
-    await fetchAllActiveGroupBookSessions();
-    
-    const isGroupAlreadyActive = allActiveGroupBookSessions.value.some(
-      session => session.groupId === group.groupId
-    );
+    const isGroupAlreadyActive = isGroupActive(group.groupId);
     
     if (isGroupAlreadyActive) {
-      alert('이미 활성화된 그룹입니다. 그룹책 방 참여하기를 이용해주세요.');
-      closeGroupModal();
-      return;
+      // 활성화된 그룹인 경우 바로 참여
+      router.push({
+        path: '/group-book-creation',
+        query: { 
+          groupId: group.groupId.toString(), 
+          groupName: group.groupName,
+          mode: 'join'
+        }
+      });
+    } else {
+      // 비활성화된 그룹인 경우 새로 세션 시작
+      await groupService.startGroupBookSession(group.groupId, group.groupName);
+      
+      router.push({
+        path: '/group-book-creation',
+        query: { 
+          groupId: group.groupId.toString(), 
+          groupName: group.groupName 
+        }
+      });
     }
-    
-    // 그룹책 세션 시작
-    await groupService.startGroupBookSession(group.groupId, group.groupName);
-    
-    router.push({
-      path: '/group-book-creation',
-      query: { 
-        groupId: group.groupId.toString(), 
-        groupName: group.groupName 
-      }
-    });
     closeGroupModal();
   } catch (error) {
     console.error('라우터 네비게이션 오류:', error);
-    window.location.href = `/group-book-creation?groupId=${group.groupId}&groupName=${encodeURIComponent(group.groupName)}`;
+    const modeParam = isGroupActive(group.groupId) ? '&mode=join' : '';
+    window.location.href = `/group-book-creation?groupId=${group.groupId}&groupName=${encodeURIComponent(group.groupName)}${modeParam}`;
   }
 };
 
@@ -334,7 +335,12 @@ const handleCreateFromJoin = () => {
 };
 
 const goToGroupCreate = () => {
-  router.push({ path: '/book-editor', query: { mode: 'group' } });
+  router.push('/group-book-editor');
+};
+
+// 그룹이 활성화되어 있는지 확인하는 함수
+const isGroupActive = (groupId: number) => {
+  return allActiveGroupBookSessions.value.some(session => session.groupId === groupId);
 };
 
 // showJoinModal 변경 감지
@@ -422,7 +428,7 @@ onMounted(() => {
 
 .choice-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 350px)); /* 3개의 열, 각 열의 최대 너비 280px */
+  grid-template-columns: repeat(2, minmax(0, 350px)); /* 2개의 열, 각 열의 최대 너비 350px */
   gap: 2.5rem; /* 카드 사이 간격 조정 */
   justify-content: center; /* 카드들을 중앙에 정렬 */
 }
