@@ -2,9 +2,11 @@ package com.c203.autobiography.domain.groupbook.repository;
 
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
+import org.springframework.data.jdbc.repository.query.Query;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 

@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.groupbook.service;
 
 import com.c203.autobiography.domain.book.dto.*;
+import com.c203.autobiography.domain.groupbook.dto.GroupBookCommentDeleteResponse;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateRequest;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookResponse;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookUpdateRequest;
@@ -32,4 +33,6 @@ public interface GroupBookService {
 //    BookRatingResponse rateBook(Long memberId, Long bookId, BookRatingRequest request);
 //
 //    BookRatingResponse getBookRating(Long memberId, Long bookId);
+
+    GroupBookCommentDeleteResponse deleteGroupBookComment(Long groupBookId, Long groupBookCommentId, Long memberId);
 }
