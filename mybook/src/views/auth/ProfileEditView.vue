@@ -7,11 +7,14 @@
         <h2 class="section-title">프로필 정보</h2>
         <form @submit.prevent="updateProfileInfo" class="form-layout">
           <div class="profile-pic-section">
-            <img :src="profile.profilePicUrl || 'https://via.placeholder.com/150'" alt="Profile Picture" class="profile-pic">
+            <img :src="profile.profilePicUrl && profile.profilePicUrl.trim() ? profile.profilePicUrl : '/images/profile.png'" alt="Profile Picture" class="profile-pic">
             <div class="pic-actions">
               <input type="file" @change="onFileChange" ref="fileInput" hidden accept="image/*">
-              <button type="button" @click="triggerFileUpload" class="btn btn-secondary">사진 변경</button>
-              <p class="form-text">새로운 프로필 사진을 선택하세요.</p>
+              <div class="pic-button-group">
+                <button type="button" @click="triggerFileUpload" class="btn btn-secondary">사진 변경</button>
+                <button type="button" @click="resetProfilePic" class="btn btn-outline">사진 초기화</button>
+              </div>
+              <p class="form-text">새로운 프로필 사진을 선택하거나 기본 이미지로 초기화하세요.</p>
             </div>
           </div>
 
@@ -106,6 +109,15 @@ function onFileChange(event: Event) {
     const file = target.files[0];
     newProfilePic.value = file;
     profile.value.profilePicUrl = URL.createObjectURL(file);
+  }
+}
+
+function resetProfilePic() {
+  newProfilePic.value = null;
+  profile.value.profilePicUrl = '';
+  // 파일 입력 필드도 초기화
+  if (fileInput.value) {
+    fileInput.value.value = '';
   }
 }
 
@@ -291,8 +303,19 @@ onMounted(() => {
   border: 1px solid #dee2e6;
 }
 
-.pic-actions .btn {
+.pic-button-group {
+  display: flex;
+  gap: 0.75rem;
   margin-bottom: 0.5rem;
+}
+
+.pic-actions .btn {
+  margin-bottom: 0;
+  width: 100px; /* 고정 너비 */
+  padding: 0.8rem 0.5rem; /* 좌우 패딩 줄임 */
+  font-size: 1rem; /* 글자 크기 줄임 */
+  text-align: center;
+  white-space: nowrap;
 }
 
 .form-text {
@@ -337,7 +360,7 @@ textarea.form-control {
   padding: 0.8rem 1.25rem;
   font-size: 1.15rem;
   font-weight: 600;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
   border: 1px solid #333;
   transition: all 0.2s ease;
@@ -351,8 +374,9 @@ textarea.form-control {
   background-color: #6B8E23;
 }
 .btn-primary:hover:not(:disabled) {
-  background-color: #9CAF88;
-  border-color: #9CAF88;
+  background-color: #6B8E23;
+  border-color: #6B8E23;
+  opacity: 0.8;
 }
 .btn-primary:disabled {
   opacity: 0.5;
@@ -360,12 +384,23 @@ textarea.form-control {
 }
 
 .btn-secondary {
-  color: #333;
-  background-color: #fff;
-  border-color: #ccc;
+  color: #fff;
+  background-color: #B0BFA0;
+  border-color: #B0BFA0;
 }
 .btn-secondary:hover {
-  background-color: #f8f9fa;
+  background-color: #9CAF88;
+}
+
+.btn-outline {
+  color: #fff;
+  background-color: #bec4c8;
+  border-color: #bec4c8;
+}
+.btn-outline:hover {
+  color: #fff;
+  background-color: #AEB5BA;
+  border-color: #AEB5BA;
 }
 
 /* --- 구분선 --- */

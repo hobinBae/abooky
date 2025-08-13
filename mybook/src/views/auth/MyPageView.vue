@@ -10,9 +10,8 @@
       <section v-if="user" class="profile-section">
       <div class="profile-main-content">
         <div class="profile-left-section">
-          <img :src="user.profileImageUrl || '/images/profile.png'" alt="Profile Image"
+          <img :src="user.profileImageUrl && user.profileImageUrl.trim() ? user.profileImageUrl : '/images/profile.png'" alt="Profile Image"
             class="profile-pic">
-          <!-- <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" /> -->
           <div class="user-info">
             <h2 class="user-name">{{ user.name }}</h2>
             <p class="user-penname">@{{ user.nickname }}</p>
@@ -92,7 +91,7 @@
     <hr class="divider">
 
     <div class="account-actions">
-      <button @click="deleteAccount" class="btn-link-danger">회원 탈퇴</button>
+      <button @click="deleteAccount" class="btn-auth-danger">회원 탈퇴</button>
     </div>
   </div>
 </div>
@@ -443,22 +442,30 @@ onMounted(() => {
 
 .account-actions {
   text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #ccc;
 }
 
-.btn-link-danger {
-  background: none;
-  border: none;
-  color: #c92a2a;
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: 1.4rem;
-  line-height: 1.7;
+.btn-auth-danger {
+  display: inline-block;
+  border: 2px solid #c92a2a !important;
+  border-radius: 20px !important;
+  padding: 0.5rem 1.2rem !important;
+  font-size: 1.4rem !important;
+  white-space: nowrap;
   font-family: 'SCDream4', sans-serif;
-  white-space: pre-wrap;
+  transition: font-weight 0s, border 0s;
+  background: transparent;
+  color: #c92a2a;
+  cursor: pointer;
+  line-height: 1.7;
+  font-weight: normal;
 }
 
-.btn-link-danger:hover {
-  color: #e03131;
+.btn-auth-danger:hover {
+  font-weight: bold;
+  border: 3px solid #c92a2a !important;
 }
 
 /* --- 공통 스타일 --- */
