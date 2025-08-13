@@ -1,10 +1,12 @@
 <template>
   <div class="create-book-page">
     <section class="initial-choice-section">
-      <h2 class="section-title">그룹 책의 시작</h2>
-      <p class="section-subtitle1">가족, 친구, 연인과 함께,</p>
-      <p class="section-subtitle2">서로의 추억을 나누며,</p>
-      <p class="section-subtitle3">특별한 이야기를 만들어보세요.</p>
+      <h2 class="section-title">마음을 잇는 이야기</h2>
+      <p class="section-subtitle1">"모든 위대한 이야기는 누군가와 함께 시작됩니다"</p>
+      <p class="section-subtitle2">각자의 시선으로 바라본 같은 순간들이</p>
+      <p class="section-subtitle2">어떻게 다르고 또 같은지 발견하는 즐거움.</p>
+      <p class="section-subtitle3">함께 쓰는 책, 함께 만드는 추억</p>
+
 
       <section class="choice-section">
         <div class="choice-cards">
@@ -381,40 +383,34 @@ onMounted(() => {
 
 .section-title {
   font-family: 'SCDream3', serif;
-  font-size: 4rem;
+  font-size: 3.2rem;
   font-weight: 700;
   color: var(--primary-text-color);
-  margin-bottom: 0rem;
+  margin-bottom: 1rem;
   margin-left: 3rem;
   margin-right: auto;
+  letter-spacing: 0.2em;
 }
 
 .section-subtitle1 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.2rem;
   color: rgba(116, 125, 76, 0.9);
   margin-left: 3.5rem;
   margin-right: auto;
-  margin-bottom: -0.5rem;
+  margin-bottom: 1.5rem;
+  letter-spacing: 0.03em;
 }
 
 .section-subtitle2 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
-  color: rgba(141, 153, 109, 0.7);
+  font-size: 1.4rem;
+  color: rgba(61, 44, 32, 0.7);
   margin-left: 3.5rem;
   margin-right: auto;
-  margin-bottom: -0.5rem;
-
-}
-
-.section-subtitle3 {
-  font-family: 'SCDream4', serif;
-  font-size: 3rem;
-  color: rgba(147, 161, 89, 0.4);
-  margin-left: 3.5rem;
-  margin-right: auto;
-  margin-bottom: 5rem;
+  margin-bottom: 3rem;
+  line-height: 1.6;
+  letter-spacing: 0.02em;
 }
 
 .initial-choice-section {
