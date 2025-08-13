@@ -74,7 +74,8 @@
                 <div class="shelf-book-model">
                   <div class="shelf-book-face shelf-book-cover"
                     :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
-                    <img v-if="book.published" src="/images/complete.png" alt="출판 완료"
+                    <div v-if="book.isCommunityBook" class="community-sash">서점 속 이야기</div>
+                    <img v-if="book.isCommunityBook" src="/images/complete.png" alt="커뮤니티 책"
                       class="published-sticker-shelf" />
                     <div class="shelf-bright-edge-effect"></div>
                     <div class="shelf-book-title-overlay">
@@ -211,6 +212,7 @@ import { ref, computed, nextTick, onMounted } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
 import apiClient from '@/api';
+import { communityService, type CommunityBook } from '@/services/communityService';
 
 const router = useRouter();
 
@@ -224,6 +226,7 @@ interface Book {
   completed?: boolean;
   published?: boolean;
   isGroupBook?: boolean;
+  isCommunityBook?: boolean; // 커뮤니티 책 여부 플래그
   groupId?: string;
 }
 interface GroupResponse {
@@ -312,10 +315,28 @@ const displayedGroups = computed(() => {
 // --- Functions ---
 async function loadMyBooks() {
   try {
-    const response = await apiClient.get('/api/v1/books');
-    // 임시 저장된(완료되지 않은) 책을 제외하고, 완료된 책만 표시하도록 필터링
-    myBooks.value = response.data.data.filter((book: Book) => book.completed);
-    // 임시로 첫번째 책을 대표책으로 설정
+    const personalBooksPromise = apiClient.get('/api/v1/books');
+    const communityBooksPromise = communityService.getMyCommunityBooks({ size: 100 }); // 충분히 큰 사이즈로 모든 책을 가져옴
+
+    const [personalBooksResponse, communityBooksResponse] = await Promise.all([personalBooksPromise, communityBooksPromise]);
+
+    const personalBooks = personalBooksResponse.data.data
+      .filter((book: Book) => book.completed)
+      .map((book: Book) => ({ ...book, isCommunityBook: false, authorName: book.authorName }));
+
+    const communityBooks = communityBooksResponse.content.map((book: CommunityBook) => ({
+      bookId: String(book.communityBookId),
+      title: book.title,
+      memberId: String(book.memberId),
+      authorName: book.authorNickname,
+      coverImageUrl: book.coverImageUrl,
+      completed: true,
+      published: true,
+      isCommunityBook: true,
+    }));
+
+    myBooks.value = [...personalBooks, ...communityBooks];
+
     if (myBooks.value.length > 0) {
       representativeBooks.value = [myBooks.value[0]];
     }
@@ -374,7 +395,10 @@ function selectShelfBook(book: Book) {
   // isGroupBook 플래그를 확인하여 분기
   if (book.isGroupBook && book.groupId) {
     router.push(`/group-book-detail/${book.groupId}/${book.bookId}`);
-  } else {
+  } else if (book.isCommunityBook) {
+    router.push({ name: 'BookstoreBookDetail', params: { id: book.bookId } });
+  }
+  else {
     router.push(`/book-detail/${book.bookId}`);
   }
 }
@@ -1535,5 +1559,19 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.community-sash {
+  position: absolute;
+  top: 10px;
+  left: -35px;
+  background-color: #D4A373;
+  color: white;
+  padding: 5px 30px;
+  font-size: 12px;
+  font-weight: bold;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  z-index: 11;
 }
 </style>
