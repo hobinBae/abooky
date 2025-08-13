@@ -7,7 +7,12 @@
         <h2 class="section-title">프로필 정보</h2>
         <form @submit.prevent="updateProfileInfo" class="form-layout">
           <div class="profile-pic-section">
-            <img :src="profile.profilePicUrl && profile.profilePicUrl.trim() ? profile.profilePicUrl : '/images/profile.png'" alt="Profile Picture" class="profile-pic">
+            <img 
+              :src="getValidProfileImageUrl(profile.profilePicUrl)" 
+              alt="Profile Picture" 
+              class="profile-pic"
+              @error="handleImageError"
+            >
             <div class="pic-actions">
               <input type="file" @change="onFileChange" ref="fileInput" hidden accept="image/*">
               <div class="pic-button-group">
@@ -91,11 +96,56 @@ const isSaving = ref(false);
 const isChangingPassword = ref(false);
 
 // --- Functions ---
+
+// 유효한 프로필 이미지 URL 반환 (AWS default.png 제외)
+const getValidProfileImageUrl = (url: string | null | undefined): string => {
+  if (!url || !url.trim()) {
+    return '/images/profile.png';
+  }
+  
+  // AWS default.png URL 필터링
+  if (url.includes('default.png') || url.includes('/userProfile/default.png')) {
+    console.log('AWS default.png 감지, 로컬 이미지 사용');
+    return '/images/profile.png';
+  }
+  
+  return url;
+};
+
+// 이미지 로드 실패 시 SVG 아바타로 대체
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  console.error('프로필 편집 이미지 로드 실패:', img.src);
+  
+  if (img.src.includes('/images/profile.png') || img.src.includes('default.png')) {
+    img.src = createDefaultAvatar();
+  }
+};
+
+// SVG 기본 아바타 생성
+const createDefaultAvatar = (): string => {
+  const svg = `
+    <svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="75" cy="75" r="75" fill="#6F7D48"/>
+      <circle cx="75" cy="60" r="20" fill="#ffffff"/>
+      <ellipse cx="75" cy="110" rx="25" ry="20" fill="#ffffff"/>
+    </svg>
+  `;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+};
+
 function loadUserProfile() {
   if (authStore.user) {
     profile.value.nickname = authStore.user.nickname;
     profile.value.bio = authStore.user.intro || ''; // intro 필드가 없을 경우 대비
-    profile.value.profilePicUrl = authStore.user.profileImageUrl || '';
+    
+    // AWS default.png URL 필터링
+    const profileUrl = authStore.user.profileImageUrl;
+    if (profileUrl && !profileUrl.includes('default.png') && !profileUrl.includes('/userProfile/default.png')) {
+      profile.value.profilePicUrl = profileUrl;
+    } else {
+      profile.value.profilePicUrl = ''; // 빈 문자열로 설정하여 로컬 이미지 사용
+    }
   }
 }
 
@@ -114,7 +164,7 @@ function onFileChange(event: Event) {
 
 function resetProfilePic() {
   newProfilePic.value = null;
-  profile.value.profilePicUrl = '';
+  profile.value.profilePicUrl = ''; // 빈 문자열로 설정하여 기본 이미지 사용
   // 파일 입력 필드도 초기화
   if (fileInput.value) {
     fileInput.value.value = '';

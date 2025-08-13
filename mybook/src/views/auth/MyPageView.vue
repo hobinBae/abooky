@@ -10,8 +10,12 @@
       <section v-if="user" class="profile-section">
       <div class="profile-main-content">
         <div class="profile-left-section">
-          <img :src="user.profileImageUrl && user.profileImageUrl.trim() ? user.profileImageUrl : '/images/profile.png'" alt="Profile Image"
-            class="profile-pic">
+          <img 
+            :src="getValidProfileImageUrl(user.profileImageUrl)" 
+            alt="Profile Image"
+            class="profile-pic"
+            @error="handleImageError"
+          >
           <div class="user-info">
             <h2 class="user-name">{{ user.name }}</h2>
             <p class="user-penname">@{{ user.nickname }}</p>
@@ -156,6 +160,46 @@ const totalPages = computed(() => Math.ceil(myComments.value.length / commentsPe
 const goToPage = (page: number) => { currentPage.value = page; };
 const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
 const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
+
+// 유효한 프로필 이미지 URL 반환 (AWS default.png 제외)
+const getValidProfileImageUrl = (url: string | null | undefined): string => {
+  // URL이 없거나 빈 문자열인 경우
+  if (!url || !url.trim()) {
+    return '/images/profile.png';
+  }
+  
+  // AWS default.png URL인 경우 로컬 이미지 사용
+  if (url.includes('default.png') || url.includes('/userProfile/default.png')) {
+    console.log('AWS default.png 감지, 로컬 이미지 사용');
+    return '/images/profile.png';
+  }
+  
+  // 정상적인 사용자 업로드 이미지인 경우
+  return url;
+};
+
+// 이미지 로드 실패 시 SVG 아바타로 대체
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  console.error('이미지 로드 실패:', img.src);
+  
+  // 로컬 이미지도 실패한 경우 SVG 사용
+  if (img.src.includes('/images/profile.png') || img.src.includes('default.png')) {
+    img.src = createDefaultAvatar();
+  }
+};
+
+// SVG 기본 아바타 생성
+const createDefaultAvatar = (): string => {
+  const svg = `
+    <svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="75" cy="75" r="75" fill="#6F7D48"/>
+      <circle cx="75" cy="60" r="20" fill="#ffffff"/>
+      <ellipse cx="75" cy="110" rx="25" ry="20" fill="#ffffff"/>
+    </svg>
+  `;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+};
 
 // 헬퍼 함수
 const getBookTitle = (bookId: string) => {
