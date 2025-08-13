@@ -117,6 +117,19 @@ public class GroupBookController {
                 .body(ApiResponse.of(HttpStatus.NO_CONTENT, "그룹책 삭제 성공", null, httpRequest.getRequestURI()));
     }
 
+    @Operation(summary = "그룹 책 댓글 생성", description = "그룹 책에 대한 댓글을 생성합니다")
+    @PostMapping("/{groupBookId}/comments")
+    public ResponseEntity<ApiResponse<GroupBookCommentCreateResponse>> createGroupBookComment(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody GroupBookCommentCreateRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        GroupBookCommentCreateResponse response= groupBookService.createGroupBookComment(memberId, request);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹 책 댓글 생성 성공", response, httpRequest.getRequestURI()));
+    }
+
     @Operation(summary = "그룹 책 댓글 삭제", description = "그룹 책에 대한 댓글을 생성합니다")
     @DeleteMapping("/{groupBookId}/comments/{groupBookCommentId}")
     public ResponseEntity<ApiResponse<GroupBookCommentDeleteResponse>> deleteGroupBookComment(

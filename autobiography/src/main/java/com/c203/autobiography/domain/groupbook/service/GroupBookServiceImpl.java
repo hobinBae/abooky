@@ -7,10 +7,7 @@ import com.c203.autobiography.domain.book.repository.TagRepository;
 import com.c203.autobiography.domain.group.entity.Group;
 import com.c203.autobiography.domain.group.repository.GroupMemberRepository;
 import com.c203.autobiography.domain.group.repository.GroupRepository;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookCommentDeleteResponse;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateRequest;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookResponse;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookUpdateRequest;
+import com.c203.autobiography.domain.groupbook.dto.*;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
 import com.c203.autobiography.domain.groupbook.entity.GroupBookComment;
 import com.c203.autobiography.domain.groupbook.episode.dto.GroupEpisodeResponse;
@@ -250,6 +247,35 @@ public class GroupBookServiceImpl implements GroupBookService {
     public Page<GroupBookResponse> searchBooks(String title, Long categoryId, List<String> tags, Pageable pageable) {
         return null;
     }
+
+    @Transactional
+    @Override
+    public GroupBookCommentCreateResponse createGroupBookComment(Long memberId, GroupBookCommentCreateRequest request) {
+        // 1. 탈퇴한 회원인 경우
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 아예 존재하지 않는 책인 경우 (테이블 자체에 데이터가 없는 경우)
+        if (groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(request.getGroupBookId()).isEmpty()) {
+            throw new ApiException(ErrorCode.GROUP_BOOK_NOT_FOUND);
+        }
+
+        // 3. 커뮤니티 책이 존재하지 않는 경우
+        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(request.getGroupBookId())
+                .orElseThrow(() -> new ApiException(ErrorCode.GROUP_BOOK_ALREADY_DELETED));
+
+        // 댓글 엔티티 생성
+        GroupBookComment comment = GroupBookComment.builder()
+                .content(request.getContent())
+                .groupBook(groupBook)
+                .member(member)
+                .build();
+
+        // 댓글 저장
+        GroupBookComment savedComment = groupBookCommentRepository.save(comment);
+        return GroupBookCommentCreateResponse.of(savedComment);
+    }
+
     @Transactional
     @Override
     public GroupBookCommentDeleteResponse deleteGroupBookComment(Long groupBookId, Long groupBookCommentId, Long memberId) {

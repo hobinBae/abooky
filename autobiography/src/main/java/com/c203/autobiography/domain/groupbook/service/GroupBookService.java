@@ -1,10 +1,7 @@
 package com.c203.autobiography.domain.groupbook.service;
 
-import com.c203.autobiography.domain.book.dto.*;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookCommentDeleteResponse;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateRequest;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookResponse;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookUpdateRequest;
+import com.c203.autobiography.domain.groupbook.dto.*;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,6 +30,8 @@ public interface GroupBookService {
 //    BookRatingResponse rateBook(Long memberId, Long bookId, BookRatingRequest request);
 //
 //    BookRatingResponse getBookRating(Long memberId, Long bookId);
+
+    GroupBookCommentCreateResponse createGroupBookComment(Long memberId, @Valid GroupBookCommentCreateRequest request);
 
     GroupBookCommentDeleteResponse deleteGroupBookComment(Long groupBookId, Long groupBookCommentId, Long memberId);
 }
