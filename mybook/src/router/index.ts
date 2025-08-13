@@ -94,6 +94,12 @@ const mainRoutes: Array<RouteRecordRaw> = [
     component: () => import('../views/books/BookDetailView.vue')
   },
   {
+    path: '/bookstore/book/:id',
+    name: 'BookstoreBookDetail',
+    component: () => import('../views/books/BookstoreBookDetailView.vue'),
+    props: true
+  },
+  {
     path: '/group-book-detail/:groupId/:bookId',
     name: 'group-book-detail',
     component: () => import('../views/groups/GroupBookDetailView.vue'),

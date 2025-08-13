@@ -157,14 +157,14 @@ const hotspotCameraPositions: { [key: string]: any } = {
 watch(activeHotspot, (newVal) => {
   if (newVal) {
     nextTick(() => {
-      gsap.fromTo('.char', 
+      gsap.fromTo('.char',
         { opacity: 0, y: 20 },
-        { 
-          opacity: 1, 
+        {
+          opacity: 1,
           y: 0,
-          duration: 0.5, 
+          duration: 0.5,
           stagger: 0.08,
-          ease: 'power2.out' 
+          ease: 'power2.out'
         }
       );
     });
@@ -262,7 +262,7 @@ const navigate = (direction: 'left' | 'right') => {
   } else {
     nextIndex = (currentIndex - 1 + hotspots.length) % hotspots.length;
   }
-  
+
   const nextHotspotName = hotspots[nextIndex];
 
   // 1. 마당으로 돌아옵니다.
@@ -362,7 +362,7 @@ const goToPage = () => {
 
 .text-line.wipe-in-1 {
   font-size: 5rem;
-  
+
 }
 
 .text-line.wipe-in-2 {
@@ -465,7 +465,7 @@ const goToPage = () => {
   animation: rotate-loading 2s linear infinite;
   opacity: 0;
   transition: opacity 0.5s ease-in-out;
-  
+
 }
 
 .enter-button:hover {
@@ -577,7 +577,7 @@ const goToPage = () => {
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-}   
+}
 
 .nav-control.left .nav-arrow {
   margin-right: 1rem;
@@ -627,7 +627,7 @@ const goToPage = () => {
   .action-button-container {
     top: calc(20% + 12rem + 1.5rem);
   }
-  
+
   .hotspot-title-text {
     font-size: 4rem;
   }
@@ -637,7 +637,7 @@ const goToPage = () => {
   .action-button-container {
     top: calc(20% + 10rem + 1rem);
   }
-  
+
   .hotspot-title-text {
     font-size: 3.5rem;
   }
@@ -647,11 +647,11 @@ const goToPage = () => {
   .action-button-container {
     top: calc(20% + 8rem + 1rem);
   }
-  
+
   .hotspot-title-text {
     font-size: 3rem;
   }
-  
+
   .hotspot-title-container {
     top: 15%;
   }

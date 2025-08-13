@@ -12,23 +12,23 @@
       <div class="perspective-carousel-container">
         <div class="perspective-carousel" :style="carouselStyle" @mousedown.prevent="onMouseDown"
           @touchstart.prevent="onTouchStart">
-          <div v-for="(book, index) in topBooks" :key="book.id" class="carousel-item-3d"
-            :style="{ transform: get3DTransform(index) }" @click="goToBookDetail(book.id)">
+          <div v-for="(book, index) in topBooks" :key="book.communityBookId" class="carousel-item-3d"
+            :style="{ transform: get3DTransform(index) }" @click="goToBookDetail(book.communityBookId)">
             <div class="book-model">
               <div class="book-face book-cover"
-                :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
                 <div class="vertical-line-front-bright-effect"></div>
                 <div class="title-box">
                   <h1>{{ book.title }}</h1>
-                  <p class="author-in-box">{{ book.authorName }}</p>
+                  <p class="author-in-box">{{ book.authorNickname }}</p>
                 </div>
               </div>
               <div class="book-face book-spine"
-                :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
               </div>
               <div class="book-face book-side-edge"></div>
               <div class="book-face book-back-cover"
-                :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
                 <div class="barcode-placeholder"></div>
               </div>
             </div>
@@ -76,30 +76,28 @@
           찾으시는 책이 없습니다.
         </div>
         <div v-else class="book-list-container">
-          <div v-for="book in paginatedBooks" :key="book.id" class="book-list-item" @click="goToBookDetail(book.id)">
+          <div v-for="book in paginatedBooks" :key="book.communityBookId" class="book-list-item" @click="goToBookDetail(book.communityBookId)">
             <div class="book-cover-image"
-              :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+              :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
               <div class="list-title-box">
                 <p class="list-title-box-title">{{ book.title }}</p>
-                <p class="list-title-box-author">{{ book.authorName }}</p>
+                <p class="list-title-box-author">{{ book.authorNickname }}</p>
               </div>
             </div>
             <div class="book-details">
               <h5 class="book-title">{{ book.title }}</h5>
               <div class="author-info">
-                <span class="book-author">{{ book.authorName }}</span>
+                <span class="book-author">{{ book.authorNickname }}</span>
                 <span class="separator">·</span>
                 <span class="publish-date">{{ formatDate(book.createdAt) }}</span>
               </div>
               <p class="book-summary">{{ book.summary }}</p>
               <div class="book-meta-tags">
-                <span v-for="genre in book.genres" :key="genre" class="meta-tag genre-tag">{{ genre }}</span>
-                <span v-for="tag in book.tags" :key="tag" class="meta-tag user-tag">#{{ tag }}</span>
+                <span v-for="tag in book.tags" :key="tag.tagId" class="meta-tag user-tag">#{{ tag.tagName }}</span>
               </div>
               <div class="book-stats">
-                <span><i class="bi bi-eye"></i> {{ book.views }}</span>
-                <span><i class="bi bi-heart"></i> {{ book.likes }}</span>
-                <span><i class="bi bi-chat-dots"></i> {{ book.commentCount }}</span>
+                <span><i class="bi bi-eye"></i> {{ book.viewCount }}</span>
+                <span><i class="bi bi-heart"></i> {{ book.likeCount }}</span>
               </div>
             </div>
           </div>
@@ -124,151 +122,115 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-
-// --- Interfaces & Types ---
-interface Book {
-  id: string;
-  title: string;
-  authorId: string;
-  authorName?: string;
-  summary?: string;
-  coverUrl?: string;
-  genres?: string[];
-  tags?: string[];
-  views?: number;
-  likes?: number;
-  commentCount?: number;
-  createdAt: Date;
-}
-
-type SortOption = 'latest' | 'popular' | 'views';
+import { communityService, type CommunityBook, type SearchParams } from '@/services/communityService';
 
 // --- Router ---
 const router = useRouter();
 
-// --- Dummy Data ---
-const DUMMY_BOOKS: Book[] = [
-  { id: 'b1', title: '별 헤는 밤', authorId: 'author1', authorName: '윤동주', coverUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=500', views: 1200, likes: 250, commentCount: 45, summary: '어두운 밤하늘 아래 별들을 헤아리며 고향과 가족을 그리워하는 시인의 마음을 담은 아름다운 시집.', genres: ['자서전', '소설/시', '에세이'], tags: ['고향', '그리움', '밤하늘'], createdAt: new Date('2023-01-15') },
-  { id: 'b2', title: '어린 왕자', authorId: 'author2', authorName: '생텍쥐페리', coverUrl: 'https://images.unsplash.com/photo-1518621736915-f3b1c41bfd00?w=500', views: 3500, likes: 780, commentCount: 128, summary: '사막에 불시착한 조종사가 만난 어린 왕자와의 이야기를 통해 삶의 진정한 의미를 탐구하는 철학 동화.', genres: ['여행', '어린이/동화', '소설/시'], tags: ['사막', '장미', '여우', '관계'], createdAt: new Date('2022-11-01') },
-  { id: 'b3', title: '가족의 발견', authorId: 'author3', authorName: '김작가', coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500', views: 800, likes: 120, commentCount: 22, summary: '현대 사회에서 가족의 의미를 되새기고, 다양한 가족 형태의 아름다움을 조명하는 에세이.', genres: ['에세이', '사회/정치'], tags: ['가족', '공동체', '현대사회'], createdAt: new Date('2024-03-20') },
-  { id: 'b4', title: '취미로 시작하는 코딩', authorId: 'author4', authorName: '이개발', coverUrl: 'https://images.unsplash.com/photo-1550063873-ab792950096b?w=500', views: 1500, likes: 300, commentCount: 88, summary: '코딩을 처음 접하는 사람들을 위한 쉽고 재미있는 입문서. 다양한 프로젝트를 통해 코딩의 즐거움을 알려준다.', genres: ['자기계발'], tags: ['코딩', '입문', '프로그래밍'], createdAt: new Date('2023-09-10') },
-  { id: 'b5', title: '사랑의 온도', authorId: 'author5', authorName: '박사랑', coverUrl: 'https://images.unsplash.com/photo-1518717758536-85ae29035b6d?w=500', views: 2000, likes: 450, commentCount: 95, summary: '엇갈린 사랑과 인연 속에서 진정한 사랑의 의미를 찾아가는 연인들의 이야기. 감성적인 문체가 돋보인다.', genres: ['소설/시', '에세이'], tags: ['사랑', '연인', '감성글'], createdAt: new Date('2024-01-05') },
-  { id: 'b6', title: '스포츠 심리학 개론', authorId: 'author6', authorName: '최건강', coverUrl: 'https://images.unsplash.com/photo-1517649763962-0c623066013b?w=500', views: 950, likes: 180, commentCount: 15, summary: '운동선수들의 심리 상태와 경기력 향상을 위한 심리학적 접근을 다룬 전문 서적.', genres: ['스포츠', '사회/정치'], tags: ['운동선수', '멘탈관리'], createdAt: new Date('2023-05-22') },
-  { id: 'b7', title: '드래곤의 유산', authorId: 'author7', authorName: '김판타', coverUrl: 'https://images.unsplash.com/photo-1523586044048-b7d32d5da502?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8JUVEJThDJThDJUVDJUI2JUE5JUVCJUE1JTk4fGVufDB8fDB8fHww', views: 2500, likes: 600, commentCount: 250, summary: '고대 드래곤의 힘을 이어받은 주인공이 세상을 구하기 위해 모험을 떠나는 장대한 판타지 소설.', genres: ['소설/시', '청소년'], tags: ['판타지', '드래곤', '모험'], createdAt: new Date('2022-08-01') },
-  { id: 'b8', title: '우주 탐사대의 기록', authorId: 'author8', authorName: '이공상', coverUrl: 'https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=500', views: 1800, likes: 380, commentCount: 76, summary: '미지의 행성을 탐사하는 우주선 승무원들의 생존과 발견을 다룬 SF 소설. 과학적 상상력이 돋보인다.', genres: ['소설/시'], tags: ['SF', '우주탐사', '미래'], createdAt: new Date('2024-02-28') },
-  { id: 'b9', title: '조선 왕조 실록 이야기', authorId: 'author9', authorName: '정역사', coverUrl: 'https://images.unsplash.com/photo-1448523183439-d2ac62aca997?w=700&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nnx8JUVEJTk1JTlDJUVBJUI1JUFEfGVufDB8fDB8fHww', views: 1100, likes: 200, commentCount: 30, summary: '조선 왕조 500년 역사를 쉽고 재미있게 풀어낸 역사 교양서. 흥미로운 에피소드와 인물 중심의 서술.', genres: ['역사', '사회/정치'], tags: ['조선', '역사이야기', '실록'], createdAt: new Date('2023-07-07') },
-  { id: 'b10', title: '나는 오늘부터 성장한다', authorId: 'author10', authorName: '강성장', coverUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=500', views: 2200, likes: 550, commentCount: 110, summary: '작은 습관의 변화가 삶을 어떻게 바꾸는지 보여주는 자기계발서. 긍정적인 메시지와 실천적인 조언.', genres: ['자기계발'], tags: ['성공', '습관', '동기부여'], createdAt: new Date('2024-04-12') },
-];
-
 // --- Reactive State ---
-const publishedBooksRaw = JSON.parse(localStorage.getItem('publishedBooks') || '[]') as any[];
-const publishedBooks = publishedBooksRaw.map(book => ({
-  ...book,
-  createdAt: new Date(book.createdAt || book.publicationDate),
-})) as Book[];
-const allBooks = ref<Book[]>([...publishedBooks, ...DUMMY_BOOKS.filter(b => !publishedBooks.some(pb => pb.id === b.id))]);
+const allBooks = ref<CommunityBook[]>([]);
+const topBooks = ref<CommunityBook[]>([]);
 const searchTerm = ref('');
-const currentSortOption = ref<SortOption>('latest');
-const activeGenre = ref<string | null>(null);
-const likedBookIds = ref<Set<string>>(new Set(['b1', 'b3']));
-const genres = ['자서전', '여행', '스포츠', '소설/시', '에세이', '자기계발', '경제/경영', '사회/정치', '문화/예술', '역사', '종교', '청소년', '어린이/동화',];
+const currentSortOption = ref('recent'); // API 기본값
+const activeGenre = ref<string | null>(null); // 장르 필터는 아직 API에 없으므로 UI만 유지
+const genres = ['자서전', '여행', '스포츠', '소설/시', '에세이', '자기계발', '경제/경영', '사회/정치', '문화/예술', '역사', '종교', '청소년', '어린이/동화'];
 const currentPage = ref(1);
+const totalPages = ref(0);
 const itemsPerPage = 10;
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+
 const sortOptions = [
-  { value: 'latest', text: '최신순' },
-  { value: 'popular', text: '인기순' },
+  { value: 'recent', text: '최신순' },
+  { value: 'likes', text: '인기순' },
   { value: 'views', text: '조회순' },
 ];
 
+// --- API-driven Data Fetching ---
+const fetchBooks = async () => {
+  isLoading.value = true;
+  error.value = null;
+  try {
+    const params: SearchParams = {
+      page: currentPage.value - 1,
+      size: itemsPerPage,
+      sortBy: currentSortOption.value,
+    };
+
+    if (searchTerm.value) {
+        if (searchTerm.value.startsWith('#')) {
+            params.tags = [searchTerm.value.substring(1)];
+        } else {
+            params.title = searchTerm.value;
+        }
+    }
+
+    // 장르(categoryId)는 현재 UI만 있고 실제 API 파라미터와 매핑되지 않았으므로 주석 처리
+    // if (activeGenre.value) {
+    //   params.categoryId = ...
+    // }
+
+    const response = await communityService.searchCommunityBooks(params);
+    allBooks.value = response.content;
+    totalPages.value = response.totalPages;
+
+    // 인기순으로 topBooks 업데이트
+    if (topBooks.value.length === 0) {
+        const topResponse = await communityService.searchCommunityBooks({ page: 0, size: 10, sortBy: 'likes' });
+        topBooks.value = topResponse.content;
+    }
+
+  } catch (e) {
+    console.error('Failed to fetch books:', e);
+    error.value = '책을 불러오는 데 실패했습니다.';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// --- Watchers for Reactivity ---
+watch([searchTerm, currentSortOption, activeGenre, currentPage], fetchBooks, { deep: true });
+
+// --- Lifecycle Hooks ---
+onMounted(() => {
+  fetchBooks();
+  autoSlideInterval = window.setInterval(() => {
+    nextBook();
+  }, 3500);
+});
+
 // --- Computed Properties ---
-const topBooks = computed(() => {
-  return [...allBooks.value].sort((a, b) => (b.likes || 0) - (a.likes || 0)).slice(0, 10);
-});
-
-const filteredBooks = computed(() => {
-  const books = allBooks.value.filter(book => {
-    const search = searchTerm.value.toLowerCase();
-
-    const matchesGenres = !activeGenre.value || (book.genres && book.genres.includes(activeGenre.value));
-
-    let matchesSearch = true;
-    if (search) {
-      if (search.startsWith('#')) {
-        const tagToFind = search.substring(1);
-        matchesSearch = book.tags?.some(tag => tag.toLowerCase().includes(tagToFind)) ?? false;
-      } else {
-        const searchTarget = [
-          book.title,
-          book.authorName,
-          book.summary,
-          ...(book.genres || [])
-        ].join(' ').toLowerCase();
-        matchesSearch = searchTarget.includes(search);
-      }
-    }
-
-    return matchesSearch && matchesGenres;
-  });
-
-  return books.sort((a, b) => {
-    switch (currentSortOption.value) {
-      case 'popular': return (b.likes || 0) - (a.likes || 0);
-      case 'views': return (b.views || 0) - (a.views || 0);
-      case 'latest':
-      default:
-        return b.createdAt.getTime() - a.createdAt.getTime();
-    }
-  });
-});
-
-const totalPages = computed(() => {
-  return Math.ceil(filteredBooks.value.length / itemsPerPage);
-});
-
-const paginatedBooks = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return filteredBooks.value.slice(start, end);
-});
+// paginatedBooks는 이제 allBooks와 동일, API가 페이지네이션을 처리
+const paginatedBooks = computed(() => allBooks.value);
 
 const pagination = computed(() => {
   const pages = [];
-  const sideCount = 1; // 현재 페이지 양쪽에 표시할 페이지 수
+  const sideCount = 1;
   const total = totalPages.value;
   const current = currentPage.value;
 
   if (total <= 5) {
-    for (let i = 1; i <= total; i++) {
-      pages.push(i);
-    }
+    for (let i = 1; i <= total; i++) pages.push(i);
     return pages;
   }
 
   pages.push(1);
-
-  if (current > sideCount + 2) {
-    pages.push('...');
-  }
-
+  if (current > sideCount + 2) pages.push('...');
   for (let i = Math.max(2, current - sideCount); i <= Math.min(total - 1, current + sideCount); i++) {
     pages.push(i);
   }
-
-  if (current < total - sideCount - 1) {
-    pages.push('...');
-  }
-
+  if (current < total - sideCount - 1) pages.push('...');
   pages.push(total);
 
   return pages;
 });
 
-
 // --- Navigation ---
-const goToBookDetail = (bookId: string) => {
-  router.push({ name: 'book-detail', params: { id: bookId } });
+const goToBookDetail = (bookId: number) => {
+  // TODO: 라우트 이름 확인 필요
+  router.push({ name: 'BookstoreBookDetail', params: { id: bookId } });
 };
 
 // --- Carousel Logic ---
@@ -349,7 +311,8 @@ const changePage = (page: number) => {
   }
 };
 
-const formatDate = (date: Date) => {
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',
     month: '2-digit',
@@ -382,19 +345,7 @@ function toggleGenre(genre: string) {
   }
 }
 
-function isLiked(bookId: string) {
-  return likedBookIds.value.has(bookId);
-}
-
-function toggleLike(book: Book) {
-  if (isLiked(book.id)) {
-    likedBookIds.value.delete(book.id);
-    book.likes = (book.likes || 1) - 1;
-  } else {
-    likedBookIds.value.add(book.id);
-    book.likes = (book.likes || 0) + 1;
-  }
-}
+// 좋아요 기능은 상세 페이지에서 처리하므로 여기서는 제거
 </script>
 
 <style>
