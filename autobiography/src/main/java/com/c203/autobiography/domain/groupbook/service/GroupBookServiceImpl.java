@@ -171,7 +171,7 @@ public class GroupBookServiceImpl implements GroupBookService {
         }
 
         List<GroupEpisodeResponse> episodes = episodeRepository
-                .findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(bookId)
+                .findByGroupBook_GroupBookIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(bookId)
                 .stream()
                 .map(GroupEpisodeResponse::of)
                 .toList();
@@ -201,7 +201,7 @@ public class GroupBookServiceImpl implements GroupBookService {
 
         // 에피소드 목록 조회 + DTO 매핑
         List<GroupEpisodeResponse> episodes = episodeRepository
-                .findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(bookId)
+                .findByGroupBook_GroupBookIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(bookId)
                 .stream()
                 .map(GroupEpisodeResponse::of)
                 .toList();
@@ -223,7 +223,7 @@ public class GroupBookServiceImpl implements GroupBookService {
 
         boolean isMember = groupMemberRepository.findByGroupIdAndMemberIdAndDeletedAtIsNull(groupId, memberId)
                 .isPresent();
-        if (isMember) {
+        if (!isMember) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
 
@@ -231,7 +231,12 @@ public class GroupBookServiceImpl implements GroupBookService {
                 .findAllByGroupGroupIdAndDeletedAtIsNull(groupId)
                 .stream()
                 .map(groupBook -> {
-                        List<GroupEpisodeResponse> episodes = List.of();
+                        // 에피소드 목록 조회
+                        List<GroupEpisodeResponse> episodes = episodeRepository
+                                .findByGroupBook_GroupBookIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(groupBook.getGroupBookId())
+                                .stream()
+                                .map(GroupEpisodeResponse::of)
+                                .toList();
 
                         // 실제 붙어있는 태그 이름만 추출
                         List<String> tagNames = groupBook.getTags().stream()
