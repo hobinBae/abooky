@@ -35,6 +35,4 @@ public class OpenAiServiceImpl implements OpenAiService {
                 .bodyToMono(ChatCompletionResponse.class)
                 .block(Duration.ofSeconds(props.getRequestTimeoutSec()));
     }
-
-
 }

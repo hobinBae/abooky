@@ -33,11 +33,13 @@ import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
+import java.io.IOException;
 import java.util.UUID;
 
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Deque;
@@ -149,51 +151,110 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    public SseEmitter establishConversationStream(String sessionId, Long bookId) {
+    public void establishConversationStream(String sessionId, Long bookId, SseEmitter emitter) {
         // 1. 세션 존재 여부 확인 (없으면 예외 발생)
         ConversationSession session = getSessionEntity(sessionId);
 
-        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
         emitter.onTimeout(() -> sseService.remove(sessionId));
         emitter.onCompletion(() -> sseService.remove(sessionId));
         emitter.onError(e -> sseService.remove(sessionId));
         sseService.register(sessionId, emitter);
 
-        // 세션 상태를 확인하여 첫 연결인지 재연결인지 판단
-        if (session.getCurrentChapterId() == null) {
-            // [첫 연결 시나리오]
-            log.info("첫 연결입니다. 대화를 초기화합니다. SessionId: {}", sessionId);
+        processSseConnectionAsync(sessionId, bookId, emitter);
 
-            // 1. 대화 초기화 및 첫 질문 가져오기
-            NextQuestionDto firstQuestion = initializeSession(sessionId, bookId);
+//        // 세션 상태를 확인하여 첫 연결인지 재연결인지 판단
+//        if (session.getCurrentChapterId() == null) {
+//            // [첫 연결 시나리오]
+//            log.info("첫 연결입니다. 대화를 초기화합니다. SessionId: {}", sessionId);
+//
+//            // 1. 대화 초기화 및 첫 질문 가져오기
+//            NextQuestionDto firstQuestion = initializeSession(sessionId, bookId);
+//
+//            // 2. 첫 질문을 DB에 저장
+//            createMessage(
+//                    ConversationMessageRequest.builder()
+//                            .sessionId(sessionId)
+//                            .messageType(MessageType.QUESTION)
+//                            .content(firstQuestion.getQuestionText())
+//                            .build()
+//            );
+//            QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
+//                    .text(firstQuestion.getQuestionText());
+//            // 3. SSE 채널을 통해 "첫 질문"을 전송
+//            sseService.pushQuestion(sessionId, responseBuilder.build());
+//
+//        } else {
+//            // [재연결 시나리오]
+//            log.info("기존 대화에 재연결합니다. SessionId: {}", sessionId);
+//
+//            // 클라이언트가 대화를 이어갈 수 있도록 마지막 질문을 다시 보내줌
+//            String lastQuestion = getLastQuestion(sessionId);
+//            if (lastQuestion != null && !lastQuestion.isEmpty()) {
+//                // TODO: 마지막 질문에 대한 전체 DTO를 만들어서 보내주면 더 좋습니다.
+//                log.info("퀘스천리스판스 : {}",String.valueOf(QuestionResponse.builder().text(lastQuestion).build()));
+//                sseService.pushQuestion(sessionId, QuestionResponse.builder().text(lastQuestion).build());
+//            }
+//        }
 
-            // 2. 첫 질문을 DB에 저장
-            createMessage(
-                    ConversationMessageRequest.builder()
-                            .sessionId(sessionId)
-                            .messageType(MessageType.QUESTION)
-                            .content(firstQuestion.getQuestionText())
-                            .build()
-            );
-            QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
-                    .text(firstQuestion.getQuestionText());
-            // 3. SSE 채널을 통해 "첫 질문"을 전송
-            sseService.pushQuestion(sessionId, responseBuilder.build());
-
-        } else {
-            // [재연결 시나리오]
-            log.info("기존 대화에 재연결합니다. SessionId: {}", sessionId);
-
-            // 클라이언트가 대화를 이어갈 수 있도록 마지막 질문을 다시 보내줌
-            String lastQuestion = getLastQuestion(sessionId);
-            if (lastQuestion != null && !lastQuestion.isEmpty()) {
-                // TODO: 마지막 질문에 대한 전체 DTO를 만들어서 보내주면 더 좋습니다.
-                log.info("퀘스천리스판스 : {}",String.valueOf(QuestionResponse.builder().text(lastQuestion).build()));
-                sseService.pushQuestion(sessionId, QuestionResponse.builder().text(lastQuestion).build());
-            }
-        }
-        return emitter;
     }
+    @Async
+    public void processSseConnectionAsync(String sessionId, Long bookId, SseEmitter emitter) {
+        try {
+            ConversationSession session = getSessionEntity(sessionId); // 여기서는 트랜잭션 없이 단순 조회
+
+            if (session.getCurrentChapterId() == null) {
+                // 첫 연결 시나리오: DB 작업은 별도의 트랜잭션 메소드에서 수행
+                initializeAndPushFirstQuestion(sessionId, bookId);
+            } else {
+                // 재연결 시나리오: DB 작업은 별도의 트랜잭션 메소드에서 수행
+                pushLastQuestion(sessionId);
+            }
+        } catch (Exception e) {
+            log.error("SSE 비동기 처리 중 에러 발생, sessionId={}", sessionId, e);
+            try {
+                emitter.send(SseEmitter.event().name("error").data("대화 처리 중 오류 발생: " + e.getMessage()));
+            } catch (IOException ex) {
+                log.warn("SSE 에러 이벤트 전송 실패", ex);
+            }
+            emitter.completeWithError(e);
+        }
+    }
+    /**
+     * [신규] 첫 질문 생성 및 전송을 담당하는 트랜잭션 메소드
+     */
+    @Transactional
+    public void initializeAndPushFirstQuestion(String sessionId, Long bookId) {
+        log.info("첫 연결 대화 초기화 및 질문 전송. SessionId: {}", sessionId);
+        NextQuestionDto firstQuestion = initializeSession(sessionId, bookId);
+        createMessage(
+                ConversationMessageRequest.builder()
+                        .sessionId(sessionId)
+                        .messageType(MessageType.QUESTION)
+                        .content(firstQuestion.getQuestionText())
+                        .build()
+        );
+        // ... (QuestionResponse 빌드 및 sseService.pushQuestion 호출)
+        QuestionResponse response = QuestionResponse.builder()
+                .text(firstQuestion.getQuestionText())
+                .currentChapterName(firstQuestion.getCurrentChapterName())
+                // ... 등등
+                .build();
+        sseService.pushQuestion(sessionId, response);
+    }
+
+    /**
+     * [신규] 마지막 질문 전송을 담당하는 읽기 전용 트랜잭션 메소드
+     */
+    @Transactional(readOnly = true)
+    public void pushLastQuestion(String sessionId) {
+        log.info("기존 대화 재연결, 마지막 질문 전송. SessionId: {}", sessionId);
+        String lastQuestion = getLastQuestion(sessionId); // DB 조회
+        if (lastQuestion != null && !lastQuestion.isEmpty()) {
+            sseService.pushQuestion(sessionId, QuestionResponse.builder().text(lastQuestion).build());
+        }
+    }
+
+
 
     @Override
     @Transactional
@@ -293,7 +354,12 @@ public class ConversationServiceImpl implements ConversationService {
 
     @Override
     public String getLastQuestion(String sessionId) {
-        return lastQuestionMap.getOrDefault(sessionId, "");
+        // 세션 ID와 메시지 타입이 'QUESTION'인 메시지들 중에서
+        // messageNo가 가장 큰(가장 최신인) 메시지 1개를 찾아서 내용을 반환합니다.
+        return messageRepo
+                .findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
+                .map(ConversationMessage::getContent)
+                .orElse(null); // 마지막 질문이 없으면 null 반환
     }
 
     // ChapterBasedQuestion에서 가져온 코드
@@ -399,6 +465,13 @@ public class ConversationServiceImpl implements ConversationService {
         } catch (Exception ex) {
             log.warn("챕터 에피소드 생성 실패(다음 챕터 진행은 계속): {}", ex.getMessage());
         }
+
+        log.info("인터뷰 세션을 종료 처리합니다. SessionId: {}", session.getSessionId());
+        ConversationSession updatedSession = session.toBuilder()
+                .status(SessionStatus.CLOSE) // 상태를 CLOSED로 변경
+                .build();
+        sessionRepo.save(updatedSession);
+
 
         Chapter nextChapter = chapterRepo.findByChapterOrder(session.getCurrentChapterOrder() + 1)
                 .orElse(null);

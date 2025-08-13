@@ -6,12 +6,19 @@ import com.c203.autobiography.domain.groupbook.episode.dto.*;
 import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeGuideState;
 import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeStatus;
 import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisode;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeImage;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeImageId;
 import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeGuideStateRepository;
 import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeRepository;
+import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeImageRepository;
 import com.c203.autobiography.domain.groupbook.repository.GroupBookRepository;
+import com.c203.autobiography.global.exception.ApiException;
+import com.c203.autobiography.global.exception.ErrorCode;
+import com.c203.autobiography.global.s3.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,8 +32,10 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
     private final GroupBookRepository groupBookRepository;
     private final GroupEpisodeRepository episodeRepository;
     private final GroupEpisodeGuideStateRepository stateRepository;
+    private final GroupEpisodeImageRepository imageRepository;
     private final GuideResolverService guideResolver;
     private final EditorService editorService;
+    private final FileStorageService fileStorageService;
 
 
     @Override @Transactional
@@ -306,5 +315,93 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         }
 
         episode.softDelete();
+    }
+
+    // ======== 이미지 관련 메서드 ========
+
+    @Override
+    @Transactional
+    public GroupEpisodeImageResponse uploadImage(Long groupId, Long groupBookId, Long episodeId, 
+                                               MultipartFile file, GroupEpisodeImageUploadRequest request, Long memberId) {
+        // 1. 그룹책 및 에피소드 존재 확인
+        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        
+        GroupEpisode episode = episodeRepository.findById(episodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+        
+        // 2. 에피소드가 해당 그룹책에 속하는지 확인
+        if (!episode.getGroupBook().getGroupBookId().equals(groupBookId)) {
+            throw new ApiException(ErrorCode.EPISODE_NOT_FOUND);
+        }
+        
+        // 3. 파일 업로드
+        String imageUrl = fileStorageService.store(file, "group-episode");
+        
+        // 4. 순서 번호 결정 (요청에 없으면 자동 부여)
+        Integer orderNo = request.getOrderNo();
+        if (orderNo == null) {
+            Integer maxOrder = imageRepository.findMaxOrderNoByGroupEpisodeId(episodeId);
+            orderNo = (maxOrder == null ? 0 : maxOrder) + 1;
+        }
+        
+        // 5. 이미지 ID 생성 (타임스탬프 기반)
+        Long imageId = System.currentTimeMillis();
+        
+        // 6. 이미지 엔티티 생성 및 저장
+        GroupEpisodeImage image = GroupEpisodeImage.create(
+                episode, imageId, imageUrl, orderNo, request.getDescription());
+        
+        GroupEpisodeImage savedImage = imageRepository.save(image);
+        
+        return GroupEpisodeImageResponse.from(savedImage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<GroupEpisodeImageResponse> getImages(Long groupId, Long groupBookId, Long episodeId, Long memberId) {
+        // 1. 그룹책 및 에피소드 존재 확인
+        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        
+        GroupEpisode episode = episodeRepository.findById(episodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+        
+        // 2. 에피소드가 해당 그룹책에 속하는지 확인
+        if (!episode.getGroupBook().getGroupBookId().equals(groupBookId)) {
+            throw new ApiException(ErrorCode.EPISODE_NOT_FOUND);
+        }
+        
+        // 3. 이미지 목록 조회
+        List<GroupEpisodeImage> images = imageRepository
+                .findByGroupEpisode_GroupEpisodeIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(episodeId);
+        
+        return images.stream()
+                .map(GroupEpisodeImageResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void deleteImage(Long groupId, Long groupBookId, Long episodeId, Long imageId, Long memberId) {
+        // 1. 그룹책 및 에피소드 존재 확인
+        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        
+        GroupEpisode episode = episodeRepository.findById(episodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+        
+        // 2. 에피소드가 해당 그룹책에 속하는지 확인
+        if (!episode.getGroupBook().getGroupBookId().equals(groupBookId)) {
+            throw new ApiException(ErrorCode.EPISODE_NOT_FOUND);
+        }
+        
+        // 3. 이미지 조회 및 삭제
+        GroupEpisodeImageId imageEntityId = GroupEpisodeImageId.of(episodeId, imageId);
+        GroupEpisodeImage image = imageRepository.findByIdAndDeletedAtIsNull(imageEntityId)
+                .orElseThrow(() -> new ApiException(ErrorCode.IMAGE_NOT_FOUND));
+        
+        // 4. 소프트 삭제
+        image.softDelete();
     }
 }

@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
 import com.c203.autobiography.domain.groupbook.episode.dto.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -18,4 +19,12 @@ public interface GroupEpisodeService {
     GroupEpisodeResponse update(Long groupId, Long groupBookId, Long episodeId, GroupEpisodeUpdateRequest request, Long memberId);
 
     void delete(Long groupId, Long groupBookId, Long episodeId, Long memberId);
+    
+    // 이미지 관련 메서드
+    GroupEpisodeImageResponse uploadImage(Long groupId, Long groupBookId, Long episodeId, 
+                                         MultipartFile file, GroupEpisodeImageUploadRequest request, Long memberId);
+    
+    List<GroupEpisodeImageResponse> getImages(Long groupId, Long groupBookId, Long episodeId, Long memberId);
+    
+    void deleteImage(Long groupId, Long groupBookId, Long episodeId, Long imageId, Long memberId);
 }

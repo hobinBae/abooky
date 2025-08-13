@@ -5,20 +5,27 @@ import com.c203.autobiography.domain.ai.client.AiClient;
 import com.c203.autobiography.domain.ai.dto.ChatCompletionResponse;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.repository.BookRepository;
+import com.c203.autobiography.domain.episode.dto.EpisodeImageResponse;
+import com.c203.autobiography.domain.episode.dto.EpisodeImageUploadRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeUpdateRequest;
 import com.c203.autobiography.domain.episode.entity.ConversationMessage;
 import com.c203.autobiography.domain.episode.entity.ConversationSession;
 import com.c203.autobiography.domain.episode.entity.Episode;
+import com.c203.autobiography.domain.episode.entity.EpisodeImage;
+import com.c203.autobiography.domain.episode.entity.EpisodeImageId;
 import com.c203.autobiography.domain.episode.repository.ConversationMessageRepository;
 import com.c203.autobiography.domain.episode.repository.ConversationSessionRepository;
+import com.c203.autobiography.domain.episode.repository.EpisodeImageRepository;
 import com.c203.autobiography.domain.episode.repository.EpisodeRepository;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
+import com.c203.autobiography.global.s3.FileStorageService;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 @Service
 @RequiredArgsConstructor
@@ -37,10 +45,12 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     private final ConversationMessageRepository conversationMessageRepository;
     private final EpisodeRepository episodeRepository;
+    private final EpisodeImageRepository episodeImageRepository;
     private final AiClient aiClient;
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
     private final ConversationSessionRepository conversationSessionRepository;
+    private final FileStorageService fileStorageService;
 
     /**
      * 에피소드 생성
@@ -128,7 +138,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public EpisodeResponse createEpisodeFromCurrentWindow(Episode episode, String sessionId)
             throws JsonProcessingException {
 
@@ -165,40 +174,50 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         String rawApiResponse = aiClient.generateEpisode(prompt);
 
-        String inner;
-        try{
-            inner = extractAssistantText(rawApiResponse);
-        }catch(JsonProcessingException e){
-            log.error("AI 응답 파싱 중 JSON 예외", e);
-            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // ❗ 새 에러코드
+        String innerJsonContent = extractAssistantText(rawApiResponse); // 헬퍼 메소드 사용
+        if (innerJsonContent == null) {
+            throw new ApiException(ErrorCode.INVALID_FILE_FORMAT);
         }
-
-        if (inner == null) {
-            log.error("AI 응답에서 본문을 추출하지 못했습니다. raw={}", truncate(rawApiResponse, 2000));
-            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // ❗ 새 에러코드
-        }
-
-        String cleaned = cleanInnerJsonText(inner);
-
-        // ✅ 3차: 최종 JSON 파싱
+        String cleaned = cleanInnerJsonText(innerJsonContent);
         ObjectMapper om = new ObjectMapper();
         JsonNode finalNode = om.readTree(cleaned);
         String title = finalNode.path("title").asText(null);
         String content = finalNode.path("content").asText(null);
+
+        // 4. 파싱된 결과를 가지고 DB에 저장하는 '트랜잭션 메소드'를 호출
+        return saveEpisodeWithAiResult(episode, title, content);
+
+    }
+    /**
+     * [신규] AI 결과를 DB에 저장하는 역할만 담당하는 새로운 트랜잭션 메소드
+     * 이 메소드는 매우 빠르게 실행되므로 커넥션을 오래 차지하지 않습니다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public EpisodeResponse saveEpisodeWithAiResult(Episode episode, String title, String content) {
         if (title == null || content == null) {
-            log.error("AI JSON 형식 불일치. cleaned={}", cleaned);
+            log.error("AI 결과에서 제목 또는 콘텐츠가 누락되었습니다.");
             throw new ApiException(ErrorCode.INVALID_INPUT_VALUE);
         }
-        episode.updateEpisode(
-                title,
-                episode.getEpisodeDate(),
-                episode.getEpisodeOrder(),
-                content,
-                episode.getAudioUrl()
-        );
-        episodeRepository.save(episode);
-        return EpisodeResponse.of(episode);
 
+        // DB에서 최신 상태의 Episode 엔티티를 다시 가져오는 것이 더 안전합니다.
+        Episode managedEpisode = episodeRepository.findById(episode.getEpisodeId())
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+
+        managedEpisode.updateEpisode(
+                title,
+                managedEpisode.getEpisodeDate(),
+                managedEpisode.getEpisodeOrder(),
+                content,
+                managedEpisode.getAudioUrl()
+        );
+        // save는 더티 체킹에 의해 필요 없을 수 있지만, 명시적으로 호출해도 괜찮습니다.
+        episodeRepository.save(managedEpisode);
+
+
+        // 세션의 다음 에피소드 시작점 업데이트 로직이 필요하다면 여기에 추가
+        // ...
+
+        return EpisodeResponse.of(managedEpisode);
     }
 
     private static String truncate(String s, int max) {
@@ -334,5 +353,66 @@ public class EpisodeServiceImpl implements EpisodeService {
                 .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
 
         return episode;
+    }
+
+    // ======== 이미지 관련 메서드 ========
+
+    @Override
+    @Transactional
+    public EpisodeImageResponse uploadImage(Long bookId, Long episodeId, MultipartFile file, 
+                                          EpisodeImageUploadRequest request, Long memberId) {
+        // 1. 책 및 에피소드 존재 확인
+        Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
+        
+        // 2. 파일 업로드
+        String imageUrl = fileStorageService.store(file, "episode");
+        
+        // 3. 순서 번호 결정 (요청에 없으면 자동 부여)
+        Integer orderNo = request.getOrderNo();
+        if (orderNo == null) {
+            Integer maxOrder = episodeImageRepository.findMaxOrderNoByEpisodeId(episodeId);
+            orderNo = (maxOrder == null ? 0 : maxOrder) + 1;
+        }
+        
+        // 4. 이미지 ID 생성 (타임스탬프 기반)
+        Long imageId = System.currentTimeMillis();
+        
+        // 5. 이미지 엔티티 생성 및 저장
+        EpisodeImage image = EpisodeImage.create(
+                episode, imageId, imageUrl, orderNo, request.getDescription());
+        
+        EpisodeImage savedImage = episodeImageRepository.save(image);
+        
+        return EpisodeImageResponse.from(savedImage);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<EpisodeImageResponse> getImages(Long bookId, Long episodeId, Long memberId) {
+        // 1. 책 및 에피소드 존재 확인
+        Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
+        
+        // 2. 이미지 목록 조회
+        List<EpisodeImage> images = episodeImageRepository
+                .findByEpisode_EpisodeIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(episodeId);
+        
+        return images.stream()
+                .map(EpisodeImageResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void deleteImage(Long bookId, Long episodeId, Long imageId, Long memberId) {
+        // 1. 책 및 에피소드 존재 확인
+        Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
+        
+        // 2. 이미지 조회 및 삭제
+        EpisodeImageId imageEntityId = EpisodeImageId.of(episodeId, imageId);
+        EpisodeImage image = episodeImageRepository.findByIdAndDeletedAtIsNull(imageEntityId)
+                .orElseThrow(() -> new ApiException(ErrorCode.IMAGE_NOT_FOUND));
+        
+        // 3. 소프트 삭제
+        image.softDelete();
     }
 }

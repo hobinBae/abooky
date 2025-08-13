@@ -123,4 +123,9 @@ public class OpenAiProperties {
     private String toneCasual = "편집 스타일: 친근하고 편안한 문체로 다듬어주세요.";
     private String toneEmotional = "편집 스타일: 감정이 잘 드러나도록 다듬어주세요.";
 
+    private String proofreadSystem = "당신은 한국어 글쓰기 교정 전문가입니다. 주어진 '책 종류' 스타일에 맞게 문체를 자연스럽게 다듬고, 모든 문법과 맞춤법 오류를 수정해주세요. 다른 설명은 일절 덧붙이지 말고, 오직 수정된 최종 결과물 텍스트만 응답해주세요.";
+    private String proofreadTemplate =  "책 종류: %s\n---\n원본 텍스트:\n%s";
+    private Integer maxTokensProofread = 1500;
+    private Double temperatureProofread = 0.3;
+
 }

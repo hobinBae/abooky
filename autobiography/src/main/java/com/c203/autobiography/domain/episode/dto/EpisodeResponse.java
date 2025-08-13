@@ -36,6 +36,9 @@ public class EpisodeResponse {
     @Schema(description = "저장된 오디오 URL", example = "https://.../audio.webm")
     private String audioUrl;
 
+    @Schema(description = "해당 에피소드에서 진행 중인 대화 세션 ID (없으면 null)", nullable = true)
+    private String activeSessionId;
+
     @Schema(description = "생성일시")
     private LocalDateTime createdAt;
 
@@ -54,6 +57,13 @@ public class EpisodeResponse {
                 .createdAt(e.getCreatedAt())
                 .updatedAt(e.getUpdatedAt())
                 .build();
+    }
+    public static EpisodeResponse of(Episode e, String activeSessionId) {
+        // 기존 of 메소드를 호출하여 기본 정보를 채웁니다.
+        EpisodeResponse response = of(e);
+        // activeSessionId 필드를 추가로 설정합니다.
+        response.setActiveSessionId(activeSessionId);
+        return response;
     }
 
 }

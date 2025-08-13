@@ -28,4 +28,6 @@ public interface AiClient {
      * @return
      */
     String editText(String rawAnswer, String priorContext, String tone);
+
+    String proofread(String originalText, Long bookCategory);
 }
