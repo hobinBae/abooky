@@ -210,26 +210,44 @@ async function fetchGroupInfo() {
     };
   }
 }
-function setupTimelineListener() {
-  timeline.value = DUMMY_TIMELINE_EVENTS.filter(event => event.groupId === groupId.value);
+
+async function setupTimelineListener() {
+  try {
+    // TODO: 실제 API 호출로 교체
+    console.log('TODO: 타임라인 이벤트를 API에서 가져오기', groupId.value);
+    // const response = await timelineService.getTimelineEvents(groupId.value);
+    // timeline.value = response.data;
+  } catch (error) {
+    console.error('타임라인 조회 실패:', error);
+  }
 }
-function addTimelineEvent() {
+async function addTimelineEvent() {
   if (!newEvent.value.title || !newEvent.value.description) {
     alert('이벤트 제목과 내용을 모두 입력해주세요.');
     return;
   }
-  const event: TimelineEvent = {
-    id: `t${Date.now()}`,
-    groupId: groupId.value,
-    date: newEvent.value.date,
-    title: newEvent.value.title,
-    description: newEvent.value.description,
-    icon: 'bi-plus-circle',
-  };
-  timeline.value.unshift(event);
-  DUMMY_TIMELINE_EVENTS.push(event);
-  newEvent.value = { date: new Date().toISOString().split('T')[0], title: '', description: '' };
-  alert('이벤트가 추가되었습니다.');
+  
+  try {
+    const event: TimelineEvent = {
+      id: `t${Date.now()}`,
+      groupId: groupId.value,
+      date: newEvent.value.date,
+      title: newEvent.value.title,
+      description: newEvent.value.description,
+      icon: 'bi-plus-circle',
+    };
+    
+    // TODO: 실제 API 호출로 교체
+    console.log('TODO: 타임라인 이벤트 추가 API 호출', event);
+    // await timelineService.addTimelineEvent(event);
+    
+    timeline.value.unshift(event);
+    newEvent.value = { date: new Date().toISOString().split('T')[0], title: '', description: '' };
+    alert('이벤트가 추가되었습니다.');
+  } catch (error) {
+    console.error('이벤트 추가 실패:', error);
+    alert('이벤트 추가에 실패했습니다.');
+  }
 }
 function openGroupSettings() {
   if (!group.value) return;

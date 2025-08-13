@@ -1,9 +1,9 @@
 <template>
-  <Navbar :is-intro-active="isIntroActive" :is-home="isIntro" />
+  <Navbar v-if="isNavbarVisible" :is-intro-active="isIntroActive" :is-home="isIntro" />
   <main class="main-content">
     <router-view v-slot="{ Component }">
       <keep-alive include="IntroView">
-        <component :is="Component" @intro-finished="onIntroFinished" />
+        <component :is="Component" @intro-finished="onIntroFinished" @yard-ready="onYardReady" />
       </keep-alive>
     </router-view>
   </main>
@@ -23,6 +23,12 @@ const isIntro = computed(() => route.path === '/')
 
 // '들어가기'를 눌렀는지 여부를 저장하는 상태
 const hasIntroBeenFinished = ref(false)
+const isYardReadyInIntro = ref(false)
+
+// 네비게이션 바 표시 여부 계산
+const isNavbarVisible = computed(() => {
+  return !isIntro.value || isYardReadyInIntro.value
+})
 
 // 인트로 애니메이션이 활성 상태인지 여부를 계산
 const isIntroActive = computed(() => {
@@ -34,6 +40,11 @@ const isIntroActive = computed(() => {
 // IntroView에서 '들어가기'를 클릭하면 호출될 함수
 const onIntroFinished = () => {
   hasIntroBeenFinished.value = true
+}
+
+// IntroView에서 마당 애니메이션이 끝나면 호출될 함수
+const onYardReady = () => {
+  isYardReadyInIntro.value = true
 }
 
 onMounted(() => {

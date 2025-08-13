@@ -216,7 +216,9 @@ class GroupService {
       console.error('활성화된 세션 조회 실패:', error);
 
       // localStorage에서 세션 목록 조회 (실시간 업데이트)
-      return this.getStoredSessions();
+      const storedSessions = this.getStoredSessions();
+      console.log('🔧 localStorage에서 가져온 세션:', storedSessions);
+      return storedSessions;
     }
   }
 
@@ -313,22 +315,30 @@ class GroupService {
   }
 
   private getDummySessions(): ActiveSession[] {
-    return [
+    // localStorage에서 먼저 확인하고, 없으면 초기 더미 데이터 생성
+    const stored = this.getStoredSessions();
+    if (stored.length > 0) {
+      return stored;
+    }
+    
+    // 초기 더미 데이터 - 테스트를 위해 일부 그룹이 활성화된 상태로 설정
+    const initialSessions = [
       {
-        groupId: 2,
-        groupName: '대학 동기',
-        hostName: '이싸피123',
-        startedAt: new Date(),
-        participantCount: 1
-      },
-      {
-        groupId: 99,
-        groupName: '다른 사람 그룹',
-        hostName: '타인123',
-        startedAt: new Date(),
-        participantCount: 3
+        groupId: 1,
+        groupName: '독서 토론 모임',
+        hostName: '이영희',
+        startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10분 전 시작
+        participantCount: 2
       }
     ];
+    
+    // localStorage에 저장
+    localStorage.setItem('activeGroupBookSessions', JSON.stringify(initialSessions));
+    
+    return initialSessions;
+    
+    // 모든 세션이 비활성화된 상태로 테스트하려면:
+    // return [];
   }
 
   // 그룹책 세션 시작 (방 만들기)

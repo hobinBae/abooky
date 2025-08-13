@@ -1,25 +1,31 @@
 <template>
   <div class="create-book-page">
-    <section class="initial-choice-section text-center">
+    <section class="initial-choice-section">
       <h2 class="section-title">새로운 이야기의 시작</h2>
-      <p class="section-subtitle">AI와 함께, 또는 친구들과 함께 세상에 단 하나뿐인 당신의 책을 만들어보세요.</p>
-      <div class="choice-cards">
-        <div class="choice-card" @click="startNewBook">
-          <div class="card-icon"><i class="bi bi-stars"></i></div>
-          <h3 class="card-title">새 책 만들기</h3>
-          <p class="card-description">AI의 도움을 받아 자서전, 일기, 소설 등 새로운 이야기를 시작합니다.</p>
+      <p class="section-subtitle1">AI 도우미 아띠와 함께,</p>
+      <p class="section-subtitle2">가족ㆍ친구ㆍ연인과 함께,</p>
+      <p class="section-subtitle3">세상에 단 하나뿐인 책을 만들어보세요.</p>
+
+      <section class="choice-section">
+        <div class="choice-cards">
+          <div class="choice-card" @click="startNewBook">
+            <div class="card-icon"><i class="bi bi-book"></i></div>
+            <h3 class="card-title">새 책 만들기</h3>
+            <p class="card-description">AI의 도움을 받아 자서전, 일기, 소설 등 새로운 이야기를 시작합니다.</p>
+          </div>
+          <div class="choice-card" @click="goToGroupCreate">
+            <div class="card-icon"><i class="bi bi-people"></i></div>
+            <h3 class="card-title">그룹 책 만들기</h3>
+            <p class="card-description">가족, 친구, 연인과 함께 그룹을 이루고 특별한 추억을 만듭니다.</p>
+          </div>
+          <div class="choice-card" @click="continueWriting">
+            <div class="card-icon"><i class="bi bi-upload"></i></div>
+            <h3 class="card-title">이어 쓰기</h3>
+            <p class="card-description">작성 중인 책을 불러와 중단했던 지점부터 다시 시작합니다.</p>
+          </div>
         </div>
-        <div class="choice-card" @click="goToGroupCreate">
-          <div class="card-icon"><i class="bi bi-people-fill"></i></div>
-          <h3 class="card-title">그룹 책 만들기</h3>
-          <p class="card-description">친구, 가족과 함께 교환일기나 여행기 등 특별한 추억을 만듭니다.</p>
-        </div>
-        <div class="choice-card" @click="continueWriting">
-          <div class="card-icon"><i class="bi bi-arrow-down-circle"></i></div>
-          <h3 class="card-title">이어 쓰기</h3>
-          <p class="card-description">작성 중인 책을 불러와 중단했던 지점부터 다시 시작합니다.</p>
-        </div>
-      </div>
+      </section>
+
     </section>
   </div>
 </template>
@@ -58,29 +64,49 @@ function continueWriting() {
 }
 
 .create-book-page {
-  padding: 80px 2rem 2rem;
+  padding: 2em 2rem 2rem 2rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
-  font-family: 'Pretendard', sans-serif;
+  /* font-family: 'Pretendard', sans-serif; */
 }
 
 .section-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 2.8rem;
+  font-family: 'SCDream3', serif;
+  font-size: 4rem;
   font-weight: 700;
   color: var(--primary-text-color);
-  margin-bottom: 0.75rem;
+  margin-bottom: 0rem;
+  margin-left: 3rem;
+  margin-right: auto;
 }
 
-.section-subtitle {
-  font-size: 1.25rem;
-  color: #5C4033;
-  margin-bottom: 4rem;
-  max-width: 600px;
-  margin-left: auto;
+.section-subtitle1 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(116, 125, 76, 0.9);
+  margin-left: 3.5rem;
   margin-right: auto;
-  line-height: 1.7;
+  margin-bottom: -0.5rem;
+}
+
+.section-subtitle2 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(141, 153, 109, 0.7);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: -0.5rem;
+
+}
+
+.section-subtitle3 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(147, 161, 89, 0.4);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: 5rem;
 }
 
 .initial-choice-section {
@@ -88,43 +114,72 @@ function continueWriting() {
   margin: 0 auto;
 }
 
+.choice-section {
+   max-width: 1200px;
+}
+
 .choice-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 2.5rem;
+  grid-template-columns: repeat(3, minmax(0, 350px)); /* 3개의 열, 각 열의 최대 너비 280px */
+  gap: 2.5rem; /* 카드 사이 간격 조정 */
+  justify-content: center; /* 카드들을 중앙에 정렬 */
 }
 
 .choice-card {
   background: var(--surface-color);
-  border-radius: 12px;
+  border-radius: 50px;
   padding: 2.5rem;
-  border: 1px solid var(--border-color);
+  border: 3px solid #657143;
   box-shadow: 0 4px 15px var(--shadow-color);
   cursor: pointer;
   text-align: center;
-  transition: box-shadow 0.3s, border-color 0.3s;
+  transition: color 0.4s ease, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.choice-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(138, 154, 91, 0.4);
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 0.5s ease-in-out;
+  z-index: -1;
+}
+
+.choice-card:hover::before {
+  transform-origin: bottom;
+  transform: scaleY(1);
 }
 
 .choice-card:hover {
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: var(--accent-color);
+  color: white;
+  /* 텍스트 색상을 변경하여 가독성 확보 */
 }
 
 .card-icon {
-  font-size: 2.5rem;
+  font-size: 3rem;
   color: var(--accent-color);
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   line-height: 1;
 }
 
 .card-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.5rem;
+  font-family: 'EBSHunminjeongeumSaeronL', serif;
+  font-size: 1.8rem;
   font-weight: 600;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.9rem;
 }
 
 .card-description {
+  font-family: 'SCDream4', serif;
   color: var(--secondary-text-color);
   line-height: 1.6;
 }

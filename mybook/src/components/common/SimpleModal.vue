@@ -1,11 +1,18 @@
 <template>
-  <div v-show="isVisible" class="simple-modal-overlay" @click="handleOverlayClick">
-    <div class="simple-modal-content" @click.stop>
-      <div class="simple-modal-header">
+  <div v-if="isVisible" class="modal-overlay" @click="handleOverlayClick">
+    <div class="modal-content" @click.stop>
+      <div class="modal-header">
         <h2>{{ title }}</h2>
-        <span class="simple-close-btn" @click="handleClose">&times;</span>
+        <button 
+          type="button"
+          class="close-button"
+          @click="debugClose"
+          title="모달 닫기"
+        >
+          ✕
+        </button>
       </div>
-      <div class="simple-modal-body">
+      <div class="modal-body">
         <slot></slot>
       </div>
     </div>
@@ -27,86 +34,105 @@ const emit = defineEmits<{
   close: [];
 }>();
 
-const handleClose = () => {
-  emit('close');
+const debugClose = () => {
+  console.log('🔥🔥🔥 SimpleModal X 버튼 클릭됨!');
+  console.log('emit close 호출 전 - isVisible:', props.isVisible);
+  
+  try {
+    emit('close');
+    console.log('✅ emit close 호출 성공!');
+  } catch (error) {
+    console.error('❌ emit close 호출 실패:', error);
+  }
+  
+  // 추가 검증: emit이 실제로 동작했는지 확인
+  setTimeout(() => {
+    console.log('emit 후 0.1초 뒤 isVisible:', props.isVisible);
+  }, 100);
 };
 
 const handleOverlayClick = () => {
   if (props.closeOnOverlay) {
-    handleClose();
+    console.log('🔥🔥🔥 오버레이 클릭으로 모달 닫기');
+    debugClose();
   }
 };
 </script>
 
 <style scoped>
-.simple-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
+.modal-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  z-index: 999999 !important;
 }
 
-.simple-modal-content {
-  background-color: white;
-  border-radius: 15px;
-  width: 90%;
-  max-width: 500px;
-  max-height: 80vh;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+.modal-content {
+  background-color: white !important;
+  border-radius: 15px !important;
+  width: 90% !important;
+  max-width: 500px !important;
+  max-height: 80vh !important;
+  overflow: hidden !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3) !important;
+  animation: modalSlideIn 0.3s ease-out !important;
 }
 
-.simple-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.simple-modal-header h2 {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333;
-}
-
-.simple-close-btn {
-  font-size: 2rem;
-  cursor: pointer;
-  color: #666;
-  line-height: 1;
-  user-select: none;
-  width: 2rem;
-  height: 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  transition: background-color 0.2s ease;
-}
-
-.simple-close-btn:hover {
-  background-color: #f0f0f0;
-  color: #333;
-}
-
-.simple-modal-body {
-  padding: 0;
-  overflow-y: auto;
-  max-height: calc(80vh - 100px);
-}
-
-@media (max-width: 768px) {
-  .simple-modal-content {
-    width: 95%;
-    margin: 1rem;
+@keyframes modalSlideIn {
+  from {
+    transform: translateY(-50px);
+    opacity: 0;
   }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modal-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  padding: 1.5rem !important;
+  border-bottom: 1px solid #e0e0e0 !important;
+}
+
+.modal-header h2 {
+  margin: 0 !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: #333 !important;
+}
+
+.close-button {
+  background: none !important;
+  border: none !important;
+  font-size: 1.5rem !important;
+  cursor: pointer !important;
+  color: #666 !important;
+  padding: 0.25rem !important;
+  border-radius: 50% !important;
+  width: 2rem !important;
+  height: 2rem !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: background-color 0.2s ease !important;
+}
+
+.close-button:hover {
+  background-color: #f0f0f0 !important;
+  color: #333 !important;
+}
+
+
+.modal-body {
+  padding: 0 !important;
 }
 </style>
