@@ -121,12 +121,12 @@
             <div class="shelf-book-container">
               <draggable :list="group.books" item-key="bookId"
                 :group="{ name: 'groupBooksTarget', pull: true, put: ['myBooksSource'] }"
-                class="shelf-book-list group-shelf-horizontal" tag="div" @add="handleBookDrop($event, group.groupId)"
+                class="shelf-book-list group-shelf-horizontal" tag="div" @change="handleChange($event, group.groupId)"
                 :disabled="editingGroupId !== null">
                 <template #item="{ element: book }">
                   <div class="shelf-book-wrapper">
 
-                    <div class="shelf-book-item-3d" @click="selectShelfBook(book)" :title="book.title"
+                    <div class="shelf-book-item-3d" @click="selectShelfBook(book, group.groupId)" :title="book.title"
                       :class="{ 'editing': editingGroupId === group.groupId }">
                       <div class="shelf-book-model">
                         <div class="shelf-book-face shelf-book-cover"
@@ -238,7 +238,27 @@ type Group = Omit<GroupResponse, 'createdAt'> & {
   books: Book[];
   createdAt: Date; // 프론트엔드에서는 Date 객체로 변환하여 사용
 };
-interface DraggableEvent { added?: { element: Book; newIndex: number }; }
+interface GroupBook {
+  groupBookId: string;
+  title: string;
+  authorNickname: string;
+  coverImageUrl?: string;
+}
+interface ChangeEvent {
+  added?: {
+    element: Book;
+    newIndex: number;
+  };
+  removed?: {
+    element: Book;
+    oldIndex: number;
+  };
+  moved?: {
+    element: Book;
+    newIndex: number;
+    oldIndex: number;
+  };
+}
 
 // --- Reactive State ---
 const representativeBooks = ref<Book[]>([]);
@@ -304,27 +324,55 @@ async function loadMyBooks() {
 
 async function loadMyGroups() {
   try {
-    const response = await apiClient.get<{ data: GroupResponse[] }>('/api/v1/members/me/groups', {
+    const groupResponse = await apiClient.get<{ data: GroupResponse[] }>('/api/v1/members/me/groups', {
       headers: {
         'Cache-Control': 'no-cache',
       },
     });
-    // 백엔드에서 받은 데이터에는 books 필드가 없으므로, 각 그룹에 빈 배열을 추가해줍니다.
-    allGroups.value = response.data.data
-      .map((group) => ({
-        ...group,
-        books: [], // TODO: 그룹별 책 목록을 가져오는 API 연동 필요
-        createdAt: new Date(group.createdAt), // ISO 문자열을 Date 객체로 변환
-      }));
+
+    const groupsWithBooks = await Promise.all(
+      groupResponse.data.data.map(async (group) => {
+        try {
+          const booksResponse = await apiClient.get(`/api/v1/groups/${group.groupId}/books`);
+          const books = booksResponse.data.data.map((book: GroupBook) => ({
+            bookId: book.groupBookId, // groupBookId를 bookId로 매핑
+            title: book.title,
+            authorName: book.authorNickname,
+            coverImageUrl: book.coverImageUrl,
+            // 필요한 다른 필드들도 여기에 매핑
+          }));
+          return {
+            ...group,
+            books: books,
+            createdAt: new Date(group.createdAt),
+          };
+        } catch (error) {
+          console.error(`그룹 ${group.groupId}의 책 목록을 불러오는데 실패했습니다:`, error);
+          return {
+            ...group,
+            books: [], // 에러 발생 시 빈 배열로 처리
+            createdAt: new Date(group.createdAt),
+          };
+        }
+      })
+    );
+
+    allGroups.value = groupsWithBooks;
   } catch (error) {
     console.error("내 그룹 목록을 불러오는데 실패했습니다:", error);
     showMessageBox('그룹 목록을 가져오는 데 실패했습니다. 다시 시도해주세요.', '오류');
   }
 }
 // 클릭 시 바로 상세 페이지로 이동하도록 변경
-function selectShelfBook(book: Book) {
+function selectShelfBook(book: Book, groupId?: string) {
   if (editingGroupId.value) return;
-  router.push(`/book-detail/${book.bookId}`);
+
+  // groupId가 인자로 전달되면 그룹 책으로 간주
+  if (groupId) {
+    router.push(`/group-book-detail/${groupId}/${book.bookId}`);
+  } else {
+    router.push(`/book-detail/${book.bookId}`);
+  }
 }
 function closeAllModals() {
   isRepBookModalVisible.value = false;
@@ -333,23 +381,37 @@ function closeAllModals() {
 }
 function showMessageBox(message: string, title = '알림') { messageBoxTitle.value = title; messageBoxContent.value = message; isMessageBoxVisible.value = true; }
 
-async function handleBookDrop(event: DraggableEvent, groupId: string) {
-  // 기능이 아직 구현되지 않았음을 사용자에게 알립니다.
-  showMessageBox('그룹에 책을 추가하는 기능은 현재 준비 중입니다.', '알림');
+async function handleChange(event: ChangeEvent, groupId: string) {
+  console.log('handleChange triggered!', { event, groupId });
 
-  // vuedraggable에 의해 DOM에 추가된 요소를 원래 위치로 되돌리기 위해
-  // 데이터 모델에서 해당 요소를 즉시 제거합니다.
-  if (event.added) {
-    const { element: droppedBook } = event.added;
-    const group = allGroups.value.find(g => g.groupId === groupId);
-    if (group) {
-      // 다음 틱에서 DOM이 업데이트된 후, 책을 그룹의 books 배열에서 제거합니다.
-      await nextTick();
-      const bookIndex = group.books.findIndex(b => b.bookId === droppedBook.bookId);
-      if (bookIndex !== -1) {
-        group.books.splice(bookIndex, 1);
-      }
-    }
+  if (!event.added) {
+    console.log('No item added, exiting.');
+    return;
+  }
+
+  const { element: droppedBook } = event.added;
+  console.log('Dropped book:', droppedBook);
+  const group = allGroups.value.find(g => g.groupId === groupId);
+
+  if (!group) {
+    console.log('Group not found, exiting.');
+    return;
+  }
+
+  // API 호출
+  try {
+    await apiClient.post(`/api/v1/books/${droppedBook.bookId}/export/group/${groupId}`);
+    showMessageBox(`'${droppedBook.title}' 책이 '${group.groupName}' 그룹에 추가되었습니다.`);
+
+    // 성공 시 그룹 목록을 다시 로드하여 UI를 최신 상태로 업데이트
+    await loadMyGroups();
+
+  } catch (error) {
+    console.error("그룹에 책 추가 실패:", error);
+    showMessageBox('그룹에 책을 추가하는 데 실패했습니다.', '오류');
+
+    // 에러 발생 시에도 그룹 목록을 다시 로드하여 UI를 서버 상태와 동기화
+    await loadMyGroups();
   }
 }
 
