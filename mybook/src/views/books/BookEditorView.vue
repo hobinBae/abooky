@@ -25,6 +25,19 @@
             </button>
           </div>
         </div>
+        
+        <!-- 그룹 종류 선택 (그룹 모드일 때만 표시) -->
+        <div v-if="isGroupMode" class="form-group">
+          <label>그룹 종류 선택</label>
+          <div class="type-selection">
+            <button v-for="groupType in groupTypes" :key="groupType.id" @click="currentBook.groupType = groupType.id"
+              :class="{ active: currentBook.groupType === groupType.id }">
+              <i :class="groupType.icon"></i>
+              <span>{{ groupType.name }}</span>
+            </button>
+          </div>
+        </div>
+        
         <div class="form-group">
           <label>카테고리 선택</label>
           <div class="genre-toggle">
@@ -207,6 +220,7 @@ interface ApiEpisode { episodeId: number; title: string; content: string; }
 
 // --- 정적 데이터 ---
 const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-person-badge' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-pen' },];
+const groupTypes = [{ id: 'family', name: '가족', icon: 'bi bi-house-heart' }, { id: 'friends', name: '친구', icon: 'bi bi-people' }, { id: 'couple', name: '연인', icon: 'bi bi-heart' }];
 const categories = [
   { id: 1, name: '자서전' }, { id: 2, name: '일기' }, { id: 3, name: '소설/시' },
   { id: 4, name: '에세이' }, { id: 5, name: '자기계발' }, { id: 6, name: '역사' },
@@ -223,7 +237,10 @@ const authStore = useAuthStore();
 
 // --- 컴포넌트 상태 ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
-const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null });
+const currentBook = ref<Partial<Book & { categoryId: number | null; groupType?: string }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null, groupType: 'family' });
+
+// 그룹 모드 감지
+const isGroupMode = computed(() => route.query.mode === 'group');
 const selectedCategoryId = ref<number | null>(null);
 const currentStoryIndex = ref(-1);
 const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');

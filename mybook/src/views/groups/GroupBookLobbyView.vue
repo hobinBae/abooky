@@ -1,21 +1,32 @@
 <template>
-  <div class="lobby-container">
-    <div class="lobby-content">
-      <div class="lobby-header">
-        <h1>그룹 책 만들기</h1>
-        <p>그룹 사람들과 새로운 책을 만들거나 이 여정에 참여해 보세요.</p>
-      </div>
-      <div class="button-container">
-        <button class="lobby-button create-button" @click="openGroupModal">
-          <h2>그룹책 방 만들기</h2>
-          <p>새로운 그룹 책을 만들어보세요.</p>
-        </button>
-        <button class="lobby-button join-button" @click="openJoinModal">
-          <h2>그룹책 방 참여하기</h2>
-          <p>활성화된 나의 그룹 책에 참여하세요.</p>
-        </button>
-      </div>
-    </div>
+  <div class="create-book-page">
+    <section class="initial-choice-section">
+      <h2 class="section-title">그룹 책의 시작</h2>
+      <p class="section-subtitle1">가족, 친구, 연인과 함께,</p>
+      <p class="section-subtitle2">서로의 추억을 나누며,</p>
+      <p class="section-subtitle3">특별한 이야기를 만들어보세요.</p>
+
+      <section class="choice-section">
+        <div class="choice-cards">
+          <div class="choice-card" @click="openGroupModal">
+            <div class="card-icon"><i class="bi bi-house-door"></i></div>
+            <h3 class="card-title">그룹책 방 만들기</h3>
+            <p class="card-description">새로운 그룹 책을 시작하고 친구들을 초대해보세요.</p>
+          </div>
+          <div class="choice-card" @click="openJoinModal">
+            <div class="card-icon"><i class="bi bi-door-open"></i></div>
+            <h3 class="card-title">그룹책 방 참여하기</h3>
+            <p class="card-description">활성화된 나의 그룹 책에 참여하여 함께 작성하세요.</p>
+          </div>
+          <div class="choice-card" @click="goToGroupCreate">
+            <div class="card-icon"><i class="bi bi-people"></i></div>
+            <h3 class="card-title">그룹책 만들기</h3>
+            <p class="card-description">새로운 그룹을 생성하고 멤버들과 책을 만들어보세요.</p>
+          </div>
+        </div>
+      </section>
+
+    </section>
 
     <!-- 그룹 선택 모달 -->
     <SimpleModal 
@@ -322,6 +333,10 @@ const handleCreateFromJoin = () => {
   openGroupModal();
 };
 
+const goToGroupCreate = () => {
+  router.push({ path: '/book-editor', query: { mode: 'group' } });
+};
+
 // showJoinModal 변경 감지
 watch(showJoinModal, (newValue, oldValue) => {
   console.log(`🔍 showJoinModal 변경 감지: ${oldValue} → ${newValue}`);
@@ -336,5 +351,138 @@ onMounted(() => {
 </script>
 
 <style scoped>
-@import '../../styles/group-book-lobby.css';
+/* --- Google Fonts Import --- */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+
+/* --- 색상 변수 --- */
+:root {
+  --background-color: #F5F5DC;
+  --surface-color: #FFFFFF;
+  --primary-text-color: #3D2C20;
+  --secondary-text-color: #6c757d;
+  --accent-color: #8B4513;
+  --border-color: #EAE0D5;
+  --shadow-color: rgba(0, 0, 0, 0.06);
+}
+
+.create-book-page {
+  padding: 2em 2rem 2rem 2rem;
+  background-color: var(--background-color);
+  color: var(--primary-text-color);
+  min-height: calc(100vh - 56px);
+  /* font-family: 'Pretendard', sans-serif; */
+}
+
+.section-title {
+  font-family: 'SCDream3', serif;
+  font-size: 4rem;
+  font-weight: 700;
+  color: var(--primary-text-color);
+  margin-bottom: 0rem;
+  margin-left: 3rem;
+  margin-right: auto;
+}
+
+.section-subtitle1 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(116, 125, 76, 0.9);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: -0.5rem;
+}
+
+.section-subtitle2 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(141, 153, 109, 0.7);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: -0.5rem;
+
+}
+
+.section-subtitle3 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(147, 161, 89, 0.4);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: 5rem;
+}
+
+.initial-choice-section {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.choice-section {
+   max-width: 1200px;
+}
+
+.choice-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 350px)); /* 3개의 열, 각 열의 최대 너비 280px */
+  gap: 2.5rem; /* 카드 사이 간격 조정 */
+  justify-content: center; /* 카드들을 중앙에 정렬 */
+}
+
+.choice-card {
+  background: var(--surface-color);
+  border-radius: 50px;
+  padding: 2.5rem;
+  border: 3px solid #657143;
+  box-shadow: 0 4px 15px var(--shadow-color);
+  cursor: pointer;
+  text-align: center;
+  transition: color 0.4s ease, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.choice-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(138, 154, 91, 0.4);
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 0.5s ease-in-out;
+  z-index: -1;
+}
+
+.choice-card:hover::before {
+  transform-origin: bottom;
+  transform: scaleY(1);
+}
+
+.choice-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  color: white;
+  /* 텍스트 색상을 변경하여 가독성 확보 */
+}
+
+.card-icon {
+  font-size: 3rem;
+  color: var(--accent-color);
+  margin-bottom: 1rem;
+  line-height: 1;
+}
+
+.card-title {
+  font-family: 'EBSHunminjeongeumSaeronL', serif;
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin-bottom: 0.9rem;
+}
+
+.card-description {
+  font-family: 'SCDream4', serif;
+  color: var(--secondary-text-color);
+  line-height: 1.6;
+}
 </style>

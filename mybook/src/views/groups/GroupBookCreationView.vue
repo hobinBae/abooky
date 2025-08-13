@@ -1036,8 +1036,8 @@ async function toggleScreenShare() {
 
 function goToBookEditor() {
   try {
-    // 책 에디터 페이지를 새창으로 열기
-    const bookEditorUrl = window.location.origin + '/book-editor';
+    // 책 에디터 페이지를 그룹 모드로 새창으로 열기
+    const bookEditorUrl = window.location.origin + '/book-editor?mode=group';
     window.open(bookEditorUrl, '_blank', 'noopener,noreferrer');
   } catch (error) {
     console.error('책 에디터로 이동 실패:', error);
