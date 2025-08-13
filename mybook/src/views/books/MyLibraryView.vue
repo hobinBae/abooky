@@ -126,7 +126,7 @@
                 <template #item="{ element: book }">
                   <div class="shelf-book-wrapper">
 
-                    <div class="shelf-book-item-3d" @click="selectShelfBook(book, group.groupId)" :title="book.title"
+                    <div class="shelf-book-item-3d" @click="selectShelfBook(book)" :title="book.title"
                       :class="{ 'editing': editingGroupId === group.groupId }">
                       <div class="shelf-book-model">
                         <div class="shelf-book-face shelf-book-cover"
@@ -223,6 +223,8 @@ interface Book {
   coverImageUrl?: string;
   completed?: boolean;
   published?: boolean;
+  isGroupBook?: boolean;
+  groupId?: string;
 }
 interface GroupResponse {
   groupId: string;
@@ -339,6 +341,8 @@ async function loadMyGroups() {
             title: book.title,
             authorName: book.authorNickname,
             coverImageUrl: book.coverImageUrl,
+            isGroupBook: true,
+            groupId: group.groupId
             // 필요한 다른 필드들도 여기에 매핑
           }));
           return {
@@ -364,12 +368,12 @@ async function loadMyGroups() {
   }
 }
 // 클릭 시 바로 상세 페이지로 이동하도록 변경
-function selectShelfBook(book: Book, groupId?: string) {
+function selectShelfBook(book: Book) {
   if (editingGroupId.value) return;
 
-  // groupId가 인자로 전달되면 그룹 책으로 간주
-  if (groupId) {
-    router.push(`/group-book-detail/${groupId}/${book.bookId}`);
+  // isGroupBook 플래그를 확인하여 분기
+  if (book.isGroupBook && book.groupId) {
+    router.push(`/group-book-detail/${book.groupId}/${book.bookId}`);
   } else {
     router.push(`/book-detail/${book.bookId}`);
   }
