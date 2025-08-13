@@ -497,10 +497,12 @@ function toggleLike(book: Book) {
   min-height: calc(100vh - 56px);
   font-family: 'SCDream4', sans-serif;
 }
+
 .title-container {
   max-width: 1200px;
   margin: 0 auto;
 }
+
 .section-title {
   font-family: 'SCDream3', serif;
   font-size: 4rem;
@@ -530,9 +532,11 @@ function toggleLike(book: Book) {
 }
 
 .special-font {
+  font-size: 5rem;
   font-family: 'EBSHunminjeongeumSaeronL', serif;
   position: relative;
-  top: -0.1em; /* 살짝 위로 올리는 효과 */
+  top: -0.1em;
+  /* 살짝 위로 올리는 효과 */
 }
 
 /* .section-subtitle3 {

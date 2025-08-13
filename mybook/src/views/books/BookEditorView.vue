@@ -7,7 +7,7 @@
       <div class="setup-form">
         <div class="form-group">
           <label for="book-title">책 제목</label>
-          <input id="book-title" type="text" v-model="currentBook.title" placeholder="매력적인 책 제목을 지어주세요"
+          <input id="book-title" type="text" v-model="currentBook.title" placeholder="매력적인 책 제목을 지어주세요."
             class="form-control">
         </div>
         <div class="form-group">
@@ -26,7 +26,7 @@
           </div>
         </div>
         <div class="form-group">
-          <label>카테고리 선택</label>
+          <label>장르 선택</label>
           <div class="genre-toggle">
             <button v-for="category in categories" :key="category.id" @click="selectCategory(category.id)"
               :class="{ active: selectedCategoryId === category.id }">
@@ -35,7 +35,7 @@
           </div>
         </div>
         <div class="form-actions">
-          <button @click="moveToEditingStep" class="btn btn-primary btn-lg">
+          <button @click="moveToEditingStep" class="btn btn-primary">
             시작하기 <i class="bi bi-arrow-right"></i>
           </button>
         </div>
@@ -95,28 +95,29 @@
               </div>
             </div>
           </div>
-          <div class="editor-sidebar">
-            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> AI 인터뷰 시작</button>
+          <div class="editor-sidebar" :ref="el => { sidebarButtons = (el as any)?.children }">
+            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> <span>AI 인터뷰
+                시작</span></button>
 
-            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i> 음성
-              답변 시작</button>
+            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i>
+              <span>음성 답변 시작</span></button>
             <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
-                class="bi bi-stop-circle-fill"></i> 음성 답변 완료</button>
+                class="bi bi-stop-circle-fill"></i> <span>음성 답변 완료</span></button>
 
             <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged"
-              class="btn-sidebar"><i class="bi bi-check-circle"></i> 질문 답변완료</button>
+              class="btn-sidebar"><i class="bi bi-check-circle"></i> <span>질문 답변완료</span></button>
             <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
-                class="bi bi-skip-end-circle"></i> 질문 건너뛰기</button>
-            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> AI 자동 교정</button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> 이야기 저장</button>
-
-            <hr class="sidebar-divider">
-
+                class="bi bi-skip-end-circle"></i> <span>질문 건너뛰기</span></button>
+            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> <span>AI 자동 교정</span></button>
+            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> <span>이야기 저장</span></button>
+            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-universal-access"></i> <span>배호빈
+                버튼</span></button>
+            <button @click="uploadimage" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진 첨부</span></button>
             <button @click="saveDraft" class="btn-sidebar btn-outline-sidebar">
-              <i class="bi bi-cloud-arrow-down"></i> 임시 저장 (나가기)
+              <i class="bi bi-cloud-arrow-down"></i> <span>임시 저장 (나가기)</span>
             </button>
             <button @click="moveToPublishingStep" class="btn-sidebar btn-primary-sidebar">
-              <i class="bi bi-send-check"></i> 발행하기
+              <i class="bi bi-send-check"></i> <span>발행하기</span>
             </button>
           </div>
         </div>
@@ -129,9 +130,6 @@
 
     <section v-else-if="creationStep === 'publishing'" class="publish-section">
       <div class="publish-header">
-        <button @click="creationStep = 'editing'" class="btn-back">
-          <i class="bi bi-arrow-left"></i> 뒤로가기
-        </button>
         <h2 class="section-title">책 발행하기</h2>
       </div>
       <p class="section-subtitle">마지막으로 책의 정보를 확인하고, 멋진 표지를 선택해주세요.</p>
@@ -182,7 +180,10 @@
           <input id="cover-upload" type="file" @change="handleCoverUpload" class="form-control">
         </div>
         <div class="form-actions">
-          <button @click="finalizePublicationAsCopy" class="btn btn-outline btn-lg">
+          <button @click="creationStep = 'editing'" class="btn btn-primary btn-lg">
+            <i class="bi bi-arrow-left"></i> 뒤로가기
+          </button>
+          <button @click="finalizePublicationAsCopy" class="btn btn-primary btn-lg">
             복사본으로 발행 <i class="bi bi-files"></i>
           </button>
           <button @click="finalizePublication" class="btn btn-primary btn-lg">
@@ -195,7 +196,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount } from 'vue';
+import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount, onUpdated } from 'vue';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import apiClient from '@/api'; // API 클라이언트 임포트
 import { useAuthStore } from '@/stores/auth';
@@ -206,7 +207,7 @@ interface Book { id: string; title: string; summary: string; type: string; autho
 interface ApiEpisode { episodeId: number; title: string; content: string; }
 
 // --- 정적 데이터 ---
-const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-person-badge' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-pen' },];
+const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-file-person' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-brush' },];
 const categories = [
   { id: 1, name: '자서전' }, { id: 2, name: '일기' }, { id: 3, name: '소설/시' },
   { id: 4, name: '에세이' }, { id: 5, name: '자기계발' }, { id: 6, name: '역사' },
@@ -244,6 +245,7 @@ let eventSource: EventSource | null = null;
 
 const selectedCover = ref(coverOptions[0]);
 const uploadedCoverFile = ref<File | null>(null);
+const sidebarButtons = ref<HTMLButtonElement[]>([]);
 
 // --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
@@ -309,9 +311,9 @@ async function moveToEditingStep() {
     currentBook.value.stories = newBook.episodes || [];
 
     creationStep.value = 'editing';
-    // if (currentBook.value.stories?.length === 0) {
-    //   addStory();
-    // }
+    if (currentBook.value.stories?.length === 0) {
+      addStory();
+    }
   } catch (error) {
     console.error('책 생성 오류:', error);
     alert('책 생성에 실패했습니다.');
@@ -908,6 +910,20 @@ async function finalizePublicationAsCopy() {
 }
 
 
+const adjustButtonFontSize = () => {
+  nextTick(() => {
+    if (sidebarButtons.value) {
+      Array.from(sidebarButtons.value).forEach(button => {
+        if (button.scrollHeight > button.clientHeight) {
+          button.classList.add('font-small');
+        } else {
+          button.classList.remove('font-small');
+        }
+      });
+    }
+  });
+};
+
 // --- 생명주기 훅 ---
 
 // 페이지 이탈 방지 (브라우저 새로고침/닫기)
@@ -942,6 +958,11 @@ onMounted(() => {
     loadOrCreateBook(bookId || null);
   }
   window.addEventListener('beforeunload', handleBeforeUnload);
+  adjustButtonFontSize();
+});
+
+onUpdated(() => {
+  adjustButtonFontSize();
 });
 
 onBeforeUnmount(() => {
@@ -1013,16 +1034,16 @@ watch(() => currentStory.value?.content, (newContent) => {
 }
 
 .book-editor-page {
-  padding: 60px 5rem 5rem;
+  padding: 1rem 4rem 5rem 4rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
-  font-family: 'Pretendard', sans-serif;
+  font-family: 'SCDream4', sans-serif;
 }
 
 .section-title {
-  font-family: 'Pretendard', sans-serif;
-  font-size: 2.5rem;
+  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
+  font-size: 3rem;
   font-weight: 700;
   text-align: center;
   margin-bottom: 0.5rem;
@@ -1031,7 +1052,7 @@ watch(() => currentStory.value?.content, (newContent) => {
 .section-subtitle {
   text-align: center;
   font-size: 1.1rem;
-  color: #5C4033;
+  color: #5b673b;
   margin-bottom: 3rem;
 }
 
@@ -1049,15 +1070,63 @@ watch(() => currentStory.value?.content, (newContent) => {
   padding: 0.6rem 1.2rem;
 }
 
+@keyframes fill-animation {
+  0% {
+    transform-origin: top;
+    transform: scaleY(0);
+  }
+
+  50% {
+    transform-origin: top;
+    transform: scaleY(1);
+  }
+
+  50.1% {
+    transform-origin: bottom;
+    transform: scaleY(1);
+  }
+
+  100% {
+    transform-origin: bottom;
+    transform: scaleY(0);
+  }
+}
+
 .btn.btn-primary {
-  background-color: #8B4513;
-  border: 1px solid #8B4513;
-  color: #FFFFFF;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  display: inline-block;
+  border: 3px solid #5b673b !important;
+  border-radius: 20px !important;
+  margin-left: 1rem !important;
+  margin-right: 1rem !important;
+  padding: 0.5rem 1.2rem !important;
+  font-size: 1rem !important;
+  white-space: nowrap;
+  font-family: 'SCDream5', sans-serif;
+  transition: color 0.5s ease;
+  background-color: transparent;
+  color: #000000;
+}
+
+.btn.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(185, 174, 122, 0.4);
+  transform: scaleY(0);
+  z-index: -1;
+  animation: fill-animation 3s infinite ease-in-out;
 }
 
 .btn-primary:hover {
-  background-color: #6a341a;
-  border-color: #6a341a;
+  color: white !important;
+  border-color: #dee2e6 !important;
+  background-color: transparent;
 }
 
 .btn-outline {
@@ -1076,13 +1145,14 @@ watch(() => currentStory.value?.content, (newContent) => {
 }
 
 /* --- Title Input Styling --- */
+/* 세부사항 입력 책제목 */
 .title-input-highlight {
   background-color: transparent;
   border: none;
-  border-bottom: 2px solid #EAE0D5;
+  border-bottom: 2px solid #c1af9b;
   border-radius: 0;
   padding: 0.5rem 0.2rem;
-  font-family: 'Noto Serif KR', serif;
+  font-family: 'ChosunCentennial', serif;
   font-size: 1.75rem;
   font-weight: 600;
   color: var(--primary-text-color);
@@ -1097,7 +1167,6 @@ watch(() => currentStory.value?.content, (newContent) => {
 
 .story-title-input.title-input-highlight {
   font-size: 1.3rem;
-  border-bottom-width: 1px;
 }
 
 /* --- Setup / Publish Section --- */
@@ -1107,7 +1176,8 @@ watch(() => currentStory.value?.content, (newContent) => {
   margin: 0 auto;
   background: var(--surface-color);
   padding: 2.5rem 3rem;
-  border-radius: 12px;
+  border-radius: 25px;
+  border: 3px solid #657143;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -1143,45 +1213,75 @@ textarea.form-control {
 
 .type-selection {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
 }
 
 .type-selection button {
-  background: #f9f9f9;
-  border: 2px solid var(--border-color);
-  border-radius: 8px;
-  padding: 1.5rem 1rem;
+  background: var(--surface-color);
+  border-radius: 30px;
+  padding: 1rem;
+  border: 3px solid #657143;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
   cursor: pointer;
-  transition: all 0.2s;
+  text-align: center;
+  transition: color 0.4s ease, box-shadow 0.3s, transform 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
+  color: var(--primary-text-color);
+}
+
+.type-selection button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(138, 154, 91, 0.4);
+  transform-origin: top;
+  transform: scaleY(0);
+  transition: transform 0.5s ease-in-out;
+  z-index: -1;
+}
+
+.type-selection button:hover::before,
+.type-selection button.active::before {
+  transform-origin: bottom;
+  transform: scaleY(1);
+}
+
+.type-selection button:hover,
+.type-selection button.active {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  color: white;
+  border-color: #657143;
 }
 
 .type-selection button i {
-  font-size: 2rem;
-  color: var(--secondary-text-color);
+  font-size: 2.5rem;
+  color: var(--accent-color);
+  margin-bottom: 0.5rem;
+  transition: color 0.4s ease;
 }
 
 .type-selection button span {
+  font-family: 'EBSHunminjeongeumSaeronL', serif;
+  font-size: 1.5rem;
   font-weight: 600;
+  transition: color 0.4s ease;
 }
 
-.type-selection button:hover {
-  border-color: var(--accent-color);
-  background: #fff;
-}
-
-.type-selection button.active {
-  border-color: var(--accent-color);
-  background: #fff8f0;
-  color: var(--accent-color);
-}
-
-.type-selection button.active i {
-  color: var(--accent-color);
+.type-selection button:hover i,
+.type-selection button:hover span,
+.type-selection button.active i,
+.type-selection button.active span {
+  color: white;
 }
 
 .genre-toggle {
@@ -1191,20 +1291,20 @@ textarea.form-control {
 }
 
 .genre-toggle button {
-  background: #f1f1f1;
+  background: rgba(138, 154, 91, 0.2);
   border: 1px solid transparent;
   border-radius: 20px;
-  padding: 0.5rem 1rem;
+  padding: 0.3rem 1rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .genre-toggle button:hover {
-  background: #e0e0e0;
+  background: #a8b87f;
 }
 
 .genre-toggle button.active {
-  background-color: #6c757d;
+  background-color: #6F7D48;
   /* Darker Gray */
   color: white;
 
@@ -1229,7 +1329,7 @@ textarea.form-control {
 .workspace-header {
   display: flex;
   align-items: center;
-  margin: 1rem 2rem 1rem 1rem;
+  margin: 0rem 2rem 1rem 1rem;
   gap: 1rem;
 }
 
@@ -1260,14 +1360,14 @@ textarea.form-control {
   align-items: center;
   padding: 0.5rem;
   margin-bottom: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .story-list-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #5C4033;
+  color: #000000;
   margin: 0;
+  font-family: 'SCDream4', serif;
 }
 
 .btn-add-story {
@@ -1281,6 +1381,7 @@ textarea.form-control {
   display: grid;
   place-items: center;
   transition: all 0.2s;
+
 }
 
 .btn-add-story:hover {
@@ -1294,6 +1395,7 @@ textarea.form-control {
   padding: 0;
   margin: 0;
   overflow-y: auto;
+  font-family: 'SCDream4', serif;
   flex-grow: 1;
 }
 
@@ -1301,7 +1403,6 @@ textarea.form-control {
   padding: 0.8rem 1rem;
   border-radius: 0;
   cursor: pointer;
-  font-weight: 500;
   color: #555;
   transition: background-color 0.2s, color 0.2s;
   border-left: 3px solid transparent;
@@ -1313,14 +1414,13 @@ textarea.form-control {
 }
 
 .story-list li:hover {
-  background-color: #f8f6f2;
+  background-color: #f8ffea56;
 }
 
 .story-list li.active {
-  background-color: #f8f6f2;
+  background-color: #f1fade56;
   color: var(--primary-text-color);
-  font-weight: 700;
-  border-left: 3px solid var(--accent-color);
+  border-radius: 5px;
 }
 
 .story-list li {
@@ -1347,7 +1447,7 @@ textarea.form-control {
 }
 
 .btn-delete-story:hover {
-  color: #dc3545;
+  color: #000000;
 }
 
 .editor-area {
@@ -1361,7 +1461,7 @@ textarea.form-control {
 }
 
 .editor-main {
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1373,7 +1473,7 @@ textarea.form-control {
 
 .ai-question-area {
   background: #fafafa;
-  padding: 1rem;
+  padding: 1.5rem;
   border-radius: 6px;
   /* font-style: italic; */
   color: #000000;
@@ -1399,50 +1499,88 @@ textarea.form-control {
   resize: none;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: white;
+  background: rgba(138, 154, 91, 0.02);
   outline: none;
-  font-family: 'Noto Serif KR', serif;
+  font-family: 'MaruBuri-Light', serif;
   font-size: 1.1rem;
   line-height: 1.9;
 }
 
 .char-counter {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
+  bottom: 30px;
+  right: 30px;
   font-size: 0.85rem;
-  color: #888;
+  color: #888888c5;
 }
 
 .editor-sidebar {
   background: var(--surface-color);
-  padding: 1.5rem 1rem;
+  padding: 1rem 1rem;
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.7rem;
+  align-items: flex-end;
+  /* [추가] 버튼들을 오른쪽으로 정렬합니다. */
 }
 
 .btn-sidebar {
-  width: 90%;
-  margin: 0 auto;
-  text-align: left;
-  padding: 0.75rem 1rem;
-  border-radius: 6px;
+  width: 50px;
+  height: 50px;
+  margin: 0;
+  /* [수정] '0 auto'에서 '0'으로 변경하여 자동 중앙 정렬을 제거합니다. */
+  padding: 0;
+  border-radius: 50px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  transition: all 0.2s;
+  justify-content: center;
+  gap: 0;
+  transition: all 0.4s ease-in-out;
   font-weight: 500;
   background-color: #fff;
-  border: 1px solid #ddd;
+  border: 1.5px solid #664c39;
   color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  font-size: 15px;
+}
+
+.btn-sidebar span {
+  /* Initially hidden */
+  visibility: hidden;
+  opacity: 0;
+  width: 0;
+  transition: visibility 0s 0.2s, opacity 0.2s ease, width 0.3s ease;
 }
 
 .btn-sidebar:hover {
+  width: 220px;
+  border-radius: 50px;
+  justify-content: flex-start;
+  padding: 0 1rem;
+  gap: 0.75rem;
   border-color: var(--accent-color);
-  background-color: #f8f6f2;
+  background-color: #f6f8f2;
+}
+
+.btn-sidebar:hover span {
+  visibility: visible;
+  opacity: 1;
+  width: auto;
+  transition: visibility 0s, opacity 0.2s ease 0.2s, width 0.3s ease 0.1s;
+}
+
+.btn-sidebar i {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  /* Prevent icon from shrinking */
+}
+
+.btn-sidebar.font-small {
+  font-size: 0.8rem;
+  /* 줄바꿈 시 적용될 작은 폰트 크기 */
 }
 
 .btn-sidebar:disabled {
@@ -1458,7 +1596,7 @@ textarea.form-control {
 
 
 .sidebar-divider {
-  margin: 3.5rem 0;
+  margin: 1.5rem 0;
   border: none;
   border-top: 1px solid var(--border-color);
 }
@@ -1518,26 +1656,6 @@ textarea.form-control {
   margin-bottom: 0;
 }
 
-.btn-back {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--secondary-text-color);
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.btn-back:hover {
-  background-color: #f8f9fa;
-}
-
 .cover-selection {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -1582,12 +1700,11 @@ textarea.form-control {
   display: flex;
   align-items: center;
   gap: 1rem;
-  border-bottom: 1px solid var(--border-color);
   padding-bottom: 1rem;
 }
 
 .editor-title-label {
-  font-family: 'Noto Serif KR', serif;
+  font-family: 'ChosunCentennial', serif;
   font-weight: 600;
   font-size: 1.5rem;
   white-space: nowrap;
@@ -1614,8 +1731,8 @@ textarea.form-control {
 .tag-item {
   display: inline-flex;
   align-items: center;
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: #a8b87f;
+  color: #000000;
   border-radius: 16px;
   padding: 0.3rem 0.8rem;
   font-size: 0.9rem;
@@ -1625,7 +1742,7 @@ textarea.form-control {
 .btn-remove-tag {
   background: none;
   border: none;
-  color: #868e96;
+  color: #000000;
   margin-left: 0.5rem;
   cursor: pointer;
   font-size: 1.2rem;
@@ -1649,5 +1766,65 @@ textarea.form-control {
 
 .tag-container .form-control:focus {
   box-shadow: none;
+}
+
+/* --- 반응형 레이아웃을 위한 미디어 쿼리 --- */
+@media (max-width: 1200px) {
+
+  /* 전체 작업 공간을 세로로 쌓기 */
+  .workspace-main {
+    grid-template-columns: 1fr;
+    /* 2단 그리드를 1단으로 변경 */
+    height: auto;
+    /* 고정 높이 제거 */
+    gap: 1.5rem;
+    /* 요소 간 간격 조정 */
+  }
+
+  /* 에디터 영역을 세로로 쌓기 */
+  .editor-area {
+    grid-template-columns: 1fr;
+    /* 2단 그리드를 1단으로 변경 */
+  }
+
+  /* 사이드바를 가로 버튼 그룹으로 변경 */
+  .editor-sidebar {
+    flex-direction: row;
+    /* 버튼을 가로로 나열 */
+    flex-wrap: wrap;
+    /* 버튼이 넘치면 다음 줄로 이동 */
+    justify-content: center;
+    /* 버튼 그룹을 중앙 정렬 */
+    gap: 0.75rem;
+    /* 버튼 사이 간격 */
+    border-left: none;
+    /* 왼쪽 경계선 제거 */
+    border-top: 1px solid var(--border-color);
+    /* 위쪽 경계선 추가 */
+    padding: 1.5rem 1rem;
+    /* 패딩 조정 */
+  }
+
+  /* 사이드바 버튼 스타일 조정 */
+  /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
+/* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
+.btn-sidebar:hover {
+    width: auto;
+    min-width: 145px;         /* 수정: 최소 너비 축소 */
+    height: 40px;             /* 수정: 버튼 높이 축소 */
+    border-radius: 30px;
+    justify-content: flex-start;
+    padding: 0 0.9rem;        /* 수정: 좌우 여백 축소 */
+    transform: none;
+    font-size: 0.9rem;        /* 추가: 글씨 크기 작게 설정 */
+}
+
+  /* 작은 화면에서는 버튼 안의 텍스트를 항상 보이게 처리 */
+  .btn-sidebar span,
+  .btn-sidebar:hover span {
+    visibility: visible;
+    opacity: 1;
+    width: auto;
+  }
 }
 </style>
