@@ -40,4 +40,6 @@ public interface SseService {
      */
     void pushEpisode(String sessionId, EpisodeResponse response);
 
+    void closeConnection(String sessionId);
+
 }

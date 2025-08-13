@@ -20,6 +20,7 @@ import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -75,7 +77,27 @@ public class ConversationController {
      */
     @GetMapping(value = "{bookId}/{sessionId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@PathVariable String sessionId, @PathVariable Long bookId) {
-        return conversationService.establishConversationStream(sessionId, bookId);
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        try {
+            // ★★★ 2. 기존 서비스 호출 로직을 try 블록 안으로 옮깁니다. ★★★
+            // 이 때, 생성한 emitter 객체를 서비스로 전달하여 등록하도록 시그니처를 변경해야 합니다.
+            conversationService.establishConversationStream(sessionId, bookId, emitter);
+        } catch (Exception e) {
+            // ★★★ 3. 서비스 로직에서 예외가 발생하면 여기서 잡습니다. ★★★
+            log.error("SSE 스트림 설정 중 에러 발생. sessionId={}", sessionId, e);
+            try {
+                // 클라이언트에게 'error'라는 이름의 이벤트를 보냅니다.
+                emitter.send(SseEmitter.event()
+                        .name("error")
+                        .data("스트림 연결 중 서버 오류가 발생했습니다: " + e.getMessage()));
+            } catch (IOException ex) {
+                log.warn("SSE 에러 이벤트 전송 실패. sessionId={}", sessionId, ex);
+            }
+            // 에러와 함께 스트림을 완전히 종료시킵니다.
+            emitter.completeWithError(e);
+        }
+
+        return emitter;
     }
 
     /**
@@ -175,6 +197,17 @@ public class ConversationController {
 
             sseService.pushQuestion(sessionId, responseBuilder.build());
         }
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * ★★★ SSE 연결 종료를 위한 새로운 API 추가 ★★★
+     * 클라이언트가 페이지를 떠나기 전에 호출하여 서버 측 리소스를 즉시 정리합니다.
+     * @param sessionId 종료할 대화 세션 ID
+     */
+    @DeleteMapping("/stream/{sessionId}")
+    public ResponseEntity<Void> closeSseStream(@PathVariable String sessionId) {
+        sseService.closeConnection(sessionId);
         return ResponseEntity.ok().build();
     }
 
