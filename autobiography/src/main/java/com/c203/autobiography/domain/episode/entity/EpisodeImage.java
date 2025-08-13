@@ -17,6 +17,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "episode_image")
 @Getter
@@ -41,11 +43,30 @@ public class EpisodeImage {
     @NotBlank
     private String imageUrl;
 
+    @Column(name = "order_no", nullable = false)
+    private Integer orderNo;
+
+    @Column(name = "description", length = 500)
+    private String description;
+
+    @Column(name = "created_at", nullable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
     /**
      * URL만 갱신할 때 사용합니다.
      */
     public void updateImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    /**
+     * 소프트 삭제
+     */
+    public void softDelete() {
+        this.deletedAt = LocalDateTime.now();
     }
 
     /**
@@ -57,6 +78,23 @@ public class EpisodeImage {
                 .id(pk)
                 .episode(episode)
                 .imageUrl(imageUrl)
+                .orderNo(1)
+                .createdAt(LocalDateTime.now())
+                .build();
+    }
+
+    /**
+     * 팩토리 메서드: Episode 엔티티와 imageId, URL, 순서, 설명을 받아 객체 생성
+     */
+    public static EpisodeImage create(Episode episode, Long imageId, String imageUrl, Integer orderNo, String description) {
+        EpisodeImageId pk = EpisodeImageId.of(episode.getEpisodeId(), imageId);
+        return EpisodeImage.builder()
+                .id(pk)
+                .episode(episode)
+                .imageUrl(imageUrl)
+                .orderNo(orderNo)
+                .description(description)
+                .createdAt(LocalDateTime.now())
                 .build();
     }
 
