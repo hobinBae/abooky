@@ -1,18 +1,19 @@
 package com.c203.autobiography.domain.groupbook.controller;
 
-import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateRequest;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookResponse;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookUpdateRequest;
-import com.c203.autobiography.domain.groupbook.dto.GroupBookCompleteRequest;
+import com.c203.autobiography.domain.groupbook.dto.*;
 import com.c203.autobiography.domain.groupbook.episode.service.GroupEpisodeService;
 import com.c203.autobiography.domain.groupbook.service.GroupBookService;
 import com.c203.autobiography.global.dto.ApiResponse;
 import com.c203.autobiography.global.security.jwt.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -117,6 +118,47 @@ public class GroupBookController {
         groupBookService.deleteBook(groupId, memberId, groupBookId);
         return ResponseEntity.status(HttpStatus.NO_CONTENT)
                 .body(ApiResponse.of(HttpStatus.NO_CONTENT, "그룹책 삭제 성공", null, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "그룹 책 댓글 생성", description = "그룹 책에 대한 댓글을 생성합니다")
+    @PostMapping("/{groupBookId}/comments")
+    public ResponseEntity<ApiResponse<GroupBookCommentCreateResponse>> createGroupBookComment(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody GroupBookCommentCreateRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        GroupBookCommentCreateResponse response= groupBookService.createGroupBookComment(memberId, request);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹 책 댓글 생성 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "그룹 책 댓글 목록 조회", description = "특정 그룹 책의 댓글 목록을 조회합니다")
+    @GetMapping("/{groupBookId}/comments")
+    public ResponseEntity<ApiResponse<GroupBookCommentListResponse>> getComments(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "커뮤니티 책 ID") @PathVariable Long groupBookId,
+            @PageableDefault(size = 5, sort = "createdAt", direction = Sort.Direction.ASC) Pageable pageable,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        GroupBookCommentListResponse response = groupBookService.getGroupBookComments(memberId, groupBookId, pageable);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹 책 댓글 리스트 조회 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "그룹 책 댓글 삭제", description = "그룹 책에 대한 댓글을 생성합니다")
+    @DeleteMapping("/{groupBookId}/comments/{groupBookCommentId}")
+    public ResponseEntity<ApiResponse<GroupBookCommentDeleteResponse>> deleteGroupBookComment(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Parameter(description = "그룹 책 ID") @PathVariable Long groupBookId,
+            @Parameter(description = "그룹 책 댓글 ID") @PathVariable Long groupBookCommentId,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        GroupBookCommentDeleteResponse response= groupBookService.deleteGroupBookComment(groupBookId, groupBookCommentId, memberId);
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹 책 댓글 삭제 성공", response, httpRequest.getRequestURI()));
     }
 
 

@@ -53,7 +53,7 @@ public class GroupApplyServiceImpl implements GroupApplyService {
         Member leader = memberRepository.findById(g.getLeaderId())
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        return GroupApplyResponse.from(saved, g, leader);
+        return GroupApplyResponse.from(saved, g, leader, receiver);
     }
 
     @Override
@@ -66,7 +66,9 @@ public class GroupApplyServiceImpl implements GroupApplyService {
                             .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
                     Member leader = memberRepository.findById(g.getLeaderId())
                             .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
-                    return GroupApplyResponse.from(ga, g, leader);
+                    Member receiver = memberRepository.findById(ga.getReceiverId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+                    return GroupApplyResponse.from(ga, g, leader, receiver);
                 })
                 .collect(Collectors.toList());
     }
@@ -80,7 +82,9 @@ public class GroupApplyServiceImpl implements GroupApplyService {
                             .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
                     Member leader = memberRepository.findById(g.getLeaderId())
                             .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
-                    return GroupApplyResponse.from(ga, g, leader);
+                    Member receiver = memberRepository.findById(ga.getReceiverId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+                    return GroupApplyResponse.from(ga, g, leader, receiver);
                 })
                 .collect(Collectors.toList());
     }
@@ -115,6 +119,8 @@ public class GroupApplyServiceImpl implements GroupApplyService {
                 .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
         Member leader = memberRepository.findById(g.getLeaderId())
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
-        return GroupApplyResponse.from(apply, g, leader);
+        Member receiver = memberRepository.findById(apply.getReceiverId())
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        return GroupApplyResponse.from(apply, g, leader, receiver);
     }
 }

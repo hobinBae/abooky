@@ -10,6 +10,15 @@ import com.c203.autobiography.domain.communityBook.entity.CommunityBookTag;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRepository;
+import com.c203.autobiography.domain.group.entity.Group;
+import com.c203.autobiography.domain.group.repository.GroupRepository;
+import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateResponse;
+import com.c203.autobiography.domain.groupbook.entity.GroupBook;
+import com.c203.autobiography.domain.groupbook.entity.GroupType;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisode;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeStatus;
+import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeRepository;
+import com.c203.autobiography.domain.groupbook.repository.GroupBookRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import com.c203.autobiography.domain.episode.entity.Episode;
@@ -62,6 +71,9 @@ public class BookServiceImpl implements BookService {
     private final CommunityBookEpisodeRepository communityBookEpisodeRepository;
     private final CommunityBookTagRepository communityBookTagRepository;
     private final BookTagRepository bookTagRepository;
+    private final GroupRepository groupRepository;
+    private final GroupBookRepository groupBookRepository;
+    private final GroupEpisodeRepository groupEpisodeRepository;
 
     @Override
     @Transactional
@@ -589,6 +601,112 @@ public class BookServiceImpl implements BookService {
         } catch (Exception e) {
             log.error("Failed to copy tags for community book: {}",
                     communityBook.getCommunityBookId(), e);
+            return 0;
+        }
+    }
+
+    @Transactional
+    @Override
+    public GroupBookCreateResponse exportBookToGroup(Long memberId, Long bookId, Long groupId) {
+        // 1. 원본 책 조회 및 권한 검증
+        Book originalBook = bookRepository.findById(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 2. 작성자 권한 검증
+        if (!originalBook.getMember().getMemberId().equals(memberId)) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
+        // 3. 완성된 책만 그룹책으로 변환 가능
+        if (!originalBook.getCompleted()) {
+            throw new ApiException(ErrorCode.BOOK_NOT_COMPLETED);
+        }
+
+        // 4. 그룹 존재 확인
+        Group group = groupRepository.findByGroupIdAndDeletedAtIsNull(groupId)
+                .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
+
+        // 5. GroupBook 생성
+        GroupBook groupBook = createGroupBook(originalBook, group);
+        GroupBook savedGroupBook = groupBookRepository.save(groupBook);
+
+        // 6. Episode → GroupEpisode 복사
+        List<Episode> episodes = episodeRepository.findByBookBookIdOrderByEpisodeOrderAsc(bookId);
+        copyEpisodesToGroup(episodes, savedGroupBook);
+
+        // 7. 태그 복사 (만약 GroupBookTag가 있다면)
+        copyTagsToGroupBookTags(originalBook, savedGroupBook);
+
+        // 8. 원본 책과 에피소드 소프트 삭제
+        originalBook.softDelete();
+        for (Episode episode : episodes) {
+            episode.softDelete();
+        }
+        episodeRepository.saveAll(episodes);
+
+        // 9. 응답 생성
+        return GroupBookCreateResponse.from(savedGroupBook, bookId, originalBook.getTitle());
+    }
+
+    /**
+     * Book 엔티티를 GroupBook으로 복사
+     */
+    private GroupBook createGroupBook(Book originalBook, Group group) {
+        return GroupBook.builder()
+                .member(originalBook.getMember())
+                .group(group)
+                .title(originalBook.getTitle())
+                .coverImageUrl(originalBook.getCoverImageUrl())
+                .summary(originalBook.getSummary())
+                .bookType(originalBook.getBookType())
+                .category(originalBook.getCategory())
+                .completed(originalBook.getCompleted())
+                .completedAt(originalBook.getCompletedAt())
+                .groupType(GroupType.OTHER)
+                .build();
+    }
+
+    /**
+     * Episode들을 GroupEpisode로 복사
+     */
+    private int copyEpisodesToGroup(List<Episode> episodes, GroupBook groupBook) {
+        if (episodes.isEmpty()) {
+            return 0;
+        }
+
+        try {
+            List<GroupEpisode> groupEpisodes = episodes.stream()
+                    .map(episode -> GroupEpisode.builder()
+                            .groupBook(groupBook)
+                            .title(episode.getTitle())
+                            .orderNo(episode.getEpisodeOrder())
+                            .status(GroupEpisodeStatus.COMPLETE)
+                            .rawNotes(episode.getContent())
+                            .editedContent(episode.getContent())
+                            .currentStep(0)
+                            .template("IMPORTED")
+                            .build())
+                    .collect(Collectors.toList());
+
+            groupEpisodeRepository.saveAll(groupEpisodes);
+            return groupEpisodes.size();
+        } catch (Exception e) {
+            log.error("Failed to copy episodes to group book: {}", groupBook.getGroupBookId(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * Book의 태그들을 GroupBook으로 복사 (향후 GroupBookTag 구현 시 사용)
+     */
+    private int copyTagsToGroupBookTags(Book originalBook, GroupBook groupBook) {
+        try {
+            // GroupBookTag 엔티티가 구현되면 여기에 태그 복사 로직 추가
+            // 현재는 GroupBookTag 엔티티가 없으므로 0 반환
+            log.debug("GroupBookTag entity not implemented yet for group book: {}", groupBook.getGroupBookId());
+            return 0;
+        } catch (Exception e) {
+            log.error("Failed to copy tags for group book: {}", groupBook.getGroupBookId(), e);
             return 0;
         }
     }

@@ -37,6 +37,10 @@ public enum ErrorCode {
     GROUP_MEMBER_ALREADY_EXISTS("GROUP_MEMBER_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 존재하는 그룹원입니다."),
     INVITE_ALREADY_EXISTS("INVITE_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 대기 중인 초대가 있습니다."),
 
+    // GroupBook 관련 에러
+    GROUP_BOOK_NOT_FOUND("GROUP_BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "그룹 책을 찾을 수 없습니다."),
+    GROUP_BOOK_ALREADY_DELETED("GROUP_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 그룹 책입니다."),
+    
     // CommunityBook 관련 에러
     COMMUNITY_BOOK_NOT_FOUND("COMMUNITY_BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "커뮤니티 책을 찾을 수 없습니다."),
     COMMUNITY_BOOK_ALREADY_DELETED("COMMUNITY_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 커뮤니티 책입니다."),
