@@ -53,12 +53,12 @@
               그룹 바로가기 <i :class="['bi', isGroupToggleVisible ? 'bi-chevron-up' : 'bi-chevron-down']"></i>
             </button>
             <transition name="fade">
-              <draggable v-if="isGroupToggleVisible" v-model="allGroups" item-key="id" tag="div"
+              <draggable v-if="isGroupToggleVisible" v-model="allGroups" item-key="groupId" tag="div"
                 class="group-shortcut-list" handle=".drag-handle-shortcut">
                 <template #item="{ element: group }">
                   <div class="group-shortcut-item">
                     <i class="bi bi-grip-vertical drag-handle-shortcut"></i>
-                    <a @click.prevent="scrollToGroup(group.id)" href="#" class="group-name-link">
+                    <a @click.prevent="scrollToGroup(group.groupId)" href="#" class="group-name-link">
                       {{ group.groupName }}
                     </a>
                   </div>
@@ -106,29 +106,29 @@
       </div>
 
       <div class="group-shelves-container">
-        <div v-for="(group, index) in displayedGroups" :key="group.id" :id="`group-shelf-${group.id}`"
+        <div v-for="(group, index) in displayedGroups" :key="group.groupId" :id="`group-shelf-${group.groupId}`"
           class="group-shelf-wrapper">
           <div class="group-shelf-title-bar">
-            <router-link v-if="group.id" :to="`/group-timeline/${group.id}`" class="group-shelf-title"
+            <router-link v-if="group.groupId" :to="`/group-timeline/${group.groupId}`" class="group-shelf-title"
               :title="`${group.groupName} 타임라인으로 이동`">
               <span class="roman-numeral">{{ toRoman(index + 1) }}. </span>{{ group.groupName }}
             </router-link>
             <span v-else class="group-shelf-title-placeholder">{{ group.groupName }}</span>
-            <button v-if="group.id" @click="toggleEditMode(group.id)" class="btn btn-secondary edit-group-btn">
-              {{ editingGroupId === group.id ? '완료' : '책 삭제' }}
+            <button v-if="group.groupId" @click="toggleEditMode(group.groupId)" class="btn btn-secondary edit-group-btn">
+              {{ editingGroupId === group.groupId ? '완료' : '책 삭제' }}
             </button>
           </div>
           <div class="group-bookshelf-inner">
             <div class="shelf-book-container">
               <draggable :list="group.books" item-key="bookId"
                 :group="{ name: 'groupBooksTarget', pull: true, put: ['myBooksSource'] }"
-                class="shelf-book-list group-shelf-horizontal" tag="div" @add="handleBookDrop($event, group.id)"
+                class="shelf-book-list group-shelf-horizontal" tag="div" @add="handleBookDrop($event, group.groupId)"
                 :disabled="editingGroupId !== null">
                 <template #item="{ element: book }">
                   <div class="shelf-book-wrapper">
 
                     <div class="shelf-book-item-3d" @click="selectShelfBook(book)" :title="book.title"
-                      :class="{ 'editing': editingGroupId === group.id }">
+                      :class="{ 'editing': editingGroupId === group.groupId }">
                       <div class="shelf-book-model">
                         <div class="shelf-book-face shelf-book-cover"
                           :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
@@ -151,11 +151,18 @@
                       </div>
                     </div>
 
-                    <button v-if="editingGroupId === group.id" @click.stop="removeBookFromGroup(group.id, book.bookId)"
+                    <button v-if="editingGroupId === group.groupId" @click.stop="removeBookFromGroup(group.groupId, book.bookId)"
                       class="remove-book-btn-spine" title="그룹에서 책 제거">
                       <i class="bi bi-trash"></i>
                     </button>
 
+                  </div>
+                </template>
+                <template #footer>
+                  <div v-if="group.groupId && group.books.length === 0" class="empty-group-message">
+                    <i class="bi bi-bookshelf"></i>
+                    <p>그룹에 포함된 책이 없습니다.</p>
+                    <small>(책 추가 기능 준비중)</small>
                   </div>
                 </template>
               </draggable>
@@ -205,10 +212,8 @@ import { ref, computed, nextTick, onMounted } from 'vue';
 import { RouterLink, useRouter } from 'vue-router';
 import draggable from 'vuedraggable';
 import apiClient from '@/api';
-import { useAuthStore } from '@/stores/auth';
 
 const router = useRouter();
-const authStore = useAuthStore();
 
 // --- Interfaces & Types ---
 interface Book {
@@ -219,20 +224,26 @@ interface Book {
   coverImageUrl?: string;
   completed?: boolean;
 }
-interface Group { id: string; groupName: string; ownerId: string; managers: string[]; members: string[]; books: Book[]; createdAt: Date; }
+interface GroupResponse {
+  groupId: string;
+  groupName: string;
+  ownerId: string;
+  managers: string[];
+  members: string[];
+  createdAt: string; // API 응답은 보통 ISO 문자열로 오므로 string으로 받음
+  deletedAt?: string | null; // soft-delete 필드 추가
+}
+// `GroupResponse`에서 `createdAt`을 제외하고, 새로운 `createdAt`과 `books`를 추가합니다.
+type Group = Omit<GroupResponse, 'createdAt'> & {
+  books: Book[];
+  createdAt: Date; // 프론트엔드에서는 Date 객체로 변환하여 사용
+};
 interface DraggableEvent { added?: { element: Book; newIndex: number }; }
-
-// --- Dummy Data ---
-const DUMMY_GROUPS: Group[] = [
-  { id: 'group1', groupName: '독서 토론 모임', ownerId: '김작가', managers: ['이영희'], members: ['김작가', '이영희', '박철수'], books: [{ bookId: 'mybook1', title: '나의 어린 시절 이야기', memberId: 'dummyUser1', authorName: '김작가', coverImageUrl: 'https://images.unsplash.com/photo-1506894824902-72895a783ac0?w=500' }], createdAt: new Date() },
-  { id: 'group2', groupName: '글쓰기 동호회', ownerId: '김작가', managers: [], members: ['김작가', '최수진'], books: [], createdAt: new Date() },
-  { id: 'group3', groupName: '여행 에세이 클럽', ownerId: '정민준', managers: [], members: ['정민준', '김작가', '하은지'], books: [{ bookId: 'mybook3', title: '여행의 기록', memberId: 'dummyUser1', authorName: '김작가', coverImageUrl: 'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500' }], createdAt: new Date() },
-];
 
 // --- Reactive State ---
 const representativeBooks = ref<Book[]>([]);
 const myBooks = ref<Book[]>([]);
-const allGroups = ref<Group[]>(DUMMY_GROUPS);
+const allGroups = ref<Group[]>([]);
 const isRepBookModalVisible = ref(false);
 const selectedRepBookId = ref<string | null>(null);
 const isGroupModalVisible = ref(false);
@@ -264,7 +275,7 @@ const bookGroupIndices = computed(() => {
 const displayedGroups = computed(() => {
   if (allGroups.value.length === 0) {
     return [{
-      id: '',
+      groupId: '',
       groupName: '그룹추가를 눌러 그룹을 만들어 보세요.',
       ownerId: '',
       managers: [],
@@ -289,6 +300,26 @@ async function loadMyBooks() {
     console.error("내 책 목록을 불러오는데 실패했습니다:", error);
   }
 }
+
+async function loadMyGroups() {
+  try {
+    const response = await apiClient.get<{ data: GroupResponse[] }>('/api/v1/members/me/groups', {
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    });
+    // 백엔드에서 받은 데이터에는 books 필드가 없으므로, 각 그룹에 빈 배열을 추가해줍니다.
+    allGroups.value = response.data.data
+      .map((group) => ({
+        ...group,
+        books: [], // TODO: 그룹별 책 목록을 가져오는 API 연동 필요
+        createdAt: new Date(group.createdAt), // ISO 문자열을 Date 객체로 변환
+      }));
+  } catch (error) {
+    console.error("내 그룹 목록을 불러오는데 실패했습니다:", error);
+    showMessageBox('그룹 목록을 가져오는 데 실패했습니다. 다시 시도해주세요.', '오류');
+  }
+}
 // 클릭 시 바로 상세 페이지로 이동하도록 변경
 function selectShelfBook(book: Book) {
   if (editingGroupId.value) return;
@@ -302,52 +333,27 @@ function closeAllModals() {
 function showMessageBox(message: string, title = '알림') { messageBoxTitle.value = title; messageBoxContent.value = message; isMessageBoxVisible.value = true; }
 
 async function handleBookDrop(event: DraggableEvent, groupId: string) {
-  if (!event || !event.added) {
-    return;
-  }
+  // 기능이 아직 구현되지 않았음을 사용자에게 알립니다.
+  showMessageBox('그룹에 책을 추가하는 기능은 현재 준비 중입니다.', '알림');
 
-  // vuedraggable이 DOM을 업데이트한 후, Vue가 반응성 데이터를 업데이트할 때까지 기다립니다.
-  await nextTick();
-
-  const { element: droppedBook, newIndex } = event.added;
-  const group = allGroups.value.find(g => g.id === groupId);
-
-  if (!group || typeof newIndex !== 'number') {
-    return;
-  }
-
-  // vuedraggable이 책을 배열에 자동으로 추가한 후 이 함수가 호출됩니다.
-  // 따라서 중복 여부를 확인하기 위해 배열에 해당 책 ID가 몇 번 나타나는지 셉니다.
-  const occurrences = group.books.filter(b => b.bookId === droppedBook.bookId).length;
-
-  // 책을 배열에서 제거해야 할 때 사용할 함수입니다.
-  const removeBook = () => {
-    // newIndex가 유효한 범위 내에 있는지 확인합니다.
-    if (newIndex >= 0 && newIndex < group.books.length) {
-      const newBooks = [...group.books];
-      newBooks.splice(newIndex, 1);
-      group.books = newBooks;
+  // vuedraggable에 의해 DOM에 추가된 요소를 원래 위치로 되돌리기 위해
+  // 데이터 모델에서 해당 요소를 즉시 제거합니다.
+  if (event.added) {
+    const { element: droppedBook } = event.added;
+    const group = allGroups.value.find(g => g.groupId === groupId);
+    if (group) {
+      // 다음 틱에서 DOM이 업데이트된 후, 책을 그룹의 books 배열에서 제거합니다.
+      await nextTick();
+      const bookIndex = group.books.findIndex(b => b.bookId === droppedBook.bookId);
+      if (bookIndex !== -1) {
+        group.books.splice(bookIndex, 1);
+      }
     }
-  };
-
-  if (occurrences > 1) {
-    // 중복인 경우, 사용자에게 알리고 드래그된 책을 배열에서 제거합니다.
-    showMessageBox(`'${droppedBook.title}'은(는) 이미 그룹에 있습니다.`, '중복 알림');
-    removeBook();
-    return;
-  }
-
-  // 중복이 아닌 경우, 사용자에게 추가할지 확인하는 대화상자를 띄웁니다.
-  if (confirm(`'${droppedBook.title}' 책을 '${group.groupName}' 그룹에 추가하시겠습니까?`)) {
-    // 사용자가 '확인'을 누르면, 책이 이미 배열에 있으므로 아무 작업도 하지 않습니다.
-  } else {
-    // 사용자가 '취소'를 누르면, 드래그된 책을 배열에서 제거합니다.
-    removeBook();
   }
 }
 
 function removeBookFromGroup(groupId: string, bookId: string) {
-  const group = allGroups.value.find(g => g.id === groupId);
+  const group = allGroups.value.find(g => g.groupId === groupId);
   if (group) {
     const book = group.books.find(b => b.bookId === bookId);
     if (book && confirm(`'${book.title}' 책을 '${group.groupName}' 그룹에서 제거하시겠습니까?`)) {
@@ -377,25 +383,37 @@ async function createGroupHandler() {
     return;
   }
 
-  const members = [authStore.user?.nickname].filter(Boolean) as string[];
-  const newGroup: Group = {
-    id: `group${Date.now()}`,
-    groupName: groupName,
-    ownerId: String(authStore.user?.memberId),
-    managers: [],
-    members: members,
-    books: [],
-    createdAt: new Date()
-  };
-  allGroups.value.push(newGroup);
-  isGroupModalVisible.value = false;
-  newGroupName.value = '';
-  showMessageBox('그룹이 성공적으로 생성되었습니다.');
+  try {
+    const formData = new FormData();
+    formData.append('groupName', groupName);
 
-  await nextTick();
-  const newGroupElement = document.getElementById(`group-shelf-${newGroup.id}`);
-  if (newGroupElement) {
-    newGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const response = await apiClient.post('/api/v1/groups', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    const newGroupData = response.data.data;
+
+    // API 응답을 기반으로 새 그룹 객체 생성
+    const newGroup: Group = {
+      ...newGroupData,
+      books: [], // 새 그룹에는 아직 책이 없음
+      createdAt: new Date(newGroupData.createdAt), // ISO 문자열을 Date 객체로 변환
+    };
+
+    allGroups.value.push(newGroup);
+    isGroupModalVisible.value = false;
+    newGroupName.value = '';
+    showMessageBox('그룹이 성공적으로 생성되었습니다.');
+
+    await nextTick();
+    const newGroupElement = document.getElementById(`group-shelf-${newGroup.groupId}`);
+    if (newGroupElement) {
+      newGroupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  } catch (error) {
+    console.error("그룹 생성에 실패했습니다:", error);
+    showMessageBox('그룹 생성에 실패했습니다. 다시 시도해주세요.', '오류');
   }
 }
 
@@ -406,6 +424,7 @@ function toggleGroupList() {
 function scrollToGroup(groupId: string) {
   const groupElement = document.getElementById(`group-shelf-${groupId}`);
   if (groupElement) {
+    groupElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 
@@ -442,7 +461,10 @@ function toRoman(num: number): string {
   return result;
 }
 
-onMounted(loadMyBooks);
+onMounted(() => {
+  loadMyBooks();
+  loadMyGroups();
+});
 </script>
 
 <style>
@@ -1186,6 +1208,34 @@ onMounted(loadMyBooks);
   border: none;
   box-shadow: none;
   padding: 0;
+}
+
+.empty-group-message {
+  width: 100%;
+  text-align: center;
+  padding: 4rem 2rem;
+  color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.empty-group-message .bi {
+  font-size: 3rem;
+  opacity: 0.7;
+}
+
+.empty-group-message p {
+  font-size: 1.1rem;
+  font-weight: 500;
+  margin: 0;
+}
+
+.empty-group-message small {
+  font-size: 0.9rem;
+  color: rgba(0, 0, 0, 0.4);
 }
 
 

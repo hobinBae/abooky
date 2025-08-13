@@ -10,7 +10,13 @@ export interface Group {
   leaderNickname: string;
   createdAt: string;
   updatedAt: string;
-  members?: string[];
+  members?: GroupMember[];
+}
+
+export interface GroupMember {
+  memberId: number;
+  nickname: string;
+  profileImageUrl: string;
 }
 
 export interface ActiveSession {
@@ -19,6 +25,17 @@ export interface ActiveSession {
   hostName: string;
   startedAt: Date;
   participantCount: number;
+}
+
+export interface GroupInvite {
+  groupApplyId: number;
+  groupId: number;
+  groupName: string;
+  leaderId: number;
+  leaderNickname: string;
+  receiverNickname: string;
+  status: 'PENDING' | 'ACCEPTED' | 'DENIED';
+  invitedAt: string;
 }
 
 export interface ApiResponse<T> {
@@ -44,7 +61,7 @@ class GroupService {
   }
 
   private getCurrentUserId(): number {
-    const token = this.getAccessToken();
+    // const token = this.getAccessToken();
     // JWT 토큰에서 사용자 ID 추출하거나 localStorage에서 직접 가져오기
     const userId = localStorage.getItem('userId');
     return userId ? parseInt(userId) : 1001; // 기본값
@@ -58,13 +75,13 @@ class GroupService {
   private storeSession(session: ActiveSession): void {
     const sessions = this.getStoredSessions();
     const existingIndex = sessions.findIndex(s => s.groupId === session.groupId);
-    
+
     if (existingIndex >= 0) {
       sessions[existingIndex] = session;
     } else {
       sessions.push(session);
     }
-    
+
     localStorage.setItem('activeGroupBookSessions', JSON.stringify(sessions));
   }
 
@@ -76,52 +93,108 @@ class GroupService {
 
   async fetchMyGroups(): Promise<Group[]> {
     try {
-      const response = await apiClient.get('/api/v1/groups/me', {
-        headers: {
-          'Authorization': `Bearer ${this.getAccessToken()}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.data.success) {
-        const basicGroups = response.data.data.content;
-        
-        // 각 그룹의 상세 정보 가져오기
-        const groupsWithDetails = await Promise.all(
-          basicGroups.map(async (group: Group) => {
-            try {
-              const detailResponse = await apiClient.get(`/api/v1/groups/${group.groupId}/details`, {
-                headers: {
-                  'Authorization': `Bearer ${this.getAccessToken()}`,
-                  'Content-Type': 'application/json'
-                }
-              });
-              
-              if (detailResponse.status === 200) {
-                return {
-                  ...group,
-                  members: detailResponse.data.data.members || []
-                };
-              } else {
-                console.warn(`그룹 ${group.groupId} 상세 정보 조회 실패`);
-                return group;
-              }
-            } catch (error) {
-              console.error(`그룹 ${group.groupId} 상세 정보 조회 오류:`, error);
-              return group;
-            }
-          })
-        );
-        
-        return groupsWithDetails;
-      } else {
-        throw new Error('API 응답 실패: ' + response.data.message);
-      }
+      // 올바른 API 엔드포인트로 수정
+      const response = await apiClient.get('/api/v1/members/me/groups');
+      // 백엔드 응답 구조에 맞게 데이터 반환
+      return response.data.data;
     } catch (error) {
-      console.error('그룹 목록 조회 실패:', error);
-      
-      // 개발용 더미 데이터 - 현재 사용자에 따라 다른 그룹 반환
-      return this.getDummyGroups();
+      console.error('내 그룹 목록 조회 실패:', error);
+      // API 호출 실패 시 빈 배열 반환 또는 에러 처리
+      return [];
+    }
+  }
+
+  async fetchGroupDetails(groupId: string): Promise<Group | null> {
+    try {
+      const response = await apiClient.get(`/api/v1/groups/${groupId}`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`그룹 상세 정보 조회 실패 (ID: ${groupId}):`, error);
+      return null;
+    }
+  }
+
+  async fetchGroupMembers(groupId: string): Promise<GroupMember[]> {
+    try {
+      const response = await apiClient.get(`/api/v1/groups/${groupId}/members`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`그룹 멤버 목록 조회 실패 (ID: ${groupId}):`, error);
+      return [];
+    }
+  }
+
+  async updateGroup(groupId: string, groupData: FormData): Promise<Group | null> {
+    try {
+      const response = await apiClient.patch(`/api/v1/groups/${groupId}`, groupData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data.data;
+    } catch (error) {
+      console.error(`그룹 정보 수정 실패 (ID: ${groupId}):`, error);
+      return null;
+    }
+  }
+
+  async kickMember(groupId: string, targetId: number): Promise<boolean> {
+    try {
+      await apiClient.delete(`/api/v1/groups/${groupId}/${targetId}`);
+      return true;
+    } catch (error) {
+      console.error(`멤버 강퇴 실패 (Group: ${groupId}, Target: ${targetId}):`, error);
+      return false;
+    }
+  }
+
+  async leaveGroup(groupId: string): Promise<boolean> {
+    try {
+      await apiClient.delete(`/api/v1/groups/${groupId}/me`);
+      return true;
+    } catch (error) {
+      console.error(`그룹 탈퇴 실패 (Group: ${groupId}):`, error);
+      return false;
+    }
+  }
+
+  async fetchSentInvites(groupId: string): Promise<GroupInvite[]> {
+    try {
+      const response = await apiClient.get(`/api/v1/groups/${groupId}/invites`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`보낸 초대 목록 조회 실패 (Group: ${groupId}):`, error);
+      return [];
+    }
+  }
+
+  async inviteMember(groupId: string, receiverEmail: string): Promise<GroupInvite | null> {
+    try {
+      const response = await apiClient.post(`/api/v1/groups/${groupId}/invites`, { receiverEmail });
+      return response.data.data;
+    } catch (error) {
+      console.error(`그룹원 초대 실패 (Group: ${groupId}, Email: ${receiverEmail}):`, error);
+      return null;
+    }
+  }
+
+  async handleInvite(groupId: string, groupApplyId: number, status: 'ACCEPTED' | 'DENIED'): Promise<GroupInvite | null> {
+    try {
+      const response = await apiClient.patch(`/api/v1/groups/${groupId}/invites/${groupApplyId}`, { status });
+      return response.data.data;
+    } catch (error) {
+      console.error(`초대 처리 실패 (Group: ${groupId}, Apply: ${groupApplyId}):`, error);
+      return null;
+    }
+  }
+
+  async fetchMyInvites(): Promise<GroupInvite[]> {
+    try {
+      const response = await apiClient.get('/api/v1/members/me/invites');
+      return response.data.data;
+    } catch (error) {
+      console.error('내 초대 목록 조회 실패:', error);
+      return [];
     }
   }
 
@@ -133,7 +206,7 @@ class GroupService {
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.data.success) {
         return response.data.data.content;
       } else {
@@ -141,7 +214,7 @@ class GroupService {
       }
     } catch (error) {
       console.error('활성화된 세션 조회 실패:', error);
-      
+
       // localStorage에서 세션 목록 조회 (실시간 업데이트)
       const storedSessions = this.getStoredSessions();
       console.log('🔧 localStorage에서 가져온 세션:', storedSessions);
@@ -153,7 +226,7 @@ class GroupService {
     const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
       userName
     });
-    
+
     const data = response.data.data ?? response.data;
     if (!data?.token || !data?.url) {
       throw new Error('응답에 url/token 없음');
@@ -163,46 +236,82 @@ class GroupService {
 
   private getDummyGroups(): Group[] {
     const currentUserId = this.getCurrentUserId();
-    
-    // 내 서재의 allGroups와 일치하는 더미 데이터 반환
-    return [
-      {
-        groupId: 1, // 내 서재의 'group1'에 해당
-        groupName: "독서 토론 모임",
-        description: "독서를 통해 생각을 나누는 모임",
-        themeColor: "#42b983",
-        groupImageUrl: "https://images.unsplash.com/photo-1506894824902-72895a783ac0?w=500",
-        leaderId: 1001,
-        leaderNickname: "김작가",
-        createdAt: "2025-01-01T10:00:00",
-        updatedAt: "2025-01-01T11:00:00",
-        members: ["김작가", "이영희", "박철수"]
-      },
-      {
-        groupId: 2, // 내 서재의 'group2'에 해당  
-        groupName: "글쓰기 동호회",
-        description: "함께 글을 쓰며 성장하는 동호회",
-        themeColor: "#FFCC00",
-        groupImageUrl: "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=500",
-        leaderId: 1001,
-        leaderNickname: "김작가",
-        createdAt: "2025-01-02T10:00:00",
-        updatedAt: "2025-01-02T11:00:00",
-        members: ["김작가", "최수진"]
-      },
-      {
-        groupId: 3, // 내 서재의 'group3'에 해당
-        groupName: "여행 에세이 클럽",
-        description: "여행의 경험을 글로 남기는 클럽",
-        themeColor: "#3498db",
-        groupImageUrl: "https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=500",
-        leaderId: 5001,
-        leaderNickname: "정민준",
-        createdAt: "2025-01-03T10:00:00",
-        updatedAt: "2025-01-03T11:00:00",
-        members: ["정민준", "김작가", "하은지"]
-      }
-    ];
+
+    // 사용자별로 다른 그룹 반환
+    if (currentUserId === 1001) { // 사용자 A
+      return [
+        {
+          groupId: 1,
+          groupName: "우리 가족",
+          description: "가족들과 추억을 기록하는 공간",
+          themeColor: "#FFCC00",
+          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+          leaderId: 1001,
+          leaderNickname: "김싸피123",
+          createdAt: "2025-07-22T10:00:00",
+          updatedAt: "2025-07-22T11:00:00",
+          members: [
+            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+            { memberId: 1002, nickname: '엄마', profileImageUrl: '' },
+            { memberId: 1003, nickname: '아빠', profileImageUrl: '' }
+          ]
+        },
+        {
+          groupId: 2,
+          groupName: "대학 동기",
+          description: "대학 동기들과 추억을 기록하는 공간",
+          themeColor: "#42b983",
+          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+          leaderId: 5001,
+          leaderNickname: "이싸피123",
+          createdAt: "2025-07-22T10:00:00",
+          updatedAt: "2025-07-22T11:00:00",
+          members: [
+            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+            { memberId: 5001, nickname: '이싸피123', profileImageUrl: '' },
+            { memberId: 5002, nickname: '박싸피456', profileImageUrl: '' }
+          ]
+        }
+      ];
+    } else if (currentUserId === 5001) { // 사용자 B
+      return [
+        {
+          groupId: 2,
+          groupName: "대학 동기",
+          description: "대학 동기들과 추억을 기록하는 공간",
+          themeColor: "#42b983",
+          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+          leaderId: 5001,
+          leaderNickname: "이싸피123",
+          createdAt: "2025-07-22T10:00:00",
+          updatedAt: "2025-07-22T11:00:00",
+          members: [
+            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+            { memberId: 5001, nickname: '이싸피123', profileImageUrl: '' },
+            { memberId: 5002, nickname: '박싸피456', profileImageUrl: '' }
+          ]
+        },
+        {
+          groupId: 1,
+          groupName: "우리 가족",
+          description: "가족들과 추억을 기록하는 공간",
+          themeColor: "#FFCC00",
+          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+          leaderId: 1001,
+          leaderNickname: "김싸피123",
+          createdAt: "2025-07-22T10:00:00",
+          updatedAt: "2025-07-22T11:00:00",
+          members: [
+            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+            { memberId: 1002, nickname: '엄마', profileImageUrl: '' },
+            { memberId: 1003, nickname: '아빠', profileImageUrl: '' }
+          ]
+        }
+      ];
+    }
+
+    // 기본값
+    return [];
   }
 
   private getDummySessions(): ActiveSession[] {
@@ -236,7 +345,7 @@ class GroupService {
   async startGroupBookSession(groupId: number, groupName: string): Promise<void> {
     const currentUserId = this.getCurrentUserId();
     const userName = currentUserId === 1001 ? '김싸피123' : '이싸피123';
-    
+
     const session: ActiveSession = {
       groupId,
       groupName,
@@ -244,7 +353,7 @@ class GroupService {
       startedAt: new Date(),
       participantCount: 1
     };
-    
+
     this.storeSession(session);
     console.log('그룹책 세션 시작:', session);
   }
