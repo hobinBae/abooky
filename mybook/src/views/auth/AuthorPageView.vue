@@ -7,7 +7,7 @@
       <!-- 왼쪽 프로필 섹션 -->
       <div class="profile-sidebar">
         <div class="profile-content">
-          <img :src="authorProfile.profileImageUrl || 'https://via.placeholder.com/150'" alt="Profile Picture" class="profile-pic">
+          <img :src="authorProfile.profileImageUrl && authorProfile.profileImageUrl.trim() ? authorProfile.profileImageUrl : '/images/profile.png'" alt="Profile Picture" class="profile-pic">
           <h2 class="user-name">{{ authorProfile.name }}</h2>
           <p class="user-penname">@{{ authorProfile.nickname }}</p>
           <div v-if="authorProfile.intro" class="author-message">
