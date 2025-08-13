@@ -40,7 +40,7 @@ public interface ConversationService {
     String startNewConversation(Long memberId, Long bookId, Long episodeId);
 
     // 기존 대화 재연결
-    SseEmitter establishConversationStream(String sessionId, Long bookId);
+    void establishConversationStream(String sessionId, Long bookId, SseEmitter emitter);
 
 
 }
