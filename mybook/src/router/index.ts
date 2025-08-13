@@ -88,6 +88,13 @@ const mainRoutes: Array<RouteRecordRaw> = [
     component: () => import('../views/books/BookDetailView.vue')
   },
   {
+    path: '/group-book-detail/:groupId/:bookId',
+    name: 'group-book-detail',
+    component: () => import('../views/groups/GroupBookDetailView.vue'),
+    props: true,
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/group-timeline/:id',
     name: 'group-timeline',
     component: () => import('../views/groups/GroupTimelineView.vue')
