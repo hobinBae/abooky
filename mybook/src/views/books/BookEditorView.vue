@@ -96,30 +96,28 @@
             </div>
           </div>
           <div class="editor-sidebar" :ref="el => { sidebarButtons = (el as any)?.children }">
-            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> AI 인터뷰 시작</button>
+            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> <span>AI 인터뷰
+                시작</span></button>
 
-            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i> 음성
-              답변 시작</button>
+            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i>
+              <span>음성 답변 시작</span></button>
             <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
-                class="bi bi-stop-circle-fill"></i> 음성 답변 완료</button>
+                class="bi bi-stop-circle-fill"></i> <span>음성 답변 완료</span></button>
 
             <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged"
-              class="btn-sidebar"><i class="bi bi-check-circle"></i> 질문 답변완료</button>
+              class="btn-sidebar"><i class="bi bi-check-circle"></i> <span>질문 답변완료</span></button>
             <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
-                class="bi bi-skip-end-circle"></i> 질문 건너뛰기</button>
-            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> AI 자동 교정</button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> 이야기 저장</button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> 배호빈 버튼</button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> 이야기 사진 첨부</button>
-
-
-            <hr class="sidebar-divider">
-
+                class="bi bi-skip-end-circle"></i> <span>질문 건너뛰기</span></button>
+            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> <span>AI 자동 교정</span></button>
+            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> <span>이야기 저장</span></button>
+            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-universal-access"></i> <span>배호빈
+                버튼</span></button>
+            <button @click="uploadimage" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진 첨부</span></button>
             <button @click="saveDraft" class="btn-sidebar btn-outline-sidebar">
-              <i class="bi bi-cloud-arrow-down"></i> 임시 저장 (나가기)
+              <i class="bi bi-cloud-arrow-down"></i> <span>임시 저장 (나가기)</span>
             </button>
             <button @click="moveToPublishingStep" class="btn-sidebar btn-primary-sidebar">
-              <i class="bi bi-send-check"></i> 발행하기
+              <i class="bi bi-send-check"></i> <span>발행하기</span>
             </button>
           </div>
         </div>
@@ -1036,7 +1034,7 @@ watch(() => currentStory.value?.content, (newContent) => {
 }
 
 .book-editor-page {
-  padding: 1rem 2rem 2rem 2rem;
+  padding: 1rem 4rem 5rem 4rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
@@ -1518,41 +1516,71 @@ textarea.form-control {
 
 .editor-sidebar {
   background: var(--surface-color);
-  padding: 1.5rem 1rem;
+  padding: 1rem 1rem;
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.7rem;
+  align-items: flex-end;
+  /* [추가] 버튼들을 오른쪽으로 정렬합니다. */
 }
 
 .btn-sidebar {
-  width: 90%;
-  margin: 0 auto;
-  text-align: left;
-  padding: 0.75rem 1rem;
-  border-radius: 30px;
+  width: 50px;
+  height: 50px;
+  margin: 0;
+  /* [수정] '0 auto'에서 '0'으로 변경하여 자동 중앙 정렬을 제거합니다. */
+  padding: 0;
+  border-radius: 50px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  transition: all 0.2s;
+  justify-content: center;
+  gap: 0;
+  transition: all 0.4s ease-in-out;
   font-weight: 500;
   background-color: #fff;
   border: 1.5px solid #664c39;
   color: #333;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 15px;
+}
+
+.btn-sidebar span {
+  /* Initially hidden */
+  visibility: hidden;
+  opacity: 0;
+  width: 0;
+  transition: visibility 0s 0.2s, opacity 0.2s ease, width 0.3s ease;
+}
+
+.btn-sidebar:hover {
+  width: 220px;
+  border-radius: 50px;
+  justify-content: flex-start;
+  padding: 0 1rem;
+  gap: 0.75rem;
+  border-color: var(--accent-color);
+  background-color: #f6f8f2;
+}
+
+.btn-sidebar:hover span {
+  visibility: visible;
+  opacity: 1;
+  width: auto;
+  transition: visibility 0s, opacity 0.2s ease 0.2s, width 0.3s ease 0.1s;
+}
+
+.btn-sidebar i {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  /* Prevent icon from shrinking */
 }
 
 .btn-sidebar.font-small {
   font-size: 0.8rem;
   /* 줄바꿈 시 적용될 작은 폰트 크기 */
-}
-
-.btn-sidebar:hover {
-  border-color: var(--accent-color);
-  background-color: #f6f8f2;
 }
 
 .btn-sidebar:disabled {
@@ -1568,7 +1596,7 @@ textarea.form-control {
 
 
 .sidebar-divider {
-  margin: 3.5rem 0;
+  margin: 1.5rem 0;
   border: none;
   border-top: 1px solid var(--border-color);
 }
@@ -1738,5 +1766,65 @@ textarea.form-control {
 
 .tag-container .form-control:focus {
   box-shadow: none;
+}
+
+/* --- 반응형 레이아웃을 위한 미디어 쿼리 --- */
+@media (max-width: 1200px) {
+
+  /* 전체 작업 공간을 세로로 쌓기 */
+  .workspace-main {
+    grid-template-columns: 1fr;
+    /* 2단 그리드를 1단으로 변경 */
+    height: auto;
+    /* 고정 높이 제거 */
+    gap: 1.5rem;
+    /* 요소 간 간격 조정 */
+  }
+
+  /* 에디터 영역을 세로로 쌓기 */
+  .editor-area {
+    grid-template-columns: 1fr;
+    /* 2단 그리드를 1단으로 변경 */
+  }
+
+  /* 사이드바를 가로 버튼 그룹으로 변경 */
+  .editor-sidebar {
+    flex-direction: row;
+    /* 버튼을 가로로 나열 */
+    flex-wrap: wrap;
+    /* 버튼이 넘치면 다음 줄로 이동 */
+    justify-content: center;
+    /* 버튼 그룹을 중앙 정렬 */
+    gap: 0.75rem;
+    /* 버튼 사이 간격 */
+    border-left: none;
+    /* 왼쪽 경계선 제거 */
+    border-top: 1px solid var(--border-color);
+    /* 위쪽 경계선 추가 */
+    padding: 1.5rem 1rem;
+    /* 패딩 조정 */
+  }
+
+  /* 사이드바 버튼 스타일 조정 */
+  /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
+/* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
+.btn-sidebar:hover {
+    width: auto;
+    min-width: 145px;         /* 수정: 최소 너비 축소 */
+    height: 40px;             /* 수정: 버튼 높이 축소 */
+    border-radius: 30px;
+    justify-content: flex-start;
+    padding: 0 0.9rem;        /* 수정: 좌우 여백 축소 */
+    transform: none;
+    font-size: 0.9rem;        /* 추가: 글씨 크기 작게 설정 */
+}
+
+  /* 작은 화면에서는 버튼 안의 텍스트를 항상 보이게 처리 */
+  .btn-sidebar span,
+  .btn-sidebar:hover span {
+    visibility: visible;
+    opacity: 1;
+    width: auto;
+  }
 }
 </style>
