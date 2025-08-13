@@ -909,6 +909,9 @@ async function finalizePublicationAsCopy() {
   }
 }
 
+function uploadimage() {
+  alert('이미지 업로드 기능은 아직 구현되지 않았습니다.');
+}
 
 const adjustButtonFontSize = () => {
   nextTick(() => {
@@ -1516,18 +1519,18 @@ textarea.form-control {
 
 .editor-sidebar {
   background: var(--surface-color);
-  padding: 1rem 1rem;
+  padding: 1rem 2.5rem;
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 0.6rem;
   align-items: flex-end;
   /* [추가] 버튼들을 오른쪽으로 정렬합니다. */
 }
 
 .btn-sidebar {
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   margin: 0;
   /* [수정] '0 auto'에서 '0'으로 변경하여 자동 중앙 정렬을 제거합니다. */
   padding: 0;
@@ -1540,11 +1543,11 @@ textarea.form-control {
   transition: all 0.4s ease-in-out;
   font-weight: 500;
   background-color: #fff;
-  border: 1.5px solid #664c39;
+  border: 2px solid #664c39;
   color: #333;
   white-space: nowrap;
   overflow: hidden;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .btn-sidebar span {
@@ -1556,11 +1559,11 @@ textarea.form-control {
 }
 
 .btn-sidebar:hover {
-  width: 220px;
+  width: 170px;
   border-radius: 50px;
   justify-content: flex-start;
-  padding: 0 1rem;
-  gap: 0.75rem;
+  padding: 0 0.8rem;
+  gap: 0.6rem;
   border-color: var(--accent-color);
   background-color: #f6f8f2;
 }
@@ -1573,7 +1576,7 @@ textarea.form-control {
 }
 
 .btn-sidebar i {
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   flex-shrink: 0;
   /* Prevent icon from shrinking */
 }
@@ -1767,9 +1770,32 @@ textarea.form-control {
 .tag-container .form-control:focus {
   box-shadow: none;
 }
+/* 발행하기 & 임시저장 버튼 항상 확장 스타일 */
+.btn-primary-sidebar,
+.btn-outline-sidebar {
+  width: 170px; /* 기본 호버 너비(190px)보다 약간 작은 너비로 고정 */
+  border-radius: 50px;
+  justify-content: flex-start;
+  padding: 0 0.8rem;
+  gap: 0.6rem;
+  background-color: #f6f8f2; /* 확장 상태와 어울리는 배경색 추가 */
+}
 
+/* 위 버튼들의 텍스트(span)를 항상 보이게 처리 */
+.btn-primary-sidebar span,
+.btn-outline-sidebar span {
+  visibility: visible;
+  opacity: 1;
+  width: auto;
+}
+
+/* 호버 시에도 너비가 변경되지 않도록 고정 */
+.btn-primary-sidebar:hover,
+.btn-outline-sidebar:hover {
+  scale: 1.05;
+}
 /* --- 반응형 레이아웃을 위한 미디어 쿼리 --- */
-@media (max-width: 1200px) {
+@media (max-width: 1400px) {
 
   /* 전체 작업 공간을 세로로 쌓기 */
   .workspace-main {
@@ -1819,12 +1845,6 @@ textarea.form-control {
     font-size: 0.9rem;        /* 추가: 글씨 크기 작게 설정 */
 }
 
-  /* 작은 화면에서는 버튼 안의 텍스트를 항상 보이게 처리 */
-  .btn-sidebar span,
-  .btn-sidebar:hover span {
-    visibility: visible;
-    opacity: 1;
-    width: auto;
-  }
+
 }
 </style>
