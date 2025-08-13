@@ -74,7 +74,7 @@
                 <div class="shelf-book-model">
                   <div class="shelf-book-face shelf-book-cover"
                     :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
-                    <img v-if="book.completed" src="/images/complete.png" alt="출판 완료"
+                    <img v-if="book.published" src="/images/complete.png" alt="출판 완료"
                       class="published-sticker-shelf" />
                     <div class="shelf-bright-edge-effect"></div>
                     <div class="shelf-book-title-overlay">
@@ -222,6 +222,7 @@ interface Book {
   authorName?: string;
   coverImageUrl?: string;
   completed?: boolean;
+  published?: boolean;
 }
 interface GroupResponse {
   groupId: string;
@@ -290,7 +291,8 @@ const displayedGroups = computed(() => {
 async function loadMyBooks() {
   try {
     const response = await apiClient.get('/api/v1/books');
-    myBooks.value = response.data.data;
+    // 임시 저장된(완료되지 않은) 책을 제외하고, 완료된 책만 표시하도록 필터링
+    myBooks.value = response.data.data.filter((book: Book) => book.completed);
     // 임시로 첫번째 책을 대표책으로 설정
     if (myBooks.value.length > 0) {
       representativeBooks.value = [myBooks.value[0]];
