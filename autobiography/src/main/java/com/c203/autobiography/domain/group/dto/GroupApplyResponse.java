@@ -39,7 +39,22 @@ public class GroupApplyResponse {
     @Schema(description = "초대 생성 일시", example = "2025-07-23T10:00:00")
     private LocalDateTime invitedAt;
 
-    public static GroupApplyResponse from(GroupApply ga, Group g, Member leader) {
+    @Schema(description = "수신인 ID", example = "2")
+    private Long receiverId;
+
+    @Schema(description = "수신인 이름", example = "김싸피")
+    private String receiverName;
+
+    @Schema(description = "수신인 닉네임", example = "김싸피123")
+    private String receiverNickname;
+
+    @Schema(description = "수신인 이메일", example = "receiver@example.com")
+    private String receiverEmail;
+
+    @Schema(description = "수신인 프로필 이미지 URL", example = "https://...jpg")
+    private String receiverProfileImageUrl;
+
+    public static GroupApplyResponse from(GroupApply ga, Group g, Member leader, Member receiver) {
         return GroupApplyResponse.builder()
                 .groupApplyId(ga.getGroupApplyId())
                 .groupId(ga.getGroupId())
@@ -48,6 +63,11 @@ public class GroupApplyResponse {
                 .leaderNickname(leader.getNickname())
                 .status(ga.getStatus())
                 .invitedAt(ga.getInvitedAt())
+                .receiverId(receiver.getMemberId())
+                .receiverName(receiver.getName())
+                .receiverNickname(receiver.getNickname())
+                .receiverEmail(receiver.getEmail())
+                .receiverProfileImageUrl(receiver.getProfileImageUrl())
                 .build();
     }
 }
