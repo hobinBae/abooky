@@ -10,9 +10,12 @@
       <section v-if="user" class="profile-section">
       <div class="profile-main-content">
         <div class="profile-left-section">
-          <img :src="user.profileImageUrl || '/images/profile.png'" alt="Profile Image"
-            class="profile-pic">
-          <!-- <img v-if="isAuthor && isPublished" src="/images/complete.png" alt="출판 완료" class="published-sticker" /> -->
+          <img 
+            :src="getValidProfileImageUrl(user.profileImageUrl)" 
+            alt="Profile Image"
+            class="profile-pic"
+            @error="handleImageError"
+          >
           <div class="user-info">
             <h2 class="user-name">{{ user.name }}</h2>
             <p class="user-penname">@{{ user.nickname }}</p>
@@ -92,7 +95,7 @@
     <hr class="divider">
 
     <div class="account-actions">
-      <button @click="deleteAccount" class="btn-link-danger">회원 탈퇴</button>
+      <button @click="deleteAccount" class="btn-auth-danger">회원 탈퇴</button>
     </div>
   </div>
 </div>
@@ -157,6 +160,46 @@ const totalPages = computed(() => Math.ceil(myComments.value.length / commentsPe
 const goToPage = (page: number) => { currentPage.value = page; };
 const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
 const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
+
+// 유효한 프로필 이미지 URL 반환 (AWS default.png 제외)
+const getValidProfileImageUrl = (url: string | null | undefined): string => {
+  // URL이 없거나 빈 문자열인 경우
+  if (!url || !url.trim()) {
+    return '/images/profile.png';
+  }
+  
+  // AWS default.png URL인 경우 로컬 이미지 사용
+  if (url.includes('default.png') || url.includes('/userProfile/default.png')) {
+    console.log('AWS default.png 감지, 로컬 이미지 사용');
+    return '/images/profile.png';
+  }
+  
+  // 정상적인 사용자 업로드 이미지인 경우
+  return url;
+};
+
+// 이미지 로드 실패 시 SVG 아바타로 대체
+const handleImageError = (event: Event) => {
+  const img = event.target as HTMLImageElement;
+  console.error('이미지 로드 실패:', img.src);
+  
+  // 로컬 이미지도 실패한 경우 SVG 사용
+  if (img.src.includes('/images/profile.png') || img.src.includes('default.png')) {
+    img.src = createDefaultAvatar();
+  }
+};
+
+// SVG 기본 아바타 생성
+const createDefaultAvatar = (): string => {
+  const svg = `
+    <svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="75" cy="75" r="75" fill="#6F7D48"/>
+      <circle cx="75" cy="60" r="20" fill="#ffffff"/>
+      <ellipse cx="75" cy="110" rx="25" ry="20" fill="#ffffff"/>
+    </svg>
+  `;
+  return `data:image/svg+xml;base64,${btoa(svg)}`;
+};
 
 // 헬퍼 함수
 const getBookTitle = (bookId: string) => {
@@ -443,22 +486,30 @@ onMounted(() => {
 
 .account-actions {
   text-align: center;
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #ccc;
 }
 
-.btn-link-danger {
-  background: none;
-  border: none;
-  color: #c92a2a;
-  text-decoration: underline;
-  cursor: pointer;
-  font-size: 1.4rem;
-  line-height: 1.7;
+.btn-auth-danger {
+  display: inline-block;
+  border: 2px solid #c92a2a !important;
+  border-radius: 20px !important;
+  padding: 0.5rem 1.2rem !important;
+  font-size: 1.4rem !important;
+  white-space: nowrap;
   font-family: 'SCDream4', sans-serif;
-  white-space: pre-wrap;
+  transition: font-weight 0s, border 0s;
+  background: transparent;
+  color: #c92a2a;
+  cursor: pointer;
+  line-height: 1.7;
+  font-weight: normal;
 }
 
-.btn-link-danger:hover {
-  color: #e03131;
+.btn-auth-danger:hover {
+  font-weight: bold;
+  border: 3px solid #c92a2a !important;
 }
 
 /* --- 공통 스타일 --- */

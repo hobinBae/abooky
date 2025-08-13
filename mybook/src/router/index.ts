@@ -83,6 +83,12 @@ const mainRoutes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/group-book-editor',
+    name: 'group-book-editor',
+    component: () => import('../views/groups/GroupBookEditorView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/book-detail/:id',
     name: 'book-detail',
     component: () => import('../views/books/BookDetailView.vue')
