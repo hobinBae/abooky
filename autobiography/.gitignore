@@ -75,3 +75,6 @@ lombok.config
 
 application.properties
 application.yml
+
+# Claude Code documentation
+CLAUDE.md
