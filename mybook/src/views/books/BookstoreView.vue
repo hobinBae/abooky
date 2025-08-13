@@ -1,7 +1,12 @@
 <template>
   <div class="bookstore-page">
-    <h2 class="section-title">지금 가장 인기있는 책 TOP 10</h2>
-    <p class="section-subtitle">독자들이 가장 많이 찾고 사랑하는 책들을 만나보세요.</p>
+    <section class="title-container">
+      <h2 class="section-title"><span class="special-font">아 북 이</span> 작가들의 이야기</h2>
+      <p class="section-subtitle1">독자들이 가장 많이 찾고,</p>
+      <p class="section-subtitle2">사랑하는 책들을 만나 보세요.</p>
+      <!-- <p class="section-subtitle3"></p> -->
+
+    </section>
 
     <section class="carousel-section">
       <div class="perspective-carousel-container">
@@ -67,11 +72,11 @@
       </aside>
 
       <main class="book-list-main">
-        <div v-if="filteredBooks.length === 0" class="no-books-message">
+        <div v-if="paginatedBooks.length === 0" class="no-books-message">
           찾으시는 책이 없습니다.
         </div>
         <div v-else class="book-list-container">
-          <div v-for="book in filteredBooks" :key="book.id" class="book-list-item" @click="goToBookDetail(book.id)">
+          <div v-for="book in paginatedBooks" :key="book.id" class="book-list-item" @click="goToBookDetail(book.id)">
             <div class="book-cover-image"
               :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
               <div class="list-title-box">
@@ -99,13 +104,27 @@
             </div>
           </div>
         </div>
+        <div class="pagination-container">
+          <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1" class="page-btn">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <template v-for="(page, index) in pagination" :key="index">
+            <span v-if="page === '...'" class="ellipsis">...</span>
+            <button v-else @click="changePage(page as number)" :class="['page-btn', { active: currentPage === page }]">
+              {{ page }}
+            </button>
+          </template>
+          <button @click="changePage(currentPage + 1)" :disabled="currentPage === totalPages" class="page-btn">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
       </main>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 
 // --- Interfaces & Types ---
@@ -155,6 +174,8 @@ const currentSortOption = ref<SortOption>('latest');
 const activeGenre = ref<string | null>(null);
 const likedBookIds = ref<Set<string>>(new Set(['b1', 'b3']));
 const genres = ['자서전', '여행', '스포츠', '소설/시', '에세이', '자기계발', '경제/경영', '사회/정치', '문화/예술', '역사', '종교', '청소년', '어린이/동화',];
+const currentPage = ref(1);
+const itemsPerPage = 10;
 const sortOptions = [
   { value: 'latest', text: '최신순' },
   { value: 'popular', text: '인기순' },
@@ -202,6 +223,49 @@ const filteredBooks = computed(() => {
   });
 });
 
+const totalPages = computed(() => {
+  return Math.ceil(filteredBooks.value.length / itemsPerPage);
+});
+
+const paginatedBooks = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return filteredBooks.value.slice(start, end);
+});
+
+const pagination = computed(() => {
+  const pages = [];
+  const sideCount = 1; // 현재 페이지 양쪽에 표시할 페이지 수
+  const total = totalPages.value;
+  const current = currentPage.value;
+
+  if (total <= 5) {
+    for (let i = 1; i <= total; i++) {
+      pages.push(i);
+    }
+    return pages;
+  }
+
+  pages.push(1);
+
+  if (current > sideCount + 2) {
+    pages.push('...');
+  }
+
+  for (let i = Math.max(2, current - sideCount); i <= Math.min(total - 1, current + sideCount); i++) {
+    pages.push(i);
+  }
+
+  if (current < total - sideCount - 1) {
+    pages.push('...');
+  }
+
+  pages.push(total);
+
+  return pages;
+});
+
+
 // --- Navigation ---
 const goToBookDetail = (bookId: string) => {
   router.push({ name: 'book-detail', params: { id: bookId } });
@@ -214,7 +278,7 @@ const startX = ref(0);
 const dragStartRotation = ref(0);
 
 const carouselStyle = computed(() => ({
-  transition: isDragging.value ? 'none' : 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)',
+  transition: isDragging.value ? 'none' : 'transform 1s ease-in-out',
   transform: `rotateY(${carouselRotation.value}deg)`,
 }));
 
@@ -279,6 +343,12 @@ const snapToNearestBook = () => {
   carouselRotation.value = Math.round(carouselRotation.value / anglePerItem) * anglePerItem;
 };
 
+const changePage = (page: number) => {
+  if (page > 0 && page <= totalPages.value) {
+    currentPage.value = page;
+  }
+};
+
 const formatDate = (date: Date) => {
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',
@@ -287,7 +357,16 @@ const formatDate = (date: Date) => {
   }).format(date).replace(/\.$/, '');
 };
 
+let autoSlideInterval: number;
+
+onMounted(() => {
+  autoSlideInterval = window.setInterval(() => {
+    nextBook();
+  }, 3500);
+});
+
 onUnmounted(() => {
+  clearInterval(autoSlideInterval);
   window.removeEventListener('mousemove', onMouseMove);
   window.removeEventListener('mouseup', onMouseUp);
   window.removeEventListener('touchmove', onTouchMove);
@@ -412,32 +491,58 @@ function toggleLike(book: Book) {
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
 .bookstore-page {
-  padding: 80px 2rem 2rem;
-  background-color: #ffffff;
-  color: #403023;
+  padding: 2rem 2rem 2rem 2rem;
+  background-color: var(--background-color);
+  color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
-  font-family: 'Pretendard', sans-serif;
+  font-family: 'SCDream4', sans-serif;
 }
-
+.title-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
 .section-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 2.8rem;
+  font-family: 'SCDream3', serif;
+  font-size: 4rem;
   font-weight: 700;
-  color: #26250F;
-  margin-bottom: 0.75rem;
-  text-align: center;
+  color: var(--primary-text-color);
+  margin-bottom: -0.5rem;
+  margin-left: 3rem;
+  margin-right: auto;
 }
 
-.section-subtitle {
-  font-size: 1.25rem;
-  color: #403023;
-  margin-bottom: 3rem;
-  max-width: 600px;
-  margin-left: auto;
+.section-subtitle1 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(116, 125, 76, 0.9);
+  margin-left: 3.5rem;
   margin-right: auto;
-  line-height: 1.7;
-  text-align: center;
+  margin-bottom: -0.5rem;
 }
+
+.section-subtitle2 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(141, 153, 109, 0.7);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: 2rem;
+}
+
+.special-font {
+  font-family: 'EBSHunminjeongeumSaeronL', serif;
+  position: relative;
+  top: -0.1em; /* 살짝 위로 올리는 효과 */
+}
+
+/* .section-subtitle3 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(147, 161, 89, 0.4);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: 5rem;
+} */
 
 .carousel-section {
   position: relative;
@@ -496,12 +601,13 @@ function toggleLike(book: Book) {
   top: 50%;
   transform: translateY(-50%);
   z-index: 10;
-  color: #9f9b8c;
+  color: #5b673b;
+  ;
   width: 50px;
   height: 50px;
   font-size: 2rem;
   transition: all 0.2s;
-  backdrop-filter: blur(5px);
+
 }
 
 .carousel-control-btn:hover {
@@ -509,11 +615,11 @@ function toggleLike(book: Book) {
 }
 
 .prev-btn {
-  left: 15%;
+  left: calc(35% - 300px);
 }
 
 .next-btn {
-  right: 15%;
+  right: calc(35% - 300px);
 }
 
 .title-box {
@@ -530,7 +636,7 @@ function toggleLike(book: Book) {
 }
 
 .title-box h1 {
-  font-family: 'Noto Serif KR', serif;
+  font-family: 'ChosunCentennial', serif;
   font-size: 18px;
   font-weight: 700;
   line-height: 1.4;
@@ -542,6 +648,8 @@ function toggleLike(book: Book) {
   color: #333;
   font-weight: 600;
   margin: 0;
+  font-family: 'NanumSquareR', serif;
+
 }
 
 .search-section {
@@ -557,11 +665,11 @@ function toggleLike(book: Book) {
 .search-input {
   width: 100%;
   padding: 1rem 2rem 1rem 3.5rem;
-  border: 1px solid #EAEAEA;
-  border-radius: 8px;
-  background-color: #FFFFFF;
-  font-size: 1rem;
+  border: 3px solid #657143;
+  border-radius: 30px;
+  font-size: 1.2rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  font-family: 'EBSHunminjeongeumSaeronL', serif;
 }
 
 .search-icon {
@@ -569,7 +677,7 @@ function toggleLike(book: Book) {
   left: 1.5rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #BEB4A7;
+  color: #6F7D48;
   font-size: 1.2rem;
 }
 
@@ -591,12 +699,13 @@ function toggleLike(book: Book) {
 }
 
 .sidebar-title {
-  font-size: 1rem;
+  font-size: 1.2rem;
   font-weight: 600;
   color: #333;
   margin-bottom: 1.5rem;
   padding-bottom: 0.75rem;
-  border-bottom: 2px solid #333;
+  border-bottom: 2px solid #5b673b;
+
 }
 
 .sort-options-wrapper,
@@ -614,10 +723,11 @@ function toggleLike(book: Book) {
   padding: 0.5rem 0;
   border: none;
   background: none;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: #555;
   cursor: pointer;
   transition: color 0.2s;
+  font-family: 'SCDream4', sans-serif;
 }
 
 .radio-button input[type="radio"] {
@@ -656,7 +766,7 @@ function toggleLike(book: Book) {
 }
 
 .book-list-item:hover {
-  background-color: #ffffff;
+  background-color: rgba(138, 154, 91, 0.1);
   transform: scale(1.02);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.07);
   z-index: 10;
@@ -766,12 +876,12 @@ function toggleLike(book: Book) {
 }
 
 .meta-tag {
-  color: #888;
+  color: #5b673b;
   padding: 0.25rem 0.75rem;
   border-radius: 30px;
   font-size: 0.8rem;
   font-weight: 500;
-  background-color: #f5f5f5;
+  background-color: rgba(138, 154, 91, 0.4);
 }
 
 .book-stats {
@@ -798,5 +908,47 @@ function toggleLike(book: Book) {
 .filter-section,
 .book-list-section {
   display: none;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 2.5rem;
+  gap: 0.5rem;
+}
+
+.page-btn {
+  background-color: #fff;
+  border: 1px solid #ddd;
+  color: #555;
+  padding: 0.5rem 0.5rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-btn:hover {
+  background-color: #f5f5f5;
+  border-color: #aeaeae;
+}
+
+.page-btn.active {
+  background-color: #6F7D48;
+  color: white;
+  border-color: #5b673b;
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ellipsis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  color: #999;
 }
 </style>

@@ -1,9 +1,9 @@
 <template>
   <div class="group-item" @click="$emit('select', group)">
     <div class="group-avatar" :style="{ backgroundColor: group.themeColor || '#42b983' }">
-      <img 
-        v-if="group.groupImageUrl" 
-        :src="group.groupImageUrl" 
+      <img
+        v-if="group.groupImageUrl"
+        :src="group.groupImageUrl"
         :alt="group.groupName"
         class="group-image"
       />
@@ -32,18 +32,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-interface Group {
-  groupId: number;
-  groupName: string;
-  description: string;
-  themeColor: string;
-  groupImageUrl: string;
-  leaderId: number;
-  leaderNickname: string;
-  createdAt: string;
-  updatedAt: string;
-  members?: string[];
-}
+import type { Group } from '@/services/groupService';
 
 interface Props {
   group: Group;
@@ -189,21 +178,21 @@ const formatDate = (dateString: string): string => {
   .group-item {
     padding: 0.75rem 1rem;
   }
-  
+
   .group-avatar {
     width: 40px;
     height: 40px;
     margin-right: 0.75rem;
   }
-  
+
   .group-avatar i {
     font-size: 1.25rem;
   }
-  
+
   .group-info h3 {
     font-size: 1rem;
   }
-  
+
   .group-description {
     font-size: 0.8rem;
   }

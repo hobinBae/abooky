@@ -59,10 +59,10 @@
       <div class="modal-body">
         <ul v-if="myInvites.length > 0">
           <li v-for="invite in myInvites" :key="invite.groupApplyId">
-            <span>'{{ invite.groupTitle }}' 그룹에서 초대했습니다.</span>
+            <span>'{{ invite.groupName }}' 그룹에서 초대했습니다.</span>
             <div class="invite-actions">
-              <button @click="handleInvite(invite, 'ACCEPT')" class="btn-invite btn-accept">수락</button>
-              <button @click="handleInvite(invite, 'REJECT')" class="btn-invite btn-reject">거절</button>
+              <button @click="handleInvite(invite, 'ACCEPTED')" class="btn-invite btn-accept">수락</button>
+              <button @click="handleInvite(invite, 'DENIED')" class="btn-invite btn-reject">거절</button>
             </div>
           </li>
         </ul>
@@ -76,13 +76,7 @@
 import { ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { storeToRefs } from 'pinia';
-import apiClient from '@/api';
-
-interface Invite {
-  groupApplyId: number;
-  groupId: number;
-  groupTitle: string;
-}
+import { groupService, type GroupInvite } from '@/services/groupService';
 
 const authStore = useAuthStore();
 const { isLoggedIn } = storeToRefs(authStore);
@@ -108,7 +102,7 @@ onUnmounted(() => {
 });
 
 const showNotificationModal = ref(false);
-const myInvites = ref<Invite[]>([]);
+const myInvites = ref<GroupInvite[]>([]);
 
 const toggleNotificationModal = () => {
   showNotificationModal.value = !showNotificationModal.value;
@@ -120,18 +114,21 @@ const toggleNotificationModal = () => {
 const fetchMyInvites = async () => {
   if (!isLoggedIn.value) return;
   try {
-    const response = await apiClient.get('/api/v1/members/me/invites');
-    myInvites.value = response.data.data;
+    myInvites.value = await groupService.fetchMyInvites();
   } catch (error) {
     console.error('Failed to fetch invites:', error);
   }
 };
 
-const handleInvite = async (invite: Invite, status: 'ACCEPT' | 'REJECT') => {
+const handleInvite = async (invite: GroupInvite, status: 'ACCEPTED' | 'DENIED') => {
   try {
-    await apiClient.patch(`/api/v1/groups/${invite.groupId}/invites/${invite.groupApplyId}`, { status });
-    alert(`초대를 ${status === 'ACCEPT' ? '수락' : '거절'}했습니다.`);
-    fetchMyInvites(); // 목록 새로고침
+    const result = await groupService.handleInvite(String(invite.groupId), invite.groupApplyId, status);
+    if (result) {
+      alert(`초대를 ${status === 'ACCEPTED' ? '수락' : '거절'}했습니다.`);
+      fetchMyInvites(); // 목록 새로고침
+    } else {
+      alert('초대 처리에 실패했습니다.');
+    }
   } catch (error) {
     console.error('Failed to handle invite:', error);
     alert('초대 처리 중 오류가 발생했습니다.');
@@ -208,7 +205,7 @@ onMounted(() => {
 }
 
 .notification-modal {
-  position: absolute;
+  position: fixed;
   top: 60px; /* Adjust this value based on your navbar's height */
   right: 10px;
   width: 450px;
