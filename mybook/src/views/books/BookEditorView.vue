@@ -276,7 +276,7 @@ function selectCategory(categoryId: number) {
 
 async function moveToEditingStep() {
   if (!currentBook.value.title) {
-    alert('책 제목을 입력해주세요.');
+    ('책 제목을 입력해주세요.');
     return;
   }
   if (!selectedCategoryId.value) {

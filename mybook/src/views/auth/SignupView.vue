@@ -6,7 +6,8 @@
         <h2 class="image-section-title" v-html="currentImage.title"></h2>
         <p class="image-section-subtitle" v-html="currentImage.subtitle"></p>
         <div class="pagination-controls">
-          <button @click="prevImage" class="pagination-button"><</button>
+          <button @click="prevImage" class="pagination-button">
+          </button>
           <div class="dots">
             <span v-for="(image, index) in images" :key="index" class="dot"
               :class="{ active: index === currentImageIndex }"></span>
@@ -60,6 +61,7 @@
             {{ isLoading ? '가입하는 중...' : '회원가입' }}
           </button>
         </form>
+        <CustomAlert ref="customAlert" @alert-closed="handleAlertClosed" />
 
         <div class="auth-links">
           <span>이미 계정이 있으신가요?</span>
@@ -76,6 +78,7 @@ import { useRouter, RouterLink } from 'vue-router';
 import apiClient from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { AxiosError } from 'axios';
+import CustomAlert from '@/components/common/CustomAlert.vue';
 
 // --- Image Slider State ---
 const images = ref([
@@ -137,7 +140,7 @@ const form = ref({
 });
 const errorMessage = ref('');
 const isLoading = ref(false);
-
+const customAlert = ref<InstanceType<typeof CustomAlert> | null>(null);
 // --- Functions ---
 async function handleSignup() {
   if (Object.values(form.value).some(v => !v)) {
@@ -175,8 +178,12 @@ async function handleSignup() {
       password: form.value.password,
     });
 
-    alert('회원가입에 성공했습니다! 메인 페이지로 이동합니다.');
-    router.push('/');
+    if (customAlert.value) {
+      customAlert.value.showAlert({
+        message: '회원가입에 성공했습니다! 메인 페이지로 이동합니다.',
+        title: '회원가입 완료'
+      });
+    }
 
   } catch (error) {
     if (error instanceof AxiosError && error.response) {
@@ -189,6 +196,9 @@ async function handleSignup() {
   } finally {
     isLoading.value = false;
   }
+}
+function handleAlertClosed() {
+  router.push('/');
 }
 </script>
 
@@ -208,8 +218,10 @@ async function handleSignup() {
 .auth-wrapper {
   display: flex;
   width: 100%;
-  max-width: 960px; /* 고정 너비 설정 */
-  min-height: 680px; /* 고정 최소 높이 설정 */
+  max-width: 960px;
+  /* 고정 너비 설정 */
+  min-height: 680px;
+  /* 고정 최소 높이 설정 */
   background-color: #fff;
   border-radius: 12px;
   border: 3px solid #657143;
@@ -230,7 +242,8 @@ async function handleSignup() {
 
 @media (min-width: 992px) {
   .auth-image-section {
-    flex: 0 0 50%; /* 너비를 50%로 고정 */
+    flex: 0 0 50%;
+    /* 너비를 50%로 고정 */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -240,7 +253,8 @@ async function handleSignup() {
   }
 
   .auth-container {
-    flex: 0 0 50%; /* 너비를 50%로 고정 */
+    flex: 0 0 50%;
+    /* 너비를 50%로 고정 */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -281,7 +295,8 @@ async function handleSignup() {
 
 .auth-subtitle {
   color: #666;
-  margin-bottom: 1.2rem; /* 마진 추가 축소 */
+  margin-bottom: 1.2rem;
+  /* 마진 추가 축소 */
   font-size: 15px;
   text-align: left;
 }
@@ -290,13 +305,17 @@ async function handleSignup() {
   font-weight: 600;
   color: #555;
   font-size: 14px;
-  margin-bottom: 0.25rem; /* 레이블과 입력창 사이 간격 축소 */
+  margin-bottom: 0.25rem;
+  /* 레이블과 입력창 사이 간격 축소 */
 }
 
 .form-control {
-  background-color: #f4f3e8; /* 연한 올리브 배경 */
-  border: 1px solid #e0e0d1; /* 연한 올리브 테두리 */
-  padding: 0.65rem 1rem; /* 입력창 패딩 미세 조정 */
+  background-color: #f4f3e8;
+  /* 연한 올리브 배경 */
+  border: 1px solid #e0e0d1;
+  /* 연한 올리브 테두리 */
+  padding: 0.65rem 1rem;
+  /* 입력창 패딩 미세 조정 */
   border-radius: 8px;
   transition: background-color 0.2s, border-color 0.2s;
 }
@@ -312,23 +331,29 @@ async function handleSignup() {
 
 .form-control:focus {
   background-color: #fff;
-  border-color: #8A9A5B; /* 올리브색 */
-  box-shadow: 0 0 0 0.2rem rgba(138, 154, 91, 0.25); /* 올리브색 */
+  border-color: #8A9A5B;
+  /* 올리브색 */
+  box-shadow: 0 0 0 0.2rem rgba(138, 154, 91, 0.25);
+  /* 올리브색 */
 }
 
 .btn-auth {
   padding: 0.85rem;
   font-size: 1rem;
   font-weight: 600;
-  background-color: #8A9A5B; /* 올리브색 */
-  border-color: #8A9A5B; /* 올리브색 */
+  background-color: #8A9A5B;
+  /* 올리브색 */
+  border-color: #8A9A5B;
+  /* 올리브색 */
   border-radius: 8px;
   transition: background-color 0.3s;
-  margin-top: 1rem; /* 버튼 상단 마진 조정 */
+  margin-top: 1rem;
+  /* 버튼 상단 마진 조정 */
 }
 
 .btn-auth:hover {
-  background-color: #6F7D48; /* 어두운 올리브색 */
+  background-color: #6F7D48;
+  /* 어두운 올리브색 */
 }
 
 .auth-links {
@@ -341,7 +366,8 @@ async function handleSignup() {
 }
 
 .auth-links a {
-  color: #8A9A5B; /* 올리브색 */
+  color: #8A9A5B;
+  /* 올리브색 */
   text-decoration: none;
   font-weight: 600;
 }
@@ -362,13 +388,15 @@ async function handleSignup() {
 
 .pagination-button {
   background: none;
-  border: none; /* 테두리 제거 */
+  border: none;
+  /* 테두리 제거 */
   color: #adb5bd;
   width: 36px;
   height: 36px;
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1.5rem; /* 아이콘 크기 살짝 키움 */
+  font-size: 1.5rem;
+  /* 아이콘 크기 살짝 키움 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -376,7 +404,8 @@ async function handleSignup() {
 }
 
 .pagination-button:hover {
-  color: #495057; /* 호버 시 색상만 살짝 어둡게 변경 */
+  color: #495057;
+  /* 호버 시 색상만 살짝 어둡게 변경 */
 }
 
 .dots {
@@ -393,6 +422,7 @@ async function handleSignup() {
 }
 
 .dot.active {
-  background-color: #8A9A5B; /* 올리브색 */
+  background-color: #8A9A5B;
+  /* 올리브색 */
 }
 </style>
