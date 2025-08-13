@@ -33,5 +33,7 @@ public interface GroupBookService {
 
     GroupBookCommentCreateResponse createGroupBookComment(Long memberId, @Valid GroupBookCommentCreateRequest request);
 
+    GroupBookCommentListResponse getGroupBookComments(Long memberId, Long groupBookId, Pageable pageable);
+
     GroupBookCommentDeleteResponse deleteGroupBookComment(Long groupBookId, Long groupBookCommentId, Long memberId);
 }
