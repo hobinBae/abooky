@@ -10,4 +10,6 @@ public interface OpenAiService {
      *
      */
     ChatCompletionResponse createChatCompletion(ChatCompletionRequest request);
+
+
 }

@@ -3,6 +3,10 @@ package com.c203.autobiography.domain.ai.client;
 import com.c203.autobiography.domain.ai.dto.ChatCompletionRequest;
 import com.c203.autobiography.domain.ai.dto.ChatMessage;
 import com.c203.autobiography.domain.ai.service.OpenAiService;
+import com.c203.autobiography.domain.book.entity.BookCategory;
+import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
+import com.c203.autobiography.global.exception.ApiException;
+import com.c203.autobiography.global.exception.ErrorCode;
 import jakarta.annotation.PostConstruct;
 import jakarta.validation.Valid;
 import java.util.ArrayList;
@@ -26,6 +30,7 @@ public class OpenAiClient implements AiClient {
     private static final Logger log = LoggerFactory.getLogger(OpenAiClient.class);
     private final OpenAiService openAiService;
     private final OpenAiProperties props;
+    private final BookCategoryRepository bookCategoryRepository;
 
     private Map<String, Function<OpenAiProperties, String>> promptMapping;
 
@@ -160,6 +165,38 @@ public class OpenAiClient implements AiClient {
                 .trim();
 
         return editedText.isBlank() ? rawAnswer : editedText;
+    }
+
+
+    @Override
+    public String proofread(String originalText, Long categoryId) { // ★★★ 파라미터 타입 변경 ★★★
+        // 1. ID를 이용해 DB에서 카테고리 엔티티를 조회합니다.
+        BookCategory category = bookCategoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+
+        // 2. 조회한 엔티티에서 카테고리 이름(예: "일기", "스포츠")을 가져옵니다.
+        String categoryName = category.getCategoryName();
+
+        // 3. 시스템 메시지 설정
+        ChatMessage system = ChatMessage.of("system", props.getProofreadSystem());
+
+        // 4. 사용자 메시지 생성 (조회한 categoryName 사용)
+        String userPrompt = String.format(props.getProofreadTemplate(), categoryName, originalText);
+        ChatMessage user = ChatMessage.of("user", userPrompt);
+
+        // 5. ChatCompletion 요청 객체 생성 (기존과 동일)
+        ChatCompletionRequest request = ChatCompletionRequest.builder()
+                .model(props.getModel())
+                .messages(List.of(system, user))
+                .maxTokens(props.getMaxTokensProofread())
+                .temperature(props.getTemperatureProofread())
+                .build();
+
+        // 6. OpenAI API 호출 및 결과 추출 (기존과 동일)
+        String correctedText = openAiService.createChatCompletion(request)
+                .getChoices().get(0).getMessage().getContent().trim();
+
+        return correctedText.isBlank() ? originalText : correctedText;
     }
 
     private String buildEditPrompt(String rawAnswer, String priorContext, String tone) {

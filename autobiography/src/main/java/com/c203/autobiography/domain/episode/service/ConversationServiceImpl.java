@@ -293,7 +293,12 @@ public class ConversationServiceImpl implements ConversationService {
 
     @Override
     public String getLastQuestion(String sessionId) {
-        return lastQuestionMap.getOrDefault(sessionId, "");
+        // 세션 ID와 메시지 타입이 'QUESTION'인 메시지들 중에서
+        // messageNo가 가장 큰(가장 최신인) 메시지 1개를 찾아서 내용을 반환합니다.
+        return messageRepo
+                .findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
+                .map(ConversationMessage::getContent)
+                .orElse(null); // 마지막 질문이 없으면 null 반환
     }
 
     // ChapterBasedQuestion에서 가져온 코드
@@ -399,6 +404,13 @@ public class ConversationServiceImpl implements ConversationService {
         } catch (Exception ex) {
             log.warn("챕터 에피소드 생성 실패(다음 챕터 진행은 계속): {}", ex.getMessage());
         }
+
+        log.info("인터뷰 세션을 종료 처리합니다. SessionId: {}", session.getSessionId());
+        ConversationSession updatedSession = session.toBuilder()
+                .status(SessionStatus.CLOSE) // 상태를 CLOSED로 변경
+                .build();
+        sessionRepo.save(updatedSession);
+
 
         Chapter nextChapter = chapterRepo.findByChapterOrder(session.getCurrentChapterOrder() + 1)
                 .orElse(null);
