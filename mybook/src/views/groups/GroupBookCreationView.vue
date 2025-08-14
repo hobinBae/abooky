@@ -270,6 +270,10 @@ const route = useRoute();
 const router = useRouter();
 const groupId = (route.query.groupId as string) || 'default-room';
 
+// --- Auth Store ---
+import { useAuthStore } from '@/stores/auth';
+const authStore = useAuthStore();
+
 // --- Reactive State ---
 const hasJoined = ref(false);
 const isConnecting = ref(false);
@@ -302,6 +306,10 @@ const chatMessagesContainer = ref<HTMLElement | null>(null);
 // --- Computed Properties ---
 const totalParticipants = computed(() => {
   return remoteParticipants.value.length + 1;
+});
+
+const userNickname = computed(() => {
+  return authStore.user?.nickname || '익명';
 });
 
 const getConnectionStatusText = computed(() => {
@@ -550,7 +558,7 @@ function setupRoomEventListeners() {
         // 채팅 메시지 수신
         const chatMessage: ChatMessage = {
           id: messageData.id,
-          sender: participant.identity,
+          sender: messageData.senderNickname || participant.identity,
           content: messageData.content,
           timestamp: messageData.timestamp,
           isOwn: false
@@ -887,7 +895,8 @@ async function sendMessage() {
       type: 'chat',
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       content: message,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      senderNickname: userNickname.value
     };
 
     // 다른 참여자들에게 전송
@@ -900,7 +909,7 @@ async function sendMessage() {
     // 로컬에도 메시지 추가
     const localChatMessage: ChatMessage = {
       ...chatMessage,
-      sender: livekitRoom.localParticipant.identity || 'You',
+      sender: userNickname.value,
       isOwn: true
     };
 
