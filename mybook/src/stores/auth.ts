@@ -50,7 +50,6 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchUserInfo() // 토큰 재발급 후 사용자 정보도 갱신
       return accessToken.value
     } catch (error) {
-      console.error('Token refresh failed:', error)
       clearSession()
       return null
     }

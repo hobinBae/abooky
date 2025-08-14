@@ -327,7 +327,7 @@ async function moveToEditingStep() {
   try {
     const response = await apiClient.post('/api/v1/books', bookData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': undefined
       },
     });
     const newBook = response.data.data;
@@ -780,7 +780,12 @@ async function connectToSseStream() {
 
   try {
     const baseURL = apiClient.defaults?.baseURL || '';
-    const url = `${baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
+    const token = authStore.accessToken;
+    if (!token) {
+      alert('인증 토큰이 없어 인터뷰를 시작할 수 없습니다. 다시 로그인해주세요.');
+      return;
+    }
+    const url = `${baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream?token=${token}`;
     eventSource = new EventSource(url, { withCredentials: true });
 
     eventSource.onopen = () => {
@@ -1059,7 +1064,7 @@ async function saveDraft() {
       }
 
       await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: { 'Content-Type': undefined },
       });
 
       alert('임시 저장되었습니다.');
@@ -1157,7 +1162,7 @@ async function finalizePublication() {
 
     // 4. 책 정보(제목, 줄거리, 카테고리, 태그, 표지) 일괄 업데이트
     await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookUpdateData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
+      headers: { 'Content-Type': undefined },
     });
 
     // 5. 책을 '완성' 상태로 변경
