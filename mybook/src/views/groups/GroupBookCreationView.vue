@@ -69,7 +69,7 @@
                 :key="participant.identity"
                 class="video-participant remote-participant">
                 <video
-                  :ref="el => setParticipantVideoRef(el, participant.identity)"
+                  :ref="(el: unknown) => setParticipantVideoRef(el as HTMLVideoElement | null, participant.identity)"
                   autoplay
                   playsinline
                   class="participant-video">
@@ -134,7 +134,7 @@
                     :key="participant.identity"
                     class="thumbnail-participant">
                     <video
-                      :ref="el => setParticipantVideoRef(el, participant.identity)"
+                      :ref="(el: unknown) => setParticipantVideoRef(el as HTMLVideoElement | null, participant.identity)"
                       autoplay
                       playsinline
                       class="thumbnail-video">
@@ -233,12 +233,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import apiClient from '@/api';
+// import apiClient from '@/api';
 
 // LiveKit 타입 정의
 declare global {
   interface Window {
-    LivekitClient: any;
+    LivekitClient: Record<string, unknown>;
   }
 }
 
@@ -247,8 +247,8 @@ interface RemoteParticipant {
   identity: string;
   isMicrophoneEnabled: boolean;
   isCameraEnabled: boolean;
-  videoTrack?: any;
-  audioTrack?: any;
+  videoTrack?: Record<string, unknown>;
+  audioTrack?: Record<string, unknown>;
   connectionQuality?: number;
 }
 
@@ -268,7 +268,8 @@ interface ChatMessage {
 // --- Router ---
 const route = useRoute();
 const router = useRouter();
-const groupId = (route.query.groupId as string) || 'default-room';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// const groupId = (route.query.groupId as string) || 'default-room';
 
 // --- Reactive State ---
 const hasJoined = ref(false);
@@ -288,7 +289,7 @@ const connectionState = ref<'disconnected' | 'connecting' | 'connected' | 'recon
 const connectionStatus = ref<ConnectionStatus | null>(null);
 
 // LiveKit 관련 - non-reactive storage for WebRTC objects
-let livekitRoom: any = null;
+let livekitRoom: Record<string, unknown> | null = null;
 
 // UI state only (reactive)
 const remoteParticipants = ref<RemoteParticipant[]>([]);
@@ -337,39 +338,41 @@ function getStatusIcon(type: string): string {
   }
 }
 
-function setParticipantVideoRef(el: any, identity: string) {
+function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
   if (el && el instanceof HTMLVideoElement) {
     participantVideoRefs.value.set(identity, el);
   }
 }
 
 // --- LiveKit Functions ---
-async function getAccessToken(): Promise<{ url: string, token: string}> {
-  try {
-    const userName = `User_${Date.now()}`;
-
-    // 로컬 테스트를 위한 더미 토큰/URL 반환
-    console.log('🔧 로컬 테스트 모드: 더미 토큰 사용');
-    return {
-      url: 'ws://localhost:7880',
-      token: 'dummy-token-for-local-test'
-    };
-
-    // 실제 API 호출은 주석 처리
-    // const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
-    //   userName
-    // });
-    //
-    // const data = response.data.data ?? response.data;
-    // if (!data?.token || !data?.url) {
-    //   throw new Error('응답에 url/token 없음');
-    // }
-    // return { url: data.url, token: data.token };
-  } catch (error) {
-    console.error('토큰 발급 오류:', error);
-    throw error;
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// async function getAccessToken(): Promise<{ url: string, token: string}> {
+//   try {
+//     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+//     const userName = `User_${Date.now()}`;
+//
+//     // 로컬 테스트를 위한 더미 토큰/URL 반환
+//     console.log('🔧 로컬 테스트 모드: 더미 토큰 사용');
+//     return {
+//       url: 'ws://localhost:7880',
+//       token: 'dummy-token-for-local-test'
+//     };
+//
+//     // 실제 API 호출은 주석 처리
+//     // const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
+//     //   userName
+//     // });
+//     //
+//     // const data = response.data.data ?? response.data;
+//     // if (!data?.token || !data?.url) {
+//     //   throw new Error('응답에 url/token 없음');
+//     // }
+//     // return { url: data.url, token: data.token };
+//   } catch (error) {
+//     console.error('토큰 발급 오류:', error);
+//     throw error;
+//   }
+// }
 
 async function setupLocalMedia() {
   try {
@@ -568,6 +571,7 @@ async function joinRoom() {
         },
         publishData: async (data: Uint8Array) => {
           console.log('더미: 데이터 전송', data);
+          return Promise.resolve();
         }
       },
       disconnect: async () => {
@@ -607,6 +611,7 @@ async function joinRoom() {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function setupRoomEventListeners() {
   if (!livekitRoom || !window.LivekitClient) return;
 
@@ -865,24 +870,26 @@ function addDummyRemoteParticipant() {
   }, 5000);
 }
 
-function addRemoteParticipant(participant: any) {
+function addRemoteParticipant(participant: Record<string, unknown>) {
   const newParticipant: RemoteParticipant = {
-    identity: participant.identity,
-    isMicrophoneEnabled: participant.isMicrophoneEnabled,
-    isCameraEnabled: participant.isCameraEnabled,
+    identity: participant.identity as string,
+    isMicrophoneEnabled: participant.isMicrophoneEnabled as boolean,
+    isCameraEnabled: participant.isCameraEnabled as boolean,
     connectionQuality: undefined
   };
 
   remoteParticipants.value.push(newParticipant);
 
   // 기존 트랙들 처리
-  participant.videoTracks.forEach((publication: any) => {
+  const videoTracks = participant.videoTracks as { track?: Record<string, unknown> }[];
+  videoTracks?.forEach((publication) => {
     if (publication.track) {
       handleTrackSubscribed(publication.track, participant);
     }
   });
 
-  participant.audioTracks.forEach((publication: any) => {
+  const audioTracks = participant.audioTracks as { track?: Record<string, unknown> }[];
+  audioTracks?.forEach((publication) => {
     if (publication.track) {
       handleTrackSubscribed(publication.track, participant);
     }
@@ -897,36 +904,36 @@ function removeRemoteParticipant(identity: string) {
   participantVideoRefs.value.delete(identity);
 }
 
-function handleTrackSubscribed(track: any, participant: any) {
-  const participantData = remoteParticipants.value.find(p => p.identity === participant.identity);
+function handleTrackSubscribed(track: Record<string, unknown>, participant: Record<string, unknown>) {
+  const participantData = remoteParticipants.value.find(p => p.identity === (participant.identity as string));
   if (!participantData) return;
 
-  if (track.kind === 'video') {
+  if ((track.kind as string) === 'video') {
     participantData.videoTrack = track;
 
     // 비디오 엘리먼트에 연결
     nextTick(() => {
-      const videoElement = participantVideoRefs.value.get(participant.identity);
+      const videoElement = participantVideoRefs.value.get(participant.identity as string);
       if (videoElement) {
-        track.attach(videoElement);
+        (track.attach as (el: HTMLVideoElement) => void)(videoElement);
       }
     });
-  } else if (track.kind === 'audio') {
+  } else if ((track.kind as string) === 'audio') {
     participantData.audioTrack = track;
-    track.attach(); // 오디오는 자동 재생
+    (track.attach as () => void)(); // 오디오는 자동 재생
   }
 }
 
-function handleTrackUnsubscribed(track: any, participant: any) {
-  const participantData = remoteParticipants.value.find(p => p.identity === participant.identity);
+function handleTrackUnsubscribed(track: Record<string, unknown>, participant: Record<string, unknown>) {
+  const participantData = remoteParticipants.value.find(p => p.identity === (participant.identity as string));
   if (!participantData) return;
 
-  if (track.kind === 'video') {
+  if ((track.kind as string) === 'video') {
     participantData.videoTrack = undefined;
-    track.detach();
-  } else if (track.kind === 'audio') {
+    (track.detach as () => void)();
+  } else if ((track.kind as string) === 'audio') {
     participantData.audioTrack = undefined;
-    track.detach();
+    (track.detach as () => void)();
   }
 }
 
@@ -977,7 +984,7 @@ async function toggleMicrophone() {
 
   try {
     const enabled = !isAudioEnabled.value;
-    await livekitRoom.localParticipant.setMicrophoneEnabled(enabled);
+    await (livekitRoom as { localParticipant: { setMicrophoneEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setMicrophoneEnabled(enabled);
     isAudioEnabled.value = enabled;
   } catch (error) {
     console.error('마이크 토글 실패:', error);
@@ -989,7 +996,7 @@ async function toggleCamera() {
 
   try {
     const enabled = !isVideoEnabled.value;
-    await livekitRoom.localParticipant.setCameraEnabled(enabled);
+    await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
 
     console.log('카메라 토글:', enabled ? '온' : '오프');
@@ -1006,15 +1013,15 @@ async function toggleScreenShare() {
 
     if (enabled) {
       // 화면 공유 시작
-      await livekitRoom.localParticipant.setScreenShareEnabled(true);
+      await (livekitRoom as { localParticipant: { setScreenShareEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setScreenShareEnabled(true);
       // 화면공유 중에는 카메라를 끄되, 상태는 유지
-      await livekitRoom.localParticipant.setCameraEnabled(false);
+      await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(false);
     } else {
       // 화면 공유 종료
-      await livekitRoom.localParticipant.setScreenShareEnabled(false);
+      await (livekitRoom as { localParticipant: { setScreenShareEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setScreenShareEnabled(false);
       // 비디오가 활성화 상태였다면 카메라 다시 켜기
       if (isVideoEnabled.value) {
-        await livekitRoom.localParticipant.setCameraEnabled(true);
+        await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(true);
       }
     }
 
@@ -1060,7 +1067,7 @@ async function leaveRoom() {
     }
 
     if (livekitRoom) {
-      await livekitRoom.disconnect();
+      await (livekitRoom as { disconnect: () => Promise<void> }).disconnect();
       livekitRoom = null;
     }
 
@@ -1193,7 +1200,7 @@ const cleanup = async () => {
   }
 
   if (livekitRoom) {
-    livekitRoom.disconnect();
+    (livekitRoom as { disconnect: () => void }).disconnect();
     livekitRoom = null;
   }
 
