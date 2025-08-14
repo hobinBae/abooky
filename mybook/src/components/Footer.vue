@@ -22,7 +22,8 @@
 <style scoped>
 .footer {
   width: 100%;
-  z-index: 1000;
+  position: relative;
+  z-index: 1;
   /* 다른 요소들 위에 오도록 z-index 설정 */
   background-color: #656b5b;
   /* Dark grey background */
