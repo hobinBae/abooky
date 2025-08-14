@@ -64,7 +64,7 @@ function continueWriting() {
 }
 
 .create-book-page {
-  padding: 2em 2rem 2rem 2rem;
+  padding: 2em 2rem 4rem 2rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
