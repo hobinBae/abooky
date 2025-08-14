@@ -3,6 +3,7 @@ package com.c203.autobiography.domain.group.controller;
 import com.c203.autobiography.domain.group.dto.GroupCreateRequest;
 import com.c203.autobiography.domain.group.dto.GroupMemberResponse;
 import com.c203.autobiography.domain.group.dto.GroupResponse;
+import com.c203.autobiography.domain.group.dto.GroupRoleChangeRequest;
 import com.c203.autobiography.domain.group.dto.GroupUpdateRequest;
 import com.c203.autobiography.domain.group.service.GroupMemberService;
 import com.c203.autobiography.domain.group.service.GroupService;
@@ -125,6 +126,20 @@ public class GroupController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "그룹 탈퇴 성공", null, httpRequest.getRequestURI()));
 
+    }
+
+    @Operation(summary = "그룹원 역할 변경", description = "그룹 리더가 그룹원의 역할을 변경합니다. (MEMBER ↔ MANAGER)")
+    @PatchMapping("/{groupId}/members/{memberId}/role")
+    public ResponseEntity<ApiResponse<Void>> changeGroupMemberRole(
+            @PathVariable Long groupId,
+            @PathVariable Long memberId,
+            @Valid @RequestBody GroupRoleChangeRequest request,
+            @AuthenticationPrincipal CustomUserDetails currentUser,
+            HttpServletRequest httpRequest
+    ) {
+        groupMemberService.changeGroupMemberRole(groupId, memberId, request.getRole(), currentUser.getMemberId());
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "그룹원 역할 변경 성공", null, httpRequest.getRequestURI()));
     }
 
 }

@@ -24,6 +24,9 @@ public class GroupResponse {
     @Schema(description = "그룹 방장 ID", example = "1")
     private Long leaderId;
 
+    @Schema(description = "그룹 방장 닉네임", example = "김철수")
+    private String leaderNickname;
+
     @Schema(description = "그룹 설명", example = "우리 가족 아카이브")
     private String description;
 
@@ -44,6 +47,21 @@ public class GroupResponse {
                 .groupId(g.getGroupId())
                 .groupName(g.getGroupName())
                 .leaderId(g.getLeaderId())
+                .leaderNickname(null) // 방장 닉네임이 필요한 경우 from(Group, String) 사용
+                .description(g.getDescription())
+                .themeColor(g.getThemeColor())
+                .groupImageUrl(g.getGroupImageUrl())
+                .createdAt(g.getCreatedAt())
+                .updatedAt(g.getUpdatedAt())
+                .build();
+    }
+
+    public static GroupResponse from(Group g, String leaderNickname) {
+        return GroupResponse.builder()
+                .groupId(g.getGroupId())
+                .groupName(g.getGroupName())
+                .leaderId(g.getLeaderId())
+                .leaderNickname(leaderNickname)
                 .description(g.getDescription())
                 .themeColor(g.getThemeColor())
                 .groupImageUrl(g.getGroupImageUrl())
