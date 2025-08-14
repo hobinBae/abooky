@@ -202,9 +202,29 @@ import apiClient from '@/api'; // API 클라이언트 임포트
 import { useAuthStore } from '@/stores/auth';
 
 // --- 인터페이스 정의 ---
-interface Story { id?: number; title: string; content: string; }
+interface Story { id?: number; title: string; content: string; activeSessionId?: string | null; }
 interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; completed?: boolean; }
-interface ApiEpisode { episodeId: number; title: string; content: string; }
+interface ApiEpisode { episodeId: number; title: string; content: string; activeSessionId?: string | null; }
+
+type QuestionType = 'MAIN' | 'FOLLOWUP' | 'CHAPTER_COMPLETE' | string;
+
+
+interface QuestionEventData {
+  text: string;
+  questionType?: QuestionType;
+  isLastQuestion?: boolean;
+}
+
+interface PartialTranscriptEventData {
+  messageId: number;     // 서버 계약에 맞게 number/string 여부 확인하세요
+  text: string;
+}
+
+interface EpisodeEventData {
+  episodeId: number;
+  title: string;
+  content: string;
+}
 
 // --- 정적 데이터 ---
 const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-file-person' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-brush' },];
@@ -221,6 +241,7 @@ const coverOptions = ['https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/de
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+let connectTimer: number | null = null;
 
 // --- 컴포넌트 상태 ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
@@ -242,10 +263,15 @@ const currentSessionId = ref<string | null>(null);
 const currentAnswerMessageId = ref<number | null>(null);
 // SSE EventSource 객체를 저장할 변수
 let eventSource: EventSource | null = null;
+// SSE 연결 상태 추적
+const isConnecting = ref(false);
+const isConnected = ref(false);
 
 const selectedCover = ref(coverOptions[0]);
 const uploadedCoverFile = ref<File | null>(null);
 const sidebarButtons = ref<HTMLButtonElement[]>([]);
+
+const isCorrecting = ref(false);
 
 // --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
@@ -276,7 +302,7 @@ function selectCategory(categoryId: number) {
 
 async function moveToEditingStep() {
   if (!currentBook.value.title) {
-    ('책 제목을 입력해주세요.');
+    alert('책 제목을 입력해주세요.');
     return;
   }
   if (!selectedCategoryId.value) {
@@ -421,13 +447,24 @@ function visualize() {
 
 async function loadBookForEditing(bookId: string) {
   try {
-    const response = await apiClient.get(`/api/v1/books/${bookId}`);
+    const response = await apiClient.get(`/api/v1/books/${bookId}`, {
+      headers: {
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
     const bookData = response.data.data;
     currentBook.value = {
       id: bookData.bookId,
       title: bookData.title,
       summary: bookData.summary,
-      stories: bookData.episodes?.map((e: ApiEpisode) => ({ id: e.episodeId, title: e.title, content: e.content })) || [],
+      stories: bookData.episodes?.map((e: ApiEpisode) => ({
+        id: e.episodeId,
+        title: e.title,
+        content: e.content,
+        activeSessionId: e.activeSessionId // ★★★ activeSessionId를 함께 매핑 ★★★
+      })) || [],
       tags: bookData.tags || [],
       categoryId: bookData.categoryId,
       type: bookData.bookType.toLowerCase(),
@@ -436,8 +473,21 @@ async function loadBookForEditing(bookId: string) {
     tags.value = bookData.tags || []; // [수정] 불러온 태그를 상태에 할당
     selectedCategoryId.value = bookData.categoryId;
     creationStep.value = 'editing';
+
     if (currentBook.value.stories && currentBook.value.stories.length > 0) {
-      selectStory(0);
+      // activeSessionId가 있는 스토리를 우선적으로 찾아서 선택
+      const activeStoryIndex = currentBook.value.stories.findIndex(story =>
+        story.activeSessionId && story.activeSessionId.trim() !== ''
+      );
+
+      if (activeStoryIndex !== -1) {
+        // 진행 중인 세션이 있는 스토리를 선택하고 이어쓰기 모드로 진입
+        console.log(`진행 중인 세션이 있는 스토리(인덱스: ${activeStoryIndex})를 선택합니다.`);
+        await selectStory(activeStoryIndex);
+      } else {
+        // 진행 중인 세션이 없으면 첫 번째 스토리 선택
+        await selectStory(0);
+      }
     }
   } catch (error) {
     console.error('책 정보를 불러오는데 실패했습니다:', error);
@@ -497,9 +547,74 @@ async function addStory() {
   }
 }
 
-function selectStory(index: number) {
+
+async function selectStory(index: number) {
+  console.log(`🎯 selectStory 호출: index=${index}`);
+  console.log('📚 현재 stories:', currentBook.value.stories?.map(s => ({ id: s.id, title: s.title })));
+
+  if (eventSource && currentSessionId.value) {
+    console.log(`다른 스토리 선택으로 SSE 연결(${currentSessionId.value})을 종료합니다.`);
+    try {
+      // 이 경우는 페이지 이동이 아니므로 apiClient 사용 가능
+      await apiClient.delete(`/api/v1/conversation/stream/${currentSessionId.value}`);
+    } catch (e) {
+      console.error('SSE 연결 종료 API 호출 실패', e);
+    }
+    eventSource.close();
+    isConnected.value = false;
+    isConnecting.value = false;
+  }
+
   currentStoryIndex.value = index;
   isContentChanged.value = false;
+
+  // 선택된 스토리를 가져옴
+  const story = currentBook.value.stories?.[index];
+
+  console.log('✅ 선택된 스토리:', {
+    id: story?.id,
+    title: story?.title,
+    hasActiveSession: !!story?.activeSessionId,
+    contentLength: story?.content?.length || 0
+  });
+
+  // 기존 연결이 있다면 먼저 정리
+  if (eventSource) {
+    eventSource.close();
+    isConnected.value = false;
+    isConnecting.value = false;
+    // 연결 정리를 위한 짧은 대기
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  // ★★★ 여기가 대화 이어하기의 핵심 로직 ★★★
+  if (story && story.activeSessionId) {
+    // [재연결 시나리오] 선택한 스토리에 진행 중인 세션이 있다면,
+    console.log(`기존 세션(${story.activeSessionId})에 재연결합니다.`);
+    currentSessionId.value = story.activeSessionId; // '열쇠'를 현재 세션 ID로 설정
+    isInterviewStarted.value = true; // 인터뷰 모드로 즉시 전환
+
+    // 상태 설정 후 짧은 지연을 두고 연결
+    await new Promise(resolve => setTimeout(resolve, 200));
+    await connectToSseStream(); // 해당 세션 ID로 SSE 스트림에 재연결
+  } else {
+    // [새 시작 시나리오] 진행 중인 세션이 없다면, 모든 관련 상태를 초기화
+    currentSessionId.value = null;
+    isInterviewStarted.value = false;
+    aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
+    currentAnswerMessageId.value = null;
+    console.log('🆕 새 시작 모드로 상태 초기화 완료');
+  }
+
+  // selectStory 완료 후 최종 상태 확인
+  await nextTick();
+  console.log('🎯 selectStory 완료 후 최종 상태:', {
+    currentStoryIndex: currentStoryIndex.value,
+    currentStoryExists: !!currentStory.value,
+    currentStoryId: currentStory.value?.id,
+    isInterviewStarted: isInterviewStarted.value,
+    currentSessionId: currentSessionId.value
+  });
 }
 
 async function saveStory() {
@@ -569,11 +684,23 @@ async function startAiInterview() {
     alert('먼저 이야기를 추가/선택해주세요.');
     return;
   }
+
+  // 이미 연결 중이거나 연결되어 있다면 중복 시작 방지
+  if (isConnecting.value || isConnected.value || isInterviewStarted.value) {
+    console.log('이미 AI 인터뷰가 진행 중이거나 연결 중입니다.');
+    return;
+  }
+
   try {
     const res = await apiClient.post(
       `/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value.id}/sessions`
     );
     currentSessionId.value = res.data.data.sessionId;
+
+    // 현재 스토리에 activeSessionId 저장 (이어쓰기를 위함)
+    if (currentStory.value) {
+      currentStory.value.activeSessionId = currentSessionId.value;
+    }
 
     isInterviewStarted.value = true;
     isContentChanged.value = false;
@@ -582,97 +709,267 @@ async function startAiInterview() {
     aiQuestion.value = 'AI 인터뷰 세션에 연결 중... 첫 질문을 기다립니다.';
 
     // 발급받은 sessionId로 SSE 스트림에 "연결"
-
-    connectToSseStream();
+    await connectToSseStream();
   } catch (e) {
     console.error('세션 시작 실패:', e);
     alert('AI 인터뷰 세션 시작에 실패했습니다.');
+    // 실패 시 상태 초기화
+    isInterviewStarted.value = false;
+    currentSessionId.value = null;
+    if (currentStory.value) {
+      currentStory.value.activeSessionId = null;
+    }
   }
 }
 
+async function safeCloseEventSource() {
+  if (connectTimer) { clearTimeout(connectTimer); connectTimer = null; }
+  if (!eventSource) return;
+  try { eventSource.close(); } catch { }
+  eventSource = null;
+  isConnected.value = false;
+  isConnecting.value = false;
+  // 끊고 300ms는 재연결 금지
+  await new Promise(res => setTimeout(res, 300));
+}
+
+// 페이지 이탈 전 완전한 정리 함수
+async function cleanupBeforeLeave() {
+  console.log('페이지 이탈 전 상태 정리 시작...');
+
+  // SSE 연결 완전 정리
+  await safeCloseEventSource();
+
+  // 모든 상태 초기화
+  currentSessionId.value = null;
+  currentAnswerMessageId.value = null;
+  isInterviewStarted.value = false;
+  isContentChanged.value = false;
+  firstChunkForThisAnswer = true;
+  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
+
+  console.log('페이지 이탈 전 상태 정리 완료');
+}
+
+let firstChunkForThisAnswer = true;
 
 // ★ 추가: SSE 연결 및 이벤트 리스너 설정 함수
-function connectToSseStream() {
-  if (!currentSessionId.value) return;
-
-  // 기존 연결이 있다면 종료
-  if (eventSource) {
-    eventSource.close();
+async function connectToSseStream() {
+  if (!currentSessionId.value) {
+    console.warn('세션 ID가 없어 SSE 연결을 할 수 없습니다.');
+    return;
   }
 
-  const baseURL = apiClient.defaults?.baseURL || '';
-  const url = `${baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
-  eventSource = new EventSource(url, { withCredentials: true });
+  // 이미 연결 중이거나 연결되어 있다면 중복 연결 방지
+  if (isConnecting.value || isConnected.value) {
+    console.log('이미 SSE 연결 중이거나 연결되어 있습니다.');
+    return;
+  }
 
-  eventSource.onopen = () => {
-    console.log('SSE 연결 성공');
-  };
+  isConnecting.value = true;
 
-  eventSource.addEventListener('question', (event) => {
-    const q = JSON.parse(event.data);
-    aiQuestion.value = q.text;
+  await safeCloseEventSource();
 
-    if (q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion) {
-      isInterviewStarted.value = false;
-      isContentChanged.value = false;
 
-      return;
+  // 기존 연결이 있다면 종료하고 잠시 대기
+  if (eventSource) {
+    eventSource.close();
+    isConnected.value = false;
+    await new Promise(resolve => setTimeout(resolve, 300));
+  }
+
+  try {
+    const baseURL = apiClient.defaults?.baseURL || '';
+    const url = `${baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
+    eventSource = new EventSource(url, { withCredentials: true });
+
+    eventSource.onopen = () => {
+      console.log('SSE 연결 성공');
+      isConnecting.value = false;
+      isConnected.value = true;
+    };
+
+    eventSource.addEventListener('question', (ev: MessageEvent<string>) => {
+      const q = safeJson<QuestionEventData>(ev.data);
+      if (!q) return; // 파싱 실패 시 무시
+
+      aiQuestion.value = q.text ?? '';
+
+      // 인터뷰 종료 신호
+      if (q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion) {
+        isInterviewStarted.value = false;
+        isContentChanged.value = false;
+        if (currentStory.value) currentStory.value.activeSessionId = null;
+        return;
+      }
+
+      // 직후 episode 반영이면 초기화 금지
+      if (episodeJustApplied.value) {
+        episodeJustApplied.value = false;
+        return;
+      }
+
+      // 다음 답변으로 넘어가는 일반 케이스
+      if (q.questionType === 'MAIN' || q.questionType === 'FOLLOWUP' || !q.questionType) {
+        // 기존 내용 즉시 삭제 대신, 다음 partialTranscript의 첫 청크에서 초기화
+        firstChunkForThisAnswer = true;
+        isContentChanged.value = false;
+      }
+    });
+
+
+    function safeJson<T>(data: string): T | null {
+      try {
+        return JSON.parse(data) as T;
+      } catch {
+        return null;
+      }
     }
+    // 2.'partialTranscript' 이벤트 리스너
+    eventSource.addEventListener('partialTranscript', async (ev: MessageEvent<string>) => {
+      console.log('🎤 SSE partialTranscript 이벤트 수신:', ev.data);
+      const t = safeJson<PartialTranscriptEventData>(ev.data);
+      if (!t) {
+        console.error('❌ partialTranscript JSON 파싱 실패:', ev.data);
+        return;
+      }
 
-    // 에피소드 반영 직후엔 초기화 금지
-    if (episodeJustApplied.value) {
-      episodeJustApplied.value = false;
-      return;
-    }
+      console.log('✅ 파싱된 transcript 데이터:', t);
+      console.log('📝 현재 currentStory 상태:', {
+        exists: !!currentStory.value,
+        id: currentStory.value?.id,
+        title: currentStory.value?.title,
+        contentLength: currentStory.value?.content?.length || 0
+      });
+      console.log('📌 현재 currentStoryIndex:', currentStoryIndex.value);
+      console.log('🔄 firstChunkForThisAnswer 상태:', firstChunkForThisAnswer);
+      console.log('📋 전체 stories 개수:', currentBook.value?.stories?.length || 0);
 
-    if (q.questionType === 'MAIN' || q.questionType === 'FOLLOWUP' || !q.questionType) {
-      isContentChanged.value = false;
-      if (currentStory.value) currentStory.value.content = '';
-    }
-  });
+      // 스토리 선택이 올바른지 검증
+      if (currentStoryIndex.value >= 0 && currentBook.value?.stories) {
+        const selectedStory = currentBook.value.stories[currentStoryIndex.value];
+        console.log('🎯 선택된 스토리:', {
+          id: selectedStory?.id,
+          title: selectedStory?.title,
+          isSameAsCurrentStory: selectedStory === currentStory.value
+        });
+      }
+
+      if (currentStory.value) {
+        console.log('✅ currentStory가 존재함, content 업데이트 시도');
+
+        // 다음 답변의 첫 청크에서만 초기화
+        if (firstChunkForThisAnswer) {
+          console.log('🆕 첫 청크로 content 초기화');
+          currentStory.value.content = '';
+          firstChunkForThisAnswer = false;
+        }
+
+        const beforeContent = currentStory.value.content;
+        const addText = (t.text || '') + ' ';
+        currentStory.value.content += addText;
+        const afterContent = currentStory.value.content;
+
+        console.log('📝 content 업데이트 완료:', {
+          before: `"${beforeContent}"`,
+          added: `"${addText}"`,
+          after: `"${afterContent}"`
+        });
+
+        // Vue 반응성 강제 업데이트
+        await nextTick();
+        console.log('🔄 nextTick 완료, 최종 content:', currentStory.value.content);
+
+        // 반응성 트리거를 위해 스토리 배열을 강제 업데이트
+        if (currentBook.value?.stories && currentStoryIndex.value >= 0) {
+          const currentStoryRef = currentBook.value.stories[currentStoryIndex.value];
+          if (currentStoryRef) {
+            // 배열 요소를 새 객체로 교체하여 반응성 보장
+            currentBook.value.stories.splice(currentStoryIndex.value, 1, { ...currentStoryRef });
+            console.log('🔄 스토리 배열 반응성 강제 업데이트 완료');
+          }
+        }
+
+      } else {
+        console.error('❌ currentStory.value가 null 또는 undefined입니다!');
+        console.log('📚 전체 book stories:', currentBook.value?.stories?.map(s => ({
+          id: s.id,
+          title: s.title,
+          contentLength: s.content?.length || 0
+        })));
+
+        // 안전장치: currentStoryIndex가 유효하지 않은 경우 첫 번째 스토리 선택
+        if (currentBook.value?.stories && currentBook.value.stories.length > 0) {
+          if (currentStoryIndex.value < 0 || currentStoryIndex.value >= currentBook.value.stories.length) {
+            console.log('🔧 currentStoryIndex가 유효하지 않음, 첫 번째 스토리로 설정');
+            currentStoryIndex.value = 0;
+            await nextTick(); // 상태 업데이트 대기
+          }
+
+          // 직접 스토리에 접근해서 업데이트 시도
+          if (currentBook.value.stories[currentStoryIndex.value]) {
+            console.log('🔧 직접 스토리 접근으로 content 업데이트 시도');
+            const targetStory = currentBook.value.stories[currentStoryIndex.value];
+
+            if (firstChunkForThisAnswer) {
+              targetStory.content = '';
+              firstChunkForThisAnswer = false;
+            }
+
+            const addText = (t.text || '') + ' ';
+            targetStory.content += addText;
+            console.log('🔧 직접 업데이트 완료:', targetStory.content);
+          }
+        }
+      }
+
+      // 최신 messageId 갱신
+      if (typeof t.messageId !== 'undefined' && t.messageId !== null) {
+        currentAnswerMessageId.value = t.messageId as number;
+        console.log('🆔 messageId 업데이트:', t.messageId);
+      }
+
+      // 답변 내용이 존재함을 표시
+      isContentChanged.value = true;
+      console.log('✅ isContentChanged를 true로 설정');
+    });
 
 
-  // 2.'partialTranscript' 이벤트 리스너
-  eventSource.addEventListener('partialTranscript', (event) => {
-    const transcriptData = JSON.parse(event.data);
-    if (currentStory.value) {
-      // 서버에서 받은 음성 인식 결과를 content에 추가
-      currentStory.value.content += transcriptData.text + ' ';
-    }
-    // 수신한 messageId를 상태에 저장
-    currentAnswerMessageId.value = transcriptData.messageId;
-  });
+    eventSource.addEventListener('episode', async (ev: MessageEvent<string>) => {
+      episodeJustApplied.value = true;
 
-  // 'episode' 이벤트 리스너
-  eventSource.addEventListener('episode', async (event) => {
+      const e = safeJson<EpisodeEventData>(ev.data);
+      if (!e || !currentBook.value?.stories) return;
 
-    episodeJustApplied.value = true;
+      const i = currentBook.value.stories.findIndex(s => s.id === e.episodeId);
 
-    const e = JSON.parse(event.data);
+      if (i > -1) {
+        // 반응성 보장: 새 객체로 교체
+        const updated = { ...currentBook.value.stories[i], title: e.title, content: e.content };
+        currentBook.value.stories.splice(i, 1, updated);
+        await nextTick();
+        if (currentStoryIndex.value === -1) currentStoryIndex.value = i;
+      } else {
+        const newStory = { id: e.episodeId, title: e.title, content: e.content };
+        currentBook.value.stories.push(newStory);
+        currentStoryIndex.value = currentBook.value.stories.length - 1;
+      }
+    });
 
-    if (!currentBook.value?.stories) return;
+    eventSource.onerror = (error) => {
+      console.error('SSE 에러:', error);
+      isConnecting.value = false;
+      isConnected.value = false;
+      aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다. 페이지를 새로고침 해주세요.';
+      eventSource?.close();
+    };
 
-    const i = currentBook.value.stories.findIndex(s => s.id === e.episodeId);
-
-    if (i > -1) {
-      const updated = { ...currentBook.value.stories[i], title: e.title, content: e.content };
-      currentBook.value.stories.splice(i, 1, updated);    // ✅ 반응성 보장
-      await nextTick();
-      if (currentStoryIndex.value === -1) currentStoryIndex.value = i;  // 선택 없으면 선택
-    } else {
-      const newStory = { id: e.episodeId, title: e.title, content: e.content };
-      currentBook.value.stories.push(newStory);
-      currentStoryIndex.value = currentBook.value.stories.length - 1;   // ✅ 새로 추가되면 선택
-    }
-
-
-  });
-
-  eventSource.onerror = (error) => {
-    console.error('SSE 에러:', error);
-    aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다. 페이지를 새로고침 해주세요.';
-    eventSource?.close();
-  };
+  } catch (error) {
+    console.error('SSE 연결 실패:', error);
+    isConnecting.value = false;
+    isConnected.value = false;
+    aiQuestion.value = 'AI 인터뷰 서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
+  }
 }
 
 
@@ -680,29 +977,19 @@ function connectToSseStream() {
 async function submitAnswerAndGetFollowUp() {
   if (!isInterviewStarted.value || !currentSessionId.value) return;
 
-  // 텍스트로 답변한 경우, 해당 내용을 먼저 ANSWER 메시지로 저장
-  if (isContentChanged.value && currentStory.value) {
-    try {
-      await apiClient.post('/api/v1/messages', { // (가칭) 메시지 생성 API
-        sessionId: currentSessionId.value,
-        messageType: 'ANSWER',
-        content: currentStory.value.content
-      });
-    } catch (e) {
-      console.error('텍스트 답변 저장 실패:', e);
-    }
-  }
-
   try {
     console.log('다음 질문 요청...');
     // "다음 질문"을 요청하는 API 호출
     await apiClient.post(`/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value?.id}/next?sessionId=${currentSessionId.value}`);
 
-    // 다음 질문은 SSE의 'question' 이벤트 리스너가 받아서 자동으로 화면에 표시합니다.
+    // 즉시 화면의 답변 내용을 지우고 상태 초기화
+    if (currentStory.value) {
+      currentStory.value.content = '';
+    }
+    isContentChanged.value = false;
+    firstChunkForThisAnswer = true;
 
-    // // 다음 질문을 위해 답변 내용 초기화 및 상태 변경
-    // if (currentStory.value) currentStory.value.content = '';
-    // isContentChanged.value = false;
+    // 다음 질문은 SSE의 'question' 이벤트 리스너가 받아서 자동으로 화면에 표시합니다.
   } catch (error) {
     console.error('다음 질문 요청 실패:', error);
     alert('다음 질문을 가져오는데 실패했습니다.');
@@ -710,7 +997,39 @@ async function submitAnswerAndGetFollowUp() {
 }
 
 function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; alert('질문을 건너뛰었습니다.'); isContentChanged.value = false; }
-function autoCorrect() { if (currentStory.value) { correctedContent.value = `(AI 교정됨) ${currentStory.value.content} - 문법과 문체가 ${currentBook.value.type} 스타일에 맞게 수정되었습니다.`; } }
+async function autoCorrect() {
+  if (!currentStory.value || !currentStory.value.content?.trim()) {
+    alert('교정할 내용이 없습니다.');
+    return;
+  }
+
+  console.log(selectedCategoryId.value);
+  // ★★★ 카테고리 선택 유효성 검사 추가 ★★★
+  if (!selectedCategoryId.value) {
+    alert('AI 교정을 위해서는 먼저 카테고리를 선택해야 합니다.');
+    return;
+  }
+
+  isCorrecting.value = true;
+  correctedContent.value = null;
+
+  try {
+    const requestBody = {
+      textToCorrect: currentStory.value.content,
+      bookCategory: selectedCategoryId.value// ★★★ bookType -> categoryId 로 변경 ★★★
+    };
+
+    const response = await apiClient.post('/api/v1/ai/proofread', requestBody);
+    correctedContent.value = response.data.data.correctedText;
+
+  } catch (error) {
+    console.error('AI 자동 교정 실패:', error);
+    alert('AI 자동 교정에 실패했습니다. 잠시 후 다시 시도해주세요.');
+  } finally {
+    isCorrecting.value = false;
+  }
+}
+
 function applyCorrection() { if (currentStory.value && correctedContent.value) { currentStory.value.content = correctedContent.value; correctedContent.value = null; } }
 function cancelCorrection() { correctedContent.value = null; }
 
@@ -745,6 +1064,10 @@ async function saveDraft() {
 
       alert('임시 저장되었습니다.');
       isSavedOrPublished.value = true;
+
+      // 나가기 전에 모든 연결과 상태를 완전히 정리
+      await cleanupBeforeLeave();
+
       router.push('/continue-writing');
     } catch (error) {
       console.error('임시 저장 오류:', error);
@@ -844,6 +1167,10 @@ async function finalizePublication() {
 
     alert('책이 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
+
+    // 발행 완료 후 상태 정리
+    await cleanupBeforeLeave();
+
     router.push(`/book-detail/${currentBook.value.id}`);
 
   } catch (error) {
@@ -902,6 +1229,10 @@ async function finalizePublicationAsCopy() {
 
     alert('책이 복사본으로 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
+
+    // 복사본 발행 완료 후 상태 정리
+    await cleanupBeforeLeave();
+
     router.push(`/book-detail/${newBook.bookId}`);
   } catch (error) {
     console.error('복사본 발행 오류:', error);
@@ -969,11 +1300,39 @@ onUpdated(() => {
 });
 
 onBeforeUnmount(() => {
+  // 타이머 정리
+  if (connectTimer) {
+    clearTimeout(connectTimer);
+    connectTimer = null;
+  }
+  if (currentSessionId.value) {
+    const baseURL = apiClient.defaults?.baseURL || '';
+    const url = `${baseURL}/api/v1/conversation/stream/${currentSessionId.value}`;
+    const headers = { 'Authorization': `Bearer ${authStore.accessToken}` };
 
+    // 페이지를 닫아도 요청이 취소되지 않도록 fetch + keepalive 사용
+    // navigator.sendBeacon(url, new Blob([JSON.stringify({})], { type: 'application/json' })) 도 좋은 대안입니다.
+    try {
+      fetch(url, {
+        method: 'DELETE',
+        headers,
+        keepalive: true,
+      });
+      console.log(`SSE 연결 종료 요청 전송: ${currentSessionId.value}`);
+    } catch (e) {
+      console.error('SSE 연결 종료 요청 전송 실패', e);
+    }
+  }
+
+  // SSE 연결 정리
   if (eventSource) {
     eventSource.close();
+    isConnected.value = false;
+    isConnecting.value = false;
     console.log('SSE 연결 종료');
   }
+
+
 
   window.removeEventListener('beforeunload', handleBeforeUnload);
 
@@ -983,34 +1342,34 @@ onBeforeUnmount(() => {
       'Authorization': `Bearer ${authStore.accessToken}`,
     };
 
-    try {
-      // 1. 모든 에피소드에 대한 삭제 요청을 보냅니다.
-      currentBook.value.stories?.forEach(story => {
-        if (story.id) {
-          const baseURL = apiClient.defaults?.baseURL || '';
-          const episodeUrl = `${baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
-          fetch(episodeUrl, {
-            method: 'DELETE',
-            headers,
-            keepalive: true,
-          });
-          console.log(`에피소드(ID: ${story.id}) 삭제 요청을 전송했습니다.`);
-        }
-      });
+    // try {
+    //   // 1. 모든 에피소드에 대한 삭제 요청을 보냅니다.
+    //   currentBook.value.stories?.forEach(story => {
+    //     if (story.id) {
+    //       const baseURL = apiClient.defaults?.baseURL || '';
+    //       const episodeUrl = `${baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
+    //       fetch(episodeUrl, {
+    //         method: 'DELETE',
+    //         headers,
+    //         keepalive: true,
+    //       });
+    //       console.log(`에피소드(ID: ${story.id}) 삭제 요청을 전송했습니다.`);
+    //     }
+    //   });
 
-      // 2. 책 삭제 요청을 보냅니다.
-      const baseURL = apiClient.defaults?.baseURL || '';
-      const bookUrl = `${baseURL}/api/v1/books/${bookId}`;
-      fetch(bookUrl, {
-        method: 'DELETE',
-        headers,
-        keepalive: true,
-      });
-      console.log(`책(ID: ${bookId}) 삭제 요청을 전송했습니다.`);
+    //   // 2. 책 삭제 요청을 보냅니다.
+    //   const baseURL = apiClient.defaults?.baseURL || '';
+    //   const bookUrl = `${baseURL}/api/v1/books/${bookId}`;
+    //   fetch(bookUrl, {
+    //     method: 'DELETE',
+    //     headers,
+    //     keepalive: true,
+    //   });
+    //   console.log(`책(ID: ${bookId}) 삭제 요청을 전송했습니다.`);
 
-    } catch (e) {
-      console.error("페이지 이탈 중 삭제 요청 전송 실패:", e);
-    }
+    // } catch (e) {
+    //   console.error("페이지 이탈 중 삭제 요청 전송 실패:", e);
+    // }
   }
 });
 
@@ -1020,6 +1379,23 @@ watch(() => currentStory.value?.content, (newContent) => {
     console.log('Content changed, isContentChanged set to:', isContentChanged.value);
   }
 });
+
+// route 변경 감지하여 컴포넌트 재사용 시에도 올바르게 초기화
+watch(() => route.params.bookId, async (newBookId, oldBookId) => {
+  if (newBookId && newBookId !== oldBookId) {
+    console.log(`Route 변경 감지: ${oldBookId} -> ${newBookId}`);
+
+    // 기존 연결 정리
+    await cleanupBeforeLeave();
+
+    // 새로운 책 로드
+    if (route.query.start_editing === 'true') {
+      await loadBookForEditing(newBookId as string);
+    } else {
+      loadOrCreateBook(newBookId as string || null);
+    }
+  }
+}, { immediate: false });
 </script>
 
 <style scoped>
@@ -1770,15 +2146,18 @@ textarea.form-control {
 .tag-container .form-control:focus {
   box-shadow: none;
 }
+
 /* 발행하기 & 임시저장 버튼 항상 확장 스타일 */
 .btn-primary-sidebar,
 .btn-outline-sidebar {
-  width: 170px; /* 기본 호버 너비(190px)보다 약간 작은 너비로 고정 */
+  width: 170px;
+  /* 기본 호버 너비(190px)보다 약간 작은 너비로 고정 */
   border-radius: 50px;
   justify-content: flex-start;
   padding: 0 0.8rem;
   gap: 0.6rem;
-  background-color: #f6f8f2; /* 확장 상태와 어울리는 배경색 추가 */
+  background-color: #f6f8f2;
+  /* 확장 상태와 어울리는 배경색 추가 */
 }
 
 /* 위 버튼들의 텍스트(span)를 항상 보이게 처리 */
@@ -1794,6 +2173,7 @@ textarea.form-control {
 .btn-outline-sidebar:hover {
   scale: 1.05;
 }
+
 /* --- 반응형 레이아웃을 위한 미디어 쿼리 --- */
 @media (max-width: 1400px) {
 
@@ -1833,17 +2213,21 @@ textarea.form-control {
 
   /* 사이드바 버튼 스타일 조정 */
   /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
-/* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
-.btn-sidebar:hover {
+  /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
+  .btn-sidebar:hover {
     width: auto;
-    min-width: 145px;         /* 수정: 최소 너비 축소 */
-    height: 40px;             /* 수정: 버튼 높이 축소 */
+    min-width: 145px;
+    /* 수정: 최소 너비 축소 */
+    height: 40px;
+    /* 수정: 버튼 높이 축소 */
     border-radius: 30px;
     justify-content: flex-start;
-    padding: 0 0.9rem;        /* 수정: 좌우 여백 축소 */
+    padding: 0 0.9rem;
+    /* 수정: 좌우 여백 축소 */
     transform: none;
-    font-size: 0.9rem;        /* 추가: 글씨 크기 작게 설정 */
-}
+    font-size: 0.9rem;
+    /* 추가: 글씨 크기 작게 설정 */
+  }
 
 
 }
