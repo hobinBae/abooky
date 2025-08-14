@@ -3,6 +3,7 @@ package com.c203.autobiography.domain.group.service;
 import com.c203.autobiography.domain.group.dto.GroupMemberResponse;
 import com.c203.autobiography.domain.group.dto.GroupResponse;
 import com.c203.autobiography.domain.group.entity.GroupMember;
+import com.c203.autobiography.domain.group.entity.GroupRole;
 
 import java.util.List;
 
@@ -19,5 +20,8 @@ public interface GroupMemberService {
 
     /** 내가 속한 그룹 보기 **/
     List<GroupResponse> listMyGroups(Long memberId);
+
+    /** 그룹원 역할 변경 (리더 전용) **/
+    void changeGroupMemberRole(Long groupId, Long targetMemberId, GroupRole newRole, Long actorId);
 
 }

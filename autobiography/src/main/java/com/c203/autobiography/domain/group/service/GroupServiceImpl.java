@@ -58,14 +58,19 @@ public class GroupServiceImpl implements GroupService{
                 .role(GroupRole.LEADER)
                 .build();
         groupMemberRepository.save(leaderEntry);
-        return GroupResponse.from(saved);
+        return GroupResponse.from(saved, leader.getNickname());
     }
 
     @Override
     public GroupResponse getGroup(Long groupId) {
         Group group = groupRepository.findByGroupIdAndDeletedAtIsNull(groupId)
                 .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
-        return GroupResponse.from(group);
+        
+        // 방장 정보 조회
+        Member leader = memberRepository.findById(group.getLeaderId())
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        
+        return GroupResponse.from(group, leader.getNickname());
     }
 
     @Override
@@ -96,7 +101,12 @@ public class GroupServiceImpl implements GroupService{
         }
 
         group.updateInfo(request.getGroupName(), request.getDescription(), request.getThemeColor(), request.getGroupImageUrl());
-        return GroupResponse.from(group);
+        
+        // 방장 정보 조회
+        Member leader = memberRepository.findById(group.getLeaderId())
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        
+        return GroupResponse.from(group, leader.getNickname());
     }
 
     @Transactional
