@@ -250,8 +250,8 @@ const uploadedCoverFile = ref<File | null>(null);
 
 // --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
-let audioContext: AudioContext | null = null;
-let analyser: AnalyserNode | null = null;
+const audioContext: AudioContext | null = null;
+const analyser: AnalyserNode | null = null;
 let animationFrameId: number | null = null;
 let mediaStream: MediaStream | null = null;
 
