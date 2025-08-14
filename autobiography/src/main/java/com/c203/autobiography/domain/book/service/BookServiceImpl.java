@@ -10,6 +10,9 @@ import com.c203.autobiography.domain.communityBook.entity.CommunityBookTag;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookEpisodeRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookRepository;
 import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRepository;
+import com.c203.autobiography.domain.episode.dto.SessionStatus;
+import com.c203.autobiography.domain.episode.entity.ConversationSession;
+import com.c203.autobiography.domain.episode.repository.ConversationSessionRepository;
 import com.c203.autobiography.domain.group.entity.Group;
 import com.c203.autobiography.domain.group.repository.GroupRepository;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateResponse;
@@ -35,6 +38,7 @@ import java.util.Optional;
 
 import java.util.Set;
 import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -74,6 +78,7 @@ public class BookServiceImpl implements BookService {
     private final GroupRepository groupRepository;
     private final GroupBookRepository groupBookRepository;
     private final GroupEpisodeRepository groupEpisodeRepository;
+    private final ConversationSessionRepository conversationSessionRepository;
 
     @Override
     @Transactional
@@ -81,7 +86,7 @@ public class BookServiceImpl implements BookService {
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        BookCategory category = switch (request.getBookType( )) {
+        BookCategory category = switch (request.getBookType()) {
             case AUTO -> bookCategoryRepository
                     .findByCategoryName("자서전")
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
@@ -251,20 +256,35 @@ public class BookServiceImpl implements BookService {
         if (!book.getMember().getMemberId().equals(memberId)) {
             throw new ApiException(ErrorCode.FORBIDDEN);
         }
+        // 에피소드 목록 조회
+        List<Episode> episodes = episodeRepository
+                .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId);
 
-        // 에피소드 목록 조회 + DTO 매핑
-        List<EpisodeResponse> episodes = episodeRepository
-                .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId)
-                .stream()
-                .map(EpisodeResponse::of)
-                .toList();
+
+//        // 에피소드 목록 조회 + DTO 매핑
+//        List<EpisodeResponse> episodes = episodeRepository
+//                .findAllByBookBookIdAndDeletedAtIsNullOrderByEpisodeOrder(bookId)
+//                .stream()
+//                .map(EpisodeResponse::of)
+//                .toList();
 
         // 태그 조회
         List<String> tagNames = book.getTags().stream()
                 .map(bt -> bt.getTag().getTagName())
                 .toList();
 
-        return BookResponse.of(book, episodes, tagNames);
+        List<EpisodeResponse> episodeResponses = episodes.stream()
+                .map(episode -> {
+                    // 각 에피소드에 대해 OPEN 상태인 세션이 있는지 조회
+                    Optional<ConversationSession> activeSession = conversationSessionRepository
+                            .findTopByEpisodeIdAndStatusOrderByCreatedAtDesc(episode.getEpisodeId(), SessionStatus.OPEN);
+                    // 세션이 있다면 ID를, 없다면 null을 DTO에 담는다.
+                    return EpisodeResponse.of(episode, activeSession.map(ConversationSession::getSessionId).orElse(null));
+                })
+                .collect(Collectors.toList());
+
+
+        return BookResponse.of(book, episodeResponses, tagNames);
     }
 
     @Override

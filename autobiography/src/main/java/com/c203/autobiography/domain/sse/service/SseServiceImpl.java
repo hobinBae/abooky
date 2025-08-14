@@ -58,6 +58,22 @@ public class SseServiceImpl implements SseService {
         sendEvent(sessionId, "episode", response);
     }
 
+    @Override
+    public void closeConnection(String sessionId) {
+        SseEmitter emitter = emitters.get(sessionId);
+        if (emitter != null) {
+            try {
+                emitter.complete(); // emitter를 정상적으로 완료시킴
+                // onCompletion 콜백이 실행되면서 emitters 맵에서 자동으로 제거됩니다.
+                log.info("[SSE] Connection closed by client request. sessionId={}", sessionId);
+            } catch (Exception e) {
+                // 이미 끊겼거나 다른 이유로 에러가 나도, 그냥 맵에서 제거
+                remove(sessionId);
+            }
+        }
+    }
+
+
     /**
      * 공통 이벤트 전송 로직
      * @param sessionId 세션 식별자
