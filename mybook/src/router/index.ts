@@ -65,6 +65,11 @@ const mainRoutes: Array<RouteRecordRaw> = [
     component: () => import('../views/auth/PasswordResetView.vue')
   },
   {
+    path: '/auth/callback',
+    name: 'social-login-callback',
+    component: () => import('../views/auth/SocialLoginCallbackView.vue')
+  },
+  {
     path: '/profile-edit',
     name: 'profile-edit',
     component: () => import('../views/auth/ProfileEditView.vue'),

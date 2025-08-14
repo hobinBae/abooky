@@ -2,13 +2,13 @@
   <nav class="navbar navbar-expand-lg"
        :class="{ 'navbar-content-hidden': isIntroActive, 'navbar-dark': isHome, 'navbar-light': !isHome, 'scrolled': isScrolled }">
     <div class="container-fluid position-relative">
-      <router-link class="navbar-brand" to="/">
+      <a class="navbar-brand" href="#" @click.prevent="goHome">
         <div class="logo-container">
           <span class="logo-large">아</span><span class="logo-small">띠와&nbsp;</span>
           <span class="logo-large">북</span><span class="logo-small">적북적&nbsp;</span>
           <span class="logo-large">이</span><span class="logo-small">야길</span>
         </div>
-      </router-link>
+      </a>
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -73,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, defineEmits } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { storeToRefs } from 'pinia';
 import { groupService, type GroupInvite } from '@/services/groupService';
@@ -82,10 +82,16 @@ const authStore = useAuthStore();
 const { isLoggedIn } = storeToRefs(authStore);
 const { logout } = authStore;
 
+const emit = defineEmits(['go-home']);
+
 defineProps({
   isIntroActive: Boolean,
   isHome: Boolean
 });
+
+const goHome = () => {
+  emit('go-home');
+};
 
 const isScrolled = ref(false);
 

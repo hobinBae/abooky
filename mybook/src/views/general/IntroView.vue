@@ -99,7 +99,7 @@ export default {
 </script>
 
 <script setup lang="ts">
-import { ref, onActivated, watch, nextTick, computed } from 'vue'
+import { ref, onActivated, watch, nextTick, computed, watchPostEffect, defineExpose } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import ThreeScene from '@/components/ThreeScene.vue'
 import { gsap } from 'gsap'
@@ -171,16 +171,14 @@ watch(activeHotspot, (newVal) => {
   }
 });
 
-watch(
-  () => route.query,
-  (newQuery) => {
-    if (newQuery.from === 'home') {
-      returnToYard()
-      router.replace({ query: {} })
-    }
-  },
-  { immediate: true }
-)
+watchPostEffect(() => {
+  // threeSceneRef.value가 유효하고, URL 쿼리에 from=home이 있을 경우 마당으로 복귀
+  if (route.query.from === 'home' && threeSceneRef.value) {
+    returnToYard()
+    // 반복 실행을 막기 위해 쿼리 파라미터 제거
+    router.replace({ query: {} })
+  }
+})
 
 onActivated(() => {
   if (hasEntered.value) {
@@ -331,6 +329,10 @@ const goToPage = () => {
   }
   router.push(pathMap[activeHotspot.value])
 }
+
+defineExpose({
+  returnToYard
+})
 </script>
 
 <style scoped>
