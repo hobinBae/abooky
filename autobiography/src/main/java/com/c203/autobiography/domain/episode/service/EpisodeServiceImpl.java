@@ -138,7 +138,6 @@ public class EpisodeServiceImpl implements EpisodeService {
     }
 
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public EpisodeResponse createEpisodeFromCurrentWindow(Episode episode, String sessionId)
             throws JsonProcessingException {
 
@@ -175,40 +174,50 @@ public class EpisodeServiceImpl implements EpisodeService {
 
         String rawApiResponse = aiClient.generateEpisode(prompt);
 
-        String inner;
-        try{
-            inner = extractAssistantText(rawApiResponse);
-        }catch(JsonProcessingException e){
-            log.error("AI 응답 파싱 중 JSON 예외", e);
-            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // ❗ 새 에러코드
+        String innerJsonContent = extractAssistantText(rawApiResponse); // 헬퍼 메소드 사용
+        if (innerJsonContent == null) {
+            throw new ApiException(ErrorCode.INVALID_FILE_FORMAT);
         }
-
-        if (inner == null) {
-            log.error("AI 응답에서 본문을 추출하지 못했습니다. raw={}", truncate(rawApiResponse, 2000));
-            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // ❗ 새 에러코드
-        }
-
-        String cleaned = cleanInnerJsonText(inner);
-
-        // ✅ 3차: 최종 JSON 파싱
+        String cleaned = cleanInnerJsonText(innerJsonContent);
         ObjectMapper om = new ObjectMapper();
         JsonNode finalNode = om.readTree(cleaned);
         String title = finalNode.path("title").asText(null);
         String content = finalNode.path("content").asText(null);
+
+        // 4. 파싱된 결과를 가지고 DB에 저장하는 '트랜잭션 메소드'를 호출
+        return saveEpisodeWithAiResult(episode, title, content);
+
+    }
+    /**
+     * [신규] AI 결과를 DB에 저장하는 역할만 담당하는 새로운 트랜잭션 메소드
+     * 이 메소드는 매우 빠르게 실행되므로 커넥션을 오래 차지하지 않습니다.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public EpisodeResponse saveEpisodeWithAiResult(Episode episode, String title, String content) {
         if (title == null || content == null) {
-            log.error("AI JSON 형식 불일치. cleaned={}", cleaned);
+            log.error("AI 결과에서 제목 또는 콘텐츠가 누락되었습니다.");
             throw new ApiException(ErrorCode.INVALID_INPUT_VALUE);
         }
-        episode.updateEpisode(
-                title,
-                episode.getEpisodeDate(),
-                episode.getEpisodeOrder(),
-                content,
-                episode.getAudioUrl()
-        );
-        episodeRepository.save(episode);
-        return EpisodeResponse.of(episode);
 
+        // DB에서 최신 상태의 Episode 엔티티를 다시 가져오는 것이 더 안전합니다.
+        Episode managedEpisode = episodeRepository.findById(episode.getEpisodeId())
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+
+        managedEpisode.updateEpisode(
+                title,
+                managedEpisode.getEpisodeDate(),
+                managedEpisode.getEpisodeOrder(),
+                content,
+                managedEpisode.getAudioUrl()
+        );
+        // save는 더티 체킹에 의해 필요 없을 수 있지만, 명시적으로 호출해도 괜찮습니다.
+        episodeRepository.save(managedEpisode);
+
+
+        // 세션의 다음 에피소드 시작점 업데이트 로직이 필요하다면 여기에 추가
+        // ...
+
+        return EpisodeResponse.of(managedEpisode);
     }
 
     private static String truncate(String s, int max) {
