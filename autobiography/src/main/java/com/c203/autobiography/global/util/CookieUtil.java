@@ -11,7 +11,7 @@ public class CookieUtil {
     public static void addRefreshTokenCookie(HttpServletResponse response, String token, long days) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(Duration.ofDays(days))
@@ -23,7 +23,7 @@ public class CookieUtil {
     public static void deleteRefreshTokenCookie(HttpServletResponse response) {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
-                .secure(false)
+                .secure(true)
                 .sameSite("Lax")
                 .path("/")
                 .maxAge(0).build();
