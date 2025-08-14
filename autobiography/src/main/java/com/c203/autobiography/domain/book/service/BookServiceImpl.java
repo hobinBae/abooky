@@ -657,11 +657,11 @@ public class BookServiceImpl implements BookService {
         // 7. 태그 복사 (만약 GroupBookTag가 있다면)
         copyTagsToGroupBookTags(originalBook, savedGroupBook);
 
-        // 8. 원본 책과 에피소드 소프트 삭제
-        originalBook.softDelete();
-        for (Episode episode : episodes) {
-            episode.softDelete();
-        }
+        // 8. 원본 책과 에피소드 소프트 삭제 -> 그룹북은 일단 삭제 되지 않도록 처리
+//        originalBook.softDelete();
+//        for (Episode episode : episodes) {
+//            episode.softDelete();
+//        }
         episodeRepository.saveAll(episodes);
 
         // 9. 응답 생성

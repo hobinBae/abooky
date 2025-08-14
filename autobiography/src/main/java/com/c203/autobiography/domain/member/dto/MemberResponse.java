@@ -61,7 +61,7 @@ public class MemberResponse {
                 .profileImageUrl(m.getProfileImageUrl())
                 .phoneNumber(m.getPhoneNumber())
                 .birthdate(m.getBirthdate())
-                .coin(m.getCoin())
+                .coin(m.getCoin() != null ? m.getCoin() : 0)
                 .intro(m.getIntro())
                 .representBookId(m.getRepresentBookId())
                 .createdAt(m.getCreatedAt())

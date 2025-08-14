@@ -147,7 +147,7 @@ async function handleLogin() {
     router.push(redirectPath);
   } catch (error) {
     let alertMessage = '로그인 중 알 수 없는 오류가 발생했습니다.';
-    let alertTitle = '로그인 오류';
+    const alertTitle = '로그인 오류';
 
     if (error instanceof AxiosError && error.response) {
       alertMessage = error.response.data.message || '아이디 또는 비밀번호를 확인해주세요.';
