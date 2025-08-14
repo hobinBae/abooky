@@ -49,7 +49,12 @@
           <button @click="handleSocialLogin('google')" class="btn btn-social btn-google">
             <i class="bi bi-google"></i> Google로 로그인
           </button>
-          <!-- 다른 소셜 로그인 버튼 추가 가능 -->
+          <!-- <button @click="handleSocialLogin('naver')" class="btn btn-social btn-naver">
+            <span class="naver-icon">N</span> 네이버로 로그인
+          </button>
+          <button @click="handleSocialLogin('kakao')" class="btn btn-social btn-kakao">
+            <span class="kakao-icon">K</span> 카카오로 로그인
+          </button> -->
         </div>
       </div>
     </div>
@@ -158,8 +163,15 @@ async function handleLogin() {
   }
 }
 
-function handleSocialLogin(provider: 'google') {
+function handleSocialLogin(provider: 'google' | 'naver' | 'kakao') {
   const baseURL = apiClient.defaults.baseURL;
+  
+  // 현재 페이지나 리다이렉트 경로를 저장
+  const redirectPath = route.query.redirect as string || '/';
+  sessionStorage.setItem('socialLoginRedirect', redirectPath);
+  
+  // 백엔드 OAuth2 엔드포인트로 리다이렉트
+  // 백엔드에서는 성공 시 /auth/callback?token=... 로 리다이렉트해야 함
   window.location.href = `${baseURL}/oauth2/authorization/${provider}`;
 }
 
@@ -376,6 +388,54 @@ function handleAlertClosed() {
 .btn-google:hover {
   background-color: #f8f9fa;
   border-color: #ced4da;
+}
+
+.btn-naver {
+  background-color: #03C75A;
+  color: white;
+  border: 1px solid #03C75A;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-naver:hover {
+  background-color: #02B350;
+  border-color: #02B350;
+  color: white;
+}
+
+.btn-kakao {
+  background-color: #FEE500;
+  color: #191919;
+  border: 1px solid #FEE500;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-kakao:hover {
+  background-color: #FDD700;
+  border-color: #FDD700;
+  color: #191919;
+}
+
+.naver-icon, .kakao-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.naver-icon {
+  background-color: white;
+  color: #03C75A;
+}
+
+.kakao-icon {
+  background-color: #191919;
+  color: #FEE500;
+  border-radius: 50%;
 }
 
 .pagination-controls {
