@@ -54,7 +54,10 @@ public class GroupBookServiceImpl implements GroupBookService {
         Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        BookCategory category = switch (request.getBookType()) {
+        // BookType이 null인 경우 FREE_FORM으로 기본값 설정
+        BookType bookType = (request.getBookType() != null) ? request.getBookType() : BookType.FREE_FORM;
+        
+        BookCategory category = switch (bookType) {
             case AUTO -> bookCategoryRepository
                     .findByCategoryName("자서전")
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
@@ -63,11 +66,20 @@ public class GroupBookServiceImpl implements GroupBookService {
                     .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
             case FREE_FORM -> {
                 if (request.getCategoryId() == null) {
-                    throw new ApiException(ErrorCode.VALIDATION_FAILED);
+                    // bookType이 명시되지 않고 FREE_FORM으로 기본값 설정된 경우, 기본 카테고리 사용
+                    if (request.getBookType() == null) {
+                        yield bookCategoryRepository
+                                .findByCategoryName("자서전")
+                                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+                    } else {
+                        // 명시적으로 FREE_FORM을 선택했는데 categoryId가 없는 경우 에러
+                        throw new ApiException(ErrorCode.VALIDATION_FAILED);
+                    }
+                } else {
+                    yield bookCategoryRepository
+                            .findById(request.getCategoryId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
                 }
-                yield bookCategoryRepository
-                        .findById(request.getCategoryId())
-                        .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
             }
             default -> throw new ApiException(ErrorCode.INTERNAL_SERVER_ERROR);
         };
