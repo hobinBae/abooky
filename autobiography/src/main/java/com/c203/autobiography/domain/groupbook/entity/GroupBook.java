@@ -76,7 +76,7 @@ public class GroupBook {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "category_id",
-            foreignKey = @ForeignKey(name = "fk_book_category")
+            foreignKey = @ForeignKey(name = "fk_group_book_category")
     )
     private BookCategory category;
 
