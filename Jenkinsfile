@@ -196,6 +196,9 @@ pipeline {
                             
                             echo "=== 배포 완료 ==="
                             docker ps
+
+                            echo "=== LiveKit 컨테이너 상태 확인 ==="
+                            docker logs autobiography-livekit --tail 20 || echo "LiveKit 컨테이너 로그를 확인할 수 없습니다."
                         '''
                     }
                 }
@@ -208,6 +211,8 @@ pipeline {
                     sleep 20
                     curl -f https://i13c203.p.ssafy.io/actuator/health
                     curl -f https://i13c203.p.ssafy.io/health
+                    curl -f http://i13c203.p.ssafy.io:7880/ || echo "LiveKit 직접 접근 실패 (정상일 수 있음)"
+                    
                 '''
             }
         }

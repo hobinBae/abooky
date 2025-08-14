@@ -59,6 +59,8 @@ services:
         condition: service_healthy  # ← 🔄 헬스체크 조건 추가
       redis:
         condition: service_started  # ← 🔄 헬스체크 조건 추가
+      livekit:
+        condition: service_started
     restart: unless-stopped
     networks:
       - app-network  # ← 🔄 네트워크명 변경
@@ -85,6 +87,36 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 5s
+      retries: 3
+  
+  # LiveKit 서버 추가
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: autobiography-livekit
+    command: --config /etc/livekit.yaml
+    environment:
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+    ports:
+      - "7880:7880"  # HTTP/WebSocket 포트
+      - "7881:7881"  # RTC TCP 포트
+      - "7900-7999:7900-7999/udp"  # RTC UDP 포트 범위
+      - "3478:3478"  # TURN UDP 포트
+      - "3479:3479"  # TURN TCP 포트
+      - "5349:5349"  # TURN TLS 포트
+      - "50000-60000:50000-60000/udp"  # TURN 릴레이 포트 범위
+    volumes:
+      - ./infrastructure/livekit/livekit-prod.yaml:/etc/livekit.yaml
+    depends_on:
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7880/"]
+      interval: 30s
+      timeout: 10s
       retries: 3
 
   # MySQL 데이터베이스
@@ -118,7 +150,7 @@ services:
       retries: 5
       start_period: 60s
 
-  # Redis 캐시
+  # Redis 캐시 (LiveKit과 공유)
   redis:
     image: redis:7.2-alpine  # ← 🔄 버전 변경 (7-alpine → 7.2-alpine)
     container_name: redis-server  # ← 🔄 컨테이너명 변경
