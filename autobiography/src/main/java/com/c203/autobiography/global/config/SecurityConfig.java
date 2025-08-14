@@ -71,7 +71,6 @@ public class SecurityConfig {
                                 "/webjars/**",
                                 "/api/stt/**",
                                 "/api/stream/**",
-                                "/api/conversation/**",
                                 "/cicd/**",
                                 "/actuator/**"
                                 ).permitAll()
