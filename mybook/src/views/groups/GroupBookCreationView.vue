@@ -270,6 +270,10 @@ const route = useRoute();
 const router = useRouter();
 const groupId = (route.query.groupId as string) || 'default-room';
 
+// --- Auth Store ---
+import { useAuthStore } from '@/stores/auth';
+const authStore = useAuthStore();
+
 // --- Reactive State ---
 const hasJoined = ref(false);
 const isConnecting = ref(false);
@@ -302,6 +306,10 @@ const chatMessagesContainer = ref<HTMLElement | null>(null);
 // --- Computed Properties ---
 const totalParticipants = computed(() => {
   return remoteParticipants.value.length + 1;
+});
+
+const userNickname = computed(() => {
+  return authStore.user?.nickname || '익명';
 });
 
 const getConnectionStatusText = computed(() => {
@@ -346,27 +354,46 @@ function setParticipantVideoRef(el: any, identity: string) {
 // --- LiveKit Functions ---
 async function getAccessToken(): Promise<{ url: string, token: string}> {
   try {
-    const userName = `User_${Date.now()}`;
+    const userName = authStore.user?.nickname || `User_${Date.now()}`;
+    
+    console.log('토큰 발급 요청:', {
+      groupId,
+      userName,
+      endpoint: `/api/v1/groups/${groupId}/rtc/token`
+    });
 
-    // 로컬 테스트를 위한 더미 토큰/URL 반환
-    console.log('🔧 로컬 테스트 모드: 더미 토큰 사용');
-    return {
-      url: 'ws://localhost:7880',
-      token: 'dummy-token-for-local-test'
-    };
+    const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
+      userName
+    });
 
-    // 실제 API 호출은 주석 처리
-    // const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
-    //   userName
-    // });
-    //
-    // const data = response.data.data ?? response.data;
-    // if (!data?.token || !data?.url) {
-    //   throw new Error('응답에 url/token 없음');
-    // }
-    // return { url: data.url, token: data.token };
+    console.log('토큰 발급 응답:', response.data);
+
+    const data = response.data.data ?? response.data;
+    if (!data?.token || !data?.url) {
+      throw new Error('응답에 url/token 없음');
+    }
+    
+    console.log('토큰 발급 성공:', { url: data.url, hasToken: !!data.token });
+    return { url: data.url, token: data.token };
+    
   } catch (error) {
-    console.error('토큰 발급 오류:', error);
+    console.error('토큰 발급 실패:', error);
+    
+    if (error.response?.status === 500) {
+      console.error('서버 내부 오류 상세:', error.response?.data);
+      console.error('백엔드 LiveKit 설정 확인이 필요합니다:');
+      console.error('1. LiveKit 서버 URL이 올바른지 확인');
+      console.error('2. LiveKit API Key/Secret이 올바른지 확인');
+      console.error('3. LiveKit 서버가 실행 중인지 확인');
+      throw new Error('LiveKit 서버 연결에 문제가 있습니다. 잠시 후 다시 시도해주세요.');
+    } else if (error.response?.status === 404) {
+      throw new Error('그룹을 찾을 수 없습니다. 그룹 ID를 확인해주세요.');
+    } else if (error.response?.status === 403) {
+      throw new Error('이 그룹에 접근할 권한이 없습니다.');
+    } else if (error.code === 'NETWORK_ERROR' || error.code === 'ERR_NETWORK') {
+      throw new Error('네트워크 연결을 확인해주세요.');
+    }
+    
     throw error;
   }
 }
@@ -410,172 +437,45 @@ async function joinRoom() {
   connectionState.value = 'connecting';
 
   try {
-    console.log('🔧 로컬 테스트 모드: 실제 LiveKit 연결 없이 진행');
-
-    // 로컬 테스트를 위한 더미 연결 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5초 로딩 시뮬레이션
-
-    // 더미 livekitRoom 객체 생성 (기본 기능만)
-    livekitRoom = {
-      localParticipant: {
-        identity: 'LocalUser',
-        enableCameraAndMicrophone: async () => console.log('더미: 카메라/마이크 활성화'),
-        enableMicrophone: async () => console.log('더미: 마이크 활성화'),
-        setMicrophoneEnabled: async (enabled: boolean) => {
-          console.log('더미: 마이크', enabled ? '활성화' : '비활성화');
-          isAudioEnabled.value = enabled;
-
-          // 실제 오디오 스트림 제어
-          if (localVideoElement.value?.srcObject) {
-            const stream = localVideoElement.value.srcObject as MediaStream;
-            const audioTracks = stream.getAudioTracks();
-            audioTracks.forEach(track => {
-              track.enabled = enabled;
-            });
-          }
-        },
-        setCameraEnabled: async (enabled: boolean) => {
-          console.log('더미: 카메라', enabled ? '활성화' : '비활성화');
-          isVideoEnabled.value = enabled;
-
-          // 실제 비디오 스트림 제어
-          if (localVideoElement.value?.srcObject) {
-            const stream = localVideoElement.value.srcObject as MediaStream;
-            const videoTracks = stream.getVideoTracks();
-            videoTracks.forEach(track => {
-              track.enabled = enabled;
-            });
-          }
-        },
-        setScreenShareEnabled: async (enabled: boolean) => {
-          console.log('더미: 화면공유', enabled ? '시작' : '중지');
-          isScreenSharing.value = enabled;
-
-          try {
-            if (enabled) {
-              // 화면 공유 시작
-              console.log('화면 공유 스트림 요청 시작...');
-              const screenStream = await navigator.mediaDevices.getDisplayMedia({
-                video: {
-                  width: { max: 1920 },
-                  height: { max: 1080 },
-                  frameRate: { max: 30 }
-                },
-                audio: true
-              });
-
-              console.log('화면 공유 스트림 획득:', screenStream);
-              console.log('비디오 트랙:', screenStream.getVideoTracks());
-              console.log('오디오 트랙:', screenStream.getAudioTracks());
-
-              if (localVideoElement.value) {
-                console.log('비디오 요소에 화면 공유 스트림 설정');
-
-                // 비디오 요소 속성 설정
-                localVideoElement.value.muted = true; // 화면 공유는 음소거
-                localVideoElement.value.autoplay = true;
-                localVideoElement.value.playsInline = true;
-
-                // 스트림 설정
-                localVideoElement.value.srcObject = screenStream;
-
-                // loadedmetadata 이벤트 대기
-                const waitForMetadata = new Promise<void>((resolve, reject) => {
-                  const timeout = setTimeout(() => {
-                    reject(new Error('비디오 메타데이터 로딩 타임아웃'));
-                  }, 5000);
-
-                  localVideoElement.value!.onloadedmetadata = () => {
-                    clearTimeout(timeout);
-                    console.log('비디오 메타데이터 로드 완료');
-                    console.log('비디오 크기:', localVideoElement.value!.videoWidth, 'x', localVideoElement.value!.videoHeight);
-                    resolve();
-                  };
-
-                  localVideoElement.value!.onerror = (error) => {
-                    clearTimeout(timeout);
-                    console.error('비디오 로딩 에러:', error);
-                    reject(error);
-                  };
-                });
-
-                // 메타데이터 로딩 대기
-                await waitForMetadata;
-
-                // 카메라 썸네일에 원래 카메라 스트림 설정
-                if (localCameraThumbnail.value && localVideo.value?.srcObject) {
-                  localCameraThumbnail.value.srcObject = localVideo.value.srcObject;
-                  try {
-                    await localCameraThumbnail.value.play();
-                    console.log('카메라 썸네일 재생 시작');
-                  } catch (thumbError) {
-                    console.warn('카메라 썸네일 자동 재생 실패:', thumbError);
-                  }
-                }
-
-                // 비디오 재생 시작 (여러 번 시도)
-                let playAttempts = 0;
-                const maxPlayAttempts = 3;
-
-                const attemptPlay = async () => {
-                  try {
-                    await localVideoElement.value!.play();
-                    console.log('화면 공유 스트림 재생 시작 성공');
-
-                    // 재생 성공 후 상태 확인
-                    setTimeout(() => {
-                      console.log('재생 후 비디오 요소 상태:');
-                      console.log('- paused:', localVideoElement.value?.paused);
-                      console.log('- currentTime:', localVideoElement.value?.currentTime);
-                      console.log('- videoWidth:', localVideoElement.value?.videoWidth);
-                      console.log('- videoHeight:', localVideoElement.value?.videoHeight);
-                      console.log('- readyState:', localVideoElement.value?.readyState);
-                    }, 500);
-
-                  } catch (playError) {
-                    playAttempts++;
-                    console.warn(`화면 공유 비디오 재생 실패 (시도 ${playAttempts}/${maxPlayAttempts}):`, playError);
-
-                    if (playAttempts < maxPlayAttempts) {
-                      setTimeout(attemptPlay, 1000);
-                    } else {
-                      console.error('화면 공유 비디오 재생 최종 실패');
-                      // 사용자에게 수동으로 재생하도록 안내
-                      localVideoElement.value!.controls = true;
-                    }
-                  }
-                };
-
-                await attemptPlay();
-
-                // 화면 공유 종료 감지
-                screenStream.getVideoTracks()[0].onended = () => {
-                  console.log('화면 공유가 사용자에 의해 종료됨');
-                  isScreenSharing.value = false;
-                  // 원래 카메라 스트림으로 복구
-                  restoreCameraStream();
-                };
-              }
-            } else {
-              // 화면 공유 종료 - 원래 카메라 스트림으로 복구
-              restoreCameraStream();
-            }
-          } catch (error) {
-            console.error('화면 공유 실패:', error);
-            isScreenSharing.value = false;
-            alert('화면 공유에 실패했습니다. 브라우저에서 화면 공유 권한을 허용해주세요.');
-          }
-        },
-        publishData: async (data: Uint8Array) => {
-          console.log('더미: 데이터 전송', data);
-        }
-      },
-      disconnect: async () => {
-        console.log('더미: 방 나가기');
-      }
+    // LiveKit 연결 정보 가져오기
+    connectionStatus.value = {
+      type: 'info',
+      message: '서버 연결 정보를 가져오는 중...'
     };
 
-    // UI 전환 먼저 수행
+    const { url, token } = await getAccessToken();
+
+    connectionStatus.value = {
+      type: 'info',
+      message: 'LiveKit 서버에 연결하는 중...'
+    };
+
+    // LiveKit Room 생성 및 연결
+    const { Room } = window.LivekitClient;
+    livekitRoom = new Room({
+      adaptiveStream: true,
+      dynacast: true,
+      videoCaptureDefaults: {
+        resolution: {
+          width: 1280,
+          height: 720
+        },
+        facingMode: 'user'
+      },
+      audioCaptureDefaults: {
+        autoGainControl: false,
+        noiseSuppression: false,
+        echoCancellation: false
+      }
+    });
+
+    // 룸 이벤트 리스너 설정
+    setupRoomEventListeners();
+
+    // 룸 연결
+    await livekitRoom.connect(url, token);
+
+    // UI 전환
     hasJoined.value = true;
     connectionState.value = 'connected';
     connectionStatus.value = null;
@@ -583,25 +483,43 @@ async function joinRoom() {
     // DOM 업데이트 대기
     await nextTick();
 
-    // DOM이 준비된 후 로컬 비디오를 워킹스페이스 영역으로 이동
+    // 로컬 미디어 발행
     setTimeout(async () => {
       await publishLocalMedia();
     }, 100);
 
-    // 더미 원격 참여자 추가 (테스트용)
-    setTimeout(() => {
-      addDummyRemoteParticipant();
-    }, 2000);
-
-    console.log('🔧 로컬 테스트 모드: 방 입장 완료 (더미 연결)');
-
   } catch (error: any) {
     console.error('룸 입장 실패:', error);
+    
+    let errorMessage = '룸 입장에 실패했습니다.';
+    
+    if (error.message?.includes('LiveKit 토큰')) {
+      errorMessage = error.message;
+    } else if (error.message?.includes('서버에서')) {
+      errorMessage = error.message;
+    } else if (error.response?.status === 500) {
+      errorMessage = 'LiveKit 서버 설정에 문제가 있습니다. 관리자에게 문의해주세요.';
+    } else if (error.name === 'ConnectError') {
+      errorMessage = 'LiveKit 서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.';
+    } else if (error.message?.includes('token')) {
+      errorMessage = '인증 토큰에 문제가 있습니다. 다시 시도해주세요.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     connectionStatus.value = {
       type: 'error',
-      message: `입장 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}`
+      message: errorMessage
     };
     connectionState.value = 'disconnected';
+    
+    // 5초 후 에러 메시지 자동 제거
+    setTimeout(() => {
+      if (connectionStatus.value?.type === 'error') {
+        connectionStatus.value = null;
+      }
+    }, 5000);
+    
   } finally {
     isConnecting.value = false;
   }
@@ -627,6 +545,15 @@ function setupRoomEventListeners() {
   // 로컬 트랙 발행 이벤트
   livekitRoom.on(RoomEvent.LocalTrackPublished, (publication: any) => {
     console.log('로컬 트랙 발행:', publication.kind, publication.source);
+    
+    // 화면공유 트랙 발행 시 상태 업데이트
+    if (publication.kind === 'video' && 
+        (publication.source === 'screen_share' || 
+         publication.name === 'screen_share')) {
+      console.log('✅ 화면공유 트랙 발행됨');
+      isScreenSharing.value = true;
+    }
+    
     if (publication.kind === 'video') {
       // 로비 비디오 스트림을 중단하고 LiveKit 트랙으로 교체
       if (localVideo.value?.srcObject && publication.source === 'camera') {
@@ -660,6 +587,19 @@ function setupRoomEventListeners() {
           }
         }, 100);
       }
+    }
+  });
+
+  // 로컬 트랙 해제 이벤트
+  livekitRoom.on(RoomEvent.LocalTrackUnpublished, (publication: any) => {
+    console.log('로컬 트랙 해제:', publication.kind, publication.source);
+    
+    // 화면공유 트랙 해제 시 상태 업데이트
+    if (publication.kind === 'video' && 
+        (publication.source === 'screen_share' || 
+         publication.name === 'screen_share')) {
+      console.log('✅ 화면공유 트랙 해제됨');
+      isScreenSharing.value = false;
     }
   });
 
@@ -697,7 +637,7 @@ function setupRoomEventListeners() {
         // 채팅 메시지 수신
         const chatMessage: ChatMessage = {
           id: messageData.id,
-          sender: participant.identity,
+          sender: messageData.senderNickname || participant.identity,
           content: messageData.content,
           timestamp: messageData.timestamp,
           isOwn: false
@@ -734,52 +674,18 @@ function setupRoomEventListeners() {
 }
 
 async function publishLocalMedia() {
-  console.log('🔧 로컬 테스트 모드: 더미 퍼블리시');
+  if (!livekitRoom) return;
 
   try {
-    // 잠시 기다린 후 DOM이 준비되었는지 확인
     await nextTick();
 
-    console.log('localVideo.value:', !!localVideo.value);
-    console.log('localVideoElement.value:', !!localVideoElement.value);
-    console.log('localVideo stream:', !!localVideo.value?.srcObject);
+    // 카메라와 마이크 활성화
+    await livekitRoom.localParticipant.enableCameraAndMicrophone();
 
-    // 로컬 테스트에서는 단순히 로비 비디오를 메인 화면으로 복사
-    if (localVideo.value?.srcObject && localVideoElement.value) {
-      console.log('로비 비디오 스트림을 메인 화면에 복사');
-      localVideoElement.value.srcObject = localVideo.value.srcObject;
-
-      // 비디오 재생 시작
-      try {
-        await localVideoElement.value.play();
-        console.log('로컬 비디오 재생 시작');
-      } catch (playError) {
-        console.warn('비디오 자동 재생 실패:', playError);
-      }
-    } else {
-      console.warn('로비 비디오 스트림이 없거나 메인 비디오 엘리먼트가 없음');
-
-      // 대안: 새로운 미디어 스트림 생성
-      if (localVideoElement.value && isVideoEnabled.value) {
-        console.log('새로운 미디어 스트림 생성 시도');
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 1280, height: 720 },
-            audio: true
-          });
-          localVideoElement.value.srcObject = stream;
-          await localVideoElement.value.play();
-          console.log('새로운 미디어 스트림으로 비디오 시작');
-        } catch (mediaError) {
-          console.error('새로운 미디어 스트림 생성 실패:', mediaError);
-        }
-      }
-    }
-
-    console.log('더미 로컬 미디어 퍼블리시 완료');
+    console.log('로컬 미디어 발행 완료');
 
   } catch (error) {
-    console.error('로컬 미디어 퍼블리시 실패:', error);
+    console.error('로컬 미디어 발행 실패:', error);
   }
 }
 
@@ -838,32 +744,6 @@ async function restoreCameraStream() {
   }
 }
 
-// 더미 원격 참여자 추가 함수 (로컬 테스트용)
-function addDummyRemoteParticipant() {
-  console.log('🔧 더미 원격 참여자 추가');
-
-  const dummyParticipant: RemoteParticipant = {
-    identity: '테스트유저1',
-    isMicrophoneEnabled: true,
-    isCameraEnabled: false, // 비디오 없는 참여자로 시뮬레이션
-    connectionQuality: 3
-  };
-
-  remoteParticipants.value.push(dummyParticipant);
-
-  // 5초 후 다른 참여자 추가
-  setTimeout(() => {
-    const dummyParticipant2: RemoteParticipant = {
-      identity: '테스트유저2',
-      isMicrophoneEnabled: false,
-      isCameraEnabled: true,
-      connectionQuality: 4
-    };
-
-    remoteParticipants.value.push(dummyParticipant2);
-    console.log('🔧 두 번째 더미 참여자 추가');
-  }, 5000);
-}
 
 function addRemoteParticipant(participant: any) {
   const newParticipant: RemoteParticipant = {
@@ -991,47 +871,271 @@ async function toggleCamera() {
     const enabled = !isVideoEnabled.value;
     await livekitRoom.localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
-
-    console.log('카메라 토글:', enabled ? '온' : '오프');
   } catch (error) {
     console.error('카메라 토글 실패:', error);
   }
 }
 
 async function toggleScreenShare() {
-  if (!livekitRoom) return;
+  console.log('=== 화면공유 토글 시작 ===');
+  console.log('LiveKit Room 상태:', !!livekitRoom);
+  console.log('현재 화면공유 상태:', isScreenSharing.value);
+  console.log('현재 URL 프로토콜:', window.location.protocol);
+  
+  if (!livekitRoom) {
+    console.error('❌ LiveKit Room이 연결되지 않았습니다.');
+    connectionStatus.value = {
+      type: 'error',
+      message: 'WebRTC 연결이 필요합니다. 먼저 방에 입장해주세요.'
+    };
+    return;
+  }
+
+  // HTTPS 환경 확인 (개발 환경에서는 경고만 표시)
+  if (window.location.protocol !== 'https:' && 
+      window.location.hostname !== 'localhost' && 
+      window.location.hostname !== '127.0.0.1') {
+    console.warn('⚠️ HTTPS 환경이 아닙니다. 일부 브라우저에서 화면공유가 제한될 수 있습니다.');
+    connectionStatus.value = {
+      type: 'warning',
+      message: 'HTTPS 환경에서 더 안정적인 화면공유가 가능합니다.'
+    };
+    // return을 제거하여 계속 진행
+  }
 
   try {
     const enabled = !isScreenSharing.value;
+    console.log('목표 상태:', enabled ? '시작' : '종료');
 
     if (enabled) {
-      // 화면 공유 시작
-      await livekitRoom.localParticipant.setScreenShareEnabled(true);
-      // 화면공유 중에는 카메라를 끄되, 상태는 유지
-      await livekitRoom.localParticipant.setCameraEnabled(false);
-    } else {
-      // 화면 공유 종료
-      await livekitRoom.localParticipant.setScreenShareEnabled(false);
-      // 비디오가 활성화 상태였다면 카메라 다시 켜기
-      if (isVideoEnabled.value) {
-        await livekitRoom.localParticipant.setCameraEnabled(true);
+      console.log('🖥️ 화면 공유 시작 프로세스...');
+      
+      // 브라우저 지원 확인
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        throw new Error('이 브라우저는 화면 공유를 지원하지 않습니다.');
       }
+
+      console.log('브라우저 지원 확인 완료');
+      
+      // LiveKit SDK 로드 상태 확인
+      console.log('LiveKit SDK 상태:');
+      console.log('- window.LivekitClient:', !!window.LivekitClient);
+      console.log('- TrackSource:', window.LivekitClient?.TrackSource);
+      console.log('- 사용 가능한 속성들:', Object.keys(window.LivekitClient?.TrackSource || {}));
+      
+      // 직접 화면공유 스트림 획득하여 LiveKit에 전달
+      console.log('화면공유 스트림 요청...');
+      const screenStream = await navigator.mediaDevices.getDisplayMedia({ 
+        video: {
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 },
+          frameRate: { ideal: 15, max: 30 }
+        },
+        audio: true
+      });
+      
+      console.log('화면공유 스트림 획득 성공:', screenStream);
+      
+      const videoTrack = screenStream.getVideoTracks()[0];
+      const audioTrack = screenStream.getAudioTracks()[0];
+      
+      // 스트림 상세 정보 로그
+      console.log('비디오 트랙 정보:', {
+        id: videoTrack?.id,
+        label: videoTrack?.label,
+        enabled: videoTrack?.enabled,
+        muted: videoTrack?.muted,
+        readyState: videoTrack?.readyState,
+        settings: videoTrack?.getSettings?.()
+      });
+      
+      console.log('오디오 트랙 정보:', {
+        id: audioTrack?.id,
+        label: audioTrack?.label,
+        enabled: audioTrack?.enabled,
+        muted: audioTrack?.muted,
+        readyState: audioTrack?.readyState
+      });
+      
+      // HTTP 환경 경고
+      if (window.location.protocol === 'http:') {
+        console.warn('⚠️ HTTP 환경에서는 화면공유가 제한될 수 있습니다.');
+        console.warn('브라우저에서 화면공유를 허용했지만 실제 화면 데이터가 차단될 수 있습니다.');
+        connectionStatus.value = {
+          type: 'warning',
+          message: 'HTTP 환경에서는 화면이 검은색으로 나올 수 있습니다. HTTPS 환경을 권장합니다.'
+        };
+      }
+      
+      // 화면공유가 종료되면 자동 정리
+      if (videoTrack) {
+        videoTrack.addEventListener('ended', () => {
+          console.log('사용자가 화면공유를 종료함');
+          isScreenSharing.value = false;
+        });
+      }
+      
+      // 트랙 활성화 검증 - 임시 비디오 엘리먼트로 테스트
+      console.log('화면공유 트랙 활성화 검증...');
+      if (videoTrack) {
+        const testVideo = document.createElement('video');
+        testVideo.muted = true;
+        testVideo.autoplay = true;
+        testVideo.srcObject = new MediaStream([videoTrack]);
+        
+        try {
+          await testVideo.play();
+          console.log('✅ 비디오 트랙 활성화 검증 완료');
+          testVideo.srcObject = null;
+        } catch (error) {
+          console.warn('⚠️ 비디오 트랙 활성화 검증 실패:', error);
+        }
+      }
+      
+      // 스트림 안정화를 위한 짧은 대기
+      console.log('화면공유 스트림 안정화 대기...');
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // 스트림 상태 재검증
+      if (videoTrack && videoTrack.readyState === 'ended') {
+        throw new Error('화면공유 스트림이 이미 종료되었습니다.');
+      }
+      
+      console.log('스트림 준비 완료, LiveKit 퍼블리시 진행...');
+      
+      // LiveKit을 통해 스트림 퍼블리시
+      console.log('LiveKit을 통한 화면공유 트랙 퍼블리시...');
+      
+      // 기존 카메라 트랙 일시 중지
+      await livekitRoom.localParticipant.setCameraEnabled(false);
+      
+      // 화면공유 트랙 퍼블리시 (문자열 기반)
+      if (videoTrack) {
+        console.log('화면공유 비디오 트랙 퍼블리시...');
+        await livekitRoom.localParticipant.publishTrack(videoTrack, {
+          source: 'screen_share',
+          name: 'screen_share'
+        });
+        console.log('✅ 화면공유 비디오 트랙 퍼블리시 완료');
+      }
+      
+      // 오디오 트랙이 있으면 함께 퍼블리시 (silence detection 비활성화)
+      if (audioTrack) {
+        console.log('화면공유 오디오 트랙 퍼블리시...');
+        await livekitRoom.localParticipant.publishTrack(audioTrack, {
+          source: 'screen_share_audio',
+          name: 'screen_share_audio',
+          dtx: false,  // DTX (Discontinuous Transmission) 비활성화
+          red: false   // RED (Redundant Encoding) 비활성화
+        });
+        console.log('✅ 화면공유 오디오 트랙 퍼블리시 완료');
+      }
+      
+      console.log('✅ 화면 공유 트랙 퍼블리시 완료');
+      
+    } else {
+      console.log('🛑 화면 공유 종료 프로세스...');
+      
+      // 화면공유 트랙들을 직접 찾아서 중지
+      const participant = livekitRoom.localParticipant;
+      
+      console.log('현재 발행된 트랙들 확인:');
+      
+      // 안전한 트랙 접근
+      const videoTracks = participant.videoTracks || new Map();
+      const audioTracks = participant.audioTracks || new Map();
+      
+      console.log('- 비디오 트랙:', Array.from(videoTracks.values()).map(p => ({
+        source: p.source,
+        name: p.name,
+        kind: p.kind
+      })));
+      console.log('- 오디오 트랙:', Array.from(audioTracks.values()).map(p => ({
+        source: p.source,
+        name: p.name,
+        kind: p.kind
+      })));
+      
+      // 화면공유 비디오 트랙 중지
+      for (const [, publication] of videoTracks) {
+        if (publication.source === 'screen_share' ||
+            publication.name === 'screen_share') {
+          console.log('화면공유 비디오 트랙 중지:', publication.name);
+          try {
+            await participant.unpublishTrack(publication.track);
+            publication.track?.stop();
+            console.log('✅ 비디오 트랙 중지 완료');
+          } catch (error) {
+            console.error('비디오 트랙 중지 실패:', error);
+          }
+        }
+      }
+      
+      // 화면공유 오디오 트랙 중지
+      for (const [, publication] of audioTracks) {
+        if (publication.source === 'screen_share_audio' ||
+            publication.name === 'screen_share_audio') {
+          console.log('화면공유 오디오 트랙 중지:', publication.name);
+          try {
+            await participant.unpublishTrack(publication.track);
+            publication.track?.stop();
+            console.log('✅ 오디오 트랙 중지 완료');
+          } catch (error) {
+            console.error('오디오 트랙 중지 실패:', error);
+          }
+        }
+      }
+      
+      // 카메라 다시 활성화 (비디오가 켜져있던 경우)
+      if (isVideoEnabled.value) {
+        await participant.setCameraEnabled(true);
+      }
+      
+      console.log('✅ 화면 공유 종료 완료');
     }
 
-    isScreenSharing.value = enabled;
-    console.log('화면 공유:', enabled ? '시작' : '종료');
+    // 상태는 이벤트 리스너에서 자동으로 업데이트됨
+    console.log('화면 공유 처리 완료, 현재 상태:', isScreenSharing.value);
+    
   } catch (error) {
-    console.error('화면 공유 토글 실패:', error);
+    console.error('❌ 화면 공유 실패:', error);
+    console.error('에러 상세:', {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    isScreenSharing.value = false;
+    
+    let errorMessage = '화면 공유를 시작할 수 없습니다.';
+    
+    if (error.name === 'NotAllowedError') {
+      errorMessage = '화면 공유 권한이 거부되었습니다. 팝업을 허용하고 다시 시도해주세요.';
+    } else if (error.name === 'NotSupportedError') {
+      errorMessage = '이 브라우저는 화면 공유를 지원하지 않습니다.';
+    } else if (error.name === 'NotFoundError') {
+      errorMessage = '공유할 화면을 찾을 수 없습니다.';
+    } else if (error.name === 'AbortError') {
+      errorMessage = '화면 공유가 취소되었습니다.';
+    } else if (error.message?.includes('Permission')) {
+      errorMessage = '화면 공유 권한이 필요합니다. 브라우저 설정을 확인해주세요.';
+    } else if (error.message) {
+      errorMessage = `화면 공유 오류: ${error.message}`;
+    }
+    
     connectionStatus.value = {
       type: 'error',
-      message: '화면 공유를 시작할 수 없습니다. 권한을 확인해주세요.'
+      message: errorMessage
     };
+    
     setTimeout(() => {
       if (connectionStatus.value?.type === 'error') {
         connectionStatus.value = null;
       }
-    }, 5000);
+    }, 7000);
   }
+  
+  console.log('=== 화면공유 토글 종료 ===');
 }
 
 function goToBookEditor() {
@@ -1046,14 +1150,12 @@ function goToBookEditor() {
 
 async function leaveRoom() {
   try {
-    // 그룹 세션 종료 (로컬 테스트용)
+    // 그룹 세션 종료
     const groupId = route.query.groupId;
     if (groupId) {
-      console.log('🔧 로컬 테스트 모드: 그룹 세션 종료', groupId);
       try {
         const { groupService } = await import('@/services/groupService');
         await groupService.endGroupBookSession(parseInt(groupId.toString()));
-        console.log('그룹 세션 종료 완료');
       } catch (sessionError) {
         console.error('그룹 세션 종료 실패:', sessionError);
       }
@@ -1087,48 +1189,38 @@ async function leaveRoom() {
 // --- Chat Functions ---
 
 async function sendMessage() {
-  console.log('🔧 로컬 테스트 모드: 채팅 메시지 전송');
   const message = newMessage.value.trim();
-  console.log('메시지 내용:', message);
-
-  if (!message) {
-    console.log('메시지가 비어있음');
+  if (!message || !livekitRoom) {
     return;
   }
 
   try {
-    // 메시지 객체 생성 (로컬 테스트용)
-    const chatMessage: ChatMessage = {
+    // 메시지 객체 생성
+    const chatMessage = {
+      type: 'chat',
       id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      sender: 'LocalUser', // 더미 사용자 이름
       content: message,
       timestamp: Date.now(),
+      senderNickname: userNickname.value
+    };
+
+    // 다른 참여자들에게 전송
+    const encoder = new TextEncoder();
+    const data = encoder.encode(JSON.stringify(chatMessage));
+    await livekitRoom.localParticipant.publishData(data, {
+      reliable: true
+    });
+
+    // 로컬에도 메시지 추가
+    const localChatMessage: ChatMessage = {
+      ...chatMessage,
+      sender: userNickname.value,
       isOwn: true
     };
 
-    // 로컬에 메시지 추가
-    chatMessages.value.push(chatMessage);
-
-    // 입력 필드 초기화
+    chatMessages.value.push(localChatMessage);
     newMessage.value = '';
-
-    // 채팅 스크롤을 아래로 이동
     scrollToBottom();
-
-    // 로컬 테스트: 3초 후 더미 응답 메시지 추가
-    setTimeout(() => {
-      const dummyResponse: ChatMessage = {
-        id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        sender: remoteParticipants.value[0]?.identity || '테스트유저1',
-        content: `"${message}"에 대한 응답입니다! 👍`,
-        timestamp: Date.now(),
-        isOwn: false
-      };
-
-      chatMessages.value.push(dummyResponse);
-      scrollToBottom();
-      console.log('🔧 더미 응답 메시지 추가');
-    }, 3000);
 
   } catch (error) {
     console.error('메시지 전송 실패:', error);
@@ -1168,10 +1260,29 @@ function scrollToBottom() {
 
 // --- Lifecycle Hooks ---
 onMounted(async () => {
-  console.log('🔧 로컬 테스트 모드: LiveKit SDK 로딩 건너뛰기');
-
-  // LiveKit SDK 로드 건너뛰고 바로 로컬 미디어 설정
-  await setupLocalMedia();
+  // LiveKit SDK 로드
+  if (!window.LivekitClient) {
+    try {
+      const script = document.createElement('script');
+      script.src = 'https://unpkg.com/livekit-client/dist/livekit-client.umd.js';
+      script.onload = () => {
+        console.log('LiveKit SDK 로드 완료');
+        setupLocalMedia();
+      };
+      script.onerror = () => {
+        console.error('LiveKit SDK 로드 실패');
+        connectionStatus.value = {
+          type: 'error',
+          message: 'LiveKit SDK를 로드할 수 없습니다.'
+        };
+      };
+      document.head.appendChild(script);
+    } catch (error) {
+      console.error('LiveKit SDK 로드 오류:', error);
+    }
+  } else {
+    await setupLocalMedia();
+  }
 });
 
 onUnmounted(() => {
@@ -1186,7 +1297,6 @@ const cleanup = async () => {
     try {
       const { groupService } = await import('@/services/groupService');
       await groupService.endGroupBookSession(parseInt(groupId.toString()));
-      console.log('페이지 종료 시 그룹 세션 정리 완료');
     } catch (error) {
       console.error('페이지 종료 시 그룹 세션 정리 실패:', error);
     }
