@@ -7,6 +7,7 @@ import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
 import { useAuthStore } from './stores/auth'
+import { setTokenProvider, setTokenRefresher } from '@/api'
 
 
 const pinia = createPinia()
@@ -17,6 +18,19 @@ app.use(pinia)
 
 async function initializeApp() {
   const authStore = useAuthStore()
+
+  // API 클라이언트에 토큰 공급자 등록
+  setTokenProvider(() => authStore.accessToken)
+  
+  // API 클라이언트에 토큰 재발급 함수 등록
+  setTokenRefresher(async () => {
+    try {
+      return await authStore.refreshUserToken()
+    } catch (error) {
+      console.error('토큰 재발급 실패:', error)
+      return null
+    }
+  })
 
   try {
     // 앱 시작 시 토큰 재발급을 시도하여 로그인 상태를 복원합니다.

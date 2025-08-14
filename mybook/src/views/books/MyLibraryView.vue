@@ -1,13 +1,14 @@
 <template>
   <div class="my-library-page">
-    <section class="content-section representative-book-section">
-      <h2 class="section-title">나의 대표 인생책</h2>
-      <p class="section-subtitle">당신의 삶에 가장 큰 영감을 준 책을 설정해보세요.</p>
+    <aside class="representative-book-section">
+      <h2 class="representative-title">나의 대표 책</h2>
+      <p class="representative-subtitle">당신의 삶에 가장 큰 영감을 준 책을 설정해보세요.</p>
       <div class="rep-book-display-area">
-        <div v-if="currentRepBook" class="rep-book-container" @mousemove="handleMouseMove" @mouseleave="resetRotation"
+        <div v-if="currentRepBook" class="rep-book-container" @mousemove="handleMouseMove"
+          @mouseenter="isMouseOver = true" @mouseleave="resetRotation(); isMouseOver = false"
           @click="selectShelfBook(currentRepBook)">
           <div class="rep-book-shadow"></div>
-          <div class="book-3d-wrapper" :style="repBookStyle">
+          <div class="book-3d-wrapper" :style="repBookStyle" :class="{ 'animated': !isMouseOver }">
             <div class="book-3d">
               <div class="book-face front" :style="{ backgroundImage: `url(${currentRepBook.coverImageUrl})` }">
                 <div class="bright-edge-effect"></div>
@@ -25,22 +26,22 @@
           </div>
         </div>
         <div v-else class="no-rep-book">
-          대표책을 선택해주세요.
+          대표 책을 선택해주세요.
         </div>
       </div>
       <button @click="openRepBookModal" class="btn btn-primary select-rep-btn">
-        <i class="bi bi-pencil-square"></i> 대표책 선택
+        <i class="bi bi-pencil-square"></i> 대표 책 선택
       </button>
-    </section>
+    </aside>
 
-    <section class="content-section book-shelves-section">
+    <main class="book-shelves-section">
       <div class="group-shelf-header">
-        <h2 class="section-title">나의 책장</h2>
+        <h2 class="shelves-title">나의 책장</h2>
         <button @click="isGroupModalVisible = true" class="btn btn-primary add-group-btn">
           <i class="bi bi-plus-lg"></i> 그룹 추가
         </button>
       </div>
-      <p class="section-subtitle">그룹 책장을 만들어 친구들과 함께 책을 완성하고 공유해보세요.</p>
+      <p class="shelves-subtitle">그룹 책장을 만들어 친구들과 함께 책을 완성하고 공유해보세요.</p>
 
       <div class="my-books-shelf-wrapper">
         <div class="shelf-title-container">
@@ -74,7 +75,7 @@
                 <div class="shelf-book-model">
                   <div class="shelf-book-face shelf-book-cover"
                     :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
-                    <div v-if="book.isCommunityBook" class="community-sash">서점 속 이야기</div>
+                    <div v-if="book.isCommunityBook" class="community-sash">서점 출판완료</div>
                     <img v-if="book.isCommunityBook" src="/images/complete.png" alt="커뮤니티 책"
                       class="published-sticker-shelf" />
                     <div class="shelf-bright-edge-effect"></div>
@@ -114,7 +115,8 @@
               <span class="roman-numeral">{{ toRoman(index + 1) }}. </span>{{ group.groupName }}
             </router-link>
             <span v-else class="group-shelf-title-placeholder">{{ group.groupName }}</span>
-            <button v-if="group.groupId" @click="toggleEditMode(group.groupId)" class="btn btn-secondary edit-group-btn">
+            <button v-if="group.groupId" @click="toggleEditMode(group.groupId)"
+              class="btn btn-secondary edit-group-btn">
               {{ editingGroupId === group.groupId ? '완료' : '책 삭제' }}
             </button>
           </div>
@@ -151,18 +153,12 @@
                       </div>
                     </div>
 
-                    <button v-if="editingGroupId === group.groupId" @click.stop="removeBookFromGroup(group.groupId, book.bookId)"
-                      class="remove-book-btn-spine" title="그룹에서 책 제거">
+                    <button v-if="editingGroupId === group.groupId"
+                      @click.stop="removeBookFromGroup(group.groupId, book.bookId)" class="remove-book-btn-spine"
+                      title="그룹에서 책 제거">
                       <i class="bi bi-trash"></i>
                     </button>
 
-                  </div>
-                </template>
-                <template #footer>
-                  <div v-if="group.groupId && group.books.length === 0" class="empty-group-message">
-                    <i class="bi bi-bookshelf"></i>
-                    <p>그룹에 포함된 책이 없습니다.</p>
-                    <small>(책 추가 기능 준비중)</small>
                   </div>
                 </template>
               </draggable>
@@ -170,14 +166,14 @@
           </div>
         </div>
       </div>
-    </section>
+    </main>
 
     <div v-if="isRepBookModalVisible || isGroupModalVisible || isMessageBoxVisible" class="modal-backdrop">
       <div class="modal-content" :class="{ 'modal-sm': isMessageBoxVisible }">
         <button @click="closeAllModals" class="close-button" title="닫기"><i class="bi bi-x-lg"></i></button>
         <div v-if="isRepBookModalVisible">
-          <h2 class="modal-title">대표 인생책 선택</h2>
-          <p class="modal-description">나의 대표 인생책을 한권 선택해주세요.</p>
+          <h2 class="modal-title">대표 책 선택</h2>
+          <p class="modal-description">나의 대표 책을 한권 선택해주세요.</p>
           <div class="book-selection-list">
             <label v-for="book in myBooks" :key="book.bookId" class="book-selection-item">
               <input type="radio" :value="book.bookId" v-model="selectedRepBookId" name="rep-book" />
@@ -193,7 +189,7 @@
           <div class="form-group">
             <label for="group-name-input" class="form-label">그룹 이름</label>
             <input v-model="newGroupName" id="group-name-input" type="text" class="form-control"
-              placeholder="예: 독서 모임 A">
+              placeholder="예: 아북고 친구들 , 아북이 가족 " />
           </div>
           <button @click="createGroupHandler" class="btn btn-primary modal-action-btn">그룹 생성</button>
         </div>
@@ -279,6 +275,7 @@ const messageBoxContent = ref('');
 const repBookRotationY = ref(0);
 const isGroupToggleVisible = ref(false);
 const editingGroupId = ref<string | null>(null);
+const isMouseOver = ref(false);
 
 // --- Computed Properties ---
 const currentRepBook = computed(() => (representativeBooks.value.length > 0 ? representativeBooks.value[0] : null));
@@ -385,7 +382,7 @@ async function loadMyGroups() {
     allGroups.value = groupsWithBooks;
   } catch (error) {
     console.error("내 그룹 목록을 불러오는데 실패했습니다:", error);
-    showMessageBox('그룹 목록을 가져오는 데 실패했습니다. 다시 시도해주세요.', '오류');
+    showMessageBox('그룹 추가 버튼을 눌러서 그룹을 생성해주세요.', '오류');
   }
 }
 // 클릭 시 바로 상세 페이지로 이동하도록 변경
@@ -562,14 +559,14 @@ onMounted(() => {
 /* --- 3D 책 모델 전용 전역 스타일 --- */
 :root {
   /* 대표 책 크기 변수 */
-  --rep-book-width: 300px;
-  --rep-book-height: 450px;
-  --rep-book-depth: 50px;
+  --rep-book-width: 173px;
+  --rep-book-height: 259px;
+  --rep-book-depth: 29px;
 
   /* 책꽂이 책 크기 변수 */
-  --shelf-book-width: 170px;
-  --shelf-book-height: 250px;
-  --shelf-book-depth: 40px;
+  --shelf-book-width: 153px;
+  --shelf-book-height: 225px;
+  --shelf-book-depth: 36px;
 }
 
 /* --- 대표 책 모델 --- */
@@ -600,10 +597,10 @@ onMounted(() => {
 
 .book-face.front .bright-edge-effect {
   position: absolute;
-  left: 8px;
+  left: 7px;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 7px;
   background: linear-gradient(to right, rgba(255, 255, 255, 0.441), transparent);
   border-radius: 0 2px 2px 0;
   pointer-events: none;
@@ -623,7 +620,7 @@ onMounted(() => {
   width: 60%;
   height: 60%;
   background-color: rgba(255, 255, 255, 0.95);
-  padding: 1rem;
+  padding: 13px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -633,15 +630,18 @@ onMounted(() => {
 }
 
 .book-title-overlay .book-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 25px;
+  /* 대표책 표지 위 제목 */
+  font-family: 'ChosunCentennial', serif;
+  font-size: 13px;
   line-height: 1.4;
   font-weight: 700;
   color: #000000;
 }
 
 .book-title-overlay .book-author {
-  font-size: 12px;
+  /* 대표책 표지 위 저자 */
+  font-family: 'NanumSquareR', serif;
+  font-size: 9px;
   font-weight: 600;
   color: #333;
 }
@@ -722,7 +722,7 @@ onMounted(() => {
 .shelf-book-spine {
   width: var(--shelf-book-depth);
   height: var(--shelf-book-height);
-  transform: rotateY(-90deg) translateZ(0) translateY(-250px);
+  transform: rotateY(-90deg) translateZ(0) translateY(-225px);
   transform-origin: left;
   background-size: cover;
   background-position: center;
@@ -730,7 +730,7 @@ onMounted(() => {
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding-top: 1rem;
+  padding-top: 0.9rem;
   box-sizing: border-box;
   position: relative;
 
@@ -745,7 +745,7 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   /* box-shadow를 부모 대신 이곳에 적용합니다. */
-  box-shadow: inset 7px 0 10px -3px rgba(0, 0, 0, 0.4), inset -7px 0 10px -3px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 6px 0 9px -3px rgba(0, 0, 0, 0.4), inset -6px 0 9px -3px rgba(0, 0, 0, 0.6);
   /* 자식 요소(제목 박스) 위에 그림자가 보이도록 z-index 설정 */
   z-index: 1;
   /* 마우스 클릭 등 이벤트를 방해하지 않도록 설정 */
@@ -761,26 +761,25 @@ onMounted(() => {
   display: flex;
   align-items: flex-start;
   /* [수정] 상단 정렬 */
-  padding: 0.8rem 0;
+  padding: 0.45rem 0;
   /* [수정] 위쪽 여백 추가 */
   justify-content: center;
-  padding: 0.5rem 0;
   box-sizing: border-box;
   z-index: 2;
 }
 
 /* [추가] 책등의 세로 제목 텍스트 스타일 */
 .spine-title {
+  /* 책꽂이 책 등(세로) 제목 */
   writing-mode: vertical-rl;
   text-orientation: mixed;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-height: 100%;
-  font-family: 'Noto Serif KR', serif;
+  font-family: 'ChosunCentennial', serif;
   /* [추가] 표지와 동일한 글꼴 */
-
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #000000;
 }
@@ -815,77 +814,147 @@ onMounted(() => {
 
 /* --- 페이지 기본 & 버튼 --- */
 .my-library-page {
-  padding: 80px 2rem 2rem;
+  display: flex;
+  align-items: flex-start;
   background-color: #ffffff;
   color: #261E17;
-  min-height: calc(100vh - 56px);
-  font-family: 'Pretendard', sans-serif;
+  min-height: 100vh;
+  font-family: 'SCDream4', sans-serif;
+  padding: 0 5.4rem;
 }
 
-.content-section {
-  padding: 0 2.5rem 2.5rem 2.5rem;
-  margin: 0 auto 3rem auto;
-  max-width: 1200px;
+
+.representative-book-section {
+  width: 25%;
+  flex-shrink: 0;
+  position: sticky;
+  top: 88px;
+  height: calc(100vh - 56px);
+  padding: 1.8rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  box-sizing: border-box;
+  z-index: 2;
 }
 
-.section-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 2.8rem;
+.book-shelves-section {
+  flex-grow: 1;
+  padding: 1.8rem 2.25rem;
+}
+
+/* --- 글씨 스타일 --- */
+.representative-title {
+  font-family: 'SCDream3', serif;
+  font-size: 1.8rem;
   font-weight: 700;
-  margin-bottom: 0.75rem;
   text-align: center;
+  margin-top: 1.8rem;
+  color: #26250F;
 }
 
-.section-subtitle {
-  font-size: 1.1rem;
+.representative-subtitle {
+  font-size: 0.9rem;
   opacity: 0.8;
-  margin-bottom: 3rem;
-  max-width: 600px;
+  max-width: 225px;
   margin-left: auto;
   margin-right: auto;
   line-height: 1.7;
   text-align: center;
 }
 
-.representative-book-section .section-title {
-  color: #26250F;
+.shelves-title {
+  font-family: 'SCDream3', serif;
+  font-size: 2.7rem;
+  font-weight: 700;
+  margin-bottom: 0.65rem;
+  text-align: center;
+  color: #000000;
+  margin-top: 0;
 }
 
-.book-shelves-section .section-title {
-  color: #000000;
+.shelves-subtitle {
+  font-size: 1rem;
+  opacity: 0.8;
+  margin-bottom: 1.35rem;
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.7;
+  text-align: center;
 }
 
 .btn {
-  border: 1px solid #E0E0E0;
-  background-color: #fff;
-  color: #594C40;
-  padding: 0.6rem 1.2rem;
-  border-radius: 8px;
+  border-radius: 5px;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 2px 4px rgba(38, 30, 23, 0.08);
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.5rem 1.1rem;
 }
 
-.btn:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 8px rgba(38, 30, 23, 0.08);
-  border-color: #594C40;
+@keyframes fill-animation {
+  0% {
+    transform-origin: top;
+    transform: scaleY(0);
+  }
+
+  50% {
+    transform-origin: top;
+    transform: scaleY(1);
+  }
+
+  50.1% {
+    transform-origin: bottom;
+    transform: scaleY(1);
+  }
+
+  100% {
+    transform-origin: bottom;
+    transform: scaleY(0);
+  }
 }
 
-.btn-primary {
-  background-color: #D4A373;
-  border-color: #D4A373;
-  color: #FFFFFF;
+.btn.btn-primary {
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  display: inline-block;
+  border: 3px solid #5b673b !important;
+  border-radius: 18px !important;
+  margin-left: 0.9rem !important;
+  margin-right: 0.9rem !important;
+  padding: 0.45rem 1.1rem !important;
+  font-size: 0.9rem !important;
+  white-space: nowrap;
+  font-family: 'SCDream5', sans-serif;
+  transition: color 0.5s ease;
+  background-color: transparent;
+  color: #000000;
+}
+
+.btn.btn-primary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(185, 174, 122, 0.4);
+  transform: scaleY(0);
+  z-index: -1;
+  animation: fill-animation 3s infinite ease-in-out;
 }
 
 .btn-primary:hover {
-  background-color: #c79561;
-  border-color: #c79561;
+  color: white !important;
+  border-color: #dee2e6 !important;
+  background-color: transparent;
 }
 
 /* --- 대표 책 섹션 --- */
@@ -893,12 +962,14 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 500px;
-  margin-bottom: 2rem;
+  width: 100%;
+  min-height: 270px;
+  margin: 1.8rem 0;
+  transition: margin 0.3s ease, min-height 0.3s ease;
 }
 
 .rep-book-container {
-  perspective: 1200px;
+  perspective: 1080px;
   cursor: grab;
   position: relative;
   display: flex;
@@ -914,22 +985,48 @@ onMounted(() => {
 
 .rep-book-shadow {
   position: absolute;
-  bottom: -30px;
+  bottom: -18px;
   left: 50%;
   transform: translateX(-50%);
-  width: 350px;
-  height: 40px;
+  width: 270px;
+  height: 27px;
   background-color: rgba(38, 30, 23, 0.6);
   border-radius: 100%;
-  filter: blur(30px);
+  filter: blur(27px);
   z-index: 0;
   pointer-events: none;
   transition: opacity 0.1s ease-out;
 }
 
+@keyframes gentle-rotate {
+  0% {
+    transform: rotateY(0deg);
+  }
+
+  25% {
+    transform: rotateY(-25deg);
+  }
+
+  50% {
+    transform: rotateY(0deg);
+  }
+
+  75% {
+    transform: rotateY(25deg);
+  }
+
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
 .book-3d-wrapper {
   position: relative;
   z-index: 1;
+}
+
+.book-3d-wrapper.animated {
+  animation: gentle-rotate 5s ease-in-out infinite;
 }
 
 .no-rep-book {
@@ -946,7 +1043,9 @@ onMounted(() => {
 
 .select-rep-btn {
   display: block;
-  margin: 0 auto;
+  margin-top: 1.8rem;
+  margin-bottom: 1.8rem;
+  flex-shrink: 0;
 }
 
 /* --- 책꽂이 공통 --- */
@@ -961,21 +1060,14 @@ onMounted(() => {
   color: #000000;
 }
 
-.book-shelves-section .btn-primary {
-  background-color: #D4A373;
-  border-color: #D4A373;
-  color: #261E17;
-}
-
 .my-books-shelf-wrapper {
   background-color: #6B4F3A;
-  /* Fallback color */
   background-image: url('https://plus.unsplash.com/premium_photo-1671612828903-dc019accc402?q=80&w=774&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG9otby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
   background-size: cover;
   background-position: center;
-  padding: 1.5rem 3rem 1rem 3rem;
+  padding: 1.35rem 2.7rem 0.9rem 2.7rem;
   margin: 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 9px 9px 0 0;
   border-top: 2px solid rgb(142, 142, 142);
   border-right: 2px solid rgb(115, 115, 115);
   border-left: 2px solid rgb(115, 115, 115);
@@ -989,27 +1081,27 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.9rem;
 }
 
 .shelf-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.4rem;
+  font-family: 'EBSHunminjeongeumSaeronL', serif;
+  font-size: 1.25rem;
   font-weight: 600;
   margin-bottom: 0;
 }
 
 .shelf-title small {
-  font-family: 'Pretendard', sans-serif;
-  font-size: 0.9rem;
+  font-family: 'SCDream4', sans-serif;
+  font-size: 0.8rem;
   font-weight: 400;
   opacity: 0.7;
-  margin-left: 0.75rem;
+  margin-left: 0.65rem;
 }
 
 .shelf-book-container {
-  padding: 2rem 1rem 0.8rem 0.8rem;
-  perspective: 1500px;
+  padding: 1.8rem 0.9rem 0.7rem 0.7rem;
+  perspective: 1350px;
 }
 
 .my-books-container,
@@ -1023,11 +1115,10 @@ onMounted(() => {
 .group-shelf-horizontal {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  min-height: 260px;
-  /* 책이 없을 때도 책장 높이 유지 */
+  gap: 0.45rem;
+  min-height: 234px;
   align-items: flex-end;
-  padding: 0rem 1rem 0rem 4rem;
+  padding: 0rem 0.9rem 0rem 3.6rem;
 }
 
 
@@ -1039,8 +1130,7 @@ onMounted(() => {
   cursor: grab;
   transform-style: preserve-3d;
   position: relative;
-  transform: rotateY(70deg) translateX(-30px);
-  /* 시각적 오버랩 */
+  transform: rotateY(70deg) translateX(-27px);
   transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
 
 }
@@ -1050,7 +1140,7 @@ onMounted(() => {
 }
 
 .shelf-book-item-3d:not(.editing):hover {
-  transform: rotateY(0deg) translateZ(60px) scale(1.05);
+  transform: rotateY(0deg) translateZ(54px) scale(1.05);
   z-index: 10;
 }
 
@@ -1061,10 +1151,10 @@ onMounted(() => {
 /* --- 표지 효과 --- */
 .shelf-bright-edge-effect {
   position: absolute;
-  left: 5px;
+  left: 4px;
   top: 0;
   bottom: 0;
-  width: 5px;
+  width: 4px;
   background: linear-gradient(to right, rgba(255, 255, 255, 0.4), transparent);
   pointer-events: none;
 }
@@ -1088,16 +1178,13 @@ onMounted(() => {
   width: 65%;
   height: 60%;
   background-color: rgba(255, 255, 255, 0.95);
-  padding: 0.5rem;
+  padding: 11px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  /* 제목을 위로, 저자를 아래로 보냅니다 */
   align-items: flex-start;
-  /* 모든 내용을 왼쪽으로 정렬합니다 */
   text-align: left;
-  /* 텍스트를 왼쪽 정렬합니다 */
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
@@ -1110,12 +1197,9 @@ onMounted(() => {
 }
 
 .shelf-book-title {
-  font-family: 'Noto Serif KR', serif;
-  /* 대표책과 동일한 글꼴 적용 */
-  font-size: 1rem;
-  /* 글자 크기 조정 */
-  font-weight: 600;
-  /* 굵기 조정 */
+  font-family: 'ChosunCentennial', serif;
+  font-size: 13px;
+  font-weight: 700;
   line-height: 1.4;
   color: #000000;
   overflow: hidden;
@@ -1126,65 +1210,57 @@ onMounted(() => {
 }
 
 .shelf-book-author {
-  font-size: 0.75rem;
-  /* 글자 크기 조정 */
+  font-size: 9px;
   font-weight: 600;
-  /* 굵기 조정 */
   color: #333;
 }
 
 .post-it-container {
   position: absolute;
-  top: 10px;
-  right: -20px;
+  top: 9px;
+  right: -18px;
   z-index: 20;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
 }
 
 .post-it {
   background-color: #ffc;
-  padding: 5px 8px;
+  padding: 4px 7px;
   font-family: 'Gaegu', cursive;
-  font-size: 14px;
+  font-size: 12px;
   color: #333;
-  box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
   transform: rotate(15deg);
-  width: 30px;
+  width: 27px;
   text-align: center;
 }
 
-/* 각 책장 flex 아이템의 마진을 설정하여 책이 겹치도록 함 */
 .my-books-container .shelf-book-item-3d,
 .group-shelf-horizontal .shelf-book-wrapper {
-  margin-left: -60px;
-  margin-right: -60px;
+  margin-left: -54px;
+  margin-right: -54px;
 }
+
 .shelf-book-wrapper {
   position: relative;
-  /* 자식인 .shelf-book-item-3d의 레이아웃을 위한 wrapper입니다. */
   width: var(--shelf-book-width);
   height: var(--shelf-book-height);
-  flex-shrink: 0; /* flex 컨테이너 내에서 크기가 줄어들지 않도록 방지 */
-
+  flex-shrink: 0;
 }
 
 .remove-book-btn-spine {
-  /* position: absolute는 그대로 유지 */
   position: absolute;
-  z-index: 20; /* 책 호버 효과보다 위에 오도록 z-index 조정 */
-
-  /* [핵심] 이제 간단한 2D 좌표로 위치를 지정합니다. */
-  top: -32px;
-  left: 32px;
-  border-radius: 30px;
-  /* --- 기존의 시각적 스타일은 그대로 가져옵니다. --- */
+  z-index: 20;
+  top: -29px;
+  left: 29px;
+  border-radius: 27px;
   color: #333;
   border: none;
-  width: 28px;
-  height: 28px;
-  font-size: 20px;
+  width: 25px;
+  height: 25px;
+  font-size: 18px;
   line-height: 1;
   display: flex;
   align-items: center;
@@ -1194,17 +1270,15 @@ onMounted(() => {
 }
 
 .remove-book-btn-spine:hover {
-  /* background-color: #c82333; */
   color: #000000;
   transform: scale(1.3);
 }
 
-/* 3. 편집 모드일 때만 보이도록 하는 스타일은 그대로 유지합니다. */
-.shelf-book-item-3d.editing + .remove-book-btn-spine {
+.shelf-book-item-3d.editing+.remove-book-btn-spine {
   opacity: 1;
   visibility: visible;
 }
-/* 버튼을 숨길 때의 초기 상태 */
+
 .remove-book-btn-spine {
   opacity: 0;
   visibility: hidden;
@@ -1214,8 +1288,8 @@ onMounted(() => {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
+  gap: 0.9rem;
+  margin-bottom: 0.45rem;
 }
 
 .group-shelves-container {
@@ -1227,12 +1301,11 @@ onMounted(() => {
 
 .group-shelf-wrapper {
   background-color: #6B4F3A;
-  /* Fallback color */
   background-image: url('https://plus.unsplash.com/premium_photo-1671612828903-dc019accc402?q=80&w=774&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG9otby1wYWdlfHx8fGVufDB8fHx8fA%3D%3D');
   background-size: cover;
   background-position: center;
   position: relative;
-  padding: 0rem 3rem 1rem 3rem;
+  padding: 0rem 2.7rem 0.9rem 2.7rem;
   margin: 0;
   box-shadow: none;
   border-left: 2px solid rgb(115, 115, 115);
@@ -1240,8 +1313,8 @@ onMounted(() => {
 }
 
 .group-shelf-wrapper:last-child {
-  padding-bottom: 3rem;
-  border-radius: 0 0 10px 10px;
+  padding-bottom: 2.7rem;
+  border-radius: 0 0 9px 9px;
   border-bottom: 2px solid black;
 }
 
@@ -1249,13 +1322,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 0.7rem;
-  gap: 1rem;
+  margin-bottom: 0.6rem;
+  gap: 0.9rem;
 }
 
 .group-shelf-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.4rem;
+  font-family: 'EBSHunminjeongeumSaeronL', serif;
+  font-size: 1.25rem;
   font-weight: 700;
   color: #000000;
   text-decoration: none;
@@ -1270,28 +1343,33 @@ onMounted(() => {
 
 .roman-numeral {
   font-weight: 600;
-  margin-right: 0.5rem;
+  margin-right: 0.45rem;
   color: #000000;
 }
 
 .group-shelf-title-placeholder {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #888;
-  font-style: italic;
+  font-family: 'SCDream5', serif;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4f4f4f;
 }
 
 .edit-group-btn {
-  padding: 0.3rem 0.8rem;
-  font-size: 0.9rem;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.8rem;
   background-color: transparent;
   color: #333;
+  border-radius: 7px;
   border: 1px solid #000000;
+  transition: transform 0.2s ease;
+}
+
+.edit-group-btn:hover {
+  transform: scale(1.05);
 }
 
 .group-bookshelf-inner {
-  padding: 2rem 1rem 0.8rem 0.8rem;
+  padding: 1.8rem 0.9rem 0.7rem 0.7rem;
 }
 
 .group-shelf-wrapper .shelf-book-container {
@@ -1301,52 +1379,24 @@ onMounted(() => {
   padding: 0;
 }
 
-.empty-group-message {
-  width: 100%;
-  text-align: center;
-  padding: 4rem 2rem;
-  color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-}
-
-.empty-group-message .bi {
-  font-size: 3rem;
-  opacity: 0.7;
-}
-
-.empty-group-message p {
-  font-size: 1.1rem;
-  font-weight: 500;
-  margin: 0;
-}
-
-.empty-group-message small {
-  font-size: 0.9rem;
-  color: rgba(0, 0, 0, 0.4);
-}
-
 
 .group-books-draggable-area {
   display: flex;
   gap: 0.5rem;
   flex-grow: 1;
-  min-width: 120px;
-  min-height: 250px;
-  border-radius: 6px;
+  min-width: 108px;
+  min-height: 225px;
+  border-radius: 5px;
   align-items: center;
 }
 
 .no-groups-message {
   text-align: center;
   color: #888;
-  padding: 2rem;
+  padding: 1.8rem;
   border: 2px dashed #eee;
-  border-radius: 8px;
-  margin-top: 2rem;
+  border-radius: 7px;
+  margin-top: 1.8rem;
 }
 
 /* --- 모달 --- */
@@ -1364,30 +1414,31 @@ onMounted(() => {
 .modal-content {
   background-color: #FFFFFF;
   margin: 1rem;
-  padding: 2rem 2.5rem;
-  border-radius: 12px;
+  padding: 1.8rem 2.25rem;
+  border-radius: 11px;
   width: 90%;
-  max-width: 500px;
+  max-width: 450px;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
   position: relative;
   border: 1px solid #E0E0E0;
+  text-align: center;
 }
 
 .modal-content.modal-sm {
-  max-width: 400px;
+  max-width: 360px;
 }
 
 .close-button {
   color: #594C40;
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: 0.9rem;
+  right: 0.9rem;
   cursor: pointer;
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   line-height: 1;
-  padding: 0.5rem;
+  padding: 0.45rem;
 }
 
 .close-button:hover {
@@ -1395,16 +1446,16 @@ onMounted(() => {
 }
 
 .modal-title {
-  font-family: 'Noto Serif KR', serif;
-  font-size: 1.8rem;
+  font-family: 'SCDream4', serif;
+  font-size: 1.6rem;
   font-weight: 600;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.65rem;
   text-align: center;
 }
 
 .modal-description,
 .modal-body {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.35rem;
   opacity: 0.8;
   text-align: center;
   line-height: 1.6;
@@ -1413,21 +1464,21 @@ onMounted(() => {
 .book-selection-list {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  max-height: 300px;
+  gap: 0.65rem;
+  max-height: 270px;
   overflow-y: auto;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.35rem;
   border: 1px solid #E0E0E0;
-  border-radius: 8px;
-  padding: 0.75rem;
+  border-radius: 7px;
+  padding: 0.65rem;
 }
 
 .book-selection-item {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.5rem;
-  border-radius: 5px;
+  gap: 0.65rem;
+  padding: 0.45rem;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -1437,12 +1488,12 @@ onMounted(() => {
 }
 
 .book-selection-item input[type="radio"] {
-  margin-right: 0.5rem;
+  margin-right: 0.45rem;
 }
 
 .book-cover-thumbnail {
-  width: 40px;
-  height: 60px;
+  width: 36px;
+  height: 54px;
   object-fit: cover;
   border-radius: 2px;
 }
@@ -1459,41 +1510,54 @@ onMounted(() => {
 }
 
 .form-group {
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.1rem;
   text-align: left;
 }
 
 .form-label {
   display: block;
   font-weight: 600;
-  margin-bottom: 0.5rem;
-  font-size: 1rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.9rem;
 }
 
 .form-control {
   background-color: #F5F5F3;
   border: 1px solid #E0E0E0;
-  border-radius: 8px;
-  padding: 0.75rem 1rem;
+  border-radius: 7px;
+  padding: 0.65rem 0.9rem;
   width: 100%;
   box-sizing: border-box;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .modal-action-btn {
-  width: 100%;
-  padding: 0.8rem;
-  font-size: 1.05rem;
-  margin-top: 0.5rem;
+  width: auto;
+  padding: 0.7rem 1.8rem;
+  font-size: 0.95rem;
+  margin-top: 0.45rem;
+  background-color: #5b673b;
+  color: white;
+  border: none !important;
+}
+
+.modal-action-btn.btn-primary::before {
+  display: none;
+}
+
+.modal-action-btn.btn-primary:hover {
+  background-color: #4a552a;
+  border-color: transparent !important;
+  color: white !important;
 }
 
 
 .published-sticker-shelf {
   position: absolute;
-  bottom: 5px;
-  right: 5px;
-  width: 60px;
-  height: 60px;
+  bottom: 4px;
+  right: 4px;
+  width: 54px;
+  height: 54px;
   z-index: 10;
   transform: rotate(15deg);
 }
@@ -1507,8 +1571,13 @@ onMounted(() => {
   background-color: transparent;
   color: #333;
   border: 1px solid #000000;
-  padding: 0.4rem 1rem;
-  border-radius: 4px;
+  padding: 0.35rem 0.9rem;
+  border-radius: 7px;
+  transition: transform 0.2s ease;
+}
+
+.group-shortcut-btn:hover {
+  transform: scale(1.05);
 }
 
 .group-shortcut-list {
@@ -1517,19 +1586,20 @@ onMounted(() => {
   right: 0;
   background-color: white;
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 7px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   z-index: 100;
-  width: 200px;
-  max-height: 300px;
+  width: 180px;
+  max-height: 270px;
   overflow-y: auto;
-  padding: 0.5rem 0;
+  padding: 0.45rem 0;
+  margin-top: 4px;
 }
 
 .group-shortcut-item {
   display: flex;
   align-items: center;
-  padding: 0.75rem 1rem;
+  padding: 0.65rem 0.9rem;
   color: #1b1b1b;
   text-decoration: none;
   transition: background-color 0.2s;
@@ -1541,7 +1611,7 @@ onMounted(() => {
 
 .drag-handle-shortcut {
   cursor: grab;
-  margin-right: 0.75rem;
+  margin-right: 0.65rem;
   color: #a0a0a0;
 }
 
@@ -1563,15 +1633,51 @@ onMounted(() => {
 
 .community-sash {
   position: absolute;
-  top: 10px;
-  left: -35px;
+  top: 9px;
+  left: -31px;
   background-color: #D4A373;
   color: white;
-  padding: 5px 30px;
-  font-size: 12px;
+  padding: 4px 27px;
+  font-size: 11px;
   font-weight: bold;
   transform: rotate(-45deg);
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   z-index: 11;
+}
+
+@media (max-width: 1200px) {
+  .my-library-page {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .representative-book-section {
+    width: 100%;
+    position: relative;
+    top: 0;
+    height: auto;
+    padding: 1.8rem 0.9rem;
+
+  }
+
+  .book-shelves-section {
+    padding: 1.35rem;
+  }
+
+  .representative-title,
+  .shelves-title {
+    font-size: 2.25rem;
+  }
+}
+
+@media (max-height: 800px) {
+  .representative-book-section {
+    padding: 0.9rem;
+  }
+
+  .rep-book-display-area {
+    margin: 0.9rem 0;
+    min-height: 252px;
+  }
 }
 </style>

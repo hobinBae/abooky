@@ -50,7 +50,6 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchUserInfo() // 토큰 재발급 후 사용자 정보도 갱신
       return accessToken.value
     } catch (error) {
-      console.error('Token refresh failed:', error)
       clearSession()
       return null
     }
@@ -81,6 +80,11 @@ export const useAuthStore = defineStore('auth', () => {
     // localStorage 관련 코드는 모두 제거
   }
 
+  // 소셜 로그인용 토큰 직접 설정 함수
+  function setSocialLoginToken(token: string) {
+    accessToken.value = token
+  }
+
   return {
     accessToken,
     user,
@@ -89,6 +93,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     refreshUserToken,
     fetchUserInfo,
-    clearSession
+    clearSession,
+    setSocialLoginToken
   }
 })

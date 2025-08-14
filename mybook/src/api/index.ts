@@ -1,5 +1,4 @@
 import axios from 'axios';
-import { useAuthStore } from '@/stores/auth';
 
 const getBaseURL = () => {
   if (import.meta.env.DEV) {
@@ -19,11 +18,18 @@ const apiClient = axios.create({
   },
 });
 
+// 토큰 공급자 함수를 저장할 변수
+let getAccessToken: (() => string | null) | null = null;
+
+// 토큰 공급자 등록 함수
+export function setTokenProvider(provider: () => string | null) {
+  getAccessToken = provider;
+}
+
 // 요청 인터셉터
 apiClient.interceptors.request.use(
   (config) => {
-    const authStore = useAuthStore();
-    const token = authStore.accessToken;
+    const token = getAccessToken?.();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -34,29 +40,51 @@ apiClient.interceptors.request.use(
   }
 );
 
+// 토큰 재발급 함수를 저장할 변수
+let refreshToken: (() => Promise<string | null>) | null = null;
+
+// 토큰 재발급 함수 등록
+export function setTokenRefresher(refresher: () => Promise<string | null>) {
+  refreshToken = refresher;
+}
+
 // 응답 인터셉터
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
+    console.log('❌ API 응답 에러:', {
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      message: error.message
+    });
+    
     const originalRequest = error.config;
 
     // 401 에러이고, 실패한 요청이 토큰 재발급 요청이 아니고, 이미 재시도하지 않은 경우에만 재시도
     if (error.response?.status === 401 &&
         originalRequest.url !== '/api/v1/auth/refresh-token' &&
         !originalRequest._retry) {
+      console.log('🔄 401 에러 감지, 토큰 재발급 시도...');
       originalRequest._retry = true;
-      const authStore = useAuthStore();
-      try {
-        const newAccessToken = await authStore.refreshUserToken();
-        if (newAccessToken) {
-          // 재발급 성공 시, 원래 요청의 헤더를 갱신하여 다시 시도
-          originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
-          return apiClient(originalRequest);
+      
+      if (refreshToken) {
+        try {
+          const newAccessToken = await refreshToken();
+          if (newAccessToken) {
+            console.log('✅ 토큰 재발급 성공, 요청 재시도');
+            // 재발급 성공 시, 원래 요청의 헤더를 갱신하여 다시 시도
+            originalRequest.headers['Authorization'] = 'Bearer ' + newAccessToken;
+            return apiClient(originalRequest);
+          } else {
+            console.log('❌ 토큰 재발급 실패');
+          }
+        } catch (refreshError) {
+          console.log('❌ 토큰 재발급 중 에러:', refreshError);
+          return Promise.reject(refreshError);
         }
-      } catch (refreshError) {
-        // refreshUserToken 내부에서 이미 세션 정리 및 에러 처리를 하므로,
-        // 여기서는 추가 작업 없이 에러를 그대로 반환
-        return Promise.reject(refreshError);
+      } else {
+        console.log('❌ 토큰 재발급 함수가 등록되지 않음');
       }
     }
 

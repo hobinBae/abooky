@@ -75,6 +75,7 @@ body {
 }
 
 #app {
+  max-width: 2200px;
   margin: 0 auto;
   font-weight: normal;
   width: 100%;
