@@ -10,7 +10,6 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js'
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js'
 import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
-import { RectAreaLightHelper } from 'three/examples/jsm/helpers/RectAreaLightHelper.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js'
 
 
@@ -18,7 +17,17 @@ import { gsap } from 'gsap'
 
 const emit = defineEmits(['loaded', 'hotspot', 'background-loaded', 'yard-animation-finished'])
 
+const props = defineProps({
+  parallaxFactor: {
+    type: Number,
+    default: 1.25
+  }
+})
+
 defineExpose({ moveToYard, moveCameraTo, loadModel, getHotspotByName });
+
+const baseCameraPosition = new THREE.Vector3();
+let parallaxEnabled = true;
 
 const container = ref<HTMLDivElement | null>(null)
 let camera: THREE.PerspectiveCamera
@@ -69,6 +78,7 @@ function initScene() {
 
   camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000)
   camera.position.set(7.3, 25, 30)
+  baseCameraPosition.copy(camera.position);
 
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
   renderer.setPixelRatio(window.devicePixelRatio)
@@ -88,6 +98,19 @@ function initScene() {
   controls = new OrbitControls(camera, renderer.domElement)
   controls.target.set(0.3, 35, 25)
   controls.update()
+
+  // 사용자 마우스 컨트롤 비활성화
+  controls.enableRotate = false;
+  controls.enablePan = false;
+  controls.enableZoom = false;
+
+  controls.addEventListener('start', () => {
+    parallaxEnabled = false;
+  });
+  controls.addEventListener('end', () => {
+    parallaxEnabled = true;
+    baseCameraPosition.copy(camera.position);
+  });
 
   window.addEventListener('resize', onWindowResize)
 
@@ -270,9 +293,14 @@ function createHotspots() {
     console.log("책 만들기 핫스팟 클릭됨! 카메라 이동 시작.");
     controls.enabled = false;
     const tl = gsap.timeline({
+      onStart: () => {
+        parallaxEnabled = false;
+      },
       onUpdate: () => { controls.update() },
       onComplete: () => {
         controls.enabled = true;
+        parallaxEnabled = true;
+        baseCameraPosition.copy(camera.position);
         emit('hotspot', 'create');
         console.log("책 만들기 핫스팟: 카메라 이동 완료.");
       }
@@ -303,9 +331,14 @@ function getHotspotByName(name: string) {
 function moveCameraTo(px: number, py: number, pz: number, tx: number, ty: number, tz: number, onCompleteCallback?: () => void) {
   controls.enabled = false;
   const tl = gsap.timeline({
+    onStart: () => {
+      parallaxEnabled = false;
+    },
     onUpdate: () => { controls.update() },
     onComplete: () => {
       controls.enabled = true;
+      parallaxEnabled = true;
+      baseCameraPosition.copy(camera.position);
       if (onCompleteCallback) {
         onCompleteCallback();
       }
@@ -320,9 +353,14 @@ function moveToYard() {
     console.log("moveToYard: 마당으로 카메라 이동 시작.");
     controls.enabled = false;
     const tl = gsap.timeline({
+        onStart: () => {
+          parallaxEnabled = false;
+        },
         onUpdate: () => { controls.update() },
         onComplete: () => {
             controls.enabled = true;
+            parallaxEnabled = true;
+            baseCameraPosition.copy(camera.position);
             console.log("moveToYard: 마당으로 카메라 이동 완료.");
             emit('yard-animation-finished');
         }
@@ -385,6 +423,19 @@ function onMouseMove(event: MouseEvent) {
     ((event.clientX - rect.left) / rect.width) * 2 - 1,
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   );
+
+  // Parallax effect
+  if (parallaxEnabled) {
+    const targetX = baseCameraPosition.x + mouse.x * props.parallaxFactor;
+    const targetY = baseCameraPosition.y - mouse.y * props.parallaxFactor;
+
+    gsap.to(camera.position, {
+      x: targetX,
+      y: targetY,
+      duration: 0.5,
+      ease: 'power1.out',
+    });
+  }
 
   const raycaster = new THREE.Raycaster();
   raycaster.setFromCamera(mouse, camera);
