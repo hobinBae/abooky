@@ -22,7 +22,7 @@
             <p>우리 그룹의 소중한 순간들과 이야기의 흐름을 확인해보세요.</p>
           </div>
           <div class="header-actions">
-            <button v-if="isOwnerOrManager" @click="openGroupSettings" class="btn btn-secondary settings-btn">
+            <button v-if="canManageGroup(group)" @click="openGroupSettings" class="btn btn-secondary settings-btn">
               <i class="bi bi-gear-fill"></i> 그룹 설정
             </button>
             <button v-if="!isGroupOwner(group)" @click="leaveGroupHandler(group.id)" class="btn btn-danger settings-btn">
@@ -99,7 +99,7 @@
               </li>
             </ul>
           </div>
-          <div v-if="canInvite(selectedGroup)" class="settings-section">
+          <div v-if="canManageGroup(selectedGroup)" class="settings-section">
             <h3 class="settings-section-title">멤버 초대</h3>
             <div class="invite-form">
               <input type="email" v-model="inviteEmail" placeholder="초대할 멤버의 이메일" class="form-control">
@@ -264,8 +264,21 @@ function closeGroupSettingsModal() {
 
 // --- Group Settings Functions ---
 const isGroupOwner = (g: Group) => currentUser.value && String(g.leaderId) === String(currentUser.value.memberId);
-const isManager = (g: Group, member: GroupMember) => g.managers.some(m => m.memberId === member.memberId);
+const isManager = (g: Group, member: GroupMember) => {
+  return member.role === 'MANAGER';
+} 
+const canManageGroup = (g: Group) => {
+  if(isGroupOwner(g)) return true;
+  if(!currentUser.value || !g.members) return false;
+  const currentMember = g.members.find(m => m.memberId === currentUser.value!.memberId);
+  return currentMember?.role === 'MANAGER';
+}
 const canInvite = (g: Group) => isGroupOwner(g) || (currentUser.value && g.managers.some(m => m.memberId === currentUser.value!.memberId));
+const canToggleManager = (g: Group, member: GroupMember) => {
+  if(!isGroupOwner(g)) return false;
+  if(String(g.leaderId) === String(member.memberId)) return false;
+  return true;
+};
 const canRemoveMember = (g: Group, member: GroupMember) => {
   if (String(g.leaderId) === String(member.memberId)) return false;
   const amIOwner = isGroupOwner(g);
@@ -297,18 +310,49 @@ const removeInviteFromList = (groupApplyId: number) => {
   sentInvites.value = sentInvites.value.filter(invite => invite.groupApplyId !== groupApplyId);
 };
 
-const toggleManager = (g: Group, member: GroupMember) => {
+const toggleManager = async (g: Group, member: GroupMember) => {
   // TODO: 매니저 임명/해제 API 연동 필요
   if (!selectedGroup.value) return;
-  const managers = selectedGroup.value.managers;
-  const index = managers.findIndex(m => m.memberId === member.memberId);
-  if (index > -1) {
-    managers.splice(index, 1);
-  } else {
-    managers.push(member);
+  if(!canToggleManager(g, member)) {
+    alert('매니저 임명/해제 권한이 없습니다.');
+    return;
   }
-  alert('매니저 상태 변경 기능은 API 연동이 필요합니다.');
+  try {
+    const managers = selectedGroup.value.managers || [];
+    const members = selectedGroup.value.members || [];
+    const isCurrentlyManager = managers.some(m => m.memberId === member.memberId);
+    const newRole = isCurrentlyManager ? 'MEMBER' : 'MANAGER';
+
+    await groupService.changeGroupMemberRole(String(g.groupId), member.memberId, newRole);
+
+    //API 호출 성공 시에만 UI 상태 즉시 업데이트
+    const memberIndex = members.findIndex(m => m.memberId === member.memberId);
+    if(memberIndex > -1) {
+      members[memberIndex].role = newRole;
+    }
+    const managerIndex = managers.findIndex(m => m.memberId === member.memberId);
+    if(isCurrentlyManager) {
+      if(managerIndex > -1) {
+        managers.splice(managerIndex, 1);
+      }
+      alert(`${member.nickname}님이 매니저에서 멤버로 변경되었습니다.`);
+    } else {
+      if(managerIndex === -1) {
+        const updatedMember = members.find(m => m.memberId === member.memberId);
+        if(updatedMember) {
+          managers.push(updatedMember);
+        }
+      }
+      alert(`${member.nickname}님이 매니저로 임명되었습니다.`);
+    }
+    selectedGroup.value = { ...selectedGroup.value };
+
+  } catch(error) {
+    console.error('역할 변경 실패:', error);
+    alert(error instanceof Error ? error.message : '역할 변경 중 오류가 발생했습니다.');
+  }
 };
+
 const removeMember = async (g: Group, member: GroupMember) => {
   if (!selectedGroup.value) return;
   if (confirm(`'${member.nickname}'님을 그룹에서 내보내시겠습니까?`)) {
