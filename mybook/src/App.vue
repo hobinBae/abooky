@@ -1,9 +1,19 @@
 <template>
-  <Navbar v-if="isNavbarVisible" :is-intro-active="isIntroActive" :is-home="isIntro" />
+  <Navbar
+    v-if="isNavbarVisible"
+    :is-intro-active="isIntroActive"
+    :is-home="isIntro"
+    @go-home="handleGoHome"
+  />
   <main class="main-content">
     <router-view v-slot="{ Component }">
       <keep-alive include="IntroView">
-        <component :is="Component" @intro-finished="onIntroFinished" @yard-ready="onYardReady" />
+        <component
+          :is="Component"
+          @intro-finished="onIntroFinished"
+          @yard-ready="onYardReady"
+          :ref="el => { if (el) introViewRef = el }"
+        />
       </keep-alive>
     </router-view>
   </main>
@@ -12,11 +22,15 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRoute, RouterView } from 'vue-router'
+import { useRoute, useRouter, RouterView } from 'vue-router'
 import Navbar from './components/Navbar.vue'
 import Footer from './components/Footer.vue'
+import type IntroView from './views/general/IntroView.vue'
 
 const route = useRoute()
+const router = useRouter()
+
+const introViewRef = ref<InstanceType<typeof IntroView> | null>(null)
 
 // 현재 경로가 인트로('/')인지 여부
 const isIntro = computed(() => route.path === '/')
@@ -45,6 +59,16 @@ const onIntroFinished = () => {
 // IntroView에서 마당 애니메이션이 끝나면 호출될 함수
 const onYardReady = () => {
   isYardReadyInIntro.value = true
+}
+
+const handleGoHome = () => {
+  // 1. 홈으로 라우팅
+  router.push('/')
+
+  // 2. IntroView의 returnToYard 함수 호출
+  if (introViewRef.value && typeof introViewRef.value.returnToYard === 'function') {
+    introViewRef.value.returnToYard()
+  }
 }
 
 onMounted(() => {
