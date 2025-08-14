@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 public class OpenAiProperties {
     private String apiKey;
     private String apiUrl = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions";
-    private String model = "gpt-4.1-mini";
+    private String model = "gpt-4.1";
 
     // 타임아웃, 토큰수, 온도 등 설정
     private int requestTimeoutSec = 30;

@@ -29,7 +29,7 @@ public class GroupBookCreateRequest {
 
     private String summary;
 
-    @NotNull(message = "bookType은 필수입니다.")
+    @Schema(description = "책 타입 (선택사항, 기본값: FREE_FORM)", example = "FREE_FORM")
     private BookType bookType;
 
     private GroupType groupType;
@@ -44,14 +44,14 @@ public class GroupBookCreateRequest {
     public GroupBook toEntity(Member member, Group group, BookCategory category, String coverImageUrl) {
 
         GroupType resolvedType = (groupType != null) ? groupType : GroupType.OTHER;
-
+        BookType resolvedBookType = (bookType != null) ? bookType : BookType.FREE_FORM;
         return GroupBook.builder()
             .member(member)
             .group(group)
             .title(title)
             .coverImageUrl(coverImageUrl)
             .summary(summary)
-            .bookType(bookType)
+            .bookType(resolvedBookType)
             .groupType(resolvedType)
             .category(category)
             .build();
