@@ -63,9 +63,9 @@
         <div class="sidebar-block">
           <h4 class="sidebar-title">장르</h4>
           <div class="genre-buttons-container">
-            <button v-for="genre in genres" :key="genre" @click="toggleGenre(genre)"
-              :class="['genre-button', { active: activeGenre === genre }]">
-              {{ genre }}
+            <button v-for="genre in genres" :key="genre.id" @click="toggleGenre(genre)"
+              :class="['genre-button', { active: activeGenreId === genre.id }]">
+              {{ genre.name }}
             </button>
           </div>
         </div>
@@ -93,6 +93,7 @@
               </div>
               <p class="book-summary">{{ book.summary }}</p>
               <div class="book-meta-tags">
+                <span v-if="book.categoryName" class="meta-tag genre-tag">{{ book.categoryName }}</span>
                 <span v-for="tag in book.tags" :key="tag.tagId" class="meta-tag user-tag">#{{ tag.tagName }}</span>
               </div>
               <div class="book-stats">
@@ -134,8 +135,14 @@ const allBooks = ref<CommunityBook[]>([]);
 const topBooks = ref<CommunityBook[]>([]);
 const searchTerm = ref('');
 const currentSortOption = ref('recent'); // API 기본값
-const activeGenre = ref<string | null>(null); // 장르 필터는 아직 API에 없으므로 UI만 유지
-const genres = ['자서전', '여행', '스포츠', '소설/시', '에세이', '자기계발', '경제/경영', '사회/정치', '문화/예술', '역사', '종교', '청소년', '어린이/동화'];
+const genres = [
+    { id: 1, name: '자서전' }, { id: 2, name: '일기' }, { id: 3, name: '소설/시' },
+    { id: 4, name: '에세이' }, { id: 5, name: '자기계발' }, { id: 6, name: '역사' },
+    { id: 7, name: '경제/경영' }, { id: 8, name: '사회/정치' }, { id: 9, name: '청소년' },
+    { id: 10, name: '어린이/동화' }, { id: 11, name: '문화/예술' }, { id: 12, name: '종교' },
+    { id: 13, name: '여행' }, { id: 14, name: '스포츠' }
+];
+const activeGenreId = ref<number | null>(null);
 const currentPage = ref(1);
 const totalPages = ref(0);
 const itemsPerPage = 10;
@@ -145,9 +152,16 @@ let autoSlideInterval: number;
 
 const sortOptions = [
   { value: 'recent', text: '최신순' },
-  { value: 'likes', text: '인기순' },
-  { value: 'views', text: '조회순' },
+  { value: 'liked', text: '인기순' },
+  { value: 'popular', text: '조회순' },
 ];
+
+// --- Carousel State ---
+const carouselRotation = ref(0);
+const isDragging = ref(false);
+const startX = ref(0);
+const dragStartRotation = ref(0);
+let autoSlideInterval: number;
 
 // --- API-driven Data Fetching ---
 const fetchBooks = async () => {
@@ -168,17 +182,16 @@ const fetchBooks = async () => {
         }
     }
 
-    // 장르(categoryId)는 현재 UI만 있고 실제 API 파라미터와 매핑되지 않았으므로 주석 처리
-    // if (activeGenre.value) {
-    //   params.categoryId = ...
-    // }
+    if (activeGenreId.value) {
+      params.categoryId = activeGenreId.value;
+    }
 
     const response = await communityService.searchCommunityBooks(params);
     allBooks.value = response.content;
     totalPages.value = response.totalPages;
 
-    // 인기순으로 topBooks 업데이트
-    if (topBooks.value.length === 0) {
+    // 인기순으로 topBooks 업데이트 (최초 한 번만)
+    if (topBooks.value.length === 0 && response.content.length > 0) {
         const topResponse = await communityService.searchCommunityBooks({ page: 0, size: 10, sortBy: 'likes' });
         topBooks.value = topResponse.content;
     }
@@ -191,19 +204,7 @@ const fetchBooks = async () => {
   }
 };
 
-// --- Watchers for Reactivity ---
-watch([searchTerm, currentSortOption, activeGenre, currentPage], fetchBooks, { deep: true });
-
-// --- Lifecycle Hooks ---
-onMounted(() => {
-  fetchBooks();
-  autoSlideInterval = window.setInterval(() => {
-    nextBook();
-  }, 3500);
-});
-
 // --- Computed Properties ---
-// paginatedBooks는 이제 allBooks와 동일, API가 페이지네이션을 처리
 const paginatedBooks = computed(() => allBooks.value);
 
 const pagination = computed(() => {
@@ -228,23 +229,29 @@ const pagination = computed(() => {
   return pages;
 });
 
-// --- Navigation ---
-const goToBookDetail = (bookId: number) => {
-  // TODO: 라우트 이름 확인 필요
-  router.push({ name: 'BookstoreBookDetail', params: { id: bookId } });
-};
-
-// --- Carousel Logic ---
-const carouselRotation = ref(0);
-const isDragging = ref(false);
-const startX = ref(0);
-const dragStartRotation = ref(0);
-
 const carouselStyle = computed(() => ({
   transition: isDragging.value ? 'none' : 'transform 1s ease-in-out',
   transform: `rotateY(${carouselRotation.value}deg)`,
 }));
 
+// --- Watchers for Reactivity ---
+watch([searchTerm, currentSortOption, activeGenreId], () => {
+  if (currentPage.value !== 1) {
+    currentPage.value = 1;
+  } else {
+    fetchBooks();
+  }
+}, { deep: true });
+
+watch(currentPage, fetchBooks);
+
+
+// --- Navigation ---
+const goToBookDetail = (bookId: number) => {
+  router.push({ name: 'BookstoreBookDetail', params: { id: bookId } });
+};
+
+// --- Carousel Logic ---
 const get3DTransform = (index: number) => {
   const itemAngle = index * 36;
   return `rotateY(${itemAngle}deg) translateZ(360px)`;
@@ -258,12 +265,9 @@ const changeBook = (direction: number) => {
 const prevBook = () => changeBook(1);
 const nextBook = () => changeBook(-1);
 
-const onMouseDown = (event: MouseEvent) => {
-  isDragging.value = true;
-  startX.value = event.clientX;
-  dragStartRotation.value = carouselRotation.value;
-  window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', onMouseUp);
+const snapToNearestBook = () => {
+  const anglePerItem = 36;
+  carouselRotation.value = Math.round(carouselRotation.value / anglePerItem) * anglePerItem;
 };
 
 const onMouseMove = (event: MouseEvent) => {
@@ -279,13 +283,12 @@ const onMouseUp = () => {
   snapToNearestBook();
 };
 
-const onTouchStart = (event: TouchEvent) => {
-  if (event.touches.length !== 1) return;
+const onMouseDown = (event: MouseEvent) => {
   isDragging.value = true;
-  startX.value = event.touches[0].clientX;
+  startX.value = event.clientX;
   dragStartRotation.value = carouselRotation.value;
-  window.addEventListener('touchmove', onTouchMove);
-  window.addEventListener('touchend', onTouchEnd);
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
 };
 
 const onTouchMove = (event: TouchEvent) => {
@@ -301,11 +304,16 @@ const onTouchEnd = () => {
   snapToNearestBook();
 };
 
-const snapToNearestBook = () => {
-  const anglePerItem = 36;
-  carouselRotation.value = Math.round(carouselRotation.value / anglePerItem) * anglePerItem;
+const onTouchStart = (event: TouchEvent) => {
+  if (event.touches.length !== 1) return;
+  isDragging.value = true;
+  startX.value = event.touches[0].clientX;
+  dragStartRotation.value = carouselRotation.value;
+  window.addEventListener('touchmove', onTouchMove);
+  window.addEventListener('touchend', onTouchEnd);
 };
 
+// --- Other Functions ---
 const changePage = (page: number) => {
   if (page > 0 && page <= totalPages.value) {
     currentPage.value = page;
@@ -321,7 +329,19 @@ const formatDate = (dateString: string) => {
   }).format(date).replace(/\.$/, '');
 };
 
+function toggleGenre(genre: { id: number, name: string }) {
+  if (activeGenreId.value === genre.id) {
+    activeGenreId.value = null;
+  } else {
+    activeGenreId.value = genre.id;
+  }
+}
 
+// --- Lifecycle Hooks ---
+onMounted(() => {
+  fetchBooks();
+  autoSlideInterval = window.setInterval(nextBook, 3500);
+});
 
 onUnmounted(() => {
   clearInterval(autoSlideInterval);
@@ -330,17 +350,6 @@ onUnmounted(() => {
   window.removeEventListener('touchmove', onTouchMove);
   window.removeEventListener('touchend', onTouchEnd);
 });
-
-// --- General Functions ---
-function toggleGenre(genre: string) {
-  if (activeGenre.value === genre) {
-    activeGenre.value = null;
-  } else {
-    activeGenre.value = genre;
-  }
-}
-
-// 좋아요 기능은 상세 페이지에서 처리하므로 여기서는 제거
 </script>
 
 <style>
@@ -811,6 +820,10 @@ function toggleGenre(genre: string) {
   font-size: 0.65rem;
   font-weight: 500;
   background-color: rgba(138, 154, 91, 0.4);
+}
+.meta-tag.genre-tag {
+  background-color: rgba(169, 131, 103, 0.4);
+  color: #6D4C41;
 }
 
 .book-stats {

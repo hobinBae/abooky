@@ -129,6 +129,7 @@
 
                   <div v-else>
                     <p class="comment-author">
+                      <img :src="comment.profileImageUrl || '/images/profile.png'" alt="profile" class="comment-author-pic">
                       <strong>
                         <router-link :to="`/author/${comment.memberId}`">{{ comment.nickname }}</router-link>
                       </strong>
@@ -144,8 +145,13 @@
               </div>
 
               <div class="comment-input-area">
+                <div class="star-rating mb-3">
+                  <span v-for="starIndex in 5" :key="starIndex" @mouseover="onHover(starIndex)" @click="onClick(starIndex)" @mouseleave="resetHover" class="star">
+                    <i :class="getStarClass(starIndex)"></i>
+                  </span>
+                </div>
                 <textarea v-model="newComment" placeholder="따뜻한 응원의 댓글을 남겨주세요." class="form-control"></textarea>
-                <button @click="addComment" class="btn btn-primary">등록</button>
+                <button @click="addComment" class="btn btn-primary" :disabled="!newComment.trim() || newRating === 0">등록</button>
               </div>
             </div>
           </section>
@@ -179,6 +185,8 @@ const commentsPage = ref(0);
 const commentsTotalPages = ref(0);
 const currentEpisodeIndex = ref<number | null>(null);
 const newComment = ref('');
+const newRating = ref(0);
+const hoverRating = ref(0);
 const areCommentsVisible = ref(false);
 const editingCommentId = ref<number | null>(null);
 const editingCommentText = ref('');
@@ -240,14 +248,21 @@ async function fetchComments() {
 }
 
 async function addComment() {
-  if (!newComment.value.trim() || !book.value) return;
+  if (!newComment.value.trim() || !book.value || newRating.value === 0) return;
   try {
-    const response = await communityService.createCommunityBookComment(bookId.value, { communityBookId: bookId.value, content: newComment.value });
-    comments.value.push(response);
+    await communityService.createCommunityBookComment(bookId.value, { communityBookId: bookId.value, content: newComment.value });
+    await communityService.createOrUpdateRating({ communityBookId: bookId.value, score: newRating.value });
+
+    // Re-fetch comments to show the new one
+    comments.value = [];
+    commentsPage.value = 0;
+    fetchComments();
+
     newComment.value = '';
+    newRating.value = 0;
     areCommentsVisible.value = true;
   } catch (error) {
-    console.error('댓글 작성에 실패했습니다:', error);
+    console.error('댓글 또는 평점 작성에 실패했습니다:', error);
   }
 }
 
@@ -267,13 +282,22 @@ async function deleteBook() {
 
 async function toggleLike() {
     if (!book.value) return;
+
+    const originalLikedState = book.value.isLiked;
+    const originalLikeCount = book.value.likeCount;
+
+    // Optimistic UI update
+    book.value.isLiked = !book.value.isLiked;
+    book.value.likeCount += book.value.isLiked ? 1 : -1;
+
     try {
-        const response = await communityService.toggleLike(book.value.communityBookId);
-        book.value.isLiked = response.liked;
-        const countResponse = await communityService.getLikeCount(book.value.communityBookId);
-        book.value.likeCount = countResponse.likeCount;
+        await communityService.toggleLike(book.value.communityBookId);
     } catch (error) {
         console.error('좋아요 처리에 실패했습니다:', error);
+        // Revert UI on error
+        book.value.isLiked = originalLikedState;
+        book.value.likeCount = originalLikeCount;
+        alert('좋아요 처리에 실패했습니다. 다시 시도해주세요.');
     }
 }
 
@@ -297,6 +321,24 @@ function startEditing(comment: CommunityBookComment) {
 function cancelEdit() {
   editingCommentId.value = null;
   editingCommentText.value = '';
+}
+
+function getStarClass(starIndex: number) {
+  const rating = hoverRating.value || newRating.value;
+  if (rating >= starIndex) return "bi bi-star-fill";
+  return "bi bi-star";
+}
+
+function onHover(starIndex: number) {
+  hoverRating.value = starIndex;
+}
+
+function onClick(starIndex: number) {
+  newRating.value = starIndex;
+}
+
+function resetHover() {
+  hoverRating.value = 0;
 }
 
 function saveEdit(commentId: number) {
@@ -441,6 +483,13 @@ hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
 .comment-list { display: flex; flex-direction: column; }
 .comment-item { border-top: 1px solid #f1f3f5; padding: 24px 0; }
 .comment-author { font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; }
+.comment-author-pic {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-right: 12px;
+  object-fit: cover;
+}
 .comment-author strong a { font-weight: 700; text-decoration: none; color: #333; }
 .comment-author .comment-date { font-size: 13px; color: #999; margin-left: 12px; }
 .comment-text { color: #555; line-height: 1.7; font-size: 15px; }
@@ -456,4 +505,17 @@ hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
 .btn-action:hover { text-decoration: underline; transform: scale(1.1); }
 .btn-delete { color: #fa5252; }
 .comment-edit-form textarea { min-height: 100px; }
+
+.star-rating {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 2rem;
+  color: #ffc107;
+  cursor: pointer;
+}
+
+.star i {
+  transition: color 0.2s;
+}
 </style>
