@@ -75,7 +75,9 @@
                 <div class="shelf-book-model">
                   <div class="shelf-book-face shelf-book-cover"
                     :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
-                    <img v-if="book.published" src="/images/complete.png" alt="출판 완료" class="published-sticker-shelf" />
+                    <div v-if="book.isCommunityBook" class="community-sash">서점 출판완료</div>
+                    <img v-if="book.isCommunityBook" src="/images/complete.png" alt="커뮤니티 책"
+                      class="published-sticker-shelf" />
                     <div class="shelf-bright-edge-effect"></div>
                     <div class="shelf-book-title-overlay">
                       <div class="shelf-book-title">{{ book.title }}</div>
@@ -1662,6 +1664,20 @@ onMounted(() => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
+}
+
+.community-sash {
+  position: absolute;
+  top: 10px;
+  left: -35px;
+  background-color: #D4A373;
+  color: white;
+  padding: 5px 30px;
+  font-size: 12px;
+  font-weight: bold;
+  transform: rotate(-45deg);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  z-index: 11;
 }
 
 @media (max-width: 1200px) {
