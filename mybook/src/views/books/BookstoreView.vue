@@ -161,7 +161,6 @@ const carouselRotation = ref(0);
 const isDragging = ref(false);
 const startX = ref(0);
 const dragStartRotation = ref(0);
-let autoSlideInterval: number;
 
 // --- API-driven Data Fetching ---
 const fetchBooks = async () => {
