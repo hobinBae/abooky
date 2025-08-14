@@ -1,6 +1,7 @@
 <template>
   <footer class="footer mt-auto">
     <div class="container text-center">
+      <img src="/aaddi.png" alt="Logo" class="footer-logo">
       <div class="footer-links">
         <router-link to="/bookstore">서점</router-link>
         <router-link to="/create-book">책 집필</router-link>
@@ -35,7 +36,7 @@
   /* Light text color */
   font-family: 'SCDream4', sans-serif;
   /* Consistent font */
-  padding-top: 3.6rem;
+  padding-top: 2rem;
   /* Increased padding for content */
   padding-bottom: 1.8rem;
   /* More padding for content */
@@ -98,5 +99,11 @@
   font-size: 0.75rem;
   margin-bottom: 0rem;
   font-family: 'MaruBuri-Light', sans-serif;
+}
+.footer-logo {
+  max-width: 50px;
+  /* Limit logo size */
+  height: auto;
+  margin-bottom: 10px;
 }
 </style>
