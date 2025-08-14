@@ -14,7 +14,7 @@
             <h3 class="card-title">그룹책 방 입장하기</h3>
             <p class="card-description">내가 속한 그룹에서 새로운 책을 만들거나<br>활성화된 방에 참여하세요.</p>
           </div>
-          <div class="choice-card" @click="goToGroupCreate">
+          <div class="choice-card" @click="openCreateModal">
             <div class="card-icon"><i class="bi bi-people"></i></div>
             <h3 class="card-title">그룹책 만들기</h3>
             <p class="card-description">새로운 그룹을 생성하고 멤버들과<br>책을 만들어보세요.</p>
@@ -89,6 +89,38 @@
         />
       </div>
     </SimpleModal>
+
+    <!-- 그룹책 만들기 모달 -->
+    <SimpleModal 
+      :is-visible="showCreateModal" 
+      title="그룹책을 만들 그룹 선택" 
+      @close="closeCreateModal"
+    >
+      <div v-if="loading" style="padding: 2rem; text-align: center;">
+        <LoadingSpinner message="그룹 목록을 불러오는 중..." />
+      </div>
+      
+      <div v-else-if="myGroups.length === 0" style="padding: 2rem;">
+        <EmptyState 
+          icon-class="bi bi-people"
+          title="참여한 그룹이 없습니다"
+          description="먼저 '나의 서재'에서 그룹을 생성하거나 다른 그룹에 참여해보세요."
+          action-text="나의 서재로 이동"
+          action-class="btn-secondary"
+          @action="goToMyLibrary"
+        />
+      </div>
+      
+      <div v-else class="group-list">
+        <GroupItem 
+          v-for="group in myGroups" 
+          :key="group.groupId"
+          :group="group"
+          :current-user-id="currentUserId"
+          @select="selectGroupForCreate"
+        />
+      </div>
+    </SimpleModal>
   </div>
 </template>
 
@@ -107,6 +139,7 @@ const router = useRouter();
 // 모달 상태
 const showGroupModal = ref(false);
 const showJoinModal = ref(false);
+const showCreateModal = ref(false);
 const joinModalKey = ref(0); // 강제 재렌더링용
 
 // 로딩 상태
@@ -177,6 +210,11 @@ const openGroupModal = async () => {
   ]);
 };
 
+const openCreateModal = async () => {
+  showCreateModal.value = true;
+  await fetchMyGroups();
+};
+
 const openJoinModal = async () => {
   showJoinModal.value = true;
   loadingSessions.value = true;
@@ -205,6 +243,7 @@ const closeGroupModal = () => {
   // 1단계: 모든 상태 강제 초기화
   showGroupModal.value = false;
   showJoinModal.value = false;
+  showCreateModal.value = false;
   loading.value = false;
   loadingSessions.value = false;
   
@@ -217,6 +256,13 @@ const closeGroupModal = () => {
   console.log('=== 그룹 모달 닫기 완료 ===');
 };
 
+const closeCreateModal = () => {
+  showCreateModal.value = false;
+  showGroupModal.value = false;
+  showJoinModal.value = false;
+  loading.value = false;
+};
+
 const closeJoinModal = () => {
   console.log('🔥🔥🔥 부모 컴포넌트에서 closeJoinModal 호출됨!');
   console.log('호출 전 showJoinModal 값:', showJoinModal.value);
@@ -226,6 +272,7 @@ const closeJoinModal = () => {
   console.log('showJoinModal.value = false 설정 후:', showJoinModal.value);
   
   showGroupModal.value = false;
+  showCreateModal.value = false;
   loading.value = false;
   loadingSessions.value = false;
   
@@ -333,6 +380,24 @@ const goToMyLibrary = () => {
 const handleCreateFromJoin = () => {
   closeJoinModal();
   openGroupModal();
+};
+
+const selectGroupForCreate = (group: Group) => {
+  console.log('그룹책 만들기용 그룹 선택:', group);
+  
+  try {
+    router.push({
+      path: '/group-book-editor',
+      query: { 
+        groupId: group.groupId.toString(), 
+        groupName: group.groupName
+      }
+    });
+    closeCreateModal();
+  } catch (error) {
+    console.error('그룹책 에디터 이동 오류:', error);
+    window.location.href = `/group-book-editor?groupId=${group.groupId}&groupName=${encodeURIComponent(group.groupName)}`;
+  }
 };
 
 const goToGroupCreate = () => {
