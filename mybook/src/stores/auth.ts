@@ -81,6 +81,11 @@ export const useAuthStore = defineStore('auth', () => {
     // localStorage 관련 코드는 모두 제거
   }
 
+  // 소셜 로그인용 토큰 직접 설정 함수
+  function setSocialLoginToken(token: string) {
+    accessToken.value = token
+  }
+
   return {
     accessToken,
     user,
@@ -89,6 +94,7 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     refreshUserToken,
     fetchUserInfo,
-    clearSession
+    clearSession,
+    setSocialLoginToken
   }
 })
