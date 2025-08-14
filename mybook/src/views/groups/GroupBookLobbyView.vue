@@ -2,8 +2,7 @@
   <div class="create-book-page">
     <section class="initial-choice-section">
       <h2 class="section-title">마음을 잇는 이야기</h2>
-      <p class="section-subtitle1">"모든 위대한 이야기는 누군가와 함께 시작됩니다"</p>
-      <p class="section-subtitle2">각자의 시선으로 바라본 같은 순간들이</p>
+      <p class="section-subtitle1">각자의 시선으로 바라본 같은 순간들이</p>
       <p class="section-subtitle2">어떻게 다르고 또 같은지 발견하는 즐거움.</p>
       <p class="section-subtitle3">함께 쓰는 책, 함께 만드는 추억</p>
 
@@ -13,12 +12,12 @@
           <div class="choice-card" @click="openGroupModal">
             <div class="card-icon"><i class="bi bi-door-open"></i></div>
             <h3 class="card-title">그룹책 방 입장하기</h3>
-            <p class="card-description">내가 속한 그룹에서 새로운 책을 만들거나 활성화된 방에 참여하세요.</p>
+            <p class="card-description">내가 속한 그룹에서 새로운 책을 만들거나<br>활성화된 방에 참여하세요.</p>
           </div>
           <div class="choice-card" @click="goToGroupCreate">
             <div class="card-icon"><i class="bi bi-people"></i></div>
             <h3 class="card-title">그룹책 만들기</h3>
-            <p class="card-description">새로운 그룹을 생성하고 멤버들과 책을 만들어보세요.</p>
+            <p class="card-description">새로운 그룹을 생성하고<br>멤버들과 책을 만들어보세요.</p>
           </div>
         </div>
       </section>
@@ -383,34 +382,40 @@ onMounted(() => {
 
 .section-title {
   font-family: 'SCDream3', serif;
-  font-size: 3.2rem;
+  font-size: 4rem;
   font-weight: 700;
   color: var(--primary-text-color);
-  margin-bottom: 1rem;
+  margin-bottom: 0rem;
   margin-left: 3rem;
   margin-right: auto;
-  letter-spacing: 0.2em;
 }
 
 .section-subtitle1 {
   font-family: 'SCDream4', serif;
-  font-size: 2.2rem;
+  font-size: 3rem;
   color: rgba(116, 125, 76, 0.9);
   margin-left: 3.5rem;
   margin-right: auto;
-  margin-bottom: 1.5rem;
-  letter-spacing: 0.03em;
+  margin-bottom: -0.5rem;
 }
 
 .section-subtitle2 {
   font-family: 'SCDream4', serif;
-  font-size: 1.4rem;
-  color: rgba(61, 44, 32, 0.7);
+  font-size: 3rem;
+  color: rgba(141, 153, 109, 0.7);
   margin-left: 3.5rem;
   margin-right: auto;
-  margin-bottom: 3rem;
-  line-height: 1.6;
-  letter-spacing: 0.02em;
+  margin-bottom: -0.5rem;
+
+}
+
+.section-subtitle3 {
+  font-family: 'SCDream4', serif;
+  font-size: 3rem;
+  color: rgba(147, 161, 89, 0.4);
+  margin-left: 3.5rem;
+  margin-right: auto;
+  margin-bottom: 5rem;
 }
 
 .initial-choice-section {
@@ -424,8 +429,8 @@ onMounted(() => {
 
 .choice-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 350px)); /* 2개의 열, 각 열의 최대 너비 350px */
-  gap: 2.5rem; /* 카드 사이 간격 조정 */
+  grid-template-columns: repeat(2, minmax(0, 420px)); /* 2개의 열, 각 열의 최대 너비 420px */
+  gap: 3.5rem; /* 카드 사이 간격 조정 */
   justify-content: center; /* 카드들을 중앙에 정렬 */
 }
 
