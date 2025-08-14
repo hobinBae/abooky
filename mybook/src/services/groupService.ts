@@ -17,6 +17,11 @@ export interface GroupMember {
   memberId: number;
   nickname: string;
   profileImageUrl: string;
+  role?: 'LEADER' | 'MANAGER' | 'MEMBER';
+}
+
+export interface GroupRoleChangeRequest {
+  role: 'MANAGER' | 'MEMBER';
 }
 
 export interface ActiveSession {
@@ -107,7 +112,13 @@ class GroupService {
   async fetchGroupDetails(groupId: string): Promise<Group | null> {
     try {
       const response = await apiClient.get(`/api/v1/groups/${groupId}`);
-      return response.data.data;
+      const group: Group = response.data.data;
+      
+      const members = await this.fetchGroupMembers(groupId);
+      group.members = members;
+      group.managers = members.filter(member => member.role === 'MANAGER');
+      return group;
+      
     } catch (error) {
       console.error(`그룹 상세 정보 조회 실패 (ID: ${groupId}):`, error);
       return null;
@@ -158,6 +169,16 @@ class GroupService {
     }
   }
 
+  async changeGroupMemberRole(groupId: string, memberId: number, role: 'MANAGER' | 'MEMBER'): Promise<boolean> {
+    try {
+      const requestData: GroupRoleChangeRequest = { role };
+      await apiClient.patch(`/api/v1/groups/${groupId}/members/${memberId}/role`, requestData);
+      return true;
+    } catch (error) {
+      console.error(`그룹원 역할 변경 실패 (Group: ${groupId}, Member: ${memberId}, Role: ${role}):`, error);
+      return false;
+    }
+  }
   async fetchSentInvites(groupId: string): Promise<GroupInvite[]> {
     try {
       const response = await apiClient.get(`/api/v1/groups/${groupId}/invites`);

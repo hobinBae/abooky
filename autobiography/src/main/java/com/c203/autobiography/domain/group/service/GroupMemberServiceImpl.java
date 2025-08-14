@@ -72,4 +72,28 @@ public class GroupMemberServiceImpl implements GroupMemberService {
                 .map(GroupResponse::from)
                 .collect(Collectors.toList());
     }
+
+    @Override
+    @Transactional
+    public void changeGroupMemberRole(Long groupId, Long targetMemberId, GroupRole newRole, Long actorId) {
+        // 액션을 수행하는 사용자가 그룹의 리더인지 확인
+        GroupMember actor = groupMemberRepository.findByGroupIdAndMemberIdAndDeletedAtIsNull(groupId, actorId)
+                .orElseThrow(() -> new ApiException(ErrorCode.GROUP_ACCESS_DENIED));
+
+        if (actor.getRole() != GroupRole.LEADER) {
+            throw new ApiException(ErrorCode.GROUP_ACCESS_DENIED);
+        }
+
+        // 대상 멤버 조회
+        GroupMember target = groupMemberRepository.findByGroupIdAndMemberIdAndDeletedAtIsNull(groupId, targetMemberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 리더는 역할 변경 불가
+        if (target.getRole() == GroupRole.LEADER) {
+            throw new ApiException(ErrorCode.GROUP_LEADER_ROLE_CANNOT_BE_CHANGED);
+        }
+
+        // 역할 변경
+        target.changeRole(newRole);
+    }
 }
