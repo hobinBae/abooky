@@ -231,16 +231,15 @@
 </template>
 
 <script setup lang="ts">
+const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
+import type * as LK from 'livekit-client';
+
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 // import apiClient from '@/api';
 
 // LiveKit 타입 정의
-declare global {
-  interface Window {
-    LivekitClient: Record<string, unknown>;
-  }
-}
+declare global { interface Window { LivekitClient: typeof import('livekit-client'); } }
 
 // --- Interfaces ---
 interface RemoteParticipant {
@@ -293,7 +292,7 @@ const connectionState = ref<'disconnected' | 'connecting' | 'connected' | 'recon
 const connectionStatus = ref<ConnectionStatus | null>(null);
 
 // LiveKit 관련 - non-reactive storage for WebRTC objects
-let livekitRoom: Record<string, unknown> | null = null;
+let livekitRoom: LK.Room | null = null;
 
 // UI state only (reactive)
 const remoteParticipants = ref<RemoteParticipant[]>([]);
@@ -364,7 +363,7 @@ async function getAccessToken(): Promise<{ url: string, token: string}> {
     }
     
     return { url, token };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('토큰 발급 오류:', error);
     throw error;
   }
@@ -392,7 +391,7 @@ async function setupLocalMedia() {
       type: 'success',
       message: '카메라와 마이크가 준비되었습니다.'
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('미디어 접근 실패:', error);
     connectionStatus.value = {
       type: 'warning',
@@ -415,7 +414,7 @@ async function joinRoom() {
       throw new Error('LiveKit SDK가 로드되지 않았습니다.');
     }
 
-    const { Room } = window.LivekitClient;
+    const { Room: LKRoom, RoomEvent } = window.LivekitClient as typeof import('livekit-client');
     const { url, token } = await getAccessToken();
 
     connectionStatus.value = {
@@ -424,7 +423,7 @@ async function joinRoom() {
     };
 
     // LiveKit Room 생성 및 연결
-    livekitRoom = new Room({
+    livekitRoom = new LKRoom({
       adaptiveStream: true,
       dynacast: true,
       videoCaptureDefaults: {
@@ -445,7 +444,7 @@ async function joinRoom() {
     setupRoomEventListeners();
 
     // 룸 연결
-    await livekitRoom.connect(url, token);
+    await livekitRoom!.connect(url, token);
     console.log('✅ LiveKit 룸 연결 성공');
 
     // 기존 참여자들 추가 (새로 입장한 사용자를 위해)
@@ -479,18 +478,18 @@ async function joinRoom() {
     
     let errorMessage = '룸 입장에 실패했습니다.';
     
-    if (error.message?.includes('LiveKit 토큰')) {
-      errorMessage = error.message;
-    } else if (error.message?.includes('서버에서')) {
-      errorMessage = error.message;
+    if (toError(error).message?.includes('LiveKit 토큰')) {
+      errorMessage = toError(error).message;
+    } else if (toError(error).message?.includes('서버에서')) {
+      errorMessage = toError(error).message;
     } else if (error.response?.status === 500) {
       errorMessage = 'LiveKit 서버 설정에 문제가 있습니다. 관리자에게 문의해주세요.';
-    } else if (error.name === 'ConnectError') {
+    } else if (toError(error).name === 'ConnectError') {
       errorMessage = 'LiveKit 서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.';
-    } else if (error.message?.includes('token')) {
+    } else if (toError(error).message?.includes('token')) {
       errorMessage = '인증 토큰에 문제가 있습니다. 다시 시도해주세요.';
-    } else if (error.message) {
-      errorMessage = error.message;
+    } else if (toError(error).message) {
+      errorMessage = toError(error).message;
     }
     
     connectionStatus.value = {
@@ -515,22 +514,22 @@ async function joinRoom() {
 function setupRoomEventListeners() {
   if (!livekitRoom || !window.LivekitClient) return;
 
-  const { RoomEvent } = window.LivekitClient;
+  const { RoomEvent } = window.LivekitClient as typeof import('livekit-client');
 
   // 참여자 연결 이벤트
-  livekitRoom.on(RoomEvent.ParticipantConnected, (participant: any) => {
+  livekitRoom!.on(RoomEvent.ParticipantConnected, (participant: any) => {
     console.log('참여자 입장:', participant.identity);
     addRemoteParticipant(participant);
   });
 
   // 참여자 연결 해제 이벤트
-  livekitRoom.on(RoomEvent.ParticipantDisconnected, (participant: any) => {
+  livekitRoom!.on(RoomEvent.ParticipantDisconnected, (participant: any) => {
     console.log('참여자 퇴장:', participant.identity);
     removeRemoteParticipant(participant.identity);
   });
 
   // 로컬 트랙 발행 이벤트
-  livekitRoom.on(RoomEvent.LocalTrackPublished, (publication: any) => {
+  livekitRoom!.on(RoomEvent.LocalTrackPublished, (publication: any) => {
     console.log('로컬 트랙 발행:', publication.kind, publication.source);
     
     // 화면공유 트랙 발행 시 상태 업데이트
@@ -556,7 +555,7 @@ function setupRoomEventListeners() {
             publication.track.attach(localVideoElement.value);
             console.log(`로컬 ${publication.source} 트랙이 localVideoElement에 연결되었습니다.`);
             return true;
-          } catch (error) {
+          } catch (error: unknown) {
             console.warn('비디오 트랙 연결 실패:', error);
             return false;
           }
@@ -578,7 +577,7 @@ function setupRoomEventListeners() {
   });
 
   // 로컬 트랙 해제 이벤트
-  livekitRoom.on(RoomEvent.LocalTrackUnpublished, (publication: any) => {
+  livekitRoom!.on(RoomEvent.LocalTrackUnpublished, (publication: any) => {
     console.log('로컬 트랙 해제:', publication.kind, publication.source);
     
     // 화면공유 트랙 해제 시 상태 업데이트
@@ -591,30 +590,30 @@ function setupRoomEventListeners() {
   });
 
   // 트랙 구독 이벤트
-  livekitRoom.on(RoomEvent.TrackSubscribed, (track: any, publication: any, participant: any) => {
+  livekitRoom!.on(RoomEvent.TrackSubscribed, (track: any, publication: any, participant: any) => {
     console.log('트랙 구독:', track.kind, participant.identity);
     handleTrackSubscribed(track, participant);
   });
 
   // 트랙 구독 해제 이벤트
-  livekitRoom.on(RoomEvent.TrackUnsubscribed, (track: any, publication: any, participant: any) => {
+  livekitRoom!.on(RoomEvent.TrackUnsubscribed, (track: any, publication: any, participant: any) => {
     console.log('트랙 구독 해제:', track.kind, participant.identity);
     handleTrackUnsubscribed(track, participant);
   });
 
   // 연결 품질 변경 이벤트
-  livekitRoom.on(RoomEvent.ConnectionQualityChanged, (quality: any, participant: any) => {
+  livekitRoom!.on(RoomEvent.ConnectionQualityChanged, (quality: any, participant: any) => {
     updateParticipantConnectionQuality(participant.identity, quality);
   });
 
   // 연결 상태 변경 이벤트
-  livekitRoom.on(RoomEvent.ConnectionStateChanged, (state: any) => {
+  livekitRoom!.on(RoomEvent.ConnectionStateChanged, (state: any) => {
     console.log('연결 상태 변경:', state);
     connectionState.value = state;
   });
 
   // 데이터 메시지 수신 이벤트 (채팅)
-  livekitRoom.on(RoomEvent.DataReceived, (payload: any, participant: any) => {
+  livekitRoom!.on(RoomEvent.DataReceived, (payload: any, participant: any) => {
     try {
       const decoder = new TextDecoder();
       const messageStr = decoder.decode(payload);
@@ -633,13 +632,13 @@ function setupRoomEventListeners() {
         chatMessages.value.push(chatMessage);
         scrollToBottom();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('데이터 메시지 파싱 실패:', error);
     }
   });
 
   // 재연결 이벤트
-  livekitRoom.on(RoomEvent.Reconnecting, () => {
+  livekitRoom!.on(RoomEvent.Reconnecting, () => {
     connectionState.value = 'reconnecting';
     connectionStatus.value = {
       type: 'warning',
@@ -647,7 +646,7 @@ function setupRoomEventListeners() {
     };
   });
 
-  livekitRoom.on(RoomEvent.Reconnected, () => {
+  livekitRoom!.on(RoomEvent.Reconnected, () => {
     connectionState.value = 'connected';
     connectionStatus.value = {
       type: 'success',
@@ -667,11 +666,12 @@ async function publishLocalMedia() {
     await nextTick();
 
     // 카메라와 마이크 활성화
-    await livekitRoom.localParticipant.enableCameraAndMicrophone();
+    await livekitRoom!.localParticipant.setCameraEnabled(true);
+        await livekitRoom!.localParticipant.setMicrophoneEnabled(true);
 
     console.log('로컬 미디어 발행 완료');
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('로컬 미디어 발행 실패:', error);
   }
 }
@@ -726,7 +726,7 @@ async function restoreCameraStream() {
         }
       }
     }
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('카메라 스트림 복구 실패:', error);
   }
 }
@@ -795,7 +795,7 @@ function handleTrackSubscribed(track: any, participant: any) {
           track.attach(videoElement);
           console.log('✅ 비디오 트랙 연결 성공:', participant.identity);
           return true;
-        } catch (error) {
+        } catch (error: unknown) {
           console.warn('비디오 트랙 연결 실패:', error);
           return false;
         }
@@ -888,7 +888,7 @@ async function toggleMicrophone() {
     const enabled = !isAudioEnabled.value;
     await (livekitRoom as { localParticipant: { setMicrophoneEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setMicrophoneEnabled(enabled);
     isAudioEnabled.value = enabled;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('마이크 토글 실패:', error);
   }
 }
@@ -900,7 +900,7 @@ async function toggleCamera() {
     const enabled = !isVideoEnabled.value;
     await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('카메라 토글 실패:', error);
   }
 }
@@ -954,30 +954,30 @@ async function toggleScreenShare() {
     // 상태는 이벤트 리스너에서 자동으로 업데이트됨
     console.log('화면 공유 처리 완료, 현재 상태:', isScreenSharing.value);
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ 화면 공유 실패:', error);
     console.error('에러 상세:', {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
+      name: toError(error).name,
+      message: toError(error).message,
+      stack: toError(error).stack
     });
     
     isScreenSharing.value = false;
     
     let errorMessage = '화면 공유를 시작할 수 없습니다.';
     
-    if (error.name === 'NotAllowedError') {
+    if (toError(error).name === 'NotAllowedError') {
       errorMessage = '화면 공유 권한이 거부되었습니다. 팝업을 허용하고 다시 시도해주세요.';
-    } else if (error.name === 'NotSupportedError') {
+    } else if (toError(error).name === 'NotSupportedError') {
       errorMessage = '이 브라우저는 화면 공유를 지원하지 않습니다.';
-    } else if (error.name === 'NotFoundError') {
+    } else if (toError(error).name === 'NotFoundError') {
       errorMessage = '공유할 화면을 찾을 수 없습니다.';
-    } else if (error.name === 'AbortError') {
+    } else if (toError(error).name === 'AbortError') {
       errorMessage = '화면 공유가 취소되었습니다.';
-    } else if (error.message?.includes('Permission')) {
+    } else if (toError(error).message?.includes('Permission')) {
       errorMessage = '화면 공유 권한이 필요합니다. 브라우저 설정을 확인해주세요.';
-    } else if (error.message) {
-      errorMessage = `화면 공유 오류: ${error.message}`;
+    } else if (toError(error).message) {
+      errorMessage = `화면 공유 오류: ${toError(error).message}`;
     }
     
     connectionStatus.value = {
@@ -1000,7 +1000,7 @@ function goToBookEditor() {
     // 그룹 책 에디터 페이지를 새창으로 열기
     const bookEditorUrl = window.location.origin + '/group-book-editor';
     window.open(bookEditorUrl, '_blank', 'noopener,noreferrer');
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('책 에디터로 이동 실패:', error);
   }
 }
@@ -1038,7 +1038,7 @@ async function leaveRoom() {
 
     // 라우터로 이동
     router.push(`/group-book-lobby`);
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('퇴장 중 오류:', error);
   }
 }
@@ -1064,7 +1064,7 @@ async function sendMessage() {
     // 다른 참여자들에게 전송
     const encoder = new TextEncoder();
     const data = encoder.encode(JSON.stringify(chatMessage));
-    await livekitRoom.localParticipant.publishData(data, {
+    await livekitRoom!.localParticipant.publishData(data, {
       reliable: true
     });
 
@@ -1079,7 +1079,7 @@ async function sendMessage() {
     newMessage.value = '';
     scrollToBottom();
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('메시지 전송 실패:', error);
   }
 }
@@ -1134,7 +1134,7 @@ onMounted(async () => {
         };
       };
       document.head.appendChild(script);
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('LiveKit SDK 로드 오류:', error);
     }
   } else {
@@ -1154,7 +1154,7 @@ const cleanup = async () => {
     try {
       const { groupService } = await import('@/services/groupService');
       await groupService.endGroupBookSession(parseInt(groupId.toString()));
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('페이지 종료 시 그룹 세션 정리 실패:', error);
     }
   }

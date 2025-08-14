@@ -1,5 +1,8 @@
 <template>
   <div class="book-editor-page">
+    <CustomAlert ref="customAlertRef" />
+
+    <input type="file" ref="storyImageInput" @change="handleStoryImageUpload" accept="image/*" style="display: none;">
     <section v-if="creationStep === 'setup'" class="setup-section">
       <h2 class="section-title">새로운 책 만들기</h2>
       <p class="section-subtitle">당신의 이야기를 시작하기 위한 기본 정보를 입력해주세요.</p>
@@ -49,18 +52,43 @@
       </div>
 
       <div class="workspace-main">
-        <div class="story-list-container">
-          <div class="story-list-header">
-            <h3 class="story-list-title">목차</h3>
-            <button @click="addStory" class="btn-add-story" title="이야기 추가"><i class="bi bi-plus-lg"></i></button>
+
+        <div class="left-sidebar-content">
+
+          <div class="story-list-container">
+            <div class="story-list-header">
+              <h3 class="story-list-title">목차</h3>
+              <button @click="addStory" class="btn-add-story" title="이야기 추가"><i class="bi bi-plus-lg"></i></button>
+            </div>
+            <ul class="story-list">
+              <li v-for="(story, index) in paginatedStories" :key="story.id ?? ('tmp-' + index)"
+                @click="selectStory((storiesCurrentPage - 1) * storiesPerPage + index)"
+                :class="{ active: ((storiesCurrentPage - 1) * storiesPerPage + index) === currentStoryIndex }">
+                <span>{{ story.title }}</span>
+                <button @click.stop="deleteStory(story, (storiesCurrentPage - 1) * storiesPerPage + index)"
+                  class="btn-delete-story">×</button>
+              </li>
+            </ul>
+            <div v-if="totalStoryPages > 1" class="story-list-pagination">
+              <button @click="prevStoryPage" :disabled="storiesCurrentPage === 1" class="btn-pagination">&lt;</button>
+              <span>{{ storiesCurrentPage }} / {{ totalStoryPages }}</span>
+              <button @click="nextStoryPage" :disabled="storiesCurrentPage === totalStoryPages"
+                class="btn-pagination">&gt;</button>
+            </div>
           </div>
-          <ul class="story-list">
-            <li v-for="(story, index) in currentBook.stories" :key="story.id ?? ('tmp-' + index)"
-              @click="selectStory(index)" :class="{ active: index === currentStoryIndex }">
-              <span>{{ story.title }}</span>
-              <button @click.stop="deleteStory(story, index)" class="btn-delete-story">×</button>
-            </li>
-          </ul>
+
+          <div class="story-image-preview-container">
+            <div v-if="currentStory?.imageUrl" class="image-preview-box">
+
+              <button @click="removeStoryImage" class="btn-remove-image" title="이미지 삭제">×</button>
+
+              <img :src="currentStory.imageUrl" alt="이야기 이미지 미리보기">
+            </div>
+            <div v-else class="image-preview-placeholder">
+              <i class="bi bi-card-image"></i>
+              <span>이야기에 첨부된 이미지가 없습니다.</span>
+            </div>
+          </div>
         </div>
 
         <div class="editor-area" v-if="currentStory">
@@ -81,11 +109,9 @@
                 {{ currentStory.content.length }} / 5000
               </div>
             </div>
-
             <div v-if="isRecording" class="audio-visualizer-container">
               <canvas ref="visualizerCanvas"></canvas>
             </div>
-
             <div v-if="correctedContent" class="correction-panel">
               <h4>AI 교정 제안</h4>
               <p>{{ correctedContent }}</p>
@@ -98,12 +124,10 @@
           <div class="editor-sidebar" :ref="el => { sidebarButtons = (el as any)?.children }">
             <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> <span>AI 인터뷰
                 시작</span></button>
-
-            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i>
-              <span>음성 답변 시작</span></button>
+            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i
+                class="bi bi-soundwave"></i><span>음성 답변 시작</span></button>
             <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
                 class="bi bi-stop-circle-fill"></i> <span>음성 답변 완료</span></button>
-
             <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged"
               class="btn-sidebar"><i class="bi bi-check-circle"></i> <span>질문 답변완료</span></button>
             <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
@@ -112,19 +136,23 @@
             <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> <span>이야기 저장</span></button>
             <button @click="saveStory" class="btn-sidebar"><i class="bi bi-universal-access"></i> <span>배호빈
                 버튼</span></button>
-            <button @click="uploadimage" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진 첨부</span></button>
-            <button @click="saveDraft" class="btn-sidebar btn-outline-sidebar">
-              <i class="bi bi-cloud-arrow-down"></i> <span>임시 저장 (나가기)</span>
-            </button>
-            <button @click="moveToPublishingStep" class="btn-sidebar btn-primary-sidebar">
-              <i class="bi bi-send-check"></i> <span>발행하기</span>
-            </button>
+            <button @click="triggerImageUpload" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진
+                첨부</span></button>
+            <div class="sidebar-action-group">
+              <button @click="saveDraft" class="btn-sidebar btn-outline-sidebar">
+                <i class="bi bi-cloud-arrow-down"></i> <span>임시 저장 (나가기)</span>
+              </button>
+              <button @click="moveToPublishingStep" class="btn-sidebar btn-primary-sidebar">
+                <i class="bi bi-send-check"></i> <span>발행하기</span>
+              </button>
+            </div>
           </div>
         </div>
         <div v-else class="no-story-message">
           <i class="bi bi-journal-plus"></i>
           <p>왼쪽에서 이야기를 선택하거나<br>새 이야기를 추가해주세요.</p>
         </div>
+
       </div>
     </section>
 
@@ -200,6 +228,7 @@ import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount, onUpdated }
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import apiClient from '@/api'; // API 클라이언트 임포트
 import { useAuthStore } from '@/stores/auth';
+import CustomAlert from '@/components/common/CustomAlert.vue'; // [추가] CustomAlert 컴포넌트 가져오기
 
 // --- 인터페이스 정의 ---
 interface Story { id?: number; title: string; content: string; activeSessionId?: string | null; }
@@ -242,7 +271,8 @@ const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
 let connectTimer: number | null = null;
-
+// [추가] CustomAlert 컴포넌트의 참조를 저장할 ref 생성
+const customAlertRef = ref<InstanceType<typeof CustomAlert> | null>(null);
 // --- 컴포넌트 상태 ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
 const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null });
@@ -273,6 +303,11 @@ const sidebarButtons = ref<HTMLButtonElement[]>([]);
 
 const isCorrecting = ref(false);
 
+const storyImageInput = ref<HTMLInputElement | null>(null);
+
+// --- [추가] 목차 페이지네이션 상태 ---
+const storiesCurrentPage = ref(1);
+const storiesPerPage = 5; // 페이지 당 5개의 이야기를 표시
 // --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
 let audioContext: AudioContext | null = null;
@@ -302,11 +337,17 @@ function selectCategory(categoryId: number) {
 
 async function moveToEditingStep() {
   if (!currentBook.value.title) {
-    alert('책 제목을 입력해주세요.');
+    customAlertRef.value?.showAlert({
+      title: '입력 필요',
+      message: '책 제목을 입력해주세요.'
+    });
     return;
   }
   if (!selectedCategoryId.value) {
-    alert('카테고리를 선택해주세요.');
+    customAlertRef.value?.showAlert({
+      title: '선택 필요',
+      message: '장르를 선택해 주세요.'
+    });
     return;
   }
 
@@ -342,14 +383,20 @@ async function moveToEditingStep() {
     }
   } catch (error) {
     console.error('책 생성 오류:', error);
-    alert('책 생성에 실패했습니다.');
+    customAlertRef.value?.showAlert({
+      title: '오류 발생',
+      message: '책 생성에 실패했습니다.'
+    });
   }
 }
 
 // 단계 2: 편집
 async function startRecording() {
   if (!isInterviewStarted.value || !currentSessionId.value) {
-    alert('먼저 AI 인터뷰 시작을 눌러주세요.');
+    customAlertRef.value?.showAlert({
+      title: '인터뷰 시작 필요',
+      message: '먼저 AI 인터뷰 시작을 눌러주세요.'
+    });
     return;
   }
   if (isRecording.value) return;
@@ -368,11 +415,14 @@ async function startRecording() {
     }
 
     if (!audioContext) {
-      alert('오디오 컨텍스트를 생성할 수 없습니다.');
+      customAlertRef.value?.showAlert({
+        title: '오류 발생',
+        message: '오디오 컨텍스트를 생성할 수 없습니다.'
+      });
       isRecording.value = false;
       return;
     }
-    
+
     analyser = audioContext.createAnalyser();
     const source = audioContext.createMediaStreamSource(mediaStream);
     source.connect(analyser);
@@ -389,11 +439,14 @@ async function startRecording() {
 
     mediaRecorder.onstop = async () => {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-      
+
       if (audioBlob.size < 1024) { // 너무 짧은 녹음은 보내지 않음
-          console.log('녹음된 오디오가 너무 짧아 전송하지 않습니다.');
-          alert('녹음이 너무 짧습니다. 1초 이상 답변해주세요.');
-          return;
+        console.log('녹음된 오디오가 너무 짧아 전송하지 않습니다.');
+        customAlertRef.value?.showAlert({
+          title: '입력 오류',
+          message: '3초 이상 답변해주세요.'
+        });
+        return;
       }
 
       const formData = new FormData();
@@ -410,19 +463,25 @@ async function startRecording() {
         isContentChanged.value = true;
       } catch (error) {
         console.error('음성 답변 전송 실패:', error);
-        alert('음성 답변 처리에 실패했습니다.');
+        customAlertRef.value?.showAlert({
+          title: '오류 발생',
+          message: '음성 답변 처리에 실패했습니다.'
+        });
       }
     };
 
     mediaRecorder.start();
-    
+
     await nextTick();
-    
+
     visualize(); // 시각화 함수 다시 호출
 
   } catch (err) {
     console.error('마이크 접근 오류:', err);
-    alert('마이크에 접근할 수 없습니다. 권한을 확인해주세요.');
+    customAlertRef.value?.showAlert({
+      title: '오류 발생',
+      message: '마이크에 접근할 수 없습니다. 권한을 확인해주세요.'
+    });
     isRecording.value = false;
   }
 }
@@ -512,7 +571,10 @@ async function loadBookForEditing(bookId: string) {
     }
   } catch (error) {
     console.error('책 정보를 불러오는데 실패했습니다:', error);
-    alert('책 정보를 불러오는데 실패했습니다. 이전 페이지로 돌아갑니다.');
+    customAlertRef.value?.showAlert({
+      title: '오류 발생',
+      message: '책 정보를 불러오는데 실패했습니다. 이전 페이지로 돌아갑니다.'
+    });
     router.back();
   }
 }
@@ -528,23 +590,43 @@ function loadOrCreateBook(bookId: string | null) {
 async function deleteStory(story: Story, index: number) {
   if (!confirm(`'${story.title}' 이야기를 삭제하시겠습니까?`)) return;
   if (!currentBook.value?.id || !story.id) {
-    alert('삭제할 이야기의 정보가 올바르지 않습니다.');
+    customAlertRef.value?.showAlert({
+      title: '삭제 오류',
+      message: '삭제할 이야기의 정보가 올바르지 않습니다.'
+    });
     return;
   }
 
   try {
     await apiClient.delete(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`);
+
+    // 1. 배열에서 이야기를 삭제합니다.
     currentBook.value.stories?.splice(index, 1);
 
+    // 2. [추가] 페이지네이션 보정 로직
+    // 현재 페이지가 1보다 크고, 삭제 후 현재 페이지에 더 이상 이야기가 없다면
+    if (storiesCurrentPage.value > 1 && paginatedStories.value.length === 0) {
+      // 이전 페이지로 이동합니다.
+      storiesCurrentPage.value--;
+    }
+
+    // 3. 선택된 이야기 인덱스를 조정합니다.
     if (currentStoryIndex.value === index) {
       currentStoryIndex.value = -1;
     } else if (currentStoryIndex.value > index) {
       currentStoryIndex.value--;
     }
-    alert('이야기가 삭제되었습니다.');
+
+    customAlertRef.value?.showAlert({
+      title: '삭제 완료',
+      message: '이야기가 삭제되었습니다.'
+    });
   } catch (error) {
     console.error('이야기 삭제 오류:', error);
-    alert('이야기 삭제에 실패했습니다.');
+    customAlertRef.value?.showAlert({
+      title: '삭제 오류',
+      message: '이야기 삭제에 실패했습니다.'
+    });
   }
 }
 
@@ -564,7 +646,10 @@ async function addStory() {
     currentStoryIndex.value = (currentBook.value.stories?.length || 1) - 1;
   } catch (error) {
     console.error('이야기 추가 오류:', error);
-    alert('새로운 이야기를 추가하는데 실패했습니다.');
+    customAlertRef.value?.showAlert({
+      title: '추가 오류',
+      message: '새로운 이야기를 추가하는데 실패했습니다.'
+    });
   }
 }
 
@@ -632,7 +717,10 @@ async function selectStory(index: number) {
 async function saveStory() {
   if (isInterviewStarted.value === true) {
     if (!currentAnswerMessageId.value) {
-      alert('수정할 답변 정보가 없습니다. 답변이 완료된 후 다시 시도해주세요.');
+      customAlertRef.value?.showAlert({
+        title: '수정 오류',
+        message: '수정할 답변 정보가 없습니다. 답변이 완료된 후 다시 시도해주세요.'
+      });
       return;
     }
 
@@ -644,16 +732,25 @@ async function saveStory() {
         content: currentStory.value?.content.trim() || ''
       };
       await apiClient.put('/api/v1/conversation/message', updateRequest);
-      alert('수정된 답변이 저장되었습니다.');
+      customAlertRef.value?.showAlert({
+        title: '수정 완료',
+        message: '수정된 답변이 저장되었습니다.'
+      });
 
     } catch (error) {
       console.error('메시지 수정 실패:', error);
-      alert('답변 저장에 실패했습니다.');
+      customAlertRef.value?.showAlert({
+        title: '수정 오류',
+        message: '답변 저장에 실패했습니다.'
+      });
     }
 
   } else {
     if (!currentStory.value?.id || !currentBook.value?.id) {
-      alert('저장할 에피소드 정보가 올바르지 않습니다.');
+      customAlertRef.value?.showAlert({
+        title: '저장 오류',
+        message: '저장할 에피소드 정보가 올바르지 않습니다.'
+      });
       return;
     }
 
@@ -668,12 +765,18 @@ async function saveStory() {
         `/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}`,
         episodeUpdateRequest
       );
-      alert('에피소드가 성공적으로 저장되었습니다.');
+      customAlertRef.value?.showAlert({
+        title: '저장 완료',
+        message: '에피소드가 성공적으로 저장되었습니다.'
+      });
       isContentChanged.value = false;
 
     } catch (error) {
       console.error('에피소드 저장(수정) 실패:', error);
-      alert('에피소드 저장에 실패했습니다.');
+      customAlertRef.value?.showAlert({
+        title: '저장 오류',
+        message: '에피소드 저장에 실패했습니다.'
+      });
     }
   }
 }
@@ -681,11 +784,17 @@ async function saveStory() {
 
 async function startAiInterview() {
   if (!currentBook.value?.id) {
-    alert('책 정보가 올바르지 않습니다.');
+    customAlertRef.value?.showAlert({
+      title: '정보 오류',
+      message: '책 정보가 올바르지 않습니다.'
+    });
     return;
   }
   if (!currentStory.value?.id) {
-    alert('먼저 이야기를 추가/선택해주세요.');
+    customAlertRef.value?.showAlert({
+      title: '선택 오류',
+      message: '먼저 이야기를 추가/선택해주세요.'
+    });
     return;
   }
 
@@ -710,7 +819,10 @@ async function startAiInterview() {
     await connectToSseStream();
   } catch (e) {
     console.error('세션 시작 실패:', e);
-    alert('AI 인터뷰 세션 시작에 실패했습니다.');
+    customAlertRef.value?.showAlert({
+      title: '세션 오류',
+      message: 'AI 인터뷰 세션 시작에 실패했습니다.'
+    });
     isInterviewStarted.value = false;
     currentSessionId.value = null;
     if (currentStory.value) {
@@ -879,18 +991,27 @@ async function submitAnswerAndGetFollowUp() {
     firstChunkForThisAnswer = true;
   } catch (error) {
     console.error('다음 질문 요청 실패:', error);
-    alert('다음 질문을 가져오는데 실패했습니다.');
+    customAlertRef.value?.showAlert({
+      title: '요청 오류',
+      message: '다음 질문을 가져오는데 실패했습니다.'
+    });
   }
 }
 
-function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; alert('질문을 건너뛰었습니다.'); isContentChanged.value = false; }
+function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; customAlertRef.value?.showAlert({ title: '건너뛰기', message: '질문을 건너뛰었습니다.' }); isContentChanged.value = false; }
 async function autoCorrect() {
   if (!currentStory.value || !currentStory.value.content?.trim()) {
-    alert('교정할 내용이 없습니다.');
+    customAlertRef.value?.showAlert({
+      title: '교정 오류',
+      message: '교정할 내용이 없습니다.'
+    });
     return;
   }
   if (!selectedCategoryId.value) {
-    alert('AI 교정을 위해서는 먼저 카테고리를 선택해야 합니다.');
+    customAlertRef.value?.showAlert({
+      title: '선택 오류',
+      message: 'AI 교정을 위해서는 먼저 카테고리를 선택해야 합니다.'
+    });
     return;
   }
   isCorrecting.value = true;
@@ -904,7 +1025,10 @@ async function autoCorrect() {
     correctedContent.value = response.data.data.correctedText;
   } catch (error) {
     console.error('AI 자동 교정 실패:', error);
-    alert('AI 자동 교정에 실패했습니다. 잠시 후 다시 시도해주세요.');
+    customAlertRef.value?.showAlert({
+      title: '교정 오류',
+      message: 'AI 자동 교정에 실패했습니다. 잠시 후 다시 시도해주세요.'
+    });
   } finally {
     isCorrecting.value = false;
   }
@@ -915,7 +1039,10 @@ function cancelCorrection() { correctedContent.value = null; }
 
 async function saveDraft() {
   if (!currentBook.value?.id) {
-    alert('책 정보가 올바르지 않습니다.');
+    customAlertRef.value?.showAlert({
+      title: '정보 오류',
+      message: '책 정보가 올바르지 않습니다.'
+    });
     return;
   }
   if (confirm('작업을 임시 저장하고 목록으로 돌아가시겠습니까?')) {
@@ -942,13 +1069,19 @@ async function saveDraft() {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      alert('임시 저장되었습니다.');
+      customAlertRef.value?.showAlert({
+        title: '임시 저장',
+        message: '임시 저장되었습니다.'
+      });
       isSavedOrPublished.value = true;
       await cleanupBeforeLeave();
       router.push('/continue-writing');
     } catch (error) {
       console.error('임시 저장 오류:', error);
-      alert('임시 저장에 실패했습니다.');
+      customAlertRef.value?.showAlert({
+        title: '임시 저장 오류',
+        message: '임시 저장에 실패했습니다.'
+      });
     }
   }
 }
@@ -965,7 +1098,10 @@ function handleCoverUpload(event: Event) {
       selectedCover.value = e.target?.result as string;
     };
     reader.readAsDataURL(file);
-    alert('표지가 첨부되었습니다.');
+    customAlertRef.value?.showAlert({
+      title: '표지 첨부',
+      message: '표지가 첨부되었습니다.'
+    });
   }
 }
 
@@ -973,13 +1109,19 @@ function addTag() {
   const newTag = tagInput.value.trim();
   if (newTag && !tags.value.includes(newTag) && tags.value.length < 5) {
     if (/\s/.test(newTag)) {
-      alert('태그에는 공백을 포함할 수 없습니다.');
+      customAlertRef.value?.showAlert({
+        title: '입력 오류',
+        message: '태그에는 공백을 포함할 수 없습니다.'
+      });
       return;
     }
     tags.value.push(newTag);
     tagInput.value = '';
   } else if (tags.value.length >= 5) {
-    alert('태그는 최대 5개까지 등록할 수 있습니다.');
+    customAlertRef.value?.showAlert({
+      title: '입력 오류',
+      message: '태그는 최대 5개까지 등록할 수 있습니다.'
+    });
   }
 }
 
@@ -989,7 +1131,10 @@ function removeTag(index: number) {
 
 async function finalizePublication() {
   if (!currentBook.value.id || !currentBook.value.title) {
-    alert('책 정보가 올바르지 않습니다.');
+    customAlertRef.value?.showAlert({
+      title: '정보 오류',
+      message: '책 정보가 올바르지 않습니다.'
+    });
     return;
   }
   if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
@@ -1026,20 +1171,29 @@ async function finalizePublication() {
 
     await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
 
-    alert('책이 성공적으로 발행되었습니다!');
+    customAlertRef.value?.showAlert({
+      title: '발행 완료',
+      message: '책이 성공적으로 발행되었습니다!'
+    });
     isSavedOrPublished.value = true;
     await cleanupBeforeLeave();
     router.push(`/book-detail/${currentBook.value.id}`);
 
   } catch (error) {
     console.error('책 발행 오류:', error);
-    alert('책 발행에 실패했습니다.');
+    customAlertRef.value?.showAlert({
+      title: '발행 오류',
+      message: '책 발행에 실패했습니다.'
+    });
   }
 }
 
 async function finalizePublicationAsCopy() {
   if (!currentBook.value.id || !currentBook.value.title) {
-    alert('책 정보가 올바르지 않습니다.');
+    customAlertRef.value?.showAlert({
+      title: '정보 오류',
+      message: '책 정보가 올바르지 않습니다.'
+    });
     return;
   }
 
@@ -1053,7 +1207,10 @@ async function finalizePublicationAsCopy() {
   })) || [];
 
   if (episodesToCopy.length === 0) {
-    alert('복사할 이야기가 하나 이상 있어야 합니다.');
+    customAlertRef.value?.showAlert({
+      title: '복사 오류',
+      message: '복사할 이야기가 하나 이상 있어야 합니다.'
+    });
     return;
   }
 
@@ -1082,18 +1239,27 @@ async function finalizePublicationAsCopy() {
 
     await apiClient.patch(`/api/v1/books/${newBook.bookId}/complete`, { tags: tags.value });
 
-    alert('책이 복사본으로 성공적으로 발행되었습니다!');
+    customAlertRef.value?.showAlert({
+      title: '발행 완료',
+      message: '책이 복사본으로 성공적으로 발행되었습니다!'
+    });
     isSavedOrPublished.value = true;
     await cleanupBeforeLeave();
     router.push(`/book-detail/${newBook.bookId}`);
   } catch (error) {
     console.error('복사본 발행 오류:', error);
-    alert('복사본 발행에 실패했습니다.');
+    customAlertRef.value?.showAlert({
+      title: '발행 오류',
+      message: '복사본 발행에 실패했습니다.'
+    });
   }
 }
 
 function uploadimage() {
-  alert('이미지 업로드 기능은 아직 구현되지 않았습니다.');
+  customAlertRef.value?.showAlert({
+    title: '업로드 오류',
+    message: '이미지 업로드 기능은 아직 구현되지 않았습니다.'
+  });
 }
 
 const adjustButtonFontSize = () => {
@@ -1196,6 +1362,83 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
     }
   }
 }, { immediate: false });
+
+// --- [추가] 목차 페이지네이션을 위한 계산된 속성 및 함수 ---
+const totalStoryPages = computed(() => {
+  const totalStories = currentBook.value.stories?.length || 0;
+  if (totalStories === 0) return 1;
+  return Math.ceil(totalStories / storiesPerPage);
+});
+
+const paginatedStories = computed(() => {
+  const stories = currentBook.value.stories || [];
+  const start = (storiesCurrentPage.value - 1) * storiesPerPage;
+  const end = start + storiesPerPage;
+  return stories.slice(start, end);
+});
+
+function prevStoryPage() {
+  if (storiesCurrentPage.value > 1) {
+    storiesCurrentPage.value--;
+  }
+}
+
+function nextStoryPage() {
+  if (storiesCurrentPage.value < totalStoryPages.value) {
+    storiesCurrentPage.value++;
+  }
+}
+
+interface Story {
+  id?: number;
+  title: string;
+  content: string;
+  activeSessionId?: string | null;
+  imageUrl?: string; // [추가] 이야기별 이미지 URL
+}
+
+// [추가] 숨겨진 파일 입력창을 클릭하는 함수
+function triggerImageUpload() {
+  if (!currentStory.value) {
+    customAlertRef.value?.showAlert({
+      title: '선택 오류',
+      message: '먼저 이미지를 추가할 이야기를 선택해주세요.'
+    });
+    return;
+  }
+  storyImageInput.value?.click();
+}
+
+// [추가] 파일이 선택되었을 때 처리하는 함수
+function handleStoryImageUpload(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0] && currentStory.value) {
+    const file = target.files[0];
+
+    // 여기에서 실제 서버로 파일 업로드 API를 호출해야 합니다.
+    // 지금은 미리보기를 위해 임시 URL을 생성하여 사용합니다.
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (currentStory.value) {
+        currentStory.value.imageUrl = e.target?.result as string;
+      }
+    };
+    reader.readAsDataURL(file);
+
+    customAlertRef.value?.showAlert({
+      title: '업로드 완료',
+      message: `'${file.name}' 이미지가 첨부되었습니다.`
+    });
+  }
+}
+// [추가] 이야기 이미지를 삭제하는 함수
+function removeStoryImage() {
+  if (currentStory.value) {
+    currentStory.value.imageUrl = undefined;
+    // 실제 서버에 저장된 이미지를 삭제하는 API 호출 로직도
+    // 나중에 이 곳에 추가해야 합니다.
+  }
+}
 </script>
 
 <style scoped>
@@ -1527,6 +1770,8 @@ textarea.form-control {
   display: flex;
   flex-direction: column;
   font-family: 'Noto Serif KR', serif;
+  /* align-self: start; */
+  /* [삭제] 이 줄을 삭제하거나 주석 처리합니다. */
 }
 
 .story-list-header {
@@ -1537,12 +1782,146 @@ textarea.form-control {
   margin-bottom: 0.4rem;
 }
 
+/* --- [추가] 목차 페이지네이션 스타일 --- */
+.story-list-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.8rem;
+  padding-top: 0.8rem;
+  margin-top: auto;
+  /* 이 속성은 버튼을 컨테이너 하단에 붙입니다. */
+  border-top: 1px solid var(--border-color);
+  flex-shrink: 0;
+  /* 컨테이너 크기가 줄어도 작아지지 않음 */
+}
+
+.story-list-pagination span {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--secondary-text-color);
+  font-family: 'SCDream4', serif;
+}
+
+.btn-pagination {
+  background: none;
+  color: #555;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-pagination:hover:not(:disabled) {
+  border-color: var(--accent-color);
+  color: var(--accent-color);
+}
+
+.btn-pagination:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 .story-list-title {
   font-size: 0.8rem;
   font-weight: 700;
   color: #000000;
   margin: 0;
   font-family: 'SCDream4', serif;
+}
+
+/* --- [추가] 이야기 이미지 미리보기 스타일 --- */
+.story-image-preview-container {
+  width: 90%;
+  max-width: 250px;
+  /* [추가] 최대 너비를 250px로 제한합니다. */
+  margin: 1.5rem auto 0;
+}
+
+.image-preview-box,
+.image-preview-placeholder {
+  width: 100%;
+  aspect-ratio: 12 / 10;
+  /* 미리보기 박스 비율 (조정 가능) */
+  border-radius: 6px;
+  background-color: var(--surface-color);
+  border: 2px solid #5b673b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  /* 이미지가 박스를 벗어나지 않도록 */
+}
+
+.image-preview-placeholder {
+  flex-direction: column;
+  gap: 0.5rem;
+  color: var(--secondary-text-color);
+  font-size: 0.7rem;
+  border-style: dashed;
+}
+
+.image-preview-placeholder i {
+  font-size: 2rem;
+}
+
+.image-preview-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* 이미지가 비율을 유지하며 박스를 꽉 채움 */
+}
+
+.image-preview-box,
+.image-preview-placeholder {
+  /* ... 기존 스타일 ... */
+  position: relative;
+  /* [추가] 자식 요소의 위치 기준점으로 설정 */
+  overflow: hidden;
+}
+
+/* --- [추가] 이미지 삭제 버튼 스타일 --- */
+.btn-remove-image {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 10;
+
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: none;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 1.2rem;
+  font-weight: bold;
+  line-height: 1;
+
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-remove-image:hover {
+  background-color: rgba(0, 0, 0, 0.8);
+}
+
+.left-sidebar-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  /* [추가] 자식 요소들을 위아래 양끝으로 분리 */
+  /* align-self: start; */
+  /* [삭제] 높이를 꽉 채우기 위해 이 속성 제거 */
 }
 
 .btn-add-story {
@@ -1571,7 +1950,8 @@ textarea.form-control {
   margin: 0;
   overflow-y: auto;
   font-family: 'SCDream4', serif;
-  flex-grow: 1;
+  /* flex-grow: 1; */
+  /* [삭제] 목록이 불필요하게 늘어나는 것을 방지 */
 }
 
 .story-list li {
@@ -1937,6 +2317,20 @@ textarea.form-control {
   padding: 0 0.7rem;
   gap: 0.55rem;
   background-color: #f6f8f2;
+
+}
+
+.sidebar-action-group {
+  margin-top: auto;
+  /* 그룹 전체를 아래로 밀어냅니다. */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  /* 그룹 내 버튼들의 간격을 설정합니다. */
+  width: 100%;
+  /* 버튼들이 부모 너비에 맞게 정렬되도록 합니다. */
+  align-items: flex-end;
+  /* 버튼들을 오른쪽으로 정렬합니다. */
 }
 
 /* 위 버튼들의 텍스트(span)를 항상 보이게 처리 */
@@ -1990,6 +2384,9 @@ textarea.form-control {
     font-size: 0.8rem;
   }
 
+  .sidebar-action-group {
+    display: contents;
+  }
 
 }
 </style>
