@@ -446,6 +446,20 @@ async function joinRoom() {
 
     // 룸 연결
     await livekitRoom.connect(url, token);
+    console.log('✅ LiveKit 룸 연결 성공');
+
+    // 기존 참여자들 추가 (새로 입장한 사용자를 위해)
+    console.log('기존 참여자 확인 및 추가...');
+    const remoteParticipantsMap = (livekitRoom as any).remoteParticipants;
+    if (remoteParticipantsMap && remoteParticipantsMap.size > 0) {
+      console.log('기존 참여자 수:', remoteParticipantsMap.size);
+      remoteParticipantsMap.forEach((participant: any) => {
+        console.log('기존 참여자 추가:', participant.identity);
+        addRemoteParticipant(participant);
+      });
+    } else {
+      console.log('기존 참여자 없음');
+    }
 
     // UI 전환
     hasJoined.value = true;
@@ -718,30 +732,38 @@ async function restoreCameraStream() {
 }
 
 
-function addRemoteParticipant(participant: Record<string, unknown>) {
+function addRemoteParticipant(participant: any) {
   const newParticipant: RemoteParticipant = {
-    identity: participant.identity as string,
-    isMicrophoneEnabled: participant.isMicrophoneEnabled as boolean,
-    isCameraEnabled: participant.isCameraEnabled as boolean,
+    identity: participant.identity,
+    isMicrophoneEnabled: participant.isMicrophoneEnabled,
+    isCameraEnabled: participant.isCameraEnabled,
     connectionQuality: undefined
   };
 
   remoteParticipants.value.push(newParticipant);
+  console.log('하원 참여자 추가:', participant.identity);
 
-  // 기존 트랙들 처리
-  const videoTracks = participant.videoTracks as { track?: Record<string, unknown> }[];
-  videoTracks?.forEach((publication) => {
-    if (publication.track) {
-      handleTrackSubscribed(publication.track, participant);
-    }
-  });
+  // LiveKit의 실제 API 구조에 맞게 수정
+  // videoTracks는 Map 형태이고, publication.videoTrack을 사용
+  if (participant.videoTracks && participant.videoTracks.size > 0) {
+    participant.videoTracks.forEach((publication: any) => {
+      if (publication.videoTrack && publication.videoTrack.isEnabled) {
+        console.log('기존 비디오 트랙 처리:', publication.source);
+        handleTrackSubscribed(publication.videoTrack, participant);
+      }
+    });
+  }
 
-  const audioTracks = participant.audioTracks as { track?: Record<string, unknown> }[];
-  audioTracks?.forEach((publication) => {
-    if (publication.track) {
-      handleTrackSubscribed(publication.track, participant);
-    }
-  });
+  if (participant.audioTracks && participant.audioTracks.size > 0) {
+    participant.audioTracks.forEach((publication: any) => {
+      if (publication.audioTrack && publication.audioTrack.isEnabled) {
+        console.log('기존 오디오 트랙 처리:', publication.source);
+        handleTrackSubscribed(publication.audioTrack, participant);
+      }
+    });
+  }
+
+  console.log('참여자', participant.identity, '의 초기 트랙 처리 완료');
 }
 
 function removeRemoteParticipant(identity: string) {
@@ -752,23 +774,55 @@ function removeRemoteParticipant(identity: string) {
   participantVideoRefs.value.delete(identity);
 }
 
-function handleTrackSubscribed(track: Record<string, unknown>, participant: Record<string, unknown>) {
-  const participantData = remoteParticipants.value.find(p => p.identity === (participant.identity as string));
-  if (!participantData) return;
+function handleTrackSubscribed(track: any, participant: any) {
+  console.log('트랙 구독 처리:', track.kind, '참여자:', participant.identity);
+  
+  const participantData = remoteParticipants.value.find(p => p.identity === participant.identity);
+  if (!participantData) {
+    console.warn('참여자 데이터를 찾을 수 없음:', participant.identity);
+    return;
+  }
 
-  if ((track.kind as string) === 'video') {
+  if (track.kind === 'video') {
     participantData.videoTrack = track;
+    console.log('비디오 트랙 연결 시작:', participant.identity);
 
-    // 비디오 엘리먼트에 연결
-    nextTick(() => {
-      const videoElement = participantVideoRefs.value.get(participant.identity as string);
-      if (videoElement) {
-        (track.attach as (el: HTMLVideoElement) => void)(videoElement);
+    // 비디오 엘리먼트에 연결 - 더 강력한 대기 로직
+    const attachVideo = () => {
+      const videoElement = participantVideoRefs.value.get(participant.identity);
+      if (videoElement && track.attach) {
+        try {
+          track.attach(videoElement);
+          console.log('✅ 비디오 트랙 연결 성공:', participant.identity);
+          return true;
+        } catch (error) {
+          console.warn('비디오 트랙 연결 실패:', error);
+          return false;
+        }
       }
-    });
-  } else if ((track.kind as string) === 'audio') {
+      return false;
+    };
+
+    // 즉시 시도
+    if (!attachVideo()) {
+      // DOM 업데이트 대기 후 재시도
+      nextTick(() => {
+        if (!attachVideo()) {
+          // 500ms 후 다시 시도
+          setTimeout(() => {
+            if (!attachVideo()) {
+              console.error('비디오 트랙 연결 최종 실패:', participant.identity);
+            }
+          }, 500);
+        }
+      });
+    }
+  } else if (track.kind === 'audio') {
     participantData.audioTrack = track;
-    (track.attach as () => void)(); // 오디오는 자동 재생
+    if (track.attach) {
+      track.attach(); // 오디오는 자동 재생
+      console.log('✅ 오디오 트랙 연결 성공:', participant.identity);
+    }
   }
 }
 
