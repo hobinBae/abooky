@@ -315,7 +315,7 @@ function createHotspots() {
         onStart: () => {
           parallaxEnabled = false
         },
-        onUpdate: () => controls.update(),
+        onUpdate: () => { controls.update() },
         onComplete: () => {
           parallaxEnabled = true
           baseCameraPosition.copy(camera.position)
@@ -360,7 +360,7 @@ function moveCameraTo(
     onStart: () => {
       parallaxEnabled = false
     },
-    onUpdate: () => controls.update(),
+    onUpdate: () => { controls.update() },
     onComplete: () => {
       parallaxEnabled = true
       baseCameraPosition.copy(camera.position)
@@ -376,7 +376,7 @@ function moveToYard() {
     onStart: () => {
       parallaxEnabled = false
     },
-    onUpdate: () => controls.update(),
+    onUpdate: () => { controls.update() },
     onComplete: () => {
       parallaxEnabled = true
       baseCameraPosition.copy(camera.position)

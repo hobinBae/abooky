@@ -12,7 +12,7 @@
           :is="Component"
           @intro-finished="onIntroFinished"
           @yard-ready="onYardReady"
-          :ref="el => { if (el) introViewRef = el }"
+          :ref="(el: any) => { if (el) introViewRef = el }"
         />
       </keep-alive>
     </router-view>
