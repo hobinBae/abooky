@@ -1,4 +1,8 @@
+const toError = (e: unknown): Error => (e instanceof Error ? e : new Error(String(e)));
+declare global { interface Window { LivekitClient: typeof import('livekit-client'); } }
 import { ref } from 'vue';
+import type * as LK from 'livekit-client';
+
 import { groupService } from '@/services/groupService';
 
 export interface RemoteParticipant {
@@ -30,7 +34,7 @@ export function useWebRTC() {
   const participantVideoRefs = ref<Map<string, HTMLVideoElement>>(new Map());
 
   // LiveKit 관련 - non-reactive storage for WebRTC objects
-  let livekitRoom: any = null;
+  let livekitRoom: LK.Room | null = null;
   let localMediaStream: MediaStream | null = null;
 
   const getConnectionStatusText = () => {
@@ -72,7 +76,7 @@ export function useWebRTC() {
       };
 
       return stream;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('미디어 접근 실패:', error);
       connectionStatus.value = { 
         type: 'warning', 
@@ -91,10 +95,10 @@ export function useWebRTC() {
         throw new Error('LiveKit SDK가 로드되지 않았습니다.');
       }
 
-      const { Room } = window.LivekitClient;
+      const { Room: LKRoom, RoomEvent } = window.LivekitClient as typeof import('livekit-client');
 
       // Room 인스턴스 생성
-      livekitRoom = new Room({
+      livekitRoom = new LKRoom({
         adaptiveStream: true,
         dynacast: true,
         videoCaptureDefaults: {
@@ -113,7 +117,7 @@ export function useWebRTC() {
       // 토큰 발급 및 연결
       const userName = `User_${Date.now()}`;
       const { url, token } = await groupService.getRTCToken(groupId, userName);
-      await livekitRoom.connect(url, token);
+      await livekitRoom!.connect(url, token);
 
       // 로컬 미디어 퍼블리시
       await publishLocalMedia();
@@ -204,12 +208,13 @@ export function useWebRTC() {
 
     try {
       if (isVideoEnabled.value) {
-        await livekitRoom.localParticipant.enableCameraAndMicrophone();
+        await livekitRoom!.localParticipant.setCameraEnabled(true);
+        await livekitRoom!.localParticipant.setMicrophoneEnabled(true);
       } else {
-        await livekitRoom.localParticipant.enableMicrophone();
+        await livekitRoom!.localParticipant.setMicrophoneEnabled(true);
       }
       console.log('로컬 미디어 퍼블리시 완료');
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('로컬 미디어 퍼블리시 실패:', error);
     }
   };
@@ -291,9 +296,9 @@ export function useWebRTC() {
 
     try {
       const enabled = !isAudioEnabled.value;
-      await livekitRoom.localParticipant.setMicrophoneEnabled(enabled);
+      await livekitRoom!.localParticipant.setMicrophoneEnabled(enabled);
       isAudioEnabled.value = enabled;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('마이크 토글 실패:', error);
     }
   };
@@ -303,9 +308,9 @@ export function useWebRTC() {
 
     try {
       const enabled = !isVideoEnabled.value;
-      await livekitRoom.localParticipant.setCameraEnabled(enabled);
+      await livekitRoom!.localParticipant.setCameraEnabled(enabled);
       isVideoEnabled.value = enabled;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('카메라 토글 실패:', error);
     }
   };
@@ -317,17 +322,17 @@ export function useWebRTC() {
       const enabled = !isScreenSharing.value;
       
       if (enabled) {
-        await livekitRoom.localParticipant.setScreenShareEnabled(true);
-        await livekitRoom.localParticipant.setCameraEnabled(false);
+        await livekitRoom!.localParticipant.setScreenShareEnabled(true);
+        await livekitRoom!.localParticipant.setCameraEnabled(false);
       } else {
-        await livekitRoom.localParticipant.setScreenShareEnabled(false);
+        await livekitRoom!.localParticipant.setScreenShareEnabled(false);
         if (isVideoEnabled.value) {
-          await livekitRoom.localParticipant.setCameraEnabled(true);
+          await livekitRoom!.localParticipant.setCameraEnabled(true);
         }
       }
       
       isScreenSharing.value = enabled;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('화면 공유 토글 실패:', error);
       connectionStatus.value = { 
         type: 'error', 
@@ -344,7 +349,7 @@ export function useWebRTC() {
   const leaveRoom = async () => {
     try {
       if (livekitRoom) {
-        await livekitRoom.disconnect();
+        await livekitRoom!.disconnect();
         livekitRoom = null;
       }
 
@@ -356,7 +361,7 @@ export function useWebRTC() {
       connectionState.value = 'disconnected';
       remoteParticipants.value = [];
       participantVideoRefs.value.clear();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('퇴장 중 오류:', error);
     }
   };
