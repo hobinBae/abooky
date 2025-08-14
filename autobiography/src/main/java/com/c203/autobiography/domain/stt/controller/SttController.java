@@ -46,38 +46,50 @@ public class SttController {
             HttpServletRequest httpRequest
 
     ) {
-        // 1) Whisper STT 호출
-        SttResponse sttResp = sttService.recognize(audio, customProperNouns);
-        log.info(sttResp.getText() + "stt");
-        // 2) 대화 메시지 저장 (PARTIAL)
-         ConversationMessageResponse conversation =  conversationService.createMessage(
-                ConversationMessageRequest.builder()
-                        .sessionId(sessionId)
-                        .messageType(MessageType.ANSWER)
-                        .chunkIndex(chunkIndex)
-                        .content(sttResp.getText())
-                        .build()
-        );
-        // 3) SSE로 부분 인식 결과 푸시
-        TranscriptResponse partialDto = TranscriptResponse.builder()
-                .messageId(conversation.getMessageId())
-                .chunkIndex(chunkIndex)
-                .text(sttResp.getText())
-                .build();
+        try {
+            log.info("🎙️ STT 청크 처리 시작: sessionId={}, chunkIndex={}, fileName={}, size={} bytes", 
+                     sessionId, chunkIndex, audio.getOriginalFilename(), audio.getSize());
 
-        sseService.pushPartialTranscript(sessionId, partialDto);
+            // 1) STT 호출 (Deepgram) - 처리 시간 측정
+            long startTime = System.currentTimeMillis();
+            SttResponse sttResp = sttService.recognize(audio, customProperNouns);
+            long processingTime = System.currentTimeMillis() - startTime;
+            
+            log.info("🗣️ STT 결과 ({}ms): '{}'", processingTime, sttResp.getText());
+            
+            // 2) 대화 메시지 저장 (PARTIAL)
+            ConversationMessageResponse conversation = conversationService.createMessage(
+                    ConversationMessageRequest.builder()
+                            .sessionId(sessionId)
+                            .messageType(MessageType.ANSWER)
+                            .chunkIndex(chunkIndex)
+                            .content(sttResp.getText())
+                            .build()
+            );
+            
+            log.info("💾 대화 메시지 저장 완료: messageId={}", conversation.getMessageId());
+            
+            // 3) SSE로 부분 인식 결과 푸시
+            TranscriptResponse partialDto = TranscriptResponse.builder()
+                    .messageId(conversation.getMessageId())
+                    .chunkIndex(chunkIndex)
+                    .text(sttResp.getText())
+                    .build();
 
-//            // 3) 다음 질문 준비 완료 알림만
-//            sseService.pushQuestion(
-//                    sessionId,
-//                    QuestionResponse.builder()
-//                            .text("🔔 다음 질문이 준비되었습니다. 버튼을 눌러주세요.")
-//                            .build()
-//            );
+            sseService.pushPartialTranscript(sessionId, partialDto);
+            log.info("📡 SSE 전송 완료: sessionId={}", sessionId);
 
-
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.of(HttpStatus.CREATED, "성공", null, httpRequest.getRequestURI()));
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.of(HttpStatus.CREATED, "성공", null, httpRequest.getRequestURI()));
+                    
+        } catch (Exception e) {
+            log.error("❌ STT 청크 처리 실패: sessionId={}, chunkIndex={}, error={}", 
+                     sessionId, chunkIndex, e.getMessage(), e);
+            
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, 
+                         "STT 처리 실패: " + e.getMessage(), null, httpRequest.getRequestURI()));
+        }
     }
 
 }
