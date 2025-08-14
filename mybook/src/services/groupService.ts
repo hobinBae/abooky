@@ -11,6 +11,7 @@ export interface Group {
   createdAt: string;
   updatedAt: string;
   members?: GroupMember[];
+  managers?: GroupMember[];
 }
 
 export interface GroupMember {
