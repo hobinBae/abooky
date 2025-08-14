@@ -50,38 +50,37 @@ public class SecurityConfig {
                         .authenticationEntryPoint(jwtAuthenticationEntryPoint)
                 )
                 .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS )
+                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/", "/index.html", "/js/**", "/css/**", "/img/**")
                         .permitAll()
                         .requestMatchers(
-//                                "/api/v1/members/register",
-//                                "/api/v1/auth/login",
-//                                "/api/v1/auth/refresh-token",
-//                                "/api/v1/auth/find-email",
-//                                "/api/v1/auth/forgot-password",
-//                                "/api/v1/auth/oauth2/**",
-//                                "/oauth2/**",
-//                                "/login/oauth2/**",
-//                                "/v3/api-docs/**",
-//                                "/swagger-ui/**",
-//                                "/swagger-resources/**",
-//                                "/swagger-ui.html",
-//                                "/webjars/**",
-//                                "/api/stt/**",
-//                                "/api/stream/**",
-//                                "/api/conversation/**",
-//                                "/cicd/**",
-//                                "/actuator/**"
-                                "/**"
+                                "/api/v1/members/register",
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/refresh-token",
+                                "/api/v1/auth/find-email",
+                                "/api/v1/auth/forgot-password",
+                                "/api/v1/auth/oauth2/**",
+                                "/oauth2/**",
+                                "/login/oauth2/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-resources/**",
+                                "/swagger-ui.html",
+                                "/webjars/**",
+                                "/api/stt/**",
+                                "/api/stream/**",
+                                "/api/conversation/**",
+                                "/cicd/**",
+                                "/actuator/**"
                                 ).permitAll()
                         .requestMatchers("/api/v1/members/**").hasAnyAuthority("MEMBER", "ADMIN")
                         .anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
-//                        .authorizationEndpoint(endpoint ->
-//                                endpoint.authorizationRequestRepository(authorizationRequestRepository())
-//                        ) // 세션에 요청정보 저장하기
+                        .authorizationEndpoint(endpoint ->
+                                endpoint.authorizationRequestRepository(authorizationRequestRepository())
+                        ) // 세션에 요청정보 저장하기
                         .userInfoEndpoint(userInfo -> userInfo.userService(customOAuth2UserService))
                         .successHandler(oAuth2LoginSuccessHandler)
                         .failureHandler(oAuth2LoginFailureHandler)

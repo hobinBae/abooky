@@ -43,8 +43,9 @@ public class Member {
 
     private LocalDate birthdate;
 
+    @Builder.Default
     @Column(columnDefinition = "INT DEFAULT 0")
-    private Integer coin; // int로 하면 null 허용이 안 되므로 Integer 사용
+    private Integer coin = 0; // int로 하면 null 허용이 안 되므로 Integer 사용
 
     @Column(length = 255)
     private String intro;
