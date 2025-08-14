@@ -91,7 +91,7 @@
               <p>{{ correctedContent }}</p>
               <div class="correction-actions">
                 <button @click="applyCorrection" class="btn btn-primary">편집 내용으로 교체</button>
-                <button @click="cancelCorrection" class="btn btn-outline">교정 취소</button>
+                <button @click="cancelCorrection" class="btn btn-primary">교정 취소</button>
               </div>
             </div>
           </div>
@@ -353,51 +353,57 @@ async function startRecording() {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     isRecording.value = true;
-    audioChunks = []; // 새 녹음을 위해 청크 배열 초기화
+    audioChunks = [];
 
-    // MediaRecorder 인스턴스 생성
+    // --- 오디오 시각화 설정 ---
+    if (!audioContext) {
+      audioContext = new AudioContext();
+    }
+    // 브라우저 정책에 따라 정지된 오디오 컨텍스트를 재개합니다.
+    if (audioContext.state === 'suspended') {
+      await audioContext.resume();
+    }
+    
+    analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(mediaStream);
+    source.connect(analyser);
+    analyser.fftSize = 256;
+    // --- 오디오 시각화 설정 끝 ---
+
     mediaRecorder = new MediaRecorder(mediaStream);
 
-    // ondataavailable 이벤트 핸들러: 녹음 데이터 조각을 배열에 추가
     mediaRecorder.ondataavailable = (event) => {
       if (event.data.size > 0) {
         audioChunks.push(event.data);
       }
     };
 
-    // onstop 이벤트 핸들러: 녹음이 중지되면, 모아둔 모든 조각을 합쳐 서버로 전송
     mediaRecorder.onstop = async () => {
       const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-
-      // // 유의미한 녹음인지 확인 (클라이언트 1차 방어)
-      // if (audioBlob.size < 1024) {
-      //   console.log('녹음된 오디오가 너무 짧아 전송하지 않습니다.');
-      //   return;
-      // }
-
       const formData = new FormData();
       formData.append('sessionId', currentSessionId.value!);
-      formData.append('chunkIndex', String(0));  // 이제 하나의 완성된 답변이므로 chunkIndex는 0
+      formData.append('chunkIndex', String(0));
       formData.append('audio', audioBlob, 'audio.webm');
-
       try {
         console.log('음성 답변 서버로 전송 시작...');
         await apiClient.post('/api/v1/stt/chunk', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
+          headers: { 'Content-Type': 'multipart/form-data' }
         });
         console.log('음성 답변 전송 성공.');
-        // STT 결과는 partialTranscript 이벤트로 비동기적으로 수신됨
-        isContentChanged.value = true; // 답변이 완료되었음을 표시
+        isContentChanged.value = true;
       } catch (error) {
         console.error('음성 답변 전송 실패:', error);
         alert('음성 답변 처리에 실패했습니다.');
       }
     };
 
-    // 녹음 시작
     mediaRecorder.start();
+    
+    // isRecording이 true로 설정된 후 DOM이 업데이트될 때까지 기다립니다.
+    await nextTick(); 
+    
+    // 시각화를 시작합니다.
+    visualize();
 
   } catch (err) {
     console.error('마이크 접근 오류:', err);
@@ -409,13 +415,17 @@ async function startRecording() {
 function stopRecording() {
   if (!isRecording.value || !mediaRecorder) return;
 
-  // 녹음 중지를 요청. 이 호출 이후 onstop 핸들러가 자동으로 실행됩니다.
   mediaRecorder.stop();
 
-  // 미디어 스트림과 시각화 정리
   isRecording.value = false;
   mediaStream?.getTracks().forEach(track => track.stop());
   mediaStream = null;
+
+  // 시각화 애니메이션 중지
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
 }
 
 
@@ -1413,7 +1423,7 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 }
 
 .book-editor-page {
-  padding: 1rem 4rem 5rem 4rem;
+  padding: 0.8rem 3.2rem 4rem 3.2rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
@@ -1422,31 +1432,31 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 
 .section-title {
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .section-subtitle {
   text-align: center;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: #5b673b;
-  margin-bottom: 3rem;
+  margin-bottom: 2.4rem;
 }
 
 /* --- General Button Styles --- */
 .btn {
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
   transition: all 0.2s ease-in-out;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  padding: 0.6rem 1.2rem;
+  gap: 0.4rem;
+  padding: 0.5rem 1rem;
 }
 
 @keyframes fill-animation {
@@ -1476,12 +1486,12 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
   overflow: hidden;
   z-index: 1;
   display: inline-block;
-  border: 3px solid #5b673b !important;
-  border-radius: 20px !important;
-  margin-left: 1rem !important;
-  margin-right: 1rem !important;
-  padding: 0.5rem 1.2rem !important;
-  font-size: 1rem !important;
+  border: 2px solid #5b673b !important;
+  border-radius: 16px !important;
+  margin-left: 0.8rem !important;
+  margin-right: 0.8rem !important;
+  padding: 0.4rem 1rem !important;
+  font-size: 0.8rem !important;
   white-space: nowrap;
   font-family: 'SCDream5', sans-serif;
   transition: color 0.5s ease;
@@ -1519,8 +1529,8 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 }
 
 .btn-lg {
-  padding: 0.8rem 1.8rem;
-  font-size: 1.1rem;
+  padding: 0.6rem 1.4rem;
+  font-size: 0.9rem;
 }
 
 /* --- Title Input Styling --- */
@@ -1530,9 +1540,9 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
   border: none;
   border-bottom: 2px solid #c1af9b;
   border-radius: 0;
-  padding: 0.5rem 0.2rem;
+  padding: 0.4rem 0.15rem;
   font-family: 'ChosunCentennial', serif;
-  font-size: 1.75rem;
+  font-size: 1.4rem;
   font-weight: 600;
   color: var(--primary-text-color);
   transition: border-color 0.3s ease;
@@ -1545,38 +1555,38 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 }
 
 .story-title-input.title-input-highlight {
-  font-size: 1.3rem;
+  font-size: 1rem;
 }
 
 /* --- Setup / Publish Section --- */
 .setup-section,
 .publish-section {
-  max-width: 800px;
+  max-width: 640px;
   margin: 0 auto;
   background: var(--surface-color);
-  padding: 2.5rem 3rem;
-  border-radius: 25px;
-  border: 3px solid #657143;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  padding: 2rem 2.4rem;
+  border-radius: 20px;
+  border: 2px solid #657143;
+  box-shadow: 0 3px 16px rgba(0, 0, 0, 0.08);
 }
 
 .form-group {
-  margin-bottom: 2rem;
+  margin-bottom: 1.6rem;
 }
 
 .form-group label {
   display: block;
   font-weight: 600;
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
+  margin-bottom: 0.6rem;
+  font-size: 0.8rem;
 }
 
 .form-control {
   width: 100%;
-  padding: 0.8rem 1rem;
+  padding: 0.6rem 0.8rem;
   border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
+  border-radius: 5px;
+  font-size: 0.8rem;
   transition: border-color 0.2s;
   background-color: #fff;
 }
@@ -1592,15 +1602,15 @@ textarea.form-control {
 
 .type-selection {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1.2rem;
 }
 
 .type-selection button {
   background: var(--surface-color);
-  border-radius: 30px;
-  padding: 1rem;
-  border: 3px solid #657143;
+  border-radius: 24px;
+  padding: 0.8rem;
+  border: 2px solid #657143;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
   cursor: pointer;
   text-align: center;
@@ -1611,7 +1621,7 @@ textarea.form-control {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.6rem;
   color: var(--primary-text-color);
 }
 
@@ -1637,21 +1647,21 @@ textarea.form-control {
 
 .type-selection button:hover,
 .type-selection button.active {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   color: white;
   border-color: #657143;
 }
 
 .type-selection button i {
-  font-size: 2.5rem;
+  font-size: 2rem;
   color: var(--accent-color);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
   transition: color 0.4s ease;
 }
 
 .type-selection button span {
   font-family: 'EBSHunminjeongeumSaeronL', serif;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   font-weight: 600;
   transition: color 0.4s ease;
 }
@@ -1666,14 +1676,14 @@ textarea.form-control {
 .genre-toggle {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
+  gap: 0.6rem;
 }
 
 .genre-toggle button {
   background: rgba(138, 154, 91, 0.2);
   border: 1px solid transparent;
-  border-radius: 20px;
-  padding: 0.3rem 1rem;
+  border-radius: 16px;
+  padding: 0.2rem 0.8rem;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -1684,20 +1694,16 @@ textarea.form-control {
 
 .genre-toggle button.active {
   background-color: #6F7D48;
-  /* Darker Gray */
   color: white;
 
 }
 
 .form-actions {
   text-align: center;
-  margin-top: 3rem;
+  margin-top: 2.4rem;
   display: flex;
-  /* [추가] 버튼을 옆으로 나열하기 위해 flex 사용 */
   justify-content: center;
-  /* [추가] 중앙 정렬 */
-  gap: 1rem;
-  /* [추가] 버튼 사이 간격 */
+  gap: 0.8rem;
 }
 
 /* --- Workspace Section --- */
@@ -1708,8 +1714,8 @@ textarea.form-control {
 .workspace-header {
   display: flex;
   align-items: center;
-  margin: 0rem 2rem 1rem 1rem;
-  gap: 1rem;
+  margin: 0rem 1.6rem 0.8rem 0.8rem;
+  gap: 0.8rem;
 }
 
 .book-title-input {
@@ -1718,16 +1724,16 @@ textarea.form-control {
 
 .workspace-main {
   display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 2rem;
-  height: calc(100vh - 220px);
+  grid-template-columns: 224px 1fr;
+  gap: 1.6rem;
+  height: calc(100vh - 176px);
 }
 
 .story-list-container {
   background: var(--surface-color);
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid var(--border-color);
-  padding: 1rem;
+  padding: 0.8rem;
   display: flex;
   flex-direction: column;
   font-family: 'Noto Serif KR', serif;
@@ -1737,12 +1743,12 @@ textarea.form-control {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
+  padding: 0.4rem;
+  margin-bottom: 0.4rem;
 }
 
 .story-list-title {
-  font-size: 1rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #000000;
   margin: 0;
@@ -1755,8 +1761,8 @@ textarea.form-control {
   color: var(--secondary-text-color);
   border-radius: 50%;
   cursor: pointer;
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   transition: all 0.2s;
@@ -1779,12 +1785,12 @@ textarea.form-control {
 }
 
 .story-list li {
-  padding: 0.8rem 1rem;
+  padding: 0.6rem 0.8rem;
   border-radius: 0;
   cursor: pointer;
   color: #555;
   transition: background-color 0.2s, color 0.2s;
-  border-left: 3px solid transparent;
+  border-left: 2px solid transparent;
   border-bottom: 1px solid #EAE0D5;
 }
 
@@ -1799,7 +1805,7 @@ textarea.form-control {
 .story-list li.active {
   background-color: #f1fade56;
   color: var(--primary-text-color);
-  border-radius: 5px;
+  border-radius: 4px;
 }
 
 .story-list li {
@@ -1812,9 +1818,9 @@ textarea.form-control {
   background: none;
   border: none;
   color: #adb5bd;
-  font-size: 1.2rem;
+  font-size: 1rem;
   cursor: pointer;
-  padding: 0 0.5rem;
+  padding: 0 0.4rem;
   visibility: hidden;
   opacity: 0;
   transition: all 0.2s;
@@ -1831,19 +1837,19 @@ textarea.form-control {
 
 .editor-area {
   display: grid;
-  grid-template-columns: 1fr 240px;
-  gap: 1.5rem;
+  grid-template-columns: 1fr 192px;
+  gap: 1.2rem;
   background: var(--paper-color);
-  border-radius: 8px;
+  border-radius: 6px;
   border: 1px solid var(--border-color);
   overflow: hidden;
 }
 
 .editor-main {
-  padding: 1rem;
+  padding: 0.8rem;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .story-title-input {
@@ -1852,15 +1858,15 @@ textarea.form-control {
 
 .ai-question-area {
   background: #fafafa;
-  padding: 1.5rem;
-  border-radius: 6px;
-  /* font-style: italic; */
+  padding: 1.2rem;
+  border-radius: 5px;
   color: #000000;
+  font-size: 20px;
   border: 1px solid var(--border-color);
 }
 
 .ai-question-area p i {
-  margin-right: 0.5rem;
+  margin-right: 0.4rem;
 }
 
 .story-content-wrapper {
@@ -1872,45 +1878,42 @@ textarea.form-control {
   flex-grow: 1;
   width: 100%;
   height: 100%;
-  padding: 1rem;
-  padding-bottom: 2rem;
-  /* Make space for counter */
+  padding: 0.8rem;
+  padding-bottom: 1.6rem;
   resize: none;
   border: 1px solid var(--border-color);
-  border-radius: 6px;
+  border-radius: 5px;
   background: rgba(138, 154, 91, 0.02);
   outline: none;
   font-family: 'MaruBuri-Light', serif;
-  font-size: 1.1rem;
-  line-height: 1.9;
+  font-size: 20px;
+  line-height: 1.5;
 }
 
 .char-counter {
   position: absolute;
-  bottom: 30px;
-  right: 30px;
-  font-size: 0.85rem;
+  bottom: 24px;
+  right: 24px;
+  font-size: 0.7rem;
   color: #888888c5;
 }
 
 .editor-sidebar {
   background: var(--surface-color);
-  padding: 1rem 2.5rem;
+  padding: 0.8rem 2rem;
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.5rem;
   align-items: flex-end;
-  /* [추가] 버튼들을 오른쪽으로 정렬합니다. */
 }
 
 .btn-sidebar {
-  width: 44px;
-  height: 44px;
+  width: 39px;
+  height: 39px;
   margin: 0;
-  /* [수정] '0 auto'에서 '0'으로 변경하여 자동 중앙 정렬을 제거합니다. */
   padding: 0;
-  border-radius: 50px;
+  border-radius: 44px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1923,11 +1926,10 @@ textarea.form-control {
   color: #333;
   white-space: nowrap;
   overflow: hidden;
-  font-size: 14px;
+  font-size: 12px;
 }
 
 .btn-sidebar span {
-  /* Initially hidden */
   visibility: hidden;
   opacity: 0;
   width: 0;
@@ -1935,11 +1937,11 @@ textarea.form-control {
 }
 
 .btn-sidebar:hover {
-  width: 170px;
-  border-radius: 50px;
+  width: 150px;
+  border-radius: 44px;
   justify-content: flex-start;
-  padding: 0 0.8rem;
-  gap: 0.6rem;
+  padding: 0 0.7rem;
+  gap: 0.55rem;
   border-color: var(--accent-color);
   background-color: #f6f8f2;
 }
@@ -1952,14 +1954,12 @@ textarea.form-control {
 }
 
 .btn-sidebar i {
-  font-size: 1.1rem;
+  font-size: 1rem;
   flex-shrink: 0;
-  /* Prevent icon from shrinking */
 }
 
 .btn-sidebar.font-small {
-  font-size: 0.8rem;
-  /* 줄바꿈 시 적용될 작은 폰트 크기 */
+  font-size: 0.65rem;
 }
 
 .btn-sidebar:disabled {
@@ -1972,19 +1972,17 @@ textarea.form-control {
   border-color: #ff8a8a;
 }
 
-
-
 .sidebar-divider {
-  margin: 1.5rem 0;
+  margin: 1.2rem 0;
   border: none;
   border-top: 1px solid var(--border-color);
 }
 
 .audio-visualizer-container {
-  margin-top: 1rem;
-  height: 8px;
+  margin-top: 0.8rem;
+  height: 6px;
   background: #EAE0D5;
-  border-radius: 4px;
+  border-radius: 3px;
   overflow: hidden;
 }
 
@@ -1994,20 +1992,20 @@ textarea.form-control {
 }
 
 .correction-panel {
-  border: 1px solid #b8e0b8;
-  background: #f0fff0;
-  padding: 1rem;
-  border-radius: 6px;
+  border: 1px solid #b19366;
+  background: #fff7f0;
+  padding: 0.8rem;
+  border-radius: 10px;
 }
 
 .correction-panel h4 {
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.4rem 0;
 }
 
 .correction-actions {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
 }
 
 /* --- Publish Section Specifics --- */
@@ -2020,7 +2018,6 @@ textarea.form-control {
   border: 1px solid #ccc;
   font-family: 'Pretendard', sans-serif;
   font-weight: 400;
-  /* Normal weight */
 }
 
 .publish-header {
@@ -2028,7 +2025,7 @@ textarea.form-control {
   align-items: center;
   justify-content: center;
   position: relative;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem;
 }
 
 .publish-header .section-title {
@@ -2038,12 +2035,12 @@ textarea.form-control {
 .cover-selection {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .cover-option {
-  border: 3px solid transparent;
-  border-radius: 6px;
+  border: 2px solid transparent;
+  border-radius: 5px;
   cursor: pointer;
   transition: all 0.2s;
   overflow: hidden;
@@ -2071,40 +2068,37 @@ textarea.form-control {
 }
 
 .no-story-message i {
-  font-size: 3rem;
-  margin-bottom: 1rem;
+  font-size: 2.4rem;
+  margin-bottom: 0.8rem;
 }
 
 .editor-title-wrapper {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding-bottom: 1rem;
+  gap: 0.8rem;
+  padding-bottom: 0.8rem;
 }
 
 .editor-title-label {
   font-family: 'ChosunCentennial', serif;
   font-weight: 600;
-  font-size: 1.5rem;
+  font-size: 1.2rem;
   white-space: nowrap;
   color: #414141;
 }
 
 /* --- Tag Input Styles --- */
 .tag-container {
-  /* border: 1px solid #ccc; */
-  /* 외곽선 제거 */
-  border-radius: 6px;
-  padding: 0.5rem;
+  border-radius: 5px;
+  padding: 0.4rem;
   padding-bottom: 0;
-  /* 아래쪽 패딩 제거 */
 }
 
 .tag-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
 }
 
 .tag-item {
@@ -2112,9 +2106,9 @@ textarea.form-control {
   align-items: center;
   background-color: #a8b87f;
   color: #000000;
-  border-radius: 16px;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.9rem;
+  border-radius: 13px;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.7rem;
   font-weight: 500;
 }
 
@@ -2122,9 +2116,9 @@ textarea.form-control {
   background: none;
   border: none;
   color: #000000;
-  margin-left: 0.5rem;
+  margin-left: 0.4rem;
   cursor: pointer;
-  font-size: 1.2rem;
+  font-size: 1rem;
   line-height: 1;
   padding: 0;
 }
@@ -2135,12 +2129,9 @@ textarea.form-control {
 
 .tag-container .form-control {
   border: 1px solid #ccc;
-  /* 입력란에만 외곽선 추가 */
   box-shadow: none;
-  padding-left: 0.8rem;
-  /* 패딩 조정 */
-  margin-top: 0.5rem;
-  /* 위쪽 태그 목록과의 간격 */
+  padding-left: 0.6rem;
+  margin-top: 0.4rem;
 }
 
 .tag-container .form-control:focus {
@@ -2150,14 +2141,12 @@ textarea.form-control {
 /* 발행하기 & 임시저장 버튼 항상 확장 스타일 */
 .btn-primary-sidebar,
 .btn-outline-sidebar {
-  width: 170px;
-  /* 기본 호버 너비(190px)보다 약간 작은 너비로 고정 */
-  border-radius: 50px;
+  width: 150px;
+  border-radius: 44px;
   justify-content: flex-start;
-  padding: 0 0.8rem;
-  gap: 0.6rem;
+  padding: 0 0.7rem;
+  gap: 0.55rem;
   background-color: #f6f8f2;
-  /* 확장 상태와 어울리는 배경색 추가 */
 }
 
 /* 위 버튼들의 텍스트(span)를 항상 보이게 처리 */
@@ -2180,53 +2169,35 @@ textarea.form-control {
   /* 전체 작업 공간을 세로로 쌓기 */
   .workspace-main {
     grid-template-columns: 1fr;
-    /* 2단 그리드를 1단으로 변경 */
     height: auto;
-    /* 고정 높이 제거 */
-    gap: 1.5rem;
-    /* 요소 간 간격 조정 */
+    gap: 1.2rem;
   }
 
   /* 에디터 영역을 세로로 쌓기 */
   .editor-area {
     grid-template-columns: 1fr;
-    /* 2단 그리드를 1단으로 변경 */
   }
 
   /* 사이드바를 가로 버튼 그룹으로 변경 */
   .editor-sidebar {
     flex-direction: row;
-    /* 버튼을 가로로 나열 */
     flex-wrap: wrap;
-    /* 버튼이 넘치면 다음 줄로 이동 */
     justify-content: center;
-    /* 버튼 그룹을 중앙 정렬 */
-    gap: 0.75rem;
-    /* 버튼 사이 간격 */
+    gap: 0.6rem;
     border-left: none;
-    /* 왼쪽 경계선 제거 */
     border-top: 1px solid var(--border-color);
-    /* 위쪽 경계선 추가 */
-    padding: 1.5rem 1rem;
-    /* 패딩 조정 */
+    padding: 1.2rem 0.8rem;
   }
 
-  /* 사이드바 버튼 스타일 조정 */
-  /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
-  /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
   .btn-sidebar:hover {
     width: auto;
-    min-width: 145px;
-    /* 수정: 최소 너비 축소 */
-    height: 40px;
-    /* 수정: 버튼 높이 축소 */
-    border-radius: 30px;
+    min-width: 128px;
+    height: 35px;
+    border-radius: 26px;
     justify-content: flex-start;
-    padding: 0 0.9rem;
-    /* 수정: 좌우 여백 축소 */
+    padding: 0 0.8rem;
     transform: none;
-    font-size: 0.9rem;
-    /* 추가: 글씨 크기 작게 설정 */
+    font-size: 0.8rem;
   }
 
 

@@ -1,6 +1,12 @@
 <template>
   <nav class="navbar navbar-expand-lg"
-       :class="{ 'navbar-content-hidden': isIntroActive, 'navbar-dark': isHome, 'navbar-light': !isHome, 'scrolled': isScrolled }">
+       :class="{
+         'navbar-content-hidden': isIntroActive,
+         'navbar-dark': isHome && !isMenuOpen,
+         'navbar-light': !isHome || isMenuOpen,
+         'scrolled': isScrolled,
+         'menu-open': isMenuOpen
+       }">
     <div class="container-fluid position-relative">
       <a class="navbar-brand" href="#" @click.prevent="goHome">
         <div class="logo-container">
@@ -21,7 +27,7 @@
             <router-link class="nav-link" to="/create-book">책 집필</router-link>
           </li>
           <li class="nav-item mx-3">
-            <router-link class="nav-link" to="/my-library">서재</router-link>
+            <router-link class="nav-link" to="/my-library">내 서재</router-link>
           </li>
           <li v-if="isLoggedIn" class="nav-item mx-3">
             <router-link class="nav-link" to="/my-page">내 정보</router-link>
@@ -94,6 +100,7 @@ const goHome = () => {
 };
 
 const isScrolled = ref(false);
+const isMenuOpen = ref(false);
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 50;
@@ -101,10 +108,17 @@ const handleScroll = () => {
 
 onMounted(() => {
   window.addEventListener('scroll', handleScroll);
+  const navCollapse = document.getElementById('navbarNav');
+  if (navCollapse) {
+    navCollapse.addEventListener('show.bs.collapse', () => isMenuOpen.value = true);
+    navCollapse.addEventListener('hide.bs.collapse', () => isMenuOpen.value = false);
+  }
 });
 
 onUnmounted(() => {
   window.removeEventListener('scroll', handleScroll);
+  // Note: Technically, you should also remove the collapse event listeners,
+  // but since the navbar is persistent, it's less critical.
 });
 
 const showNotificationModal = ref(false);
@@ -161,14 +175,22 @@ onMounted(() => {
   background-color: transparent !important;
   z-index: 1030;
   transition: background-color 0.5s ease;
-  padding-top: 20px; /* 상단 여백 추가 */
-  padding-bottom: 20px; /* 하단 여백 추가 */
+  padding-top: 18px;
+  padding-bottom: 18px;
 }
 
 .navbar.scrolled {
   background-color: rgba(152, 164, 115, 0.3) !important;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(9px);
 }
+
+.navbar.menu-open:not(.scrolled) {
+  background-color: #fff !important;
+}
+.navbar.scrolled.menu-open {
+  background-color: rgba(152, 164, 115, 0.95) !important;
+}
+
 
 .navbar-content-hidden .navbar-brand,
 .navbar-content-hidden .navbar-toggler,
@@ -179,7 +201,7 @@ onMounted(() => {
 }
 
 .navbar-brand {
-  padding-left: 2rem; /* Add left padding to the logo */
+  padding-left: 1.8rem;
 }
 
 .navbar-brand,
@@ -188,7 +210,7 @@ onMounted(() => {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.5s ease, visibility 0.5s ease, color 0.5s ease, transform 0.2s ease-in-out;
-  font-size: 18px !important;
+  font-size: 16px !important;
 }
 
 .nav-link:hover {
@@ -201,29 +223,29 @@ onMounted(() => {
 
 .notification-item .badge {
   position: absolute;
-  top: 5px;
+  top: 4px;
   right: 0px;
-  padding: 3px 6px;
+  padding: 3px 5px;
   border-radius: 50%;
   background-color: rgb(163, 24, 24);
   color: white;
-  font-size: 10px;
+  font-size: 9px;
 }
 
 .notification-modal {
   position: fixed;
-  top: 60px; /* Adjust this value based on your navbar's height */
-  right: 10px;
-  width: 450px;
+  top: 54px;
+  right: 9px;
+  width: 405px;
   background-color: white;
   border: 1px solid #ddd;
-  border-radius: 15px;
+  border-radius: 13px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15);
   z-index: 1055;
 }
 
 .modal-content {
-  padding: 15px;
+  padding: 13px;
 }
 
 .modal-header {
@@ -231,14 +253,14 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
-  margin-bottom: 10px;
+  padding-bottom: 9px;
+  margin-bottom: 9px;
 }
 
 .close-button {
   background: none;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.35rem;
   cursor: pointer;
 }
 
@@ -252,13 +274,13 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 9px 0;
   border-bottom: 1px solid #eee;
 }
 
 .modal-body li span {
   flex-grow: 1;
-  margin-right: 15px;
+  margin-right: 13px;
 }
 
 .modal-body li:last-child {
@@ -267,7 +289,7 @@ onMounted(() => {
 
 .invite-actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 0.45rem;
   flex-shrink: 0;
 }
 
@@ -296,11 +318,11 @@ onMounted(() => {
   z-index: 1;
   display: inline-block;
   border: 1px solid #dee2e6 !important;
-  border-radius: 20px !important;
-  margin-left: 1rem !important;
-  margin-right: 1rem !important;
-  padding: 0.2rem 0.7rem !important;
-  font-size: 14px !important;
+  border-radius: 18px !important;
+  margin-left: 0.9rem !important;
+  margin-right: 0.9rem !important;
+  padding: 0.2rem 0.6rem !important;
+  font-size: 13px !important;
   white-space: nowrap;
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
   transition: color 0.5s ease;
@@ -335,22 +357,22 @@ onMounted(() => {
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
   font-weight: normal;
   white-space: nowrap;
-  min-width: 250px; /* Adjust as needed to fit the full text */
+  min-width: 225px;
 }
 
 .logo-large {
-  font-size: 2rem;
+  font-size: 1.8rem;
   transition: margin-right 0.4s ease-in-out;
-  margin-right: 1rem; /* Default spacing for "아 북 이" */
+  margin-right: 0.9rem;
 }
 
 .logo-small {
-  font-size: 1rem;
+  font-size: 0.9rem;
   max-width: 0;
   opacity: 0;
   overflow: hidden;
   transition: max-width 0.4s ease-in-out, opacity 0.3s ease-in-out;
-  padding-right: 0.5rem; /* Spacing for "아띠와 북적북적 이야길" */
+  padding-right: 0.45rem;
 }
 
 .logo-container:hover .logo-large {
@@ -358,7 +380,7 @@ onMounted(() => {
 }
 
 .logo-container:hover .logo-small {
-  max-width: 100px; /* A reasonable max width to expand to */
+  max-width: 90px;
   opacity: 1;
 }
 
@@ -366,20 +388,47 @@ onMounted(() => {
   position: static !important;
 }
 
+/* --- [변경] 모바일과 데스크톱 스타일 분리 --- */
+
+/* 기본 (모바일) 스타일 */
 .center-nav {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
   display: flex;
+  flex-direction: column; /* 세로 정렬 */
+  align-items: center;   /* 가운데 정렬 */
   list-style: none;
-  padding-left: 0;
-  gap: 4rem; /* 메뉴 간격 조정 */
+  padding: 2rem 0;       /* 위아래 여백 추가 */
+  gap: 1.5rem;           /* 모바일에 맞는 적절한 간격 */
+  margin-left: 0;        /* 중앙 정렬을 위해 margin 초기화 */
+  width: 100%;           /* 너비 100% 차지 */
+}
+
+.navbar-nav.ms-auto {
+    width: 100%;
+    justify-content: center; /* 버튼 중앙 정렬 */
+    padding-bottom: 1.5rem;  /* 하단 여백 */
+}
+
+/* 데스크톱 (화면이 992px 이상일 때) 스타일 */
+@media (min-width: 992px) {
+  .center-nav {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    flex-direction: row; /* 가로 정렬 */
+    padding: 0;
+    gap: 3.6rem;
+    width: auto; /* 너비 자동 */
+  }
+
+  .navbar-nav.ms-auto {
+    width: auto; /* 너비 자동 */
+    padding-bottom: 0;
+  }
 }
 
 .center-nav .nav-link {
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  font-size: 20px !important; /* 글씨 크기 조정 */
-  /* font-weight: bold !important;  */
+  font-size: 18px !important;
 }
 
 .navbar-dark .center-nav .nav-link {
@@ -389,5 +438,4 @@ onMounted(() => {
 .navbar-light .center-nav .nav-link {
   color: #000000 !important;
 }
-
 </style>
