@@ -141,6 +141,7 @@ const totalPages = ref(0);
 const itemsPerPage = 10;
 const isLoading = ref(false);
 const error = ref<string | null>(null);
+let autoSlideInterval: number;
 
 const sortOptions = [
   { value: 'recent', text: '최신순' },
@@ -246,7 +247,7 @@ const carouselStyle = computed(() => ({
 
 const get3DTransform = (index: number) => {
   const itemAngle = index * 36;
-  return `rotateY(${itemAngle}deg) translateZ(450px)`;
+  return `rotateY(${itemAngle}deg) translateZ(360px)`;
 };
 
 const changeBook = (direction: number) => {
@@ -320,13 +321,7 @@ const formatDate = (dateString: string) => {
   }).format(date).replace(/\.$/, '');
 };
 
-let autoSlideInterval: number;
 
-onMounted(() => {
-  autoSlideInterval = window.setInterval(() => {
-    nextBook();
-  }, 3500);
-});
 
 onUnmounted(() => {
   clearInterval(autoSlideInterval);
@@ -351,9 +346,9 @@ function toggleGenre(genre: string) {
 <style>
 /* ... 전역 스타일은 이전과 동일 ... */
 :root {
-  --book-width: 210px;
-  --book-height: 310px;
-  --book-depth: 20px;
+  --book-width: 168px;
+  --book-height: 248px;
+  --book-depth: 16px;
 }
 
 .bookstore-page .book-model {
@@ -375,8 +370,8 @@ function toggleGenre(genre: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 2px 5px 5px 2px;
-  box-shadow: inset -2px 0 5px rgba(0, 0, 0, 0.15);
+  border-radius: 2px 4px 4px 2px;
+  box-shadow: inset -2px 0 4px rgba(0, 0, 0, 0.15);
   transform: translateZ(calc(var(--book-depth) / 2));
   background-size: cover;
   background-position: center;
@@ -384,10 +379,10 @@ function toggleGenre(genre: string) {
 
 .bookstore-page .vertical-line-front-bright-effect {
   position: absolute;
-  left: 8px;
+  left: 6px;
   top: 0;
   bottom: 0;
-  width: 8px;
+  width: 6px;
   background: linear-gradient(to right, rgba(255, 255, 255, 0.441), transparent);
 }
 
@@ -405,10 +400,10 @@ function toggleGenre(genre: string) {
 
 .bookstore-page .book-back-cover .barcode-placeholder {
   position: absolute;
-  bottom: 15px;
-  left: 20px;
-  width: 60px;
-  height: 30px;
+  bottom: 12px;
+  left: 16px;
+  width: 48px;
+  height: 24px;
   background-color: white;
   opacity: 0.9;
 }
@@ -417,7 +412,7 @@ function toggleGenre(genre: string) {
   width: var(--book-depth);
   height: var(--book-height);
   background-color: #e7e2d8;
-  transform: rotateY(-90deg) translateZ(calc(var(--book-width) / 2 - 96px));
+  transform: rotateY(-90deg) translateZ(calc(var(--book-width) / 2 - 77px));
   background-size: cover;
   background-position: center;
   filter: brightness(0.7) blur(0.5px);
@@ -432,7 +427,7 @@ function toggleGenre(genre: string) {
       #dfdedd 1px,
       #bbb 1px,
       #999590c8 3px);
-  transform: rotateY(90deg) translateZ(calc(var(--book-width) / 2 + 90px));
+  transform: rotateY(90deg) translateZ(calc(var(--book-width) / 2 + 72px));
 }
 </style>
 
@@ -442,7 +437,7 @@ function toggleGenre(genre: string) {
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
 .bookstore-page {
-  padding: 2rem 2rem 2rem 2rem;
+  padding: 1.6rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
@@ -450,66 +445,56 @@ function toggleGenre(genre: string) {
 }
 
 .title-container {
-  max-width: 1200px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
 .section-title {
   font-family: 'SCDream3', serif;
-  font-size: 4rem;
+  font-size: 3.2rem;
   font-weight: 700;
   color: var(--primary-text-color);
-  margin-bottom: -0.5rem;
-  margin-left: 3rem;
+  margin-bottom: -0.4rem;
+  margin-left: 2.4rem;
   margin-right: auto;
 }
 
 .section-subtitle1 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(116, 125, 76, 0.9);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: -0.5rem;
+  margin-bottom: -0.4rem;
 }
 
 .section-subtitle2 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(141, 153, 109, 0.7);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: 2rem;
+  margin-bottom: 1.6rem;
 }
 
 .special-font {
-  font-size: 5rem;
+  font-size: 4rem;
   font-family: 'EBSHunminjeongeumSaeronL', serif;
   position: relative;
   top: -0.1em;
-  /* 살짝 위로 올리는 효과 */
 }
-
-/* .section-subtitle3 {
-  font-family: 'SCDream4', serif;
-  font-size: 3rem;
-  color: rgba(147, 161, 89, 0.4);
-  margin-left: 3.5rem;
-  margin-right: auto;
-  margin-bottom: 5rem;
-} */
 
 .carousel-section {
   position: relative;
-  height: 450px;
+  height: 360px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.6rem;
 }
 
 .perspective-carousel-container {
-  perspective: 2500px;
+  perspective: 2000px;
   width: var(--book-width);
   height: var(--book-height);
   position: relative;
@@ -520,12 +505,12 @@ function toggleGenre(genre: string) {
   content: '';
   position: absolute;
   width: 100%;
-  height: 10px;
-  bottom: -40px;
+  height: 8px;
+  bottom: -32px;
   left: 0;
   background: rgba(0, 0, 0, 1);
   border-radius: 50%;
-  filter: blur(25px);
+  filter: blur(20px);
   transform: scale(2);
   z-index: -1;
 }
@@ -557,12 +542,10 @@ function toggleGenre(genre: string) {
   transform: translateY(-50%);
   z-index: 10;
   color: #5b673b;
-  ;
-  width: 50px;
-  height: 50px;
-  font-size: 2rem;
+  width: 40px;
+  height: 40px;
+  font-size: 1.6rem;
   transition: all 0.2s;
-
 }
 
 .carousel-control-btn:hover {
@@ -570,18 +553,18 @@ function toggleGenre(genre: string) {
 }
 
 .prev-btn {
-  left: calc(35% - 300px);
+  left: calc(35% - 240px);
 }
 
 .next-btn {
-  right: calc(35% - 300px);
+  right: calc(35% - 240px);
 }
 
 .title-box {
   width: 63%;
   height: 58%;
   background-color: rgba(255, 255, 255, 0.97);
-  padding: 15px;
+  padding: 12px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -592,25 +575,24 @@ function toggleGenre(genre: string) {
 
 .title-box h1 {
   font-family: 'ChosunCentennial', serif;
-  font-size: 18px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.4;
   margin: 0;
 }
 
 .author-in-box {
-  font-size: 10px;
+  font-size: 8px;
   color: #333;
   font-weight: 600;
   margin: 0;
   font-family: 'NanumSquareR', serif;
-
 }
 
 .search-section {
-  max-width: 1200px;
-  margin: 0 auto 2rem auto;
-  padding: 0 1rem;
+  max-width: 960px;
+  margin: 0 auto 1.6rem auto;
+  padding: 0 0.8rem;
 }
 
 .search-input-wrapper {
@@ -619,30 +601,30 @@ function toggleGenre(genre: string) {
 
 .search-input {
   width: 100%;
-  padding: 1rem 2rem 1rem 3.5rem;
-  border: 3px solid #657143;
-  border-radius: 30px;
-  font-size: 1.2rem;
+  padding: 0.8rem 1.6rem 0.8rem 2.8rem;
+  border: 2px solid #657143;
+  border-radius: 24px;
+  font-size: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
   font-family: 'EBSHunminjeongeumSaeronL', serif;
 }
 
 .search-icon {
   position: absolute;
-  left: 1.5rem;
+  left: 1.2rem;
   top: 50%;
   transform: translateY(-50%);
   color: #6F7D48;
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .main-content-area {
   display: grid;
-  grid-template-columns: 220px 1fr;
-  gap: 3rem;
-  max-width: 1200px;
+  grid-template-columns: 176px 1fr;
+  gap: 2.4rem;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 0.8rem;
 }
 
 .left-sidebar {
@@ -650,17 +632,16 @@ function toggleGenre(genre: string) {
 }
 
 .sidebar-block {
-  margin-bottom: 2.5rem;
+  margin-bottom: 2rem;
 }
 
 .sidebar-title {
-  font-size: 1.2rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #333;
-  margin-bottom: 1.5rem;
-  padding-bottom: 0.75rem;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.6rem;
   border-bottom: 2px solid #5b673b;
-
 }
 
 .sort-options-wrapper,
@@ -668,17 +649,17 @@ function toggleGenre(genre: string) {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1rem;
+  gap: 0.8rem;
 }
 
 .radio-button span,
 .genre-button {
   width: 100%;
   text-align: left;
-  padding: 0.5rem 0;
+  padding: 0.4rem 0;
   border: none;
   background: none;
-  font-size: 1rem;
+  font-size: 0.8rem;
   color: #555;
   cursor: pointer;
   transition: color 0.2s;
@@ -712,11 +693,11 @@ function toggleGenre(genre: string) {
 .book-list-item {
   position: relative;
   display: flex;
-  gap: 1.5rem;
-  padding: 1.5rem;
+  gap: 1.2rem;
+  padding: 1.2rem;
   border-bottom: 1px solid #f0f0f0;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: 6px;
   transition: all 0.2s ease-in-out;
 }
 
@@ -728,28 +709,25 @@ function toggleGenre(genre: string) {
 }
 
 .book-cover-image {
-  width: 120px;
-  height: 180px;
+  width: 96px;
+  height: 144px;
   object-fit: cover;
-  border-radius: 4px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 3px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
-  /* [추가] 캐러셀과 동일하게 flex 속성 추가 */
   display: flex;
   align-items: center;
   justify-content: center;
   background-size: cover;
   background-position: center;
   position: relative;
-  /* 자식 요소 position absolute를 위해 추가 */
 }
 
-/* [추가] 목록 내 표지 위의 제목/작가 박스 스타일 */
 .list-title-box {
   width: 80%;
   height: 70%;
   background-color: rgba(255, 255, 255, 0.95);
-  padding: 10px;
+  padding: 8px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -761,26 +739,23 @@ function toggleGenre(genre: string) {
 
 .list-title-box-title {
   font-family: 'Noto Serif KR', serif;
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   line-height: 1.4;
   margin: 0;
-  /* 말줄임 처리 */
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   line-clamp: 3;
-  /* 표준 속성으로 변경 */
   -webkit-box-orient: vertical;
 }
 
 .list-title-box-author {
-  font-size: 10px;
+  font-size: 8px;
   font-weight: 500;
   margin: 0;
   color: #555;
 }
-
 
 .book-details {
   flex-grow: 1;
@@ -791,18 +766,18 @@ function toggleGenre(genre: string) {
 .book-title {
   font-family: 'Noto Serif KR', serif;
   font-weight: 700;
-  font-size: 1.25rem;
-  margin-bottom: 0.25rem;
+  font-size: 1rem;
+  margin-bottom: 0.2rem;
   color: #26250F;
 }
 
 .author-info {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.4rem;
   color: #888;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+  margin-bottom: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .separator {
@@ -810,41 +785,40 @@ function toggleGenre(genre: string) {
 }
 
 .book-summary {
-  font-size: 0.9rem;
+  font-size: 0.7rem;
   line-height: 1.6;
   color: #555;
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   line-clamp: 3;
-  /* 표준 속성으로 변경 */
   -webkit-box-orient: vertical;
 }
 
 .book-meta-tags {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.4rem;
   margin-bottom: auto;
-  padding-bottom: 1rem;
+  padding-bottom: 0.8rem;
 }
 
 .meta-tag {
   color: #5b673b;
-  padding: 0.25rem 0.75rem;
-  border-radius: 30px;
-  font-size: 0.8rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 24px;
+  font-size: 0.65rem;
   font-weight: 500;
   background-color: rgba(138, 154, 91, 0.4);
 }
 
 .book-stats {
   display: flex;
-  gap: 1rem;
-  font-size: 0.85rem;
+  gap: 0.8rem;
+  font-size: 0.7rem;
   color: #aaa;
-  padding-top: 1rem;
+  padding-top: 0.8rem;
 }
 
 .book-stats i {
@@ -853,32 +827,27 @@ function toggleGenre(genre: string) {
 
 .no-books-message {
   text-align: center;
-  padding: 4rem;
-  font-size: 1.2rem;
+  padding: 3.2rem;
+  font-size: 1rem;
   color: #ccc;
   border: 1px dashed #eee;
-  border-radius: 8px;
-}
-
-.filter-section,
-.book-list-section {
-  display: none;
+  border-radius: 6px;
 }
 
 .pagination-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  margin-top: 2.5rem;
-  gap: 0.5rem;
+  margin-top: 2rem;
+  gap: 0.4rem;
 }
 
 .page-btn {
   background-color: #fff;
   border: 1px solid #ddd;
   color: #555;
-  padding: 0.5rem 0.5rem;
-  border-radius: 50px;
+  padding: 0.4rem;
+  border-radius: 40px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -903,7 +872,96 @@ function toggleGenre(genre: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.5rem 1rem;
+  padding: 0.4rem 0.8rem;
   color: #999;
+}
+
+/* --- 반응형 디자인 --- */
+@media (max-width: 1200px) {
+  .prev-btn {
+    left: 5%;
+  }
+  .next-btn {
+    right: 5%;
+  }
+}
+
+@media (max-width: 992px) {
+  .main-content-area {
+    grid-template-columns: 1fr;
+  }
+  .left-sidebar {
+    display: flex;
+    justify-content: space-between;
+    gap: 2rem;
+  }
+  .sidebar-block {
+    flex: 1;
+  }
+  .carousel-section {
+    height: 300px;
+  }
+  .perspective-carousel-container {
+    perspective: 1500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .carousel-section {
+    display: none; /* 작은 화면에서는 캐러셀 숨김 */
+  }
+  .section-title, .section-subtitle1, .section-subtitle2 {
+    text-align: center;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  .section-title {
+    font-size: 2.4rem;
+  }
+  .section-subtitle1, .section-subtitle2 {
+    font-size: 1.8rem;
+  }
+  .special-font {
+    font-size: 3rem;
+  }
+  .book-list-item {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .book-details {
+    align-items: center;
+  }
+  .author-info, .book-meta-tags, .book-stats {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .bookstore-page {
+    padding: 1rem;
+  }
+  .section-title {
+    font-size: 2rem;
+  }
+  .section-subtitle1, .section-subtitle2 {
+    font-size: 1.4rem;
+  }
+  .special-font {
+    font-size: 2.5rem;
+  }
+  .left-sidebar {
+    flex-direction: column;
+  }
+  .book-cover-image {
+    width: 80px;
+    height: 120px;
+  }
+  .book-title {
+    font-size: 0.9rem;
+  }
+  .author-info, .book-summary {
+    font-size: 0.6rem;
+  }
 }
 </style>

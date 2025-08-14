@@ -126,8 +126,8 @@ interface RemoteParticipant {
   identity: string;
   isMicrophoneEnabled: boolean;
   isCameraEnabled: boolean;
-  videoTrack?: any;
-  audioTrack?: any;
+  videoTrack?: Record<string, unknown>;
+  audioTrack?: Record<string, unknown>;
   connectionQuality?: number;
 }
 
@@ -268,9 +268,26 @@ async function joinRoom(groupId: string, onDataReceived?: (payload: any, partici
     return livekitRoom;
   } catch (error: any) {
     console.error('룸 입장 실패:', error);
+    
+    let errorMessage = '룸 입장에 실패했습니다.';
+    
+    if (error.message?.includes('LiveKit 토큰')) {
+      errorMessage = error.message;
+    } else if (error.message?.includes('서버에서')) {
+      errorMessage = error.message;
+    } else if (error.response?.status === 500) {
+      errorMessage = 'LiveKit 서버 설정에 문제가 있습니다. 관리자에게 문의해주세요.';
+    } else if (error.name === 'ConnectError') {
+      errorMessage = 'LiveKit 서버에 연결할 수 없습니다. 네트워크 상태를 확인해주세요.';
+    } else if (error.message?.includes('token')) {
+      errorMessage = '인증 토큰에 문제가 있습니다. 다시 시도해주세요.';
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+    
     connectionStatus.value = {
       type: 'error',
-      message: `입장 실패: ${error?.message || '알 수 없는 오류가 발생했습니다'}`
+      message: errorMessage
     };
     connectionState.value = 'disconnected';
     throw error;
@@ -337,9 +354,9 @@ function setupRoomEventListeners(onDataReceived?: (payload: any, participant: an
 
 function addRemoteParticipant(participant: any) {
   const newParticipant: RemoteParticipant = {
-    identity: participant.identity,
-    isMicrophoneEnabled: participant.isMicrophoneEnabled,
-    isCameraEnabled: participant.isCameraEnabled,
+    identity: participant.identity as string,
+    isMicrophoneEnabled: participant.isMicrophoneEnabled as boolean,
+    isCameraEnabled: participant.isCameraEnabled as boolean,
     connectionQuality: undefined
   };
 
@@ -351,7 +368,8 @@ function addRemoteParticipant(participant: any) {
     }
   });
 
-  participant.audioTracks.forEach((publication: any) => {
+  const audioTracks = participant.audioTracks as { track?: Record<string, unknown> }[];
+  audioTracks?.forEach((publication) => {
     if (publication.track) {
       handleTrackSubscribed(publication.track, participant);
     }
@@ -366,17 +384,17 @@ function removeRemoteParticipant(identity: string) {
   participantVideoRefs.value.delete(identity);
 }
 
-function handleTrackSubscribed(track: any, participant: any) {
-  const participantData = remoteParticipants.value.find(p => p.identity === participant.identity);
+function handleTrackSubscribed(track: Record<string, unknown>, participant: Record<string, unknown>) {
+  const participantData = remoteParticipants.value.find(p => p.identity === (participant.identity as string));
   if (!participantData) return;
 
-  if (track.kind === 'video') {
+  if ((track.kind as string) === 'video') {
     participantData.videoTrack = track;
     
     setTimeout(() => {
       const videoElement = participantVideoRefs.value.get(participant.identity);
       if (videoElement) {
-        track.attach(videoElement);
+        (track.attach as (el: HTMLVideoElement) => void)(videoElement);
       }
     }, 100);
   } else if (track.kind === 'audio') {
@@ -385,16 +403,16 @@ function handleTrackSubscribed(track: any, participant: any) {
   }
 }
 
-function handleTrackUnsubscribed(track: any, participant: any) {
-  const participantData = remoteParticipants.value.find(p => p.identity === participant.identity);
+function handleTrackUnsubscribed(track: Record<string, unknown>, participant: Record<string, unknown>) {
+  const participantData = remoteParticipants.value.find(p => p.identity === (participant.identity as string));
   if (!participantData) return;
 
-  if (track.kind === 'video') {
+  if ((track.kind as string) === 'video') {
     participantData.videoTrack = undefined;
-    track.detach();
-  } else if (track.kind === 'audio') {
+    (track.detach as () => void)();
+  } else if ((track.kind as string) === 'audio') {
     participantData.audioTrack = undefined;
-    track.detach();
+    (track.detach as () => void)();
   }
 }
 
@@ -455,7 +473,7 @@ async function toggleMicrophone() {
 
   try {
     const enabled = !isAudioEnabled.value;
-    await livekitRoom.localParticipant.setMicrophoneEnabled(enabled);
+    await (livekitRoom as { localParticipant: { setMicrophoneEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setMicrophoneEnabled(enabled);
     isAudioEnabled.value = enabled;
   } catch (error) {
     console.error('마이크 토글 실패:', error);
@@ -467,10 +485,8 @@ async function toggleCamera() {
 
   try {
     const enabled = !isVideoEnabled.value;
-    await livekitRoom.localParticipant.setCameraEnabled(enabled);
+    await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
-
-    console.log('카메라 토글:', enabled ? '온' : '오프');
   } catch (error) {
     console.error('카메라 토글 실패:', error);
   }
@@ -488,7 +504,7 @@ async function startScreenShare() {
       await livekitRoom.localParticipant.setScreenShareEnabled(false);
       
       if (isVideoEnabled.value) {
-        await livekitRoom.localParticipant.setCameraEnabled(true);
+        await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(true);
       }
       
       isScreenSharing.value = false;

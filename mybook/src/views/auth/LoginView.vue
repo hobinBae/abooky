@@ -147,7 +147,7 @@ async function handleLogin() {
     router.push(redirectPath);
   } catch (error) {
     let alertMessage = '로그인 중 알 수 없는 오류가 발생했습니다.';
-    let alertTitle = '로그인 오류';
+    const alertTitle = '로그인 오류';
 
     if (error instanceof AxiosError && error.response) {
       alertMessage = error.response.data.message || '아이디 또는 비밀번호를 확인해주세요.';
@@ -186,7 +186,7 @@ function handleAlertClosed() {
 
 <style scoped>
 .auth-page {
-  padding: 2rem 2rem 2rem 2rem;
+  padding: 1.6rem; /* 2rem * 0.8 */
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
@@ -200,82 +200,81 @@ function handleAlertClosed() {
 .auth-wrapper {
   display: flex;
   width: 100%;
-  max-width: 960px; /* 고정 너비 설정 */
-  min-height: 680px; /* 고정 최소 높이 설정 */
+  max-width: 768px; /* 960px * 0.8 */
+  min-height: 544px; /* 680px * 0.8 */
   background-color: #fff;
-  border-radius: 12px;
-  border: 3px solid #657143;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  border-radius: 10px; /* 12px * 0.8 */
+  border: 2px solid #657143; /* 3px * 0.8 -> 2.4px */
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1); /* 10px, 30px * 0.8 */
   overflow: hidden;
 }
 
 .auth-image-section {
   display: none;
   position: relative;
-  /* 모바일에서는 숨김 */
 }
 
 .auth-container {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 10px; /* 12px * 0.8 */
 }
 
 /* Apply two-column layout on larger screens */
 @media (min-width: 992px) {
   .auth-image-section {
-    flex: 0 0 50%; /* 너비를 50%로 고정 */
+    flex: 0 0 50%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    padding: 2.5rem;
+    padding: 2rem; /* 2.5rem * 0.8 */
     background-color: #fff;
   }
 
   .auth-container {
-    flex: 0 0 50%; /* 너비를 50%로 고정 */
+    flex: 0 0 50%;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 3rem;
+    padding: 2.4rem; /* 3rem * 0.8 */
     border-radius: 0;
   }
 }
 
 .auth-image {
   max-width: 100%;
-  max-height: 320px;
+  max-height: 256px; /* 320px * 0.8 */
   object-fit: contain;
-  margin-bottom: 2rem;
+  margin-bottom: 1.6rem; /* 2rem * 0.8 */
 }
 
 .image-section-title {
-  font-size: 1.8rem;
+  font-size: 1.44rem; /* 1.8rem * 0.8 */
   font-weight: 700;
   color: #333;
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem; /* 1rem * 0.8 */
   text-align: center;
 }
 
 .image-section-subtitle {
-  font-size: 1rem;
+  font-size: 0.8rem; /* 1rem * 0.8 */
   color: #666;
   text-align: center;
   line-height: 1.6;
 }
 
 .auth-title {
-  font-size: 20px;
+  font-size: 16px; /* 20px * 0.8 */
   font-weight: 600;
   color: #333;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.4rem; /* 0.5rem * 0.8 */
   text-align: left;
 }
 
 .auth-subtitle {
   color: #666;
-  margin-bottom:60px; /* 회원가입과 동일하게 여백 조정 */
-  font-size: 15px;
+  margin-bottom: 48px; /* 60px * 0.8 */
+  font-size: 12px; /* 15px * 0.8 */
   text-align: left;
 }
 
@@ -285,14 +284,13 @@ function handleAlertClosed() {
 }
 
 .form-control {
-  background-color: #f4f3e8; /* 연한 올리브 배경 */
-  border: 1px solid #e0e0d1; /* 연한 올리브 테두리 */
-  padding: 0.85rem 1.1rem;
-  border-radius: 8px;
+  background-color: #f4f3e8;
+  border: 1px solid #e0e0d1;
+  padding: 0.68rem 0.88rem; /* 0.85rem * 0.8, 1.1rem * 0.8 */
+  border-radius: 6px; /* 8px * 0.8 */
   transition: background-color 0.2s, border-color 0.2s;
 }
 
-/* 브라우저 자동 완성 스타일 덮어쓰기 */
 .form-control:-webkit-autofill,
 .form-control:-webkit-autofill:hover,
 .form-control:-webkit-autofill:focus,
@@ -303,35 +301,35 @@ function handleAlertClosed() {
 
 .form-control:focus {
   background-color: #fff;
-  border-color: #8A9A5B; /* 올리브색 */
-  box-shadow: 0 0 0 0.2rem rgba(138, 154, 91, 0.25); 
+  border-color: #8A9A5B;
+  box-shadow: 0 0 0 0.16rem rgba(138, 154, 91, 0.25); /* 0.2rem * 0.8 */
 }
 
 .btn-auth {
-  padding: 0.85rem;
-  font-size: 1rem;
+  padding: 0.68rem; /* 0.85rem * 0.8 */
+  font-size: 0.8rem; /* 1rem * 0.8 */
   font-weight: 600;
-  background-color: #8A9A5B; /* 올리브색 */
-  border-color: #8A9A5B; /* 올리브색 */
-  border-radius: 8px;
+  background-color: #8A9A5B;
+  border-color: #8A9A5B;
+  border-radius: 6px; /* 8px * 0.8 */
   transition: background-color 0.3s;
 }
 
 .btn-auth:hover {
-  background-color: #6F7D48; /* 어두운 올리브색 */
+  background-color: #6F7D48;
 }
 
 .auth-links {
   display: flex;
   justify-content: center;
-  gap: 1.5rem;
-  margin-top: 1.5rem;
+  gap: 1.2rem; /* 1.5rem * 0.8 */
+  margin-top: 1.2rem; /* 1.5rem * 0.8 */
 }
 
 .auth-links a {
   color: #868e96;
   text-decoration: none;
-  font-size: 0.9rem;
+  font-size: 0.72rem; /* 0.9rem * 0.8 */
   transition: color 0.2s;
   font-weight: 600;
 }
@@ -342,9 +340,9 @@ function handleAlertClosed() {
 
 .social-login-divider {
   text-align: center;
-  margin: 2.5rem 0;
+  margin: 2rem 0; /* 2.5rem * 0.8 */
   color: #adb5bd;
-  font-size: 0.85rem;
+  font-size: 0.68rem; /* 0.85rem * 0.8 */
   position: relative;
 }
 
@@ -368,13 +366,13 @@ function handleAlertClosed() {
 
 .social-login-buttons .btn-social {
   width: 100%;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.6rem; /* 0.75rem * 0.8 */
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 0.85rem;
-  border-radius: 8px;
+  gap: 0.6rem; /* 0.75rem * 0.8 */
+  padding: 0.68rem; /* 0.85rem * 0.8 */
+  border-radius: 6px; /* 8px * 0.8 */
   font-weight: 500;
 }
 
@@ -440,23 +438,23 @@ function handleAlertClosed() {
 
 .pagination-controls {
   position: absolute;
-  bottom: 3rem;
+  bottom: 2.4rem; /* 3rem * 0.8 */
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 1.5rem;
+  gap: 1.2rem; /* 1.5rem * 0.8 */
   align-items: center;
 }
 
 .pagination-button {
   background: none;
-  border: none; /* 테두리 제거 */
+  border: none;
   color: #adb5bd;
-  width: 36px;
-  height: 36px;
+  width: 29px; /* 36px * 0.8 */
+  height: 29px; /* 36px * 0.8 */
   border-radius: 50%;
   cursor: pointer;
-  font-size: 1.5rem; /* 아이콘 크기 살짝 키움 */
+  font-size: 1.2rem; /* 1.5rem * 0.8 */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -464,23 +462,23 @@ function handleAlertClosed() {
 }
 
 .pagination-button:hover {
-  color: #495057; /* 호버 시 색상만 살짝 어둡게 변경 */
+  color: #495057;
 }
 
 .dots {
   display: flex;
-  gap: 8px;
+  gap: 6px; /* 8px * 0.8 */
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 8px; /* 10px * 0.8 */
+  height: 8px; /* 10px * 0.8 */
   border-radius: 50%;
   background-color: #dee2e6;
   transition: background-color 0.3s ease;
 }
 
 .dot.active {
-  background-color: #8A9A5B; /* 올리브색 */
+  background-color: #8A9A5B;
 }
 </style>
