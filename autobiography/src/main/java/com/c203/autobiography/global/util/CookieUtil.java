@@ -15,7 +15,7 @@ public class CookieUtil {
                 .sameSite("None")
                 .path("/")
                 .maxAge(Duration.ofDays(days))
-//                .domain(".domain.com")
+                .domain("i13c203.p.ssafy.io")
                 .build();
         response.addHeader("Set-Cookie", cookie.toString());
     }
