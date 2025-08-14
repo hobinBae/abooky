@@ -1,65 +1,61 @@
 <template>
-  <div class="profile-edit-page">
-    <div class="profile-container">
-      <h1 class="page-title">내 정보 수정</h1>
+  <div class="auth-page my-page">
+    <CustomAlert ref="customAlert" @alert-closed="onAlertClose" />
+    <div class="auth-wrapper my-page-wrapper">
+      <!-- Left Section: User Profile -->
+      <div class="auth-image-section my-page-profile-sidebar">
+        <section v-if="authStore.user" class="profile-section">
+          <img 
+            :src="getValidProfileImageUrl(profile.profilePicUrl)" 
+            alt="Profile Image"
+            class="profile-pic"
+            @error="handleImageError"
+          >
+          <div class="user-info">
+            <h2 class="user-name">{{ authStore.user.name }}</h2>
+            <p class="user-penname">@{{ profile.nickname }}</p>
+          </div>
+          <div class="author-message-box">
+            <p class="author-message-content">{{ profile.bio || '한 줄 소개를 입력하여 작가님을 알려보세요.' }}</p>
+          </div>
+        </section>
+      </div>
 
-      <section class="form-section">
-        <h2 class="section-title">프로필 정보</h2>
+      <!-- Right Section: Edit Form -->
+      <div class="auth-container my-page-container">
         <form @submit.prevent="updateProfileInfo" class="form-layout">
-          <div class="profile-pic-section">
-            <img 
-              :src="getValidProfileImageUrl(profile.profilePicUrl)" 
-              alt="Profile Picture" 
-              class="profile-pic"
-              @error="handleImageError"
-            >
-            <div class="pic-actions">
-              <input type="file" @change="onFileChange" ref="fileInput" hidden accept="image/*">
-              <div class="pic-button-group">
+          
+          <div class="form-section">
+            <h2 class="section-title">프로필 사진</h2>
+            <div class="profile-pic-section">
+              <p class="form-text">새로운 프로필 사진을 선택하거나<br></br> 기본 이미지로 초기화하세요.</p>
+              <div class="pic-actions">
+                <input type="file" @change="onFileChange" ref="fileInput" hidden accept="image/*">
                 <button type="button" @click="triggerFileUpload" class="btn btn-secondary">사진 변경</button>
-                <button type="button" @click="resetProfilePic" class="btn btn-outline">사진 초기화</button>
+                <button type="button" @click="resetProfilePic" class="btn btn-outline">기본값으로 변경</button>
               </div>
-              <p class="form-text">새로운 프로필 사진을 선택하거나 기본 이미지로 초기화하세요.</p>
             </div>
           </div>
 
-          <div class="form-group">
-            <label for="nickname" class="form-label">닉네임 (필명)</label>
-            <input type="text" v-model="profile.nickname" class="form-control" id="nickname">
+          <div class="form-section">
+            <h2 class="section-title">프로필 정보</h2>
+            <div class="form-group">
+              <label for="nickname" class="form-label">닉네임 (필명) 수정</label>
+              <input type="text" v-model="profile.nickname" class="form-control" id="nickname">
+            </div>
+            <div class="form-group">
+              <label for="bio" class="form-label">한 줄 소개 (작가의 말) 수정</label>
+              <textarea v-model="profile.bio" class="form-control" id="bio" rows="4"></textarea>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="bio" class="form-label">한 줄 소개 (작가의 말)</label>
-            <textarea v-model="profile.bio" class="form-control" id="bio" rows="4"></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary" :disabled="isSaving">
-            {{ isSaving ? '저장 중...' : '프로필 정보 저장' }}
-          </button>
-        </form>
-      </section>
 
-      <!-- <section class="form-section">
-        <h2 class="section-title">비밀번호 변경</h2>
-        <form @submit.prevent="changePassword" class="form-layout">
-          <div class="form-group">
-            <label for="currentPassword" class="form-label">현재 비밀번호</label>
-            <input type="password" v-model="password.current" class="form-control" id="currentPassword">
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary btn-auth" :disabled="isSaving">
+              <span v-if="isSaving" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+              {{ isSaving ? '저장 중...' : '프로필 정보 저장' }}
+            </button>
           </div>
-          <div class="form-group">
-            <label for="newPassword" class="form-label">새 비밀번호</label>
-            <input type="password" v-model="password.new" class="form-control" id="newPassword">
-          </div>
-          <div class="form-group">
-            <label for="confirmPassword" class="form-label">새 비밀번호 확인</label>
-            <input type="password" v-model="password.confirm" class="form-control" id="confirmPassword">
-          </div>
-          <button type="submit" class="btn btn-primary" :disabled="isChangingPassword">
-            {{ isChangingPassword ? '변경 중...' : '비밀번호 변경' }}
-          </button>
         </form>
-      </section> -->
-
-      <div v-if="message" class="alert" :class="`alert-${messageType}`">
-        {{ message }}
       </div>
     </div>
   </div>
@@ -71,62 +67,41 @@ import { useAuthStore } from '@/stores/auth';
 import apiClient from '@/api';
 import { useRouter } from 'vue-router';
 import { AxiosError } from 'axios';
+import CustomAlert from '@/components/common/CustomAlert.vue';
 
 const authStore = useAuthStore();
 const router = useRouter();
 
-// --- Reactive State ---
+const customAlert = ref<InstanceType<typeof CustomAlert> | null>(null);
+const wasSuccess = ref(false);
+
 const profile = ref({
   nickname: '',
   bio: '',
   profilePicUrl: '',
 });
 const newProfilePic = ref<File | null>(null);
-const password = ref({
-  current: '',
-  new: '',
-  confirm: '',
-});
 
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const message = ref('');
-const messageType = ref<'success' | 'danger'>('success');
 const isSaving = ref(false);
-const isChangingPassword = ref(false);
 
-// --- Functions ---
-
-// 유효한 프로필 이미지 URL 반환 (AWS default.png 제외)
 const getValidProfileImageUrl = (url: string | null | undefined): string => {
-  if (!url || !url.trim()) {
+  if (!url || !url.trim() || url.includes('default.png') || url.includes('/userProfile/default.png')) {
     return '/images/profile.png';
   }
-  
-  // AWS default.png URL 필터링
-  if (url.includes('default.png') || url.includes('/userProfile/default.png')) {
-    console.log('AWS default.png 감지, 로컬 이미지 사용');
-    return '/images/profile.png';
-  }
-  
   return url;
 };
 
-// 이미지 로드 실패 시 SVG 아바타로 대체
 const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement;
-  console.error('프로필 편집 이미지 로드 실패:', img.src);
-  
-  if (img.src.includes('/images/profile.png') || img.src.includes('default.png')) {
-    img.src = createDefaultAvatar();
-  }
+  img.src = createDefaultAvatar();
 };
 
-// SVG 기본 아바타 생성
 const createDefaultAvatar = (): string => {
   const svg = `
     <svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="75" cy="75" r="75" fill="#6F7D48"/>
+      <circle cx="75" cy="75" r="75" fill="#e8e7dc"/>
       <circle cx="75" cy="60" r="20" fill="#ffffff"/>
       <ellipse cx="75" cy="110" rx="25" ry="20" fill="#ffffff"/>
     </svg>
@@ -137,15 +112,8 @@ const createDefaultAvatar = (): string => {
 function loadUserProfile() {
   if (authStore.user) {
     profile.value.nickname = authStore.user.nickname;
-    profile.value.bio = authStore.user.intro || ''; // intro 필드가 없을 경우 대비
-    
-    // AWS default.png URL 필터링
-    const profileUrl = authStore.user.profileImageUrl;
-    if (profileUrl && !profileUrl.includes('default.png') && !profileUrl.includes('/userProfile/default.png')) {
-      profile.value.profilePicUrl = profileUrl;
-    } else {
-      profile.value.profilePicUrl = ''; // 빈 문자열로 설정하여 로컬 이미지 사용
-    }
+    profile.value.bio = authStore.user.intro || '';
+    profile.value.profilePicUrl = authStore.user.profileImageUrl || '';
   }
 }
 
@@ -164,8 +132,7 @@ function onFileChange(event: Event) {
 
 function resetProfilePic() {
   newProfilePic.value = null;
-  profile.value.profilePicUrl = ''; // 빈 문자열로 설정하여 기본 이미지 사용
-  // 파일 입력 필드도 초기화
+  profile.value.profilePicUrl = '';
   if (fileInput.value) {
     fileInput.value.value = '';
   }
@@ -173,7 +140,7 @@ function resetProfilePic() {
 
 async function updateProfileInfo() {
   isSaving.value = true;
-  message.value = '';
+  wasSuccess.value = false;
   try {
     const formData = new FormData();
     formData.append('nickname', profile.value.nickname);
@@ -188,9 +155,9 @@ async function updateProfileInfo() {
       },
     });
 
-    await authStore.fetchUserInfo(); // 스토어 정보 갱신
+    await authStore.fetchUserInfo();
+    wasSuccess.value = true;
     showMessage('프로필 정보가 성공적으로 저장되었습니다.', 'success');
-    router.push('/my-page'); // 마이페이지로 이동
 
   } catch (error) {
     console.error("Error updating profile:", error);
@@ -204,39 +171,15 @@ async function updateProfileInfo() {
   }
 }
 
-async function changePassword() {
-  if (password.value.new !== password.value.confirm) {
-    showMessage('새 비밀번호가 일치하지 않습니다.', 'danger');
-    return;
-  }
-  if (password.value.new.length < 8) {
-    showMessage('새 비밀번호는 8자리 이상이어야 합니다.', 'danger');
-    return;
-  }
-
-  isChangingPassword.value = true;
-  message.value = '';
-
-  try {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    if (password.value.current === '123456') {
-      showMessage('비밀번호가 성공적으로 변경되었습니다.', 'success');
-      password.value = { current: '', new: '', confirm: '' };
-    } else {
-      showMessage('현재 비밀번호가 올바르지 않습니다.', 'danger');
-    }
-  } catch (error) {
-    console.error("Error changing password:", error);
-    showMessage('비밀번호 변경에 실패했습니다.', 'danger');
-  } finally {
-    isChangingPassword.value = false;
-  }
+function showMessage(msg: string, type: 'success' | 'danger') {
+  const title = type === 'success' ? '성공' : '오류';
+  customAlert.value?.showAlert({ title: title, message: msg });
 }
 
-function showMessage(msg: string, type: 'success' | 'danger') {
-  message.value = msg;
-  messageType.value = type;
-  setTimeout(() => message.value = '', 5000);
+function onAlertClose() {
+  if (wasSuccess.value) {
+    router.push('/my-page');
+  }
 }
 
 onMounted(() => {
@@ -245,227 +188,234 @@ onMounted(() => {
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Pretendard:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;700&display=swap');
+@import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
-/* --- 기본 페이지 스타일 --- */
-.profile-edit-page {
-  width: 100%;
-  min-height: 100vh;
-  background-color: #ffffff; /* 흰색 배경 */
-  padding: 4rem 2rem;
-  box-sizing: border-box;
-}
-
-.profile-container {
-  padding: 4rem 2.5rem 2.5rem;
-  max-width: 900px;
-  margin: 0 auto;
-  font-family: 'SCDream4', sans-serif;
+.auth-page {
+  padding: 2rem;
   color: #333;
-  background-color: #f4f3e8; /* 연한 올리브 배경 */
-  position: relative;
-  border-radius: 8px;
-  
-  /* 책 모양 효과 - 더 많이 쌓인 느낌 */
-  box-shadow: 
-    /* 메인 그림자 */
-    0 0 0 1px rgba(0,0,0,0.1),
-    /* 왼쪽과 위쪽 책등 효과 */
-    -10px -3px 0 -2px #e8e7dc,
-    -20px -6px 0 -4px #ddd9c8,
-    -30px -9px 0 -6px #d2cdb4,
-    -40px -12px 0 -8px #c7c2a0,
-    -50px -15px 0 -10px #bcb78c,
-    /* 전체적인 깊이감 */
-    -55px -10px 30px rgba(0,0,0,0.2);
-  
-  /* 책등 라인 효과를 위한 가상 요소 */
+  min-height: 100vh;
+  font-family: 'SCDream4', sans-serif;
+  display: flex;
+  align-items: flex-start; /* 위쪽으로 정렬 */
+  justify-content: center;
 }
 
-.my-page-container::before {
-  content: '';
-  position: absolute;
-  left: -10px;
-  top: -3px;
-  bottom: 3px;
-  width: 2px;
-  background: linear-gradient(to bottom, 
-    rgba(111, 125, 72, 0.4) 0%, 
-    rgba(111, 125, 72, 0.15) 50%, 
-    rgba(111, 125, 72, 0.4) 100%);
-  border-radius: 1px;
+.auth-wrapper {
+  display: flex;
+  width: 100%;
+  max-width: 819px;
+  min-height: 576px;
+  background-color: #fff;
+  border-radius: 13px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  border: 2px solid #6F7D48;
 }
 
-.my-page-container::after {
-  content: '';
-  position: absolute;
-  left: -20px;
-  top: -6px;
-  bottom: 6px;
-  width: 1px;
-  background: linear-gradient(to bottom, 
-    rgba(111, 125, 72, 0.3) 0%, 
-    rgba(111, 125, 72, 0.1) 50%, 
-    rgba(111, 125, 72, 0.3) 100%);
+.my-page-profile-sidebar {
+  flex: 0 0 256px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background-color: #f4f3e8;
+  border-right: 1px solid #e8e7dc;
 }
 
-.page-title {
+.my-page-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 2.4rem;
+}
+
+/* --- 프로필 섹션 --- */
+.profile-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
-  font-family: 'SCDream4', serif;
-  font-size: 2.5rem;
+}
+
+.profile-pic {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-bottom: 0.8rem;
+}
+
+.user-name {
+  font-size: 1.44rem;
   font-weight: 700;
-  margin-bottom: 3rem;
+  margin-bottom: 0.2rem;
 }
 
-/* --- 폼 섹션 스타일 --- */
-.form-section {
-  padding: 1rem 0;
+.user-penname {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1.2rem;
 }
 
+.author-message-box {
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+  padding: 0.8rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  line-height: 1.6;
+  color: #555;
+  white-space: pre-wrap;
+  margin-bottom: 1.2rem;
+}
+
+/* --- 콘텐츠 섹션 (폼) --- */
 .section-title {
-  font-family: 'SCDream4', serif;
-  font-size: 2rem;
-  font-weight: 600;
-  margin-bottom: 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #eee;
 }
 
 .form-layout {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.6rem;
+  width: 100%;
 }
 
-/* --- 프로필 사진 섹션 --- */
+.form-section {
+  padding-top: 1.6rem;
+}
+
+.form-section:first-of-type {
+  padding-top: 0;
+}
+
 .profile-pic-section {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
-  background-color: #f8f9fa;
-  padding: 1.5rem;
-  border-radius: 8px;
-}
-
-.profile-pic {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid #dee2e6;
-}
-
-.pic-button-group {
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 0.5rem;
-}
-
-.pic-actions .btn {
-  margin-bottom: 0;
-  width: 100px; /* 고정 너비 */
-  padding: 0.8rem 0.5rem; /* 좌우 패딩 줄임 */
-  font-size: 1rem; /* 글자 크기 줄임 */
-  text-align: center;
-  white-space: nowrap;
+  justify-content: space-between;
+  gap: 1rem;
+  width: 100%;
 }
 
 .form-text {
-  font-size: 1.1rem;
-  font-family: 'SCDream5', serif;
+  font-size: 1rem;
   color: #6c757d;
+  margin: 0;
 }
 
-/* --- 폼 요소 스타일 --- */
+.pic-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 0.6rem;
+}
+
+.pic-actions .btn {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.8rem;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.4rem;
 }
 
 .form-label {
   font-weight: 600;
-  font-size: 1.3rem;
+  font-size: 0.8rem;
+  color: #555;
 }
 
 .form-control {
-  width: 100%;
-  padding: 0.8rem 1rem;
+  background-color: #f8f9fa;
   border: 1px solid #dee2e6;
-  border-radius: 4px;
-  font-size: 1.1rem;
-  transition: border-color 0.2s ease;
+  padding: 0.6rem 0.8rem;
+  border-radius: 6px;
+  transition: background-color 0.2s, border-color 0.2s;
+  font-family: inherit;
+  font-size: 0.8rem;
+  margin-bottom: 1rem;
 }
 
 .form-control:focus {
+  background-color: #fff;
+  border-color: #8A9A5B;
+  box-shadow: 0 0 0 0.2rem rgba(138, 154, 91, 0.25);
   outline: none;
-  border-color: #868e96;
 }
 
 textarea.form-control {
   resize: vertical;
-  min-height: 120px;
+  min-height: 80px;
 }
 
-/* --- 버튼 스타일 --- */
-.btn {
-  padding: 0.8rem 1.25rem;
-  font-size: 1.15rem;
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0rem;
+
+  padding-top: 1.6rem;
+}
+
+.btn, .btn-primary, .btn-secondary, .btn-outline {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  border-radius: 20px;
+  border-radius: 6px;
   cursor: pointer;
-  border: 1px solid #333;
   transition: all 0.2s ease;
-  width: fit-content;
-  align-self: flex-end; /* 버튼을 오른쪽으로 정렬 */
+  border: 1px solid transparent;
 }
 
 .btn-primary {
+  background-color: #6F7D48;
+  border-color: #6F7D48;
   color: #fff;
-  border-color: #6B8E23;
-  background-color: #6B8E23;
 }
 .btn-primary:hover:not(:disabled) {
-  background-color: #6B8E23;
-  border-color: #6B8E23;
-  opacity: 0.8;
-}
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  background-color: #5a663a;
 }
 
 .btn-secondary {
-  color: #fff;
-  background-color: #B0BFA0;
-  border-color: #B0BFA0;
+  background-color: #fff;
+  border-color: #ced4da;
+  color: #495057;
 }
 .btn-secondary:hover {
-  background-color: #9CAF88;
+  background-color: #f8f9fa;
 }
 
 .btn-outline {
-  color: #fff;
-  background-color: #bec4c8;
-  border-color: #bec4c8;
+  background-color: transparent;
+  border-color: #ced4da;
+  color: #495057;
 }
 .btn-outline:hover {
-  color: #fff;
-  background-color: #AEB5BA;
-  border-color: #AEB5BA;
+  background-color: #f8f9fa;
 }
 
-/* --- 구분선 --- */
-.divider {
-  border: 0;
-  border-top: 1px solid #f1f3f5;
-  margin: 3rem 0;
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-/* --- 알림창 스타일 --- */
 .alert {
-  padding: 1rem 1.25rem;
-  margin-top: 2rem;
-  border-radius: 4px;
+  padding: 0.8rem;
+  margin-top: 1.2rem;
+  border-radius: 6px;
   border: 1px solid transparent;
+  text-align: center;
+  font-size: 0.8rem;
 }
 .alert-success {
   color: #155724;
@@ -476,5 +426,32 @@ textarea.form-control {
   color: #721c24;
   background-color: #f8d7da;
   border-color: #f5c6cb;
+}
+
+/* --- 반응형 --- */
+@media (max-width: 992px) {
+  .auth-wrapper {
+    flex-direction: column;
+    min-height: auto;
+    max-width: 480px;
+  }
+  .my-page-profile-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e8e7dc;
+  }
+}
+
+@media (max-width: 576px) {
+  .auth-page {
+    padding: 1rem;
+  }
+  .my-page-container, .my-page-profile-sidebar {
+    padding: 1.2rem;
+  }
+  .profile-pic-section {
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+  }
 }
 </style>
