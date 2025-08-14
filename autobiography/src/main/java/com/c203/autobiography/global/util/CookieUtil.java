@@ -12,7 +12,7 @@ public class CookieUtil {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, token)
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/")
                 .maxAge(Duration.ofDays(days))
 //                .domain(".domain.com")
@@ -24,7 +24,7 @@ public class CookieUtil {
         ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, "")
                 .httpOnly(true)
                 .secure(true)
-                .sameSite("Lax")
+                .sameSite("None")
                 .path("/")
                 .maxAge(0).build();
         response.addHeader("Set-Cookie", cookie.toString());
