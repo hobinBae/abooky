@@ -1,15 +1,25 @@
 <template>
-  <div class="my-page-background">
-    <div class="my-page-container">
-      <div class="top-actions">
-        <button @click="goToProfileEdit" class="btn-top-action" title="프로필 수정">
-          <i class="bi bi-gear-fill"></i>
-        </button>
+  <div class="auth-page my-page">
+    <CustomAlert ref="customAlert" @alert-closed="onAlertClose" />
+    <BaseModal
+      :is-visible="isDeleteModalVisible"
+      title="회원 탈퇴"
+      @close="closeDeleteModal"
+      :close-on-overlay="true"
+    >
+      <div class="modal-body-content">
+        <p>정말로 회원 탈퇴를 진행하시겠습니까? 이 작업은 되돌릴 수 없습니다.</p>
       </div>
+      <template #footer>
+        <button @click="closeDeleteModal" class="btn btn-secondary">취소</button>
+        <button @click="handleDeleteConfirm" class="btn btn-danger">탈퇴</button>
+      </template>
+    </BaseModal>
 
-      <section v-if="user" class="profile-section">
-      <div class="profile-main-content">
-        <div class="profile-left-section">
+    <div class="auth-wrapper my-page-wrapper">
+      <!-- Left Section: User Profile -->
+      <div class="auth-image-section my-page-profile-sidebar">
+        <section v-if="user" class="profile-section">
           <img 
             :src="getValidProfileImageUrl(user.profileImageUrl)" 
             alt="Profile Image"
@@ -20,85 +30,73 @@
             <h2 class="user-name">{{ user.name }}</h2>
             <p class="user-penname">@{{ user.nickname }}</p>
           </div>
-        </div>
-        <div v-if="user.intro" class="author-message-box">
-          <p class="author-message-title">작가의 말</p>
-          <p class="author-message-content">{{ user.intro }}</p>
-        </div>
-      </div>
-    </section>
-    <section v-else class="profile-section">
-      <p>사용자 정보를 불러오는 중입니다...</p>
-    </section>
-
-    <hr class="divider">
-
-    <section class="content-section">
-      <h3 class="section-title">좋아요 누른 책</h3>
-      <div v-if="paginatedLikedBooks.length > 0" class="book-list-grid">
-        <router-link v-for="book in paginatedLikedBooks" :key="book.id" :to="`/book-detail/${book.id}`"
-          class="book-item-card"
-          :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
-          <div class="list-title-box">
-            <p class="list-title-box-title">{{ book.title }}</p>
-            <p class="list-title-box-author">{{ book.authorName }}</p>
+          <div v-if="user.intro" class="author-message-box">
+            <p class="author-message-content">{{ user.intro }}</p>
           </div>
-        </router-link>
+          <button @click="goToProfileEdit" class="btn btn-secondary w-100 edit-profile-btn">
+            <i class="bi bi-pencil-square"></i> 프로필 수정
+          </button>
+        </section>
+        <section v-else class="profile-section">
+          <p>사용자 정보를 불러오는 중입니다...</p>
+        </section>
       </div>
-      <p v-else class="no-content-message">아직 좋아요를 누른 책이 없습니다.</p>
 
-      <div v-if="totalLikedBooksPages > 1" class="pagination-controls">
-        <button @click="prevLikedBookPage" :disabled="likedBooksCurrentPage === 1" class="pagination-btn">
-          이전
-        </button>
-        <span v-for="page in totalLikedBooksPages" :key="page" @click="goToLikedBookPage(page)"
-          :class="['page-number', { active: likedBooksCurrentPage === page }]">
-          {{ page }}
-        </span>
-        <button @click="nextLikedBookPage" :disabled="likedBooksCurrentPage === totalLikedBooksPages"
-          class="pagination-btn">
-          다음
-        </button>
-      </div>
-    </section>
+      <!-- Right Section: User Activity -->
+      <div class="auth-container my-page-container">
+        <section class="content-section">
+          <h3 class="section-title">좋아요 누른 책</h3>
+          <div v-if="paginatedLikedBooks.length > 0" class="book-list-grid">
+            <router-link v-for="book in paginatedLikedBooks" :key="book.id" :to="`/book-detail/${book.id}`"
+              class="book-item-card"
+              :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+              <div class="book-card-overlay">
+                <h4 class="book-card-title">{{ book.title }}</h4>
+                <p class="book-card-author">{{ book.authorName }}</p>
+              </div>
+            </router-link>
+          </div>
+          <p v-else class="no-content-message">아직 좋아요를 누른 책이 없습니다.</p>
+          <div v-if="totalLikedBooksPages > 1" class="pagination-controls">
+            <button @click="prevLikedBookPage" :disabled="likedBooksCurrentPage === 1" class="pagination-btn">&lt;</button>
+            <span v-for="page in totalLikedBooksPages" :key="page" @click="goToLikedBookPage(page)"
+              :class="['page-number', { active: likedBooksCurrentPage === page }]">
+              {{ page }}
+            </span>
+            <button @click="nextLikedBookPage" :disabled="likedBooksCurrentPage === totalLikedBooksPages" class="pagination-btn">&gt;</button>
+          </div>
+        </section>
 
-    <hr class="divider">
+        <hr class="divider">
 
-    <section class="content-section">
-      <h3 class="section-title">내가 쓴 댓글</h3>
-      <div v-if="paginatedComments.length > 0" class="comment-list-container">
-        <div v-for="comment in paginatedComments" :key="comment.id" class="comment-item">
-          <p class="comment-text">{{ comment.text }}</p>
-          <p class="comment-meta">
-            <router-link :to="`/book-detail/${comment.bookId}`" class="comment-book-link">{{
-              getBookTitle(comment.bookId) }}</router-link>
-            <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
-          </p>
+        <section class="content-section">
+          <h3 class="section-title">내가 쓴 댓글</h3>
+          <div v-if="paginatedComments.length > 0" class="comment-list-container">
+            <div v-for="comment in paginatedComments" :key="comment.id" class="comment-item">
+              <p class="comment-text">"{{ comment.text }}"</p>
+              <p class="comment-meta">
+                <router-link :to="`/book-detail/${comment.bookId}`" class="comment-book-link">{{ getBookTitle(comment.bookId) }}</router-link>
+                <span class="comment-date">{{ formatDate(comment.createdAt) }}</span>
+              </p>
+            </div>
+          </div>
+          <p v-else class="no-content-message">아직 작성한 댓글이 없습니다.</p>
+          <div v-if="totalPages > 1" class="pagination-controls">
+            <button @click="prevPage" :disabled="currentPage === 1" class="pagination-btn">&lt;</button>
+            <span v-for="page in totalPages" :key="page" @click="goToPage(page)"
+              :class="['page-number', { active: currentPage === page }]">
+              {{ page }}
+            </span>
+            <button @click="nextPage" :disabled="currentPage === totalPages" class="pagination-btn">&gt;</button>
+          </div>
+        </section>
+        
+        <div class="account-actions">
+          <button @click="openDeleteModal" class="btn-auth-danger">회원 탈퇴</button>
         </div>
       </div>
-      <p v-else class="no-content-message">아직 작성한 댓글이 없습니다.</p>
-
-      <div v-if="totalPages > 1" class="pagination-controls">
-        <button @click="prevPage" :disabled="currentPage === 1" class="pagination-btn">
-          이전
-        </button>
-        <span v-for="page in totalPages" :key="page" @click="goToPage(page)"
-          :class="['page-number', { active: currentPage === page }]">
-          {{ page }}
-        </span>
-        <button @click="nextPage" :disabled="currentPage === totalPages" class="pagination-btn">
-          다음
-        </button>
-      </div>
-    </section>
-
-    <hr class="divider">
-
-    <div class="account-actions">
-      <button @click="deleteAccount" class="btn-auth-danger">회원 탈퇴</button>
     </div>
   </div>
-</div>
 </template>
 
 <script setup lang="ts">
@@ -106,6 +104,8 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import apiClient from '@/api';
+import BaseModal from '@/components/common/BaseModal.vue';
+import CustomAlert from '@/components/common/CustomAlert.vue';
 
 interface Book {
   id: string;
@@ -130,6 +130,10 @@ const authStore = useAuthStore();
 
 const user = computed(() => authStore.user);
 
+const isDeleteModalVisible = ref(false);
+const customAlert = ref<InstanceType<typeof CustomAlert> | null>(null);
+const isDeletionSuccess = ref(false);
+
 // --- 좋아요 누른 책과 댓글 상태 (API 연동 보류) ---
 const likedBooks = ref<Book[]>([]);
 const myComments = ref<Comment[]>([]);
@@ -137,7 +141,7 @@ const allBooks = ref<Book[]>([]); // getBookTitle 헬퍼 함수용
 
 // 좋아요 누른 책 페이지네이션
 const likedBooksCurrentPage = ref(1);
-const likedBooksPerPage = 5;
+const likedBooksPerPage = 4; // 한 줄에 4개씩 표시
 const paginatedLikedBooks = computed(() => {
   const start = (likedBooksCurrentPage.value - 1) * likedBooksPerPage;
   const end = start + likedBooksPerPage;
@@ -150,7 +154,7 @@ const nextLikedBookPage = () => { if (likedBooksCurrentPage.value < totalLikedBo
 
 // 댓글 페이지네이션
 const currentPage = ref(1);
-const commentsPerPage = 5;
+const commentsPerPage = 4;
 const paginatedComments = computed(() => {
   const start = (currentPage.value - 1) * commentsPerPage;
   const end = start + commentsPerPage;
@@ -163,39 +167,25 @@ const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.v
 
 // 유효한 프로필 이미지 URL 반환 (AWS default.png 제외)
 const getValidProfileImageUrl = (url: string | null | undefined): string => {
-  // URL이 없거나 빈 문자열인 경우
-  if (!url || !url.trim()) {
+  if (!url || !url.trim() || url.includes('default.png') || url.includes('/userProfile/default.png')) {
     return '/images/profile.png';
   }
-  
-  // AWS default.png URL인 경우 로컬 이미지 사용
-  if (url.includes('default.png') || url.includes('/userProfile/default.png')) {
-    console.log('AWS default.png 감지, 로컬 이미지 사용');
-    return '/images/profile.png';
-  }
-  
-  // 정상적인 사용자 업로드 이미지인 경우
   return url;
 };
 
 // 이미지 로드 실패 시 SVG 아바타로 대체
 const handleImageError = (event: Event) => {
   const img = event.target as HTMLImageElement;
-  console.error('이미지 로드 실패:', img.src);
-  
-  // 로컬 이미지도 실패한 경우 SVG 사용
-  if (img.src.includes('/images/profile.png') || img.src.includes('default.png')) {
-    img.src = createDefaultAvatar();
-  }
+  img.src = createDefaultAvatar();
 };
 
 // SVG 기본 아바타 생성
 const createDefaultAvatar = (): string => {
   const svg = `
-    <svg width="150" height="150" viewBox="0 0 150 150" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="75" cy="75" r="75" fill="#6F7D48"/>
-      <circle cx="75" cy="60" r="20" fill="#ffffff"/>
-      <ellipse cx="75" cy="110" rx="25" ry="20" fill="#ffffff"/>
+    <svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="60" cy="60" r="60" fill="#e8e7dc"/>
+      <circle cx="60" cy="50" r="18" fill="#ffffff"/>
+      <ellipse cx="60" cy="95" rx="30" ry="22" fill="#ffffff"/>
     </svg>
   `;
   return `data:image/svg+xml;base64,${btoa(svg)}`;
@@ -212,22 +202,31 @@ const goToProfileEdit = () => {
   router.push('/profile-edit');
 };
 
-const handleLogout = async () => {
-  if (confirm('로그아웃 하시겠습니까?')) {
-    await authStore.logout();
+const openDeleteModal = () => {
+  isDeleteModalVisible.value = true;
+};
+
+const closeDeleteModal = () => {
+  isDeleteModalVisible.value = false;
+};
+
+const handleDeleteConfirm = async () => {
+  closeDeleteModal();
+  try {
+    await apiClient.delete('/api/v1/members/me');
+    isDeletionSuccess.value = true;
+    customAlert.value?.showAlert({ title: '성공', message: '회원 탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.' });
+  } catch (error) {
+    console.error('Failed to delete account:', error);
+    isDeletionSuccess.value = false;
+    customAlert.value?.showAlert({ title: '오류', message: '회원 탈퇴 중 오류가 발생했습니다.' });
   }
 };
 
-const deleteAccount = async () => {
-  if (confirm('정말로 회원 탈퇴를 진행하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-    try {
-      await apiClient.delete('/api/v1/members/me');
-      alert('회원 탈퇴가 완료되었습니다. 이용해주셔서 감사합니다.');
-      await authStore.logout();
-    } catch (error) {
-      console.error('Failed to delete account:', error);
-      alert('회원 탈퇴 중 오류가 발생했습니다.');
-    }
+const onAlertClose = async () => {
+  if (isDeletionSuccess.value) {
+    await authStore.logout();
+    router.push('/');
   }
 };
 
@@ -236,8 +235,6 @@ onMounted(() => {
     authStore.fetchUserInfo();
   }
   // TODO: API가 준비되면 더미 데이터 대신 실제 데이터를 호출합니다.
-  // fetchLikedBooks();
-  // fetchMyComments();
 });
 </script>
 
@@ -245,237 +242,203 @@ onMounted(() => {
 @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;700&display=swap');
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
-/* --- 기본 페이지 스타일 --- */
-.my-page-background {
-  width: 100%;
-  min-height: 100vh;
-  background-color: #ffffff; /* 흰색 배경 */
-  padding: 4rem 2rem;
-  box-sizing: border-box;
-}
-
-/* 기존 .my-page-container 스타일을 이것으로 교체하세요 */
-.my-page-container {
-  padding: 4rem 2.5rem 2.5rem;
-  max-width: 900px;
-  margin: 0 auto;
-  font-family: 'SCDream4', sans-serif;
+.auth-page {
+  padding: 2rem;
   color: #333;
-  background-color: #f4f3e8; /* 연한 올리브 배경 */
-  position: relative;
-  border-radius: 8px;
-  
-  /* 책 모양 효과 - 더 많이 쌓인 느낌 */
-  box-shadow: 
-    /* 메인 그림자 */
-    0 0 0 1px rgba(0,0,0,0.1),
-    /* 왼쪽과 위쪽 책등 효과 */
-    -10px -3px 0 -2px #e8e7dc,
-    -20px -6px 0 -4px #ddd9c8,
-    -30px -9px 0 -6px #d2cdb4,
-    -40px -12px 0 -8px #c7c2a0,
-    -50px -15px 0 -10px #bcb78c,
-    /* 전체적인 깊이감 */
-    -55px -10px 30px rgba(0,0,0,0.2);
-}
-
-.top-actions {
-  position: absolute;
-  top: 1rem; /* padding-top 값과 유사하게 조정 */
-  right: 2.5rem; /* padding-right 값과 유사하게 조정 */
+  min-height: 100vh;
+  font-family: 'SCDream4', sans-serif;
   display: flex;
-  gap: 0.5rem;
-  z-index: 10;
+  align-items: flex-start; /* 위쪽으로 정렬 */
+  justify-content: center;
 }
 
-.btn-top-action {
-  background: none;
-  border: none;
-  color: #868e96;
-  font-size: 1.5rem;
-  cursor: pointer;
-  transition: color 0.2s ease;
-  padding: 0.5rem;
+.auth-wrapper {
+  display: flex;
+  width: 100%;
+  max-width: 819px;
+  min-height: 576px;
+  background-color: #fff;
+  border-radius: 13px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  border: 2px solid #6F7D48;
 }
-.btn-top-action:hover {
-  color: #6F7D48; /* 진한 올리브색 */
+
+.my-page-profile-sidebar {
+  flex: 0 0 256px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+  background-color: #f4f3e8;
+  border-right: 1px solid #e8e7dc;
+}
+
+.my-page-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 2.4rem;
 }
 
 /* --- 프로필 섹션 --- */
 .profile-section {
-  padding: 1rem 0;
-  margin-bottom: 1rem;
-}
-
-.profile-main-content {
-  display: flex;
-  align-items: flex-start;
-  gap: 2.5rem;
-}
-
-.profile-left-section {
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1rem;
-  flex-shrink: 0;
-}
-
-.profile-pic {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid #6F7D48; /* 진한 올리브색 테두리 */
-}
-
-.user-info {
   text-align: center;
 }
 
+.profile-pic {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  margin-bottom: 0.8rem;
+}
+
 .user-name {
-  font-size: 2rem;
+  font-size: 1.44rem;
   font-weight: 700;
-  color: #333;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
 }
 
 .user-penname {
-  font-size: 1.2rem;
-  color: #555; /* 진한 회색 */
-  font-weight: 500;
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1.2rem;
 }
 
 .author-message-box {
-  flex-grow: 1;
-  background-color: #ffffff; /* 흰색 배경 */
-  border-left: 4px solid #6F7D48; /* 진한 올리브색 테두리 */
-  padding: 2rem;
-  border-radius: 8px;
-}
-
-.author-message-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: #333; /* 검은색 */
-  margin: 0 0 0.75rem 0;
-}
-
-.author-message-content {
-  font-size: 1.1rem;
-  line-height: 1.7;
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.5);
+  padding: 0.8rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  line-height: 1.6;
   color: #555;
-  font-family: 'SCDream5', sans-serif;
   white-space: pre-wrap;
+  margin-bottom: 1.2rem;
+}
+
+.edit-profile-btn {
+  width: 100%;
+  padding: 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #fff;
+  color: #6F7D48;
+  border: 1px solid #e8e7dc;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.edit-profile-btn:hover {
+  background-color: #6F7D48;
+  color: #fff;
+  border-color: #6F7D48;
 }
 
 /* --- 콘텐츠 섹션 --- */
 .content-section {
-  padding: 2rem 0;
+  width: 100%;
+  padding: 1.2rem 0;
 }
 
 .section-title {
-  font-size: 1.6rem; /* 글씨 크기 조정 */
+  font-size: 1.1rem;
   font-weight: 700;
-  color: #6F7D48; /* 진한 올리브색 */
-  margin-bottom: 2rem;
-  text-align: left; /* 왼쪽 정렬 */
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #6F7D48; /* 진한 올리브색 테두리 */
+  color: #333;
+  margin-bottom: 1.2rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #eee;
 }
 
-/* --- 책 리스트 스타일 --- */
+/* --- 책 리스트 --- */
 .book-list-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 2rem;
-  justify-content: center;
-  padding: 1rem 0;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.2rem;
 }
 
 .book-item-card {
-  width: 140px;
-  height: 210px;
-  border-radius: 4px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  aspect-ratio: 2 / 3;
+  border-radius: 6px;
   background-size: cover;
   background-position: center;
   text-decoration: none;
-  color: inherit;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  color: white;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease;
 }
 
 .book-item-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(138, 154, 91, 0.15); /* 올리브색 그림자 */
+  transform: scale(1.05);
 }
 
-.list-title-box {
-  width: 80%;
-  height: 70%;
-  background-color: rgba(255, 255, 255, 0.95);
-  padding: 10px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  text-align: left;
-  color: #333;
-  border-radius: 2px;
+.book-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.8rem;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
-.list-title-box-title {
-  font-size: 15px;
+.book-item-card:hover .book-card-overlay {
+  opacity: 1;
+}
+
+.book-card-title {
+  font-size: 0.8rem;
   font-weight: 600;
-  line-height: 1.4;
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-  line-clamp: 3;
+  margin: 0 0 0.2rem 0;
+  line-height: 1.3;
 }
 
-.list-title-box-author {
-  font-size: 12px;
-  font-weight: 500;
-  margin: 0;
-  color: #555;
+.book-card-author {
+  font-size: 0.65rem;
+  opacity: 0.8;
 }
 
-/* --- 댓글 리스트 스타일 --- */
+/* --- 댓글 리스트 --- */
 .comment-list-container {
   display: flex;
   flex-direction: column;
+  gap: 0.8rem;
 }
 
 .comment-item {
-  border-bottom: 1px solid #ccc; /* 회색 테두리 */
-  padding: 1.5rem 0.5rem;
-}
-.comment-item:first-child {
-  border-top: 1px solid #ccc; /* 회색 테두리 */
+  background-color: #f8f9fa;
+  padding: 1rem;
+  border-radius: 6px;
+  border: 1px solid #e9ecef;
 }
 
 .comment-text {
-  font-size: 1rem;
+  font-size: 0.75rem;
   line-height: 1.6;
-  color: #555;
-  margin-bottom: 0.75rem;
+  color: #333;
+  margin-bottom: 0.6rem;
 }
 
 .comment-meta {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
   color: #868e96;
 }
 
 .comment-book-link {
-  color: #6F7D48; /* 진한 올리브색 */
+  color: #6F7D48;
   text-decoration: none;
   font-weight: 600;
 }
@@ -484,92 +447,135 @@ onMounted(() => {
   text-decoration: underline;
 }
 
+/* --- 기타 --- */
 .account-actions {
-  text-align: center;
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid #ccc;
+  margin-top: auto; /* 푸터처럼 하단에 위치 */
+  padding-top: 1.2rem;
+  text-align: right;
 }
 
 .btn-auth-danger {
-  display: inline-block;
-  border: 2px solid #c92a2a !important;
-  border-radius: 20px !important;
-  padding: 0.5rem 1.2rem !important;
-  font-size: 1.4rem !important;
-  white-space: nowrap;
-  font-family: 'SCDream4', sans-serif;
-  transition: font-weight 0s, border 0s;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
   background: transparent;
   color: #c92a2a;
   cursor: pointer;
-  line-height: 1.7;
-  font-weight: normal;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .btn-auth-danger:hover {
-  font-weight: bold;
-  border: 3px solid #c92a2a !important;
+  background-color: #c92a2a;
+  color: white;
 }
 
-/* --- 공통 스타일 --- */
 .no-content-message {
   text-align: center;
-  color: #868e96; /* 회색 */
-  font-size: 1.1rem;
-  padding: 3rem 0;
-  background-color: #ffffff; /* 흰색 배경 */
-  border-radius: 8px;
-  margin-top: 1.5rem;
-  line-height: 1.7;
-  font-family: 'SCDream5', sans-serif;
-  white-space: pre-wrap;
+  color: #868e96;
+  font-size: 0.8rem;
+  padding: 2.4rem 0;
 }
 
 .divider {
   border: 0;
-  border-top: 1px solid #ccc; /* 회색 테두리 */
-  /* margin: 1.5rem 0; */
+  border-top: 1px solid #e9ecef;
+  margin: 1.2rem 0;
 }
 
-/* --- 페이지네이션 스타일 --- */
 .pagination-controls {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.75rem;
-  margin-top: 3rem;
+  gap: 0.4rem;
+  margin-top: 1.6rem;
 }
 
-.pagination-btn,
-.page-number {
-  font-family: 'Pretendard', sans-serif;
+.pagination-btn, .page-number {
+  border: 1px solid #dee2e6;
   background-color: #fff;
-  border: 1px solid #ccc; /* 회색 테두리 */
-  padding: 0.5rem 0.8rem;
-  border-radius: 4px;
+  color: #555;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-size: 0.9rem;
-  color: #555;
+  font-size: 0.7rem;
 }
 
-.pagination-btn:hover:not(:disabled),
-.page-number:hover {
-  background-color: #f8f9fa;
-  border-color: #ccc;
-}
-
-.pagination-btn:disabled {
-  color: #adb5bd;
-  cursor: not-allowed;
-  background-color: #f8f9fa;
+.pagination-btn:hover:not(:disabled), .page-number:hover {
+  border-color: #6F7D48;
+  color: #6F7D48;
 }
 
 .page-number.active {
-  background-color: #6F7D48; /* 진한 올리브색 */
+  background-color: #6F7D48;
   color: white;
   border-color: #6F7D48;
+}
+
+.modal-body-content {
+  padding: 1.5rem;
+  font-size: 1rem;
+  color: #333;
+  line-height: 1.6;
+}
+
+.modal-footer .btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: none;
   font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.modal-footer .btn-secondary {
+  background-color: #e9ecef;
+  color: #495057;
+}
+
+.modal-footer .btn-secondary:hover {
+  background-color: #dee2e6;
+}
+
+.modal-footer .btn-danger {
+  background-color: #c92a2a;
+  color: white;
+}
+
+.modal-footer .btn-danger:hover {
+  background-color: #a52222;
+}
+
+
+/* --- 반응형 --- */
+@media (max-width: 992px) {
+  .auth-wrapper {
+    flex-direction: column;
+    min-height: auto;
+    max-width: 480px;
+  }
+  .my-page-profile-sidebar {
+    border-right: none;
+    border-bottom: 1px solid #e8e7dc;
+  }
+}
+
+@media (max-width: 576px) {
+  .auth-page {
+    padding: 1rem;
+  }
+  .my-page-container {
+    padding: 1.2rem;
+  }
+  .book-list-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.8rem;
+  }
 }
 </style>
