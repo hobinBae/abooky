@@ -17,7 +17,7 @@
           <div class="choice-card" @click="openCreateModal">
             <div class="card-icon"><i class="bi bi-people"></i></div>
             <h3 class="card-title">그룹책 만들기</h3>
-            <p class="card-description">새로운 그룹을 생성하고 멤버들과<br>책을 만들어보세요.</p>
+            <p class="card-description">새로운 그룹을 생성하고<br>멤버들과 책을 만들어보세요.</p>
           </div>
         </div>
       </section>
@@ -450,33 +450,33 @@ onMounted(() => {
   font-size: 4rem;
   font-weight: 700;
   color: var(--primary-text-color);
-  margin-bottom: 0.7rem;
+  margin-bottom: 0rem;
   margin-left: 3rem;
   margin-right: auto;
 }
 
 .section-subtitle1 {
   font-family: 'SCDream4', serif;
-  font-size: 2rem;
+  font-size: 3rem;
   color: rgba(116, 125, 76, 0.9);
   margin-left: 3.5rem;
   margin-right: auto;
-  margin-bottom: 0rem;
+  margin-bottom: -0.5rem;
 }
 
 .section-subtitle2 {
   font-family: 'SCDream4', serif;
-  font-size: 2rem;
+  font-size: 3rem;
   color: rgba(141, 153, 109, 0.7);
   margin-left: 3.5rem;
   margin-right: auto;
-  margin-bottom: 0.3rem;
+  margin-bottom: -0.5rem;
 
 }
 
 .section-subtitle3 {
   font-family: 'SCDream4', serif;
-  font-size: 3.5rem;
+  font-size: 3rem;
   color: rgba(147, 161, 89, 0.4);
   margin-left: 3.5rem;
   margin-right: auto;
@@ -494,8 +494,8 @@ onMounted(() => {
 
 .choice-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 400px)); /* 2개의 열, 각 열의 최대 너비 400px */
-  gap: 2.5rem; /* 카드 사이 간격 조정 */
+  grid-template-columns: repeat(2, minmax(0, 420px)); /* 2개의 열, 각 열의 최대 너비 420px */
+  gap: 3.5rem; /* 카드 사이 간격 조정 */
   justify-content: center; /* 카드들을 중앙에 정렬 */
 }
 

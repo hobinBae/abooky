@@ -64,7 +64,7 @@ function continueWriting() {
 }
 
 .create-book-page {
-  padding: 2em 2rem 4rem 2rem;
+  padding: 1.6em 1.6rem 3.2rem 1.6rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
@@ -73,62 +73,62 @@ function continueWriting() {
 
 .section-title {
   font-family: 'SCDream3', serif;
-  font-size: 4rem;
+  font-size: 3.2rem;
   font-weight: 700;
   color: var(--primary-text-color);
   margin-bottom: 0rem;
-  margin-left: 3rem;
+  margin-left: 2.4rem;
   margin-right: auto;
 }
 
 .section-subtitle1 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(116, 125, 76, 0.9);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: -0.5rem;
+  margin-bottom: -0.4rem;
 }
 
 .section-subtitle2 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(141, 153, 109, 0.7);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: -0.5rem;
+  margin-bottom: -0.4rem;
 
 }
 
 .section-subtitle3 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(147, 161, 89, 0.4);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: 5rem;
+  margin-bottom: 4rem;
 }
 
 .initial-choice-section {
-  max-width: 1200px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
 .choice-section {
-   max-width: 1200px;
+   max-width: 960px;
 }
 
 .choice-cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 350px)); /* 3개의 열, 각 열의 최대 너비 280px */
-  gap: 2.5rem; /* 카드 사이 간격 조정 */
+  grid-template-columns: repeat(3, minmax(0, 280px)); /* 3개의 열, 각 열의 최대 너비 280px */
+  gap: 2rem; /* 카드 사이 간격 조정 */
   justify-content: center; /* 카드들을 중앙에 정렬 */
 }
 
 .choice-card {
   background: var(--surface-color);
-  border-radius: 50px;
-  padding: 2.5rem;
+  border-radius: 40px;
+  padding: 2rem;
   border: 3px solid #657143;
   box-shadow: 0 4px 15px var(--shadow-color);
   cursor: pointer;
@@ -165,17 +165,17 @@ function continueWriting() {
 }
 
 .card-icon {
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: var(--accent-color);
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
   line-height: 1;
 }
 
 .card-title {
   font-family: 'EBSHunminjeongeumSaeronL', serif;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   font-weight: 600;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.7rem;
 }
 
 .card-description {
@@ -187,112 +187,83 @@ function continueWriting() {
 /* --- 반응형 디자인 --- */
 @media (max-width: 1200px) {
   .section-title {
-    font-size: 3.5rem;
-    margin-left: 2rem;
+    font-size: 2.8rem;
+    margin-left: 1.6rem;
   }
   
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
-    font-size: 2.5rem;
-    margin-left: 2.5rem;
+    font-size: 2rem;
+    margin-left: 2rem;
   }
   
   .choice-cards {
-    grid-template-columns: repeat(3, minmax(0, 300px));
-    gap: 2rem;
+    grid-template-columns: repeat(3, minmax(0, 240px));
+    gap: 1.6rem;
   }
 }
 
 @media (max-width: 992px) {
   .create-book-page {
-    padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+    padding: 1.2rem;
   }
   
   .section-title {
-    font-size: 3rem;
-    margin-left: 1.5rem;
+    font-size: 2.4rem;
+    margin-left: 1.2rem;
   }
   
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
-    font-size: 2rem;
-    margin-left: 2rem;
-    margin-bottom: -0.3rem;
+    font-size: 1.6rem;
+    margin-left: 1.6rem;
+    margin-bottom: -0.2rem;
   }
   
   .section-subtitle3 {
-    margin-bottom: 3rem;
+    margin-bottom: 2.4rem;
   }
   
   .choice-cards {
-    grid-template-columns: repeat(2, minmax(0, 280px));
-    gap: 1.5rem;
+    grid-template-columns: repeat(2, minmax(0, 224px));
+    gap: 1.2rem;
   }
   
   .choice-card {
-    padding: 2rem;
+    padding: 1.6rem;
   }
 }
 
 @media (max-width: 768px) {
   .create-book-page {
-    padding: 1rem;
+    padding: 0.8rem;
   }
   
-  .section-title {
-    font-size: 2.5rem;
-    margin-left: 1rem;
-    text-align: center;
-  }
-  
-  .section-subtitle1,
-  .section-subtitle2,
-  .section-subtitle3 {
-    font-size: 1.5rem;
-    margin-left: 1rem;
-    text-align: center;
-  }
-  
-  .choice-cards {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    max-width: 400px;
-    margin: 0 auto;
-  }
-  
-  .choice-card {
-    padding: 1.5rem;
-  }
-  
-  .card-icon {
-    font-size: 2.5rem;
-  }
-  
-  .card-title {
-    font-size: 1.5rem;
-  }
-  
-  .card-description {
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 480px) {
   .section-title {
     font-size: 2rem;
+    margin-left: 0.8rem;
+    text-align: center;
   }
   
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
     font-size: 1.2rem;
+    margin-left: 0.8rem;
+    text-align: center;
+  }
+  
+  .choice-cards {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+    max-width: 320px;
+    margin: 0 auto;
   }
   
   .choice-card {
-    padding: 1rem;
-    border-radius: 25px;
+    padding: 1.2rem;
   }
   
   .card-icon {
@@ -300,11 +271,40 @@ function continueWriting() {
   }
   
   .card-title {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
   }
   
   .card-description {
-    font-size: 0.85rem;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title {
+    font-size: 1.6rem;
+  }
+  
+  .section-subtitle1,
+  .section-subtitle2,
+  .section-subtitle3 {
+    font-size: 1rem;
+  }
+  
+  .choice-card {
+    padding: 0.8rem;
+    border-radius: 20px;
+  }
+  
+  .card-icon {
+    font-size: 1.6rem;
+  }
+  
+  .card-title {
+    font-size: 1rem;
+  }
+  
+  .card-description {
+    font-size: 0.7rem;
   }
 }
 </style>
