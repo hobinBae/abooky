@@ -61,7 +61,14 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       // '/api/v1/members/me' 와 같은 사용자 정보 조회 엔드포인트가 있다고 가정
       const response = await apiClient.get('/api/v1/members/me')
-      user.value = response.data.data
+      const userData = response.data.data
+      
+      // 프로필 이미지가 없거나 빈 값인 경우 기본 이미지로 설정
+      if (!userData.profileImageUrl || userData.profileImageUrl.trim() === '') {
+        userData.profileImageUrl = '/images/profile.png'
+      }
+      
+      user.value = userData
     } catch (error) {
       console.error('Failed to fetch user info:', error)
       clearSession()

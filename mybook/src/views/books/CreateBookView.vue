@@ -183,4 +183,128 @@ function continueWriting() {
   color: var(--secondary-text-color);
   line-height: 1.6;
 }
+
+/* --- 반응형 디자인 --- */
+@media (max-width: 1200px) {
+  .section-title {
+    font-size: 3.5rem;
+    margin-left: 2rem;
+  }
+  
+  .section-subtitle1,
+  .section-subtitle2,
+  .section-subtitle3 {
+    font-size: 2.5rem;
+    margin-left: 2.5rem;
+  }
+  
+  .choice-cards {
+    grid-template-columns: repeat(3, minmax(0, 300px));
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 992px) {
+  .create-book-page {
+    padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+  }
+  
+  .section-title {
+    font-size: 3rem;
+    margin-left: 1.5rem;
+  }
+  
+  .section-subtitle1,
+  .section-subtitle2,
+  .section-subtitle3 {
+    font-size: 2rem;
+    margin-left: 2rem;
+    margin-bottom: -0.3rem;
+  }
+  
+  .section-subtitle3 {
+    margin-bottom: 3rem;
+  }
+  
+  .choice-cards {
+    grid-template-columns: repeat(2, minmax(0, 280px));
+    gap: 1.5rem;
+  }
+  
+  .choice-card {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .create-book-page {
+    padding: 1rem;
+  }
+  
+  .section-title {
+    font-size: 2.5rem;
+    margin-left: 1rem;
+    text-align: center;
+  }
+  
+  .section-subtitle1,
+  .section-subtitle2,
+  .section-subtitle3 {
+    font-size: 1.5rem;
+    margin-left: 1rem;
+    text-align: center;
+  }
+  
+  .choice-cards {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  
+  .choice-card {
+    padding: 1.5rem;
+  }
+  
+  .card-icon {
+    font-size: 2.5rem;
+  }
+  
+  .card-title {
+    font-size: 1.5rem;
+  }
+  
+  .card-description {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title {
+    font-size: 2rem;
+  }
+  
+  .section-subtitle1,
+  .section-subtitle2,
+  .section-subtitle3 {
+    font-size: 1.2rem;
+  }
+  
+  .choice-card {
+    padding: 1rem;
+    border-radius: 25px;
+  }
+  
+  .card-icon {
+    font-size: 2rem;
+  }
+  
+  .card-title {
+    font-size: 1.3rem;
+  }
+  
+  .card-description {
+    font-size: 0.85rem;
+  }
+}
 </style>

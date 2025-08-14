@@ -83,9 +83,28 @@ const mainRoutes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/group-book-editor',
+    name: 'group-book-editor',
+    component: () => import('../views/groups/GroupBookEditorView.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/book-detail/:id',
     name: 'book-detail',
     component: () => import('../views/books/BookDetailView.vue')
+  },
+  {
+    path: '/bookstore/book/:id',
+    name: 'BookstoreBookDetail',
+    component: () => import('../views/books/BookstoreBookDetailView.vue'),
+    props: true
+  },
+  {
+    path: '/group-book-detail/:groupId/:bookId',
+    name: 'group-book-detail',
+    component: () => import('../views/groups/GroupBookDetailView.vue'),
+    props: true,
+    meta: { requiresAuth: true }
   },
   {
     path: '/group-timeline/:id',
