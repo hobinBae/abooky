@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -25,6 +26,9 @@ public class GroupRtcController {
 
     private final GroupRoomService groupRoomService;
     private final GroupMemberService groupMemberService;
+
+    @Value("${livekit.serverUrl}")
+    private String livekitServerUrl;
 
     @Operation(summary = "그룹 화상 채팅 방 생성", description = "그룹 멤버만 방을 생성할 수 있습니다.")
     @PostMapping("/room")
@@ -55,8 +59,8 @@ public class GroupRtcController {
 
         String token = groupRoomService.generateToken(groupId, memberId.toString(), request.getUserName());
 
-        String url = "ws://localhost:7880";
-        RtcTokenResponse response = new RtcTokenResponse(url, token);
+//        String url = "ws://localhost:7880";
+        RtcTokenResponse response = new RtcTokenResponse(livekitServerUrl, token);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "토큰 발급 성공", response, httpRequest.getRequestURI()));
     }
