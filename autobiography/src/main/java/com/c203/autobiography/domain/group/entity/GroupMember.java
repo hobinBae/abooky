@@ -45,4 +45,8 @@ public class GroupMember {
     public void softDelete(){
         this.deletedAt = LocalDateTime.now();
     }
+
+    public void changeRole(GroupRole newRole) {
+        this.role = newRole;
+    }
 }
