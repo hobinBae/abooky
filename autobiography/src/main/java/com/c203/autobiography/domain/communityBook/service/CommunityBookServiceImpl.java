@@ -570,4 +570,39 @@ public class CommunityBookServiceImpl implements CommunityBookService {
 
         return CommunityBookRatingResponse.of(communityBookId, averageRating);
     }
+
+    /**
+     * 북마크한 커뮤니티 책 목록 조회
+     */
+    @Transactional(readOnly = true)
+    @Override
+    public CommunityBookListResponse getBookmarkedCommunityBooks(Long memberId, Pageable pageable) {
+        // 1. 탈퇴한 회원인 경우
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 북마크한 커뮤니티 책들을 페이징 조회
+        Page<CommunityBook> bookmarkedBooksPage = communityBookBookmarkRepository
+                .findBookmarkedCommunityBooksByMemberId(memberId, pageable);
+
+        // 3. DTO 변환
+        List<CommunityBookSummaryResponse> books = bookmarkedBooksPage.getContent().stream()
+                .map(book -> {
+                    // 태그 목록 조회
+                    List<CommunityBookTagResponse> tags = communityBookTagRepository
+                            .findTagInfoByCommunityBookId(book.getCommunityBookId());
+
+                    return CommunityBookSummaryResponse.of(book, tags);
+                })
+                .collect(Collectors.toList());
+        return CommunityBookListResponse.builder()
+                .content(books)
+                .pageable(CommunityBookListResponse.PageableInfo.builder()
+                        .page(bookmarkedBooksPage.getNumber())
+                        .size(bookmarkedBooksPage.getSize())
+                        .totalElements(bookmarkedBooksPage.getTotalElements())
+                        .totalPages(bookmarkedBooksPage.getTotalPages())
+                        .build())
+                .build();
+    }
 }
