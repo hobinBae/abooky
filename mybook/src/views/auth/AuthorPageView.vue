@@ -7,7 +7,7 @@
       <!-- 왼쪽 프로필 섹션 -->
       <div class="profile-sidebar">
         <div class="profile-content">
-          <img :src="authorProfile.profileImageUrl || 'https://via.placeholder.com/150'" alt="Profile Picture" class="profile-pic">
+          <img :src="authorProfile.profileImageUrl && authorProfile.profileImageUrl.trim() ? authorProfile.profileImageUrl : '/images/profile.png'" alt="Profile Picture" class="profile-pic">
           <h2 class="user-name">{{ authorProfile.name }}</h2>
           <p class="user-penname">@{{ authorProfile.nickname }}</p>
           <div v-if="authorProfile.intro" class="author-message">
@@ -21,7 +21,7 @@
         <section class="content-section">
           <h3 class="section-title">서점에 출판한 책</h3>
           <div v-if="authoredBooks.length > 0" class="book-list-grid">
-            <router-link v-for="book in authoredBooks" :key="book.id" :to="`/book-detail/${book.id}`" class="book-item-card" :style="{ backgroundImage: `url(${book.coverUrl || 'https://via.placeholder.com/140x210'})` }">
+            <router-link v-for="book in authoredBooks" :key="book.communityBookId" :to="`/bookstore/book/${book.communityBookId}`" class="book-item-card" :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://via.placeholder.com/140x210'})` }">
               <div class="book-info-overlay">
                 <p class="book-title">{{ book.title }}</p>
               </div>
@@ -41,14 +41,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import apiClient from '@/api';
-
-interface Book {
-  id: string;
-  title: string;
-  authorId: string;
-  authorName?: string;
-  coverUrl?: string;
-}
+import { communityService, type CommunityBook } from '@/services/communityService';
 
 interface AuthorProfile {
   memberId: number;
@@ -63,7 +56,7 @@ const route = useRoute();
 const authorId = computed(() => route.params.authorId as string);
 
 const authorProfile = ref<AuthorProfile | null>(null);
-const authoredBooks = ref<Book[]>([]);
+const authoredBooks = ref<CommunityBook[]>([]);
 const isLoading = ref(true);
 
 const fetchAuthorData = async () => {
@@ -71,22 +64,17 @@ const fetchAuthorData = async () => {
   isLoading.value = true;
 
   try {
-    const profileResponse = await apiClient.get(`/api/v1/members/${authorId.value}`);
+    const profilePromise = apiClient.get(`/api/v1/members/${authorId.value}`);
+    const booksPromise = communityService.getMemberCommunityBooks(Number(authorId.value), { size: 100 }); // 충분히 큰 사이즈
+
+    const [profileResponse, booksResponse] = await Promise.all([profilePromise, booksPromise]);
+
     authorProfile.value = profileResponse.data.data;
-
-    // 서점에 출판한 책 목록 API 호출 (실제 API 엔드포인트로 교체 필요)
-    // const booksResponse = await apiClient.get(`/api/v1/bookstore/author/${authorId.value}`);
-    // authoredBooks.value = booksResponse.data.data;
-
-    // 임시 더미 데이터
-    authoredBooks.value = [
-      { id: 'book1', title: '작가의 첫번째 책', authorId: authorId.value, coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974' },
-      { id: 'book2', title: '두번째 모험 이야기', authorId: authorId.value, coverUrl: 'https://images.unsplash.com/photo-1589998059171-988d887df646?q=80&w=2070' },
-    ];
+    authoredBooks.value = booksResponse.content;
 
   } catch (error) {
     console.error(`Failed to fetch author data for ID ${authorId.value}:`, error);
-    authorProfile.value = null; // 에러 발생 시 프로필 정보 없음 처리
+    authorProfile.value = null;
   } finally {
     isLoading.value = false;
   }

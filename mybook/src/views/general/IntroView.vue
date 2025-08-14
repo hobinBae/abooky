@@ -30,11 +30,8 @@
 
     <!-- Hotspot 활성화 시 UI -->
     <div v-if="activeHotspot" class="hotspot-ui-container">
-      <!-- 중앙 액션 버튼 -->
+      <!-- 중앙 리턴 버튼 -->
       <div class="hotspot-actions">
-        <button class="action-button" @click="goToPage">
-          {{ getButtonLabel(activeHotspot) }}
-        </button>
         <button class="return-button" @click="returnToYard">
           마당으로
         </button>
@@ -63,6 +60,13 @@
           <span v-else class="char">{{ item.value === ' ' ? '&nbsp;' : item.value }}</span>
         </template>
       </p>
+    </div>
+
+    <!-- Action Button - getspotTitle 바로 밑에 위치 -->
+    <div v-if="activeHotspot" class="action-button-container">
+      <button class="action-button" @click="goToPage">
+        {{ getButtonLabel(activeHotspot) }}
+      </button>
     </div>
 
     <!-- 마당 UI -->
@@ -153,14 +157,14 @@ const hotspotCameraPositions: { [key: string]: any } = {
 watch(activeHotspot, (newVal) => {
   if (newVal) {
     nextTick(() => {
-      gsap.fromTo('.char', 
+      gsap.fromTo('.char',
         { opacity: 0, y: 20 },
-        { 
-          opacity: 1, 
+        {
+          opacity: 1,
           y: 0,
-          duration: 0.5, 
+          duration: 0.5,
           stagger: 0.08,
-          ease: 'power2.out' 
+          ease: 'power2.out'
         }
       );
     });
@@ -258,7 +262,7 @@ const navigate = (direction: 'left' | 'right') => {
   } else {
     nextIndex = (currentIndex - 1 + hotspots.length) % hotspots.length;
   }
-  
+
   const nextHotspotName = hotspots[nextIndex];
 
   // 1. 마당으로 돌아옵니다.
@@ -358,7 +362,7 @@ const goToPage = () => {
 
 .text-line.wipe-in-1 {
   font-size: 5rem;
-  
+
 }
 
 .text-line.wipe-in-2 {
@@ -461,7 +465,7 @@ const goToPage = () => {
   animation: rotate-loading 2s linear infinite;
   opacity: 0;
   transition: opacity 0.5s ease-in-out;
-  
+
 }
 
 .enter-button:hover {
@@ -508,7 +512,6 @@ const goToPage = () => {
   color: #fff;
   cursor: pointer;
   font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  margin-bottom: 230px; /* 마당으로 가기 버튼과의 간격 */
   transition: transform 0.2s ease-in-out, color 0.4s ease;
 }
 
@@ -574,7 +577,7 @@ const goToPage = () => {
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-}   
+}
 
 .nav-control.left .nav-arrow {
   margin-right: 1rem;
@@ -609,6 +612,49 @@ const goToPage = () => {
   font-weight: normal;
   white-space: pre-wrap;
   color: rgb(255, 255, 255);
+}
+
+.action-button-container {
+  position: absolute;
+  top: calc(20% + 15rem + 2rem); /* hotspot-title-container의 top(20%) + title 높이 + 여백 */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+}
+
+/* 반응형 디자인을 위한 미디어 쿼리 */
+@media (max-height: 900px) {
+  .action-button-container {
+    top: calc(20% + 12rem + 1.5rem);
+  }
+
+  .hotspot-title-text {
+    font-size: 4rem;
+  }
+}
+
+@media (max-height: 700px) {
+  .action-button-container {
+    top: calc(20% + 10rem + 1rem);
+  }
+
+  .hotspot-title-text {
+    font-size: 3.5rem;
+  }
+}
+
+@media (max-height: 500px) {
+  .action-button-container {
+    top: calc(20% + 8rem + 1rem);
+  }
+
+  .hotspot-title-text {
+    font-size: 3rem;
+  }
+
+  .hotspot-title-container {
+    top: 15%;
+  }
 }
 
 .char {

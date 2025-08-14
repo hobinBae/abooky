@@ -104,13 +104,13 @@
           <section v-else class="other-episodes-section">
             <h3>목차</h3>
             <ul class="other-episodes-list">
-              <li v-for="(episode, index) in book.episodes" :key="episode.episodeId" @click="selectEpisode(index)"
+              <li v-for="(episode, index) in book.episodes" :key="episode.groupEpisodeId" @click="selectEpisode(index)"
                 :class="{ active: index === currentEpisodeIndex }">
                 <div class="episode-list-item-title">
                   <span class="episode-number">{{ index + 1 }}.</span>
                   <span>{{ episode.title }}</span>
                 </div>
-                <p class="episode-list-item-snippet">{{ episode.content.substring(0, 80) }}...</p>
+                <p v-if="episode.editedContent" class="episode-list-item-snippet">{{ episode.editedContent.substring(0, 80) }}...</p>
               </li>
             </ul>
           </section>
@@ -174,13 +174,13 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
 import { useAuthStore } from '@/stores/auth';
-import { communityService } from '@/services/communityService';
 
 // --- Interfaces ---
 interface Episode {
-  episodeId: number;
+  groupEpisodeId: number; // episodeId -> groupEpisodeId
   title: string;
-  content: string;
+  editedContent?: string; // content -> editedContent (optional)
+  rawNotes?: string;
 }
 interface Book {
   bookId: string;
@@ -206,7 +206,8 @@ const DUMMY_COMMENTS: Comment[] = [{ id: 'c1', bookId: 'mybook1', authorId: 'dum
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
-const bookId = computed(() => route.params.id as string);
+const bookId = computed(() => (route.params.bookId || route.params.id) as string);
+const groupId = computed(() => (route.params.groupId as string) || null);
 const initialCoverMode = ref(true);
 const bookIsOpened = ref(false);
 const isCoverFlipped = ref(false);
@@ -240,8 +241,8 @@ const isAuthor = computed(() => {
 });
 
 const truncatedContent = computed(() => {
-  if (currentEpisode.value) {
-    return currentEpisode.value.content.substring(0, 1000);
+  if (currentEpisode.value && currentEpisode.value.editedContent) {
+    return currentEpisode.value.editedContent.substring(0, 1000);
   }
   return '';
 });
@@ -271,16 +272,14 @@ function goToPreviousEpisode() {
 }
 async function fetchBookData() {
   try {
-    const response = await apiClient.get(`/api/v1/books/${bookId.value}`);
+    const response = await apiClient.get(`/api/v1/groups/${groupId.value}/books/${bookId.value}`);
     book.value = response.data.data;
     if (book.value) {
       likeCount.value = book.value.likeCount || 0;
-      // isPublished.value = book.value.completed; // completed 상태와 출판 상태 분리
     }
   } catch (error) {
-    console.error('책 정보를 불러오는데 실패했습니다:', error);
+    console.error('그룹 책 정보를 불러오는데 실패했습니다:', error);
     book.value = null;
-    // TODO: 404 또는 에러 페이지로 리디렉션하는 로직 추가
   }
 }
 function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); }
@@ -296,15 +295,15 @@ function editBook() {
 }
 
 async function publishToBookstore() {
-  if (book.value && confirm(`'${book.value.title}'을(를) 서점에 출판하시겠습니까? 커뮤니티에 공유되어 다른 사용자가 볼 수 있게 됩니다.`)) {
+  if (book.value && confirm(`'${book.value.title}'을(를) 서점에 출판하시겠습니까?`)) {
     try {
-      const response = await communityService.exportBookToCommunity(Number(book.value.bookId));
-      isPublished.value = true;
-      alert('책이 성공적으로 서점에 출판되었습니다.');
-      // 선택적으로, 생성된 커뮤니티 책 상세 페이지로 이동할 수 있습니다.
-      router.push({ name: 'BookstoreBookDetail', params: { id: response.communityBookId } });
+      // 출판을 위해 complete API를 호출하되, UI 상태는 isPublished로 별도 관리
+      await apiClient.patch(`/api/v1/books/${book.value.bookId}/complete`, { tags: book.value.tags || [] });
+      isPublished.value = true; // UI 상태를 '출판됨'으로 변경
+      book.value.completed = true; // 데이터 일관성을 위해 로컬 book 객체도 업데이트
+      alert('책이 성공적으로 출판되었습니다.');
     } catch (error) {
-      console.error('서점 출판에 실패했습니다:', error);
+      console.error('출판에 실패했습니다:', error);
       alert('출판 처리 중 오류가 발생했습니다.');
     }
   }
@@ -324,12 +323,12 @@ async function deleteBook() {
 
   if (confirm(`'${book.value.title}'을(를) 정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) {
     try {
-      // 1. 모든 에피소드 삭제
-      if (book.value.episodes && book.value.episodes.length > 0) {
-        for (const episode of book.value.episodes) {
-          await apiClient.delete(`/api/v1/books/${book.value.bookId}/episodes/${episode.episodeId}`);
-        }
-      }
+      // 1. 모든 에피소드 삭제 (그룹책에서는 지원하지 않음)
+      // if (book.value.episodes && book.value.episodes.length > 0) {
+      //   for (const episode of book.value.episodes) {
+      //     await apiClient.delete(`/api/v1/groups/${groupId.value}/books/${book.value.bookId}/episodes/${episode.groupEpisodeId}`);
+      //   }
+      // }
 
       // 2. 책 삭제
       await apiClient.delete(`/api/v1/books/${book.value.bookId}`);

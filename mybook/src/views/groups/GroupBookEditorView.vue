@@ -7,7 +7,7 @@
       <div class="setup-form">
         <div class="form-group">
           <label for="book-title">책 제목</label>
-          <input id="book-title" type="text" v-model="currentBook.title" placeholder="매력적인 책 제목을 지어주세요."
+          <input id="book-title" type="text" v-model="currentBook.title" placeholder="매력적인 책 제목을 지어주세요"
             class="form-control">
         </div>
         <div class="form-group">
@@ -15,18 +15,20 @@
           <textarea id="book-summary" v-model="currentBook.summary" placeholder="독자들의 흥미를 유발할만한 간단한 소개글을 작성해보세요."
             class="form-control" rows="4"></textarea>
         </div>
+        <!-- 그룹 종류 선택 -->
         <div class="form-group">
-          <label>책 종류 선택</label>
+          <label>그룹 종류 선택</label>
           <div class="type-selection">
-            <button v-for="bookType in bookTypes" :key="bookType.id" @click="currentBook.type = bookType.id"
-              :class="{ active: currentBook.type === bookType.id }">
-              <i :class="bookType.icon"></i>
-              <span>{{ bookType.name }}</span>
+            <button v-for="groupType in groupTypes" :key="groupType.id" @click="currentBook.groupType = groupType.id"
+              :class="{ active: currentBook.groupType === groupType.id }">
+              <i :class="groupType.icon"></i>
+              <span>{{ groupType.name }}</span>
             </button>
           </div>
         </div>
+        
         <div class="form-group">
-          <label>장르 선택</label>
+          <label>카테고리 선택</label>
           <div class="genre-toggle">
             <button v-for="category in categories" :key="category.id" @click="selectCategory(category.id)"
               :class="{ active: selectedCategoryId === category.id }">
@@ -35,7 +37,7 @@
           </div>
         </div>
         <div class="form-actions">
-          <button @click="moveToEditingStep" class="btn btn-primary">
+          <button @click="moveToEditingStep" class="btn btn-primary btn-lg">
             시작하기 <i class="bi bi-arrow-right"></i>
           </button>
         </div>
@@ -95,29 +97,28 @@
               </div>
             </div>
           </div>
-          <div class="editor-sidebar" :ref="el => { sidebarButtons = (el as any)?.children }">
-            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> <span>AI 인터뷰
-                시작</span></button>
+          <div class="editor-sidebar">
+            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> AI 인터뷰 시작</button>
 
-            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i>
-              <span>음성 답변 시작</span></button>
+            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i class="bi bi-soundwave"></i> 음성
+              답변 시작</button>
             <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
-                class="bi bi-stop-circle-fill"></i> <span>음성 답변 완료</span></button>
+                class="bi bi-stop-circle-fill"></i> 음성 답변 완료</button>
 
             <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged"
-              class="btn-sidebar"><i class="bi bi-check-circle"></i> <span>질문 답변완료</span></button>
+              class="btn-sidebar"><i class="bi bi-check-circle"></i> 질문 답변완료</button>
             <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
-                class="bi bi-skip-end-circle"></i> <span>질문 건너뛰기</span></button>
-            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> <span>AI 자동 교정</span></button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> <span>이야기 저장</span></button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-universal-access"></i> <span>배호빈
-                버튼</span></button>
-            <button @click="uploadimage" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진 첨부</span></button>
+                class="bi bi-skip-end-circle"></i> 질문 건너뛰기</button>
+            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> AI 자동 교정</button>
+            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> 이야기 저장</button>
+
+            <hr class="sidebar-divider">
+
             <button @click="saveDraft" class="btn-sidebar btn-outline-sidebar">
-              <i class="bi bi-cloud-arrow-down"></i> <span>임시 저장 (나가기)</span>
+              <i class="bi bi-cloud-arrow-down"></i> 임시 저장 (나가기)
             </button>
             <button @click="moveToPublishingStep" class="btn-sidebar btn-primary-sidebar">
-              <i class="bi bi-send-check"></i> <span>발행하기</span>
+              <i class="bi bi-send-check"></i> 발행하기
             </button>
           </div>
         </div>
@@ -130,6 +131,9 @@
 
     <section v-else-if="creationStep === 'publishing'" class="publish-section">
       <div class="publish-header">
+        <button @click="creationStep = 'editing'" class="btn-back">
+          <i class="bi bi-arrow-left"></i> 뒤로가기
+        </button>
         <h2 class="section-title">책 발행하기</h2>
       </div>
       <p class="section-subtitle">마지막으로 책의 정보를 확인하고, 멋진 표지를 선택해주세요.</p>
@@ -180,10 +184,7 @@
           <input id="cover-upload" type="file" @change="handleCoverUpload" class="form-control">
         </div>
         <div class="form-actions">
-          <button @click="creationStep = 'editing'" class="btn btn-primary btn-lg">
-            <i class="bi bi-arrow-left"></i> 뒤로가기
-          </button>
-          <button @click="finalizePublicationAsCopy" class="btn btn-primary btn-lg">
+          <button @click="finalizePublicationAsCopy" class="btn btn-outline btn-lg">
             복사본으로 발행 <i class="bi bi-files"></i>
           </button>
           <button @click="finalizePublication" class="btn btn-primary btn-lg">
@@ -196,38 +197,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount, onUpdated } from 'vue';
+import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
 import apiClient from '@/api'; // API 클라이언트 임포트
 import { useAuthStore } from '@/stores/auth';
 
 // --- 인터페이스 정의 ---
-interface Story { id?: number; title: string; content: string; activeSessionId?: string | null; }
+interface Story { id?: number; title: string; content: string; }
 interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; completed?: boolean; }
-interface ApiEpisode { episodeId: number; title: string; content: string; activeSessionId?: string | null; }
-
-type QuestionType = 'MAIN' | 'FOLLOWUP' | 'CHAPTER_COMPLETE' | string;
-
-
-interface QuestionEventData {
-  text: string;
-  questionType?: QuestionType;
-  isLastQuestion?: boolean;
-}
-
-interface PartialTranscriptEventData {
-  messageId: number;     // 서버 계약에 맞게 number/string 여부 확인하세요
-  text: string;
-}
-
-interface EpisodeEventData {
-  episodeId: number;
-  title: string;
-  content: string;
-}
+interface ApiEpisode { episodeId: number; title: string; content: string; }
 
 // --- 정적 데이터 ---
-const bookTypes = [{ id: 'autobiography', name: '자서전', icon: 'bi bi-file-person' }, { id: 'diary', name: '일기장', icon: 'bi bi-journal-bookmark' }, { id: 'freeform', name: '자유', icon: 'bi bi-brush' },];
+const groupTypes = [{ id: 'family', name: '가족', icon: 'bi bi-house-heart' }, { id: 'friends', name: '친구', icon: 'bi bi-people' }, { id: 'couple', name: '연인', icon: 'bi bi-heart' }];
 const categories = [
   { id: 1, name: '자서전' }, { id: 2, name: '일기' }, { id: 3, name: '소설/시' },
   { id: 4, name: '에세이' }, { id: 5, name: '자기계발' }, { id: 6, name: '역사' },
@@ -241,11 +222,11 @@ const coverOptions = ['https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/de
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
-let connectTimer: number | null = null;
 
 // --- 컴포넌트 상태 ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
-const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null });
+const currentBook = ref<Partial<Book & { categoryId: number | null; groupType?: string }>>({ title: '', summary: '', stories: [], tags: [], categoryId: null, groupType: 'family' });
+
 const selectedCategoryId = ref<number | null>(null);
 const currentStoryIndex = ref(-1);
 const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');
@@ -263,15 +244,9 @@ const currentSessionId = ref<string | null>(null);
 const currentAnswerMessageId = ref<number | null>(null);
 // SSE EventSource 객체를 저장할 변수
 let eventSource: EventSource | null = null;
-// SSE 연결 상태 추적
-const isConnecting = ref(false);
-const isConnected = ref(false);
 
 const selectedCover = ref(coverOptions[0]);
 const uploadedCoverFile = ref<File | null>(null);
-const sidebarButtons = ref<HTMLButtonElement[]>([]);
-
-const isCorrecting = ref(false);
 
 // --- 오디오 녹음 상태 ---
 const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
@@ -337,9 +312,9 @@ async function moveToEditingStep() {
     currentBook.value.stories = newBook.episodes || [];
 
     creationStep.value = 'editing';
-    if (currentBook.value.stories?.length === 0) {
-      addStory();
-    }
+    // if (currentBook.value.stories?.length === 0) {
+    //   addStory();
+    // }
   } catch (error) {
     console.error('책 생성 오류:', error);
     alert('책 생성에 실패했습니다.');
@@ -447,24 +422,13 @@ function visualize() {
 
 async function loadBookForEditing(bookId: string) {
   try {
-    const response = await apiClient.get(`/api/v1/books/${bookId}`, {
-      headers: {
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-      },
-    });
+    const response = await apiClient.get(`/api/v1/books/${bookId}`);
     const bookData = response.data.data;
     currentBook.value = {
       id: bookData.bookId,
       title: bookData.title,
       summary: bookData.summary,
-      stories: bookData.episodes?.map((e: ApiEpisode) => ({
-        id: e.episodeId,
-        title: e.title,
-        content: e.content,
-        activeSessionId: e.activeSessionId // ★★★ activeSessionId를 함께 매핑 ★★★
-      })) || [],
+      stories: bookData.episodes?.map((e: ApiEpisode) => ({ id: e.episodeId, title: e.title, content: e.content })) || [],
       tags: bookData.tags || [],
       categoryId: bookData.categoryId,
       type: bookData.bookType.toLowerCase(),
@@ -473,21 +437,8 @@ async function loadBookForEditing(bookId: string) {
     tags.value = bookData.tags || []; // [수정] 불러온 태그를 상태에 할당
     selectedCategoryId.value = bookData.categoryId;
     creationStep.value = 'editing';
-
     if (currentBook.value.stories && currentBook.value.stories.length > 0) {
-      // activeSessionId가 있는 스토리를 우선적으로 찾아서 선택
-      const activeStoryIndex = currentBook.value.stories.findIndex(story =>
-        story.activeSessionId && story.activeSessionId.trim() !== ''
-      );
-
-      if (activeStoryIndex !== -1) {
-        // 진행 중인 세션이 있는 스토리를 선택하고 이어쓰기 모드로 진입
-        console.log(`진행 중인 세션이 있는 스토리(인덱스: ${activeStoryIndex})를 선택합니다.`);
-        await selectStory(activeStoryIndex);
-      } else {
-        // 진행 중인 세션이 없으면 첫 번째 스토리 선택
-        await selectStory(0);
-      }
+      selectStory(0);
     }
   } catch (error) {
     console.error('책 정보를 불러오는데 실패했습니다:', error);
@@ -547,74 +498,9 @@ async function addStory() {
   }
 }
 
-
-async function selectStory(index: number) {
-  console.log(`🎯 selectStory 호출: index=${index}`);
-  console.log('📚 현재 stories:', currentBook.value.stories?.map(s => ({ id: s.id, title: s.title })));
-
-  if (eventSource && currentSessionId.value) {
-    console.log(`다른 스토리 선택으로 SSE 연결(${currentSessionId.value})을 종료합니다.`);
-    try {
-      // 이 경우는 페이지 이동이 아니므로 apiClient 사용 가능
-      await apiClient.delete(`/api/v1/conversation/stream/${currentSessionId.value}`);
-    } catch (e) {
-      console.error('SSE 연결 종료 API 호출 실패', e);
-    }
-    eventSource.close();
-    isConnected.value = false;
-    isConnecting.value = false;
-  }
-
+function selectStory(index: number) {
   currentStoryIndex.value = index;
   isContentChanged.value = false;
-
-  // 선택된 스토리를 가져옴
-  const story = currentBook.value.stories?.[index];
-
-  console.log('✅ 선택된 스토리:', {
-    id: story?.id,
-    title: story?.title,
-    hasActiveSession: !!story?.activeSessionId,
-    contentLength: story?.content?.length || 0
-  });
-
-  // 기존 연결이 있다면 먼저 정리
-  if (eventSource) {
-    eventSource.close();
-    isConnected.value = false;
-    isConnecting.value = false;
-    // 연결 정리를 위한 짧은 대기
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  // ★★★ 여기가 대화 이어하기의 핵심 로직 ★★★
-  if (story && story.activeSessionId) {
-    // [재연결 시나리오] 선택한 스토리에 진행 중인 세션이 있다면,
-    console.log(`기존 세션(${story.activeSessionId})에 재연결합니다.`);
-    currentSessionId.value = story.activeSessionId; // '열쇠'를 현재 세션 ID로 설정
-    isInterviewStarted.value = true; // 인터뷰 모드로 즉시 전환
-
-    // 상태 설정 후 짧은 지연을 두고 연결
-    await new Promise(resolve => setTimeout(resolve, 200));
-    await connectToSseStream(); // 해당 세션 ID로 SSE 스트림에 재연결
-  } else {
-    // [새 시작 시나리오] 진행 중인 세션이 없다면, 모든 관련 상태를 초기화
-    currentSessionId.value = null;
-    isInterviewStarted.value = false;
-    aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
-    currentAnswerMessageId.value = null;
-    console.log('🆕 새 시작 모드로 상태 초기화 완료');
-  }
-
-  // selectStory 완료 후 최종 상태 확인
-  await nextTick();
-  console.log('🎯 selectStory 완료 후 최종 상태:', {
-    currentStoryIndex: currentStoryIndex.value,
-    currentStoryExists: !!currentStory.value,
-    currentStoryId: currentStory.value?.id,
-    isInterviewStarted: isInterviewStarted.value,
-    currentSessionId: currentSessionId.value
-  });
 }
 
 async function saveStory() {
@@ -684,23 +570,11 @@ async function startAiInterview() {
     alert('먼저 이야기를 추가/선택해주세요.');
     return;
   }
-
-  // 이미 연결 중이거나 연결되어 있다면 중복 시작 방지
-  if (isConnecting.value || isConnected.value || isInterviewStarted.value) {
-    console.log('이미 AI 인터뷰가 진행 중이거나 연결 중입니다.');
-    return;
-  }
-
   try {
     const res = await apiClient.post(
       `/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value.id}/sessions`
     );
     currentSessionId.value = res.data.data.sessionId;
-
-    // 현재 스토리에 activeSessionId 저장 (이어쓰기를 위함)
-    if (currentStory.value) {
-      currentStory.value.activeSessionId = currentSessionId.value;
-    }
 
     isInterviewStarted.value = true;
     isContentChanged.value = false;
@@ -709,267 +583,97 @@ async function startAiInterview() {
     aiQuestion.value = 'AI 인터뷰 세션에 연결 중... 첫 질문을 기다립니다.';
 
     // 발급받은 sessionId로 SSE 스트림에 "연결"
-    await connectToSseStream();
+
+    connectToSseStream();
   } catch (e) {
     console.error('세션 시작 실패:', e);
     alert('AI 인터뷰 세션 시작에 실패했습니다.');
-    // 실패 시 상태 초기화
-    isInterviewStarted.value = false;
-    currentSessionId.value = null;
-    if (currentStory.value) {
-      currentStory.value.activeSessionId = null;
-    }
   }
 }
 
-async function safeCloseEventSource() {
-  if (connectTimer) { clearTimeout(connectTimer); connectTimer = null; }
-  if (!eventSource) return;
-  try { eventSource.close(); } catch { }
-  eventSource = null;
-  isConnected.value = false;
-  isConnecting.value = false;
-  // 끊고 300ms는 재연결 금지
-  await new Promise(res => setTimeout(res, 300));
-}
-
-// 페이지 이탈 전 완전한 정리 함수
-async function cleanupBeforeLeave() {
-  console.log('페이지 이탈 전 상태 정리 시작...');
-
-  // SSE 연결 완전 정리
-  await safeCloseEventSource();
-
-  // 모든 상태 초기화
-  currentSessionId.value = null;
-  currentAnswerMessageId.value = null;
-  isInterviewStarted.value = false;
-  isContentChanged.value = false;
-  firstChunkForThisAnswer = true;
-  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
-
-  console.log('페이지 이탈 전 상태 정리 완료');
-}
-
-let firstChunkForThisAnswer = true;
 
 // ★ 추가: SSE 연결 및 이벤트 리스너 설정 함수
-async function connectToSseStream() {
-  if (!currentSessionId.value) {
-    console.warn('세션 ID가 없어 SSE 연결을 할 수 없습니다.');
-    return;
-  }
+function connectToSseStream() {
+  if (!currentSessionId.value) return;
 
-  // 이미 연결 중이거나 연결되어 있다면 중복 연결 방지
-  if (isConnecting.value || isConnected.value) {
-    console.log('이미 SSE 연결 중이거나 연결되어 있습니다.');
-    return;
-  }
-
-  isConnecting.value = true;
-
-  await safeCloseEventSource();
-
-
-  // 기존 연결이 있다면 종료하고 잠시 대기
+  // 기존 연결이 있다면 종료
   if (eventSource) {
     eventSource.close();
-    isConnected.value = false;
-    await new Promise(resolve => setTimeout(resolve, 300));
   }
 
-  try {
-    const baseURL = apiClient.defaults?.baseURL || '';
-    const url = `${baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
-    eventSource = new EventSource(url, { withCredentials: true });
+  const baseURL = apiClient.defaults?.baseURL || '';
+  const url = `${baseURL}/api/v1/conversation/${currentBook.value.id}/${currentSessionId.value}/stream`;
+  eventSource = new EventSource(url, { withCredentials: true });
 
-    eventSource.onopen = () => {
-      console.log('SSE 연결 성공');
-      isConnecting.value = false;
-      isConnected.value = true;
-    };
+  eventSource.onopen = () => {
+    console.log('SSE 연결 성공');
+  };
 
-    eventSource.addEventListener('question', (ev: MessageEvent<string>) => {
-      const q = safeJson<QuestionEventData>(ev.data);
-      if (!q) return; // 파싱 실패 시 무시
+  eventSource.addEventListener('question', (event) => {
+    const q = JSON.parse(event.data);
+    aiQuestion.value = q.text;
 
-      aiQuestion.value = q.text ?? '';
+    if (q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion) {
+      isInterviewStarted.value = false;
+      isContentChanged.value = false;
 
-      // 인터뷰 종료 신호
-      if (q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion) {
-        isInterviewStarted.value = false;
-        isContentChanged.value = false;
-        if (currentStory.value) currentStory.value.activeSessionId = null;
-        return;
-      }
-
-      // 직후 episode 반영이면 초기화 금지
-      if (episodeJustApplied.value) {
-        episodeJustApplied.value = false;
-        return;
-      }
-
-      // 다음 답변으로 넘어가는 일반 케이스
-      if (q.questionType === 'MAIN' || q.questionType === 'FOLLOWUP' || !q.questionType) {
-        // 기존 내용 즉시 삭제 대신, 다음 partialTranscript의 첫 청크에서 초기화
-        firstChunkForThisAnswer = true;
-        isContentChanged.value = false;
-      }
-    });
-
-
-    function safeJson<T>(data: string): T | null {
-      try {
-        return JSON.parse(data) as T;
-      } catch {
-        return null;
-      }
+      return;
     }
-    // 2.'partialTranscript' 이벤트 리스너
-    eventSource.addEventListener('partialTranscript', async (ev: MessageEvent<string>) => {
-      console.log('🎤 SSE partialTranscript 이벤트 수신:', ev.data);
-      const t = safeJson<PartialTranscriptEventData>(ev.data);
-      if (!t) {
-        console.error('❌ partialTranscript JSON 파싱 실패:', ev.data);
-        return;
-      }
 
-      console.log('✅ 파싱된 transcript 데이터:', t);
-      console.log('📝 현재 currentStory 상태:', {
-        exists: !!currentStory.value,
-        id: currentStory.value?.id,
-        title: currentStory.value?.title,
-        contentLength: currentStory.value?.content?.length || 0
-      });
-      console.log('📌 현재 currentStoryIndex:', currentStoryIndex.value);
-      console.log('🔄 firstChunkForThisAnswer 상태:', firstChunkForThisAnswer);
-      console.log('📋 전체 stories 개수:', currentBook.value?.stories?.length || 0);
+    // 에피소드 반영 직후엔 초기화 금지
+    if (episodeJustApplied.value) {
+      episodeJustApplied.value = false;
+      return;
+    }
 
-      // 스토리 선택이 올바른지 검증
-      if (currentStoryIndex.value >= 0 && currentBook.value?.stories) {
-        const selectedStory = currentBook.value.stories[currentStoryIndex.value];
-        console.log('🎯 선택된 스토리:', {
-          id: selectedStory?.id,
-          title: selectedStory?.title,
-          isSameAsCurrentStory: selectedStory === currentStory.value
-        });
-      }
-
-      if (currentStory.value) {
-        console.log('✅ currentStory가 존재함, content 업데이트 시도');
-
-        // 다음 답변의 첫 청크에서만 초기화
-        if (firstChunkForThisAnswer) {
-          console.log('🆕 첫 청크로 content 초기화');
-          currentStory.value.content = '';
-          firstChunkForThisAnswer = false;
-        }
-
-        const beforeContent = currentStory.value.content;
-        const addText = (t.text || '') + ' ';
-        currentStory.value.content += addText;
-        const afterContent = currentStory.value.content;
-
-        console.log('📝 content 업데이트 완료:', {
-          before: `"${beforeContent}"`,
-          added: `"${addText}"`,
-          after: `"${afterContent}"`
-        });
-
-        // Vue 반응성 강제 업데이트
-        await nextTick();
-        console.log('🔄 nextTick 완료, 최종 content:', currentStory.value.content);
-
-        // 반응성 트리거를 위해 스토리 배열을 강제 업데이트
-        if (currentBook.value?.stories && currentStoryIndex.value >= 0) {
-          const currentStoryRef = currentBook.value.stories[currentStoryIndex.value];
-          if (currentStoryRef) {
-            // 배열 요소를 새 객체로 교체하여 반응성 보장
-            currentBook.value.stories.splice(currentStoryIndex.value, 1, { ...currentStoryRef });
-            console.log('🔄 스토리 배열 반응성 강제 업데이트 완료');
-          }
-        }
-
-      } else {
-        console.error('❌ currentStory.value가 null 또는 undefined입니다!');
-        console.log('📚 전체 book stories:', currentBook.value?.stories?.map(s => ({
-          id: s.id,
-          title: s.title,
-          contentLength: s.content?.length || 0
-        })));
-
-        // 안전장치: currentStoryIndex가 유효하지 않은 경우 첫 번째 스토리 선택
-        if (currentBook.value?.stories && currentBook.value.stories.length > 0) {
-          if (currentStoryIndex.value < 0 || currentStoryIndex.value >= currentBook.value.stories.length) {
-            console.log('🔧 currentStoryIndex가 유효하지 않음, 첫 번째 스토리로 설정');
-            currentStoryIndex.value = 0;
-            await nextTick(); // 상태 업데이트 대기
-          }
-
-          // 직접 스토리에 접근해서 업데이트 시도
-          if (currentBook.value.stories[currentStoryIndex.value]) {
-            console.log('🔧 직접 스토리 접근으로 content 업데이트 시도');
-            const targetStory = currentBook.value.stories[currentStoryIndex.value];
-
-            if (firstChunkForThisAnswer) {
-              targetStory.content = '';
-              firstChunkForThisAnswer = false;
-            }
-
-            const addText = (t.text || '') + ' ';
-            targetStory.content += addText;
-            console.log('🔧 직접 업데이트 완료:', targetStory.content);
-          }
-        }
-      }
-
-      // 최신 messageId 갱신
-      if (typeof t.messageId !== 'undefined' && t.messageId !== null) {
-        currentAnswerMessageId.value = t.messageId as number;
-        console.log('🆔 messageId 업데이트:', t.messageId);
-      }
-
-      // 답변 내용이 존재함을 표시
-      isContentChanged.value = true;
-      console.log('✅ isContentChanged를 true로 설정');
-    });
+    if (q.questionType === 'MAIN' || q.questionType === 'FOLLOWUP' || !q.questionType) {
+      isContentChanged.value = false;
+      if (currentStory.value) currentStory.value.content = '';
+    }
+  });
 
 
-    eventSource.addEventListener('episode', async (ev: MessageEvent<string>) => {
-      episodeJustApplied.value = true;
+  // 2.'partialTranscript' 이벤트 리스너
+  eventSource.addEventListener('partialTranscript', (event) => {
+    const transcriptData = JSON.parse(event.data);
+    if (currentStory.value) {
+      // 서버에서 받은 음성 인식 결과를 content에 추가
+      currentStory.value.content += transcriptData.text + ' ';
+    }
+    // 수신한 messageId를 상태에 저장
+    currentAnswerMessageId.value = transcriptData.messageId;
+  });
 
-      const e = safeJson<EpisodeEventData>(ev.data);
-      if (!e || !currentBook.value?.stories) return;
+  // 'episode' 이벤트 리스너
+  eventSource.addEventListener('episode', async (event) => {
 
-      const i = currentBook.value.stories.findIndex(s => s.id === e.episodeId);
+    episodeJustApplied.value = true;
 
-      if (i > -1) {
-        // 반응성 보장: 새 객체로 교체
-        const updated = { ...currentBook.value.stories[i], title: e.title, content: e.content };
-        currentBook.value.stories.splice(i, 1, updated);
-        await nextTick();
-        if (currentStoryIndex.value === -1) currentStoryIndex.value = i;
-      } else {
-        const newStory = { id: e.episodeId, title: e.title, content: e.content };
-        currentBook.value.stories.push(newStory);
-        currentStoryIndex.value = currentBook.value.stories.length - 1;
-      }
-    });
+    const e = JSON.parse(event.data);
 
-    eventSource.onerror = (error) => {
-      console.error('SSE 에러:', error);
-      isConnecting.value = false;
-      isConnected.value = false;
-      aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다. 페이지를 새로고침 해주세요.';
-      eventSource?.close();
-    };
+    if (!currentBook.value?.stories) return;
 
-  } catch (error) {
-    console.error('SSE 연결 실패:', error);
-    isConnecting.value = false;
-    isConnected.value = false;
-    aiQuestion.value = 'AI 인터뷰 서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
-  }
+    const i = currentBook.value.stories.findIndex(s => s.id === e.episodeId);
+
+    if (i > -1) {
+      const updated = { ...currentBook.value.stories[i], title: e.title, content: e.content };
+      currentBook.value.stories.splice(i, 1, updated);    // ✅ 반응성 보장
+      await nextTick();
+      if (currentStoryIndex.value === -1) currentStoryIndex.value = i;  // 선택 없으면 선택
+    } else {
+      const newStory = { id: e.episodeId, title: e.title, content: e.content };
+      currentBook.value.stories.push(newStory);
+      currentStoryIndex.value = currentBook.value.stories.length - 1;   // ✅ 새로 추가되면 선택
+    }
+
+
+  });
+
+  eventSource.onerror = (error) => {
+    console.error('SSE 에러:', error);
+    aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다. 페이지를 새로고침 해주세요.';
+    eventSource?.close();
+  };
 }
 
 
@@ -977,19 +681,29 @@ async function connectToSseStream() {
 async function submitAnswerAndGetFollowUp() {
   if (!isInterviewStarted.value || !currentSessionId.value) return;
 
+  // 텍스트로 답변한 경우, 해당 내용을 먼저 ANSWER 메시지로 저장
+  if (isContentChanged.value && currentStory.value) {
+    try {
+      await apiClient.post('/api/v1/messages', { // (가칭) 메시지 생성 API
+        sessionId: currentSessionId.value,
+        messageType: 'ANSWER',
+        content: currentStory.value.content
+      });
+    } catch (e) {
+      console.error('텍스트 답변 저장 실패:', e);
+    }
+  }
+
   try {
     console.log('다음 질문 요청...');
     // "다음 질문"을 요청하는 API 호출
     await apiClient.post(`/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value?.id}/next?sessionId=${currentSessionId.value}`);
 
-    // 즉시 화면의 답변 내용을 지우고 상태 초기화
-    if (currentStory.value) {
-      currentStory.value.content = '';
-    }
-    isContentChanged.value = false;
-    firstChunkForThisAnswer = true;
-
     // 다음 질문은 SSE의 'question' 이벤트 리스너가 받아서 자동으로 화면에 표시합니다.
+
+    // // 다음 질문을 위해 답변 내용 초기화 및 상태 변경
+    // if (currentStory.value) currentStory.value.content = '';
+    // isContentChanged.value = false;
   } catch (error) {
     console.error('다음 질문 요청 실패:', error);
     alert('다음 질문을 가져오는데 실패했습니다.');
@@ -997,39 +711,7 @@ async function submitAnswerAndGetFollowUp() {
 }
 
 function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; alert('질문을 건너뛰었습니다.'); isContentChanged.value = false; }
-async function autoCorrect() {
-  if (!currentStory.value || !currentStory.value.content?.trim()) {
-    alert('교정할 내용이 없습니다.');
-    return;
-  }
-
-  console.log(selectedCategoryId.value);
-  // ★★★ 카테고리 선택 유효성 검사 추가 ★★★
-  if (!selectedCategoryId.value) {
-    alert('AI 교정을 위해서는 먼저 카테고리를 선택해야 합니다.');
-    return;
-  }
-
-  isCorrecting.value = true;
-  correctedContent.value = null;
-
-  try {
-    const requestBody = {
-      textToCorrect: currentStory.value.content,
-      bookCategory: selectedCategoryId.value// ★★★ bookType -> categoryId 로 변경 ★★★
-    };
-
-    const response = await apiClient.post('/api/v1/ai/proofread', requestBody);
-    correctedContent.value = response.data.data.correctedText;
-
-  } catch (error) {
-    console.error('AI 자동 교정 실패:', error);
-    alert('AI 자동 교정에 실패했습니다. 잠시 후 다시 시도해주세요.');
-  } finally {
-    isCorrecting.value = false;
-  }
-}
-
+function autoCorrect() { if (currentStory.value) { correctedContent.value = `(AI 교정됨) ${currentStory.value.content} - 문법과 문체가 ${currentBook.value.type} 스타일에 맞게 수정되었습니다.`; } }
 function applyCorrection() { if (currentStory.value && correctedContent.value) { currentStory.value.content = correctedContent.value; correctedContent.value = null; } }
 function cancelCorrection() { correctedContent.value = null; }
 
@@ -1064,10 +746,6 @@ async function saveDraft() {
 
       alert('임시 저장되었습니다.');
       isSavedOrPublished.value = true;
-
-      // 나가기 전에 모든 연결과 상태를 완전히 정리
-      await cleanupBeforeLeave();
-
       router.push('/continue-writing');
     } catch (error) {
       console.error('임시 저장 오류:', error);
@@ -1167,10 +845,6 @@ async function finalizePublication() {
 
     alert('책이 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
-
-    // 발행 완료 후 상태 정리
-    await cleanupBeforeLeave();
-
     router.push(`/book-detail/${currentBook.value.id}`);
 
   } catch (error) {
@@ -1229,10 +903,6 @@ async function finalizePublicationAsCopy() {
 
     alert('책이 복사본으로 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
-
-    // 복사본 발행 완료 후 상태 정리
-    await cleanupBeforeLeave();
-
     router.push(`/book-detail/${newBook.bookId}`);
   } catch (error) {
     console.error('복사본 발행 오류:', error);
@@ -1240,23 +910,6 @@ async function finalizePublicationAsCopy() {
   }
 }
 
-function uploadimage() {
-  alert('이미지 업로드 기능은 아직 구현되지 않았습니다.');
-}
-
-const adjustButtonFontSize = () => {
-  nextTick(() => {
-    if (sidebarButtons.value) {
-      Array.from(sidebarButtons.value).forEach(button => {
-        if (button.scrollHeight > button.clientHeight) {
-          button.classList.add('font-small');
-        } else {
-          button.classList.remove('font-small');
-        }
-      });
-    }
-  });
-};
 
 // --- 생명주기 훅 ---
 
@@ -1292,47 +945,14 @@ onMounted(() => {
     loadOrCreateBook(bookId || null);
   }
   window.addEventListener('beforeunload', handleBeforeUnload);
-  adjustButtonFontSize();
-});
-
-onUpdated(() => {
-  adjustButtonFontSize();
 });
 
 onBeforeUnmount(() => {
-  // 타이머 정리
-  if (connectTimer) {
-    clearTimeout(connectTimer);
-    connectTimer = null;
-  }
-  if (currentSessionId.value) {
-    const baseURL = apiClient.defaults?.baseURL || '';
-    const url = `${baseURL}/api/v1/conversation/stream/${currentSessionId.value}`;
-    const headers = { 'Authorization': `Bearer ${authStore.accessToken}` };
 
-    // 페이지를 닫아도 요청이 취소되지 않도록 fetch + keepalive 사용
-    // navigator.sendBeacon(url, new Blob([JSON.stringify({})], { type: 'application/json' })) 도 좋은 대안입니다.
-    try {
-      fetch(url, {
-        method: 'DELETE',
-        headers,
-        keepalive: true,
-      });
-      console.log(`SSE 연결 종료 요청 전송: ${currentSessionId.value}`);
-    } catch (e) {
-      console.error('SSE 연결 종료 요청 전송 실패', e);
-    }
-  }
-
-  // SSE 연결 정리
   if (eventSource) {
     eventSource.close();
-    isConnected.value = false;
-    isConnecting.value = false;
     console.log('SSE 연결 종료');
   }
-
-
 
   window.removeEventListener('beforeunload', handleBeforeUnload);
 
@@ -1342,34 +962,34 @@ onBeforeUnmount(() => {
       'Authorization': `Bearer ${authStore.accessToken}`,
     };
 
-    // try {
-    //   // 1. 모든 에피소드에 대한 삭제 요청을 보냅니다.
-    //   currentBook.value.stories?.forEach(story => {
-    //     if (story.id) {
-    //       const baseURL = apiClient.defaults?.baseURL || '';
-    //       const episodeUrl = `${baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
-    //       fetch(episodeUrl, {
-    //         method: 'DELETE',
-    //         headers,
-    //         keepalive: true,
-    //       });
-    //       console.log(`에피소드(ID: ${story.id}) 삭제 요청을 전송했습니다.`);
-    //     }
-    //   });
+    try {
+      // 1. 모든 에피소드에 대한 삭제 요청을 보냅니다.
+      currentBook.value.stories?.forEach(story => {
+        if (story.id) {
+          const baseURL = apiClient.defaults?.baseURL || '';
+          const episodeUrl = `${baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
+          fetch(episodeUrl, {
+            method: 'DELETE',
+            headers,
+            keepalive: true,
+          });
+          console.log(`에피소드(ID: ${story.id}) 삭제 요청을 전송했습니다.`);
+        }
+      });
 
-    //   // 2. 책 삭제 요청을 보냅니다.
-    //   const baseURL = apiClient.defaults?.baseURL || '';
-    //   const bookUrl = `${baseURL}/api/v1/books/${bookId}`;
-    //   fetch(bookUrl, {
-    //     method: 'DELETE',
-    //     headers,
-    //     keepalive: true,
-    //   });
-    //   console.log(`책(ID: ${bookId}) 삭제 요청을 전송했습니다.`);
+      // 2. 책 삭제 요청을 보냅니다.
+      const baseURL = apiClient.defaults?.baseURL || '';
+      const bookUrl = `${baseURL}/api/v1/books/${bookId}`;
+      fetch(bookUrl, {
+        method: 'DELETE',
+        headers,
+        keepalive: true,
+      });
+      console.log(`책(ID: ${bookId}) 삭제 요청을 전송했습니다.`);
 
-    // } catch (e) {
-    //   console.error("페이지 이탈 중 삭제 요청 전송 실패:", e);
-    // }
+    } catch (e) {
+      console.error("페이지 이탈 중 삭제 요청 전송 실패:", e);
+    }
   }
 });
 
@@ -1379,23 +999,6 @@ watch(() => currentStory.value?.content, (newContent) => {
     console.log('Content changed, isContentChanged set to:', isContentChanged.value);
   }
 });
-
-// route 변경 감지하여 컴포넌트 재사용 시에도 올바르게 초기화
-watch(() => route.params.bookId, async (newBookId, oldBookId) => {
-  if (newBookId && newBookId !== oldBookId) {
-    console.log(`Route 변경 감지: ${oldBookId} -> ${newBookId}`);
-
-    // 기존 연결 정리
-    await cleanupBeforeLeave();
-
-    // 새로운 책 로드
-    if (route.query.start_editing === 'true') {
-      await loadBookForEditing(newBookId as string);
-    } else {
-      loadOrCreateBook(newBookId as string || null);
-    }
-  }
-}, { immediate: false });
 </script>
 
 <style scoped>
@@ -1413,16 +1016,16 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 }
 
 .book-editor-page {
-  padding: 1rem 4rem 5rem 4rem;
+  padding: 60px 5rem 5rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
-  font-family: 'SCDream4', sans-serif;
+  font-family: 'Pretendard', sans-serif;
 }
 
 .section-title {
-  font-family: 'EBSHunminjeongeumSaeronL', sans-serif;
-  font-size: 3rem;
+  font-family: 'Pretendard', sans-serif;
+  font-size: 2.5rem;
   font-weight: 700;
   text-align: center;
   margin-bottom: 0.5rem;
@@ -1431,7 +1034,7 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 .section-subtitle {
   text-align: center;
   font-size: 1.1rem;
-  color: #5b673b;
+  color: #5C4033;
   margin-bottom: 3rem;
 }
 
@@ -1449,63 +1052,15 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
   padding: 0.6rem 1.2rem;
 }
 
-@keyframes fill-animation {
-  0% {
-    transform-origin: top;
-    transform: scaleY(0);
-  }
-
-  50% {
-    transform-origin: top;
-    transform: scaleY(1);
-  }
-
-  50.1% {
-    transform-origin: bottom;
-    transform: scaleY(1);
-  }
-
-  100% {
-    transform-origin: bottom;
-    transform: scaleY(0);
-  }
-}
-
 .btn.btn-primary {
-  position: relative;
-  overflow: hidden;
-  z-index: 1;
-  display: inline-block;
-  border: 3px solid #5b673b !important;
-  border-radius: 20px !important;
-  margin-left: 1rem !important;
-  margin-right: 1rem !important;
-  padding: 0.5rem 1.2rem !important;
-  font-size: 1rem !important;
-  white-space: nowrap;
-  font-family: 'SCDream5', sans-serif;
-  transition: color 0.5s ease;
-  background-color: transparent;
-  color: #000000;
-}
-
-.btn.btn-primary::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(185, 174, 122, 0.4);
-  transform: scaleY(0);
-  z-index: -1;
-  animation: fill-animation 3s infinite ease-in-out;
+  background-color: #8B4513;
+  border: 1px solid #8B4513;
+  color: #FFFFFF;
 }
 
 .btn-primary:hover {
-  color: white !important;
-  border-color: #dee2e6 !important;
-  background-color: transparent;
+  background-color: #6a341a;
+  border-color: #6a341a;
 }
 
 .btn-outline {
@@ -1524,14 +1079,13 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 }
 
 /* --- Title Input Styling --- */
-/* 세부사항 입력 책제목 */
 .title-input-highlight {
   background-color: transparent;
   border: none;
-  border-bottom: 2px solid #c1af9b;
+  border-bottom: 2px solid #EAE0D5;
   border-radius: 0;
   padding: 0.5rem 0.2rem;
-  font-family: 'ChosunCentennial', serif;
+  font-family: 'Noto Serif KR', serif;
   font-size: 1.75rem;
   font-weight: 600;
   color: var(--primary-text-color);
@@ -1546,6 +1100,7 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
 
 .story-title-input.title-input-highlight {
   font-size: 1.3rem;
+  border-bottom-width: 1px;
 }
 
 /* --- Setup / Publish Section --- */
@@ -1555,8 +1110,7 @@ watch(() => route.params.bookId, async (newBookId, oldBookId) => {
   margin: 0 auto;
   background: var(--surface-color);
   padding: 2.5rem 3rem;
-  border-radius: 25px;
-  border: 3px solid #657143;
+  border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
@@ -1592,75 +1146,45 @@ textarea.form-control {
 
 .type-selection {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
 }
 
 .type-selection button {
-  background: var(--surface-color);
-  border-radius: 30px;
-  padding: 1rem;
-  border: 3px solid #657143;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+  background: #f9f9f9;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem 1rem;
   cursor: pointer;
-  text-align: center;
-  transition: color 0.4s ease, box-shadow 0.3s, transform 0.3s ease;
-  position: relative;
-  overflow: hidden;
-  z-index: 1;
+  transition: all 0.2s;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
-  color: var(--primary-text-color);
-}
-
-.type-selection button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(138, 154, 91, 0.4);
-  transform-origin: top;
-  transform: scaleY(0);
-  transition: transform 0.5s ease-in-out;
-  z-index: -1;
-}
-
-.type-selection button:hover::before,
-.type-selection button.active::before {
-  transform-origin: bottom;
-  transform: scaleY(1);
-}
-
-.type-selection button:hover,
-.type-selection button.active {
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  color: white;
-  border-color: #657143;
 }
 
 .type-selection button i {
-  font-size: 2.5rem;
-  color: var(--accent-color);
-  margin-bottom: 0.5rem;
-  transition: color 0.4s ease;
+  font-size: 2rem;
+  color: var(--secondary-text-color);
 }
 
 .type-selection button span {
-  font-family: 'EBSHunminjeongeumSaeronL', serif;
-  font-size: 1.5rem;
   font-weight: 600;
-  transition: color 0.4s ease;
 }
 
-.type-selection button:hover i,
-.type-selection button:hover span,
-.type-selection button.active i,
-.type-selection button.active span {
-  color: white;
+.type-selection button:hover {
+  border-color: var(--accent-color);
+  background: #fff;
+}
+
+.type-selection button.active {
+  border-color: var(--accent-color);
+  background: #fff8f0;
+  color: var(--accent-color);
+}
+
+.type-selection button.active i {
+  color: var(--accent-color);
 }
 
 .genre-toggle {
@@ -1670,20 +1194,20 @@ textarea.form-control {
 }
 
 .genre-toggle button {
-  background: rgba(138, 154, 91, 0.2);
+  background: #f1f1f1;
   border: 1px solid transparent;
   border-radius: 20px;
-  padding: 0.3rem 1rem;
+  padding: 0.5rem 1rem;
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .genre-toggle button:hover {
-  background: #a8b87f;
+  background: #e0e0e0;
 }
 
 .genre-toggle button.active {
-  background-color: #6F7D48;
+  background-color: #6c757d;
   /* Darker Gray */
   color: white;
 
@@ -1708,7 +1232,7 @@ textarea.form-control {
 .workspace-header {
   display: flex;
   align-items: center;
-  margin: 0rem 2rem 1rem 1rem;
+  margin: 1rem 2rem 1rem 1rem;
   gap: 1rem;
 }
 
@@ -1739,14 +1263,14 @@ textarea.form-control {
   align-items: center;
   padding: 0.5rem;
   margin-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .story-list-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #000000;
+  color: #5C4033;
   margin: 0;
-  font-family: 'SCDream4', serif;
 }
 
 .btn-add-story {
@@ -1760,7 +1284,6 @@ textarea.form-control {
   display: grid;
   place-items: center;
   transition: all 0.2s;
-
 }
 
 .btn-add-story:hover {
@@ -1774,7 +1297,6 @@ textarea.form-control {
   padding: 0;
   margin: 0;
   overflow-y: auto;
-  font-family: 'SCDream4', serif;
   flex-grow: 1;
 }
 
@@ -1782,6 +1304,7 @@ textarea.form-control {
   padding: 0.8rem 1rem;
   border-radius: 0;
   cursor: pointer;
+  font-weight: 500;
   color: #555;
   transition: background-color 0.2s, color 0.2s;
   border-left: 3px solid transparent;
@@ -1793,13 +1316,14 @@ textarea.form-control {
 }
 
 .story-list li:hover {
-  background-color: #f8ffea56;
+  background-color: #f8f6f2;
 }
 
 .story-list li.active {
-  background-color: #f1fade56;
+  background-color: #f8f6f2;
   color: var(--primary-text-color);
-  border-radius: 5px;
+  font-weight: 700;
+  border-left: 3px solid var(--accent-color);
 }
 
 .story-list li {
@@ -1826,7 +1350,7 @@ textarea.form-control {
 }
 
 .btn-delete-story:hover {
-  color: #000000;
+  color: #dc3545;
 }
 
 .editor-area {
@@ -1840,7 +1364,7 @@ textarea.form-control {
 }
 
 .editor-main {
-  padding: 1rem;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
@@ -1852,7 +1376,7 @@ textarea.form-control {
 
 .ai-question-area {
   background: #fafafa;
-  padding: 1.5rem;
+  padding: 1rem;
   border-radius: 6px;
   /* font-style: italic; */
   color: #000000;
@@ -1878,88 +1402,50 @@ textarea.form-control {
   resize: none;
   border: 1px solid var(--border-color);
   border-radius: 6px;
-  background: rgba(138, 154, 91, 0.02);
+  background: white;
   outline: none;
-  font-family: 'MaruBuri-Light', serif;
+  font-family: 'Noto Serif KR', serif;
   font-size: 1.1rem;
   line-height: 1.9;
 }
 
 .char-counter {
   position: absolute;
-  bottom: 30px;
-  right: 30px;
+  bottom: 10px;
+  right: 10px;
   font-size: 0.85rem;
-  color: #888888c5;
+  color: #888;
 }
 
 .editor-sidebar {
   background: var(--surface-color);
-  padding: 1rem 2.5rem;
+  padding: 1.5rem 1rem;
   border-left: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
-  align-items: flex-end;
-  /* [추가] 버튼들을 오른쪽으로 정렬합니다. */
+  gap: 0.75rem;
 }
 
 .btn-sidebar {
-  width: 44px;
-  height: 44px;
-  margin: 0;
-  /* [수정] '0 auto'에서 '0'으로 변경하여 자동 중앙 정렬을 제거합니다. */
-  padding: 0;
-  border-radius: 50px;
+  width: 90%;
+  margin: 0 auto;
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0;
-  transition: all 0.4s ease-in-out;
+  gap: 0.75rem;
+  transition: all 0.2s;
   font-weight: 500;
   background-color: #fff;
-  border: 2px solid #664c39;
+  border: 1px solid #ddd;
   color: #333;
-  white-space: nowrap;
-  overflow: hidden;
-  font-size: 14px;
-}
-
-.btn-sidebar span {
-  /* Initially hidden */
-  visibility: hidden;
-  opacity: 0;
-  width: 0;
-  transition: visibility 0s 0.2s, opacity 0.2s ease, width 0.3s ease;
 }
 
 .btn-sidebar:hover {
-  width: 170px;
-  border-radius: 50px;
-  justify-content: flex-start;
-  padding: 0 0.8rem;
-  gap: 0.6rem;
   border-color: var(--accent-color);
-  background-color: #f6f8f2;
-}
-
-.btn-sidebar:hover span {
-  visibility: visible;
-  opacity: 1;
-  width: auto;
-  transition: visibility 0s, opacity 0.2s ease 0.2s, width 0.3s ease 0.1s;
-}
-
-.btn-sidebar i {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-  /* Prevent icon from shrinking */
-}
-
-.btn-sidebar.font-small {
-  font-size: 0.8rem;
-  /* 줄바꿈 시 적용될 작은 폰트 크기 */
+  background-color: #f8f6f2;
 }
 
 .btn-sidebar:disabled {
@@ -1975,7 +1461,7 @@ textarea.form-control {
 
 
 .sidebar-divider {
-  margin: 1.5rem 0;
+  margin: 3.5rem 0;
   border: none;
   border-top: 1px solid var(--border-color);
 }
@@ -2035,6 +1521,26 @@ textarea.form-control {
   margin-bottom: 0;
 }
 
+.btn-back {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--secondary-text-color);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.btn-back:hover {
+  background-color: #f8f9fa;
+}
+
 .cover-selection {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -2079,11 +1585,12 @@ textarea.form-control {
   display: flex;
   align-items: center;
   gap: 1rem;
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 1rem;
 }
 
 .editor-title-label {
-  font-family: 'ChosunCentennial', serif;
+  font-family: 'Noto Serif KR', serif;
   font-weight: 600;
   font-size: 1.5rem;
   white-space: nowrap;
@@ -2110,8 +1617,8 @@ textarea.form-control {
 .tag-item {
   display: inline-flex;
   align-items: center;
-  background-color: #a8b87f;
-  color: #000000;
+  background-color: #e9ecef;
+  color: #495057;
   border-radius: 16px;
   padding: 0.3rem 0.8rem;
   font-size: 0.9rem;
@@ -2121,7 +1628,7 @@ textarea.form-control {
 .btn-remove-tag {
   background: none;
   border: none;
-  color: #000000;
+  color: #868e96;
   margin-left: 0.5rem;
   cursor: pointer;
   font-size: 1.2rem;
@@ -2145,90 +1652,5 @@ textarea.form-control {
 
 .tag-container .form-control:focus {
   box-shadow: none;
-}
-
-/* 발행하기 & 임시저장 버튼 항상 확장 스타일 */
-.btn-primary-sidebar,
-.btn-outline-sidebar {
-  width: 170px;
-  /* 기본 호버 너비(190px)보다 약간 작은 너비로 고정 */
-  border-radius: 50px;
-  justify-content: flex-start;
-  padding: 0 0.8rem;
-  gap: 0.6rem;
-  background-color: #f6f8f2;
-  /* 확장 상태와 어울리는 배경색 추가 */
-}
-
-/* 위 버튼들의 텍스트(span)를 항상 보이게 처리 */
-.btn-primary-sidebar span,
-.btn-outline-sidebar span {
-  visibility: visible;
-  opacity: 1;
-  width: auto;
-}
-
-/* 호버 시에도 너비가 변경되지 않도록 고정 */
-.btn-primary-sidebar:hover,
-.btn-outline-sidebar:hover {
-  scale: 1.05;
-}
-
-/* --- 반응형 레이아웃을 위한 미디어 쿼리 --- */
-@media (max-width: 1400px) {
-
-  /* 전체 작업 공간을 세로로 쌓기 */
-  .workspace-main {
-    grid-template-columns: 1fr;
-    /* 2단 그리드를 1단으로 변경 */
-    height: auto;
-    /* 고정 높이 제거 */
-    gap: 1.5rem;
-    /* 요소 간 간격 조정 */
-  }
-
-  /* 에디터 영역을 세로로 쌓기 */
-  .editor-area {
-    grid-template-columns: 1fr;
-    /* 2단 그리드를 1단으로 변경 */
-  }
-
-  /* 사이드바를 가로 버튼 그룹으로 변경 */
-  .editor-sidebar {
-    flex-direction: row;
-    /* 버튼을 가로로 나열 */
-    flex-wrap: wrap;
-    /* 버튼이 넘치면 다음 줄로 이동 */
-    justify-content: center;
-    /* 버튼 그룹을 중앙 정렬 */
-    gap: 0.75rem;
-    /* 버튼 사이 간격 */
-    border-left: none;
-    /* 왼쪽 경계선 제거 */
-    border-top: 1px solid var(--border-color);
-    /* 위쪽 경계선 추가 */
-    padding: 1.5rem 1rem;
-    /* 패딩 조정 */
-  }
-
-  /* 사이드바 버튼 스타일 조정 */
-  /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
-  /* 작은 화면에서는 호버 애니메이션 대신 항상 전체 텍스트가 보이도록 합니다. */
-  .btn-sidebar:hover {
-    width: auto;
-    min-width: 145px;
-    /* 수정: 최소 너비 축소 */
-    height: 40px;
-    /* 수정: 버튼 높이 축소 */
-    border-radius: 30px;
-    justify-content: flex-start;
-    padding: 0 0.9rem;
-    /* 수정: 좌우 여백 축소 */
-    transform: none;
-    font-size: 0.9rem;
-    /* 추가: 글씨 크기 작게 설정 */
-  }
-
-
 }
 </style>

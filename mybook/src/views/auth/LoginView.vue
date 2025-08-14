@@ -29,13 +29,14 @@
               required>
           </div>
 
-          <div v-if="errorMessage" class="alert alert-danger">{{ errorMessage }}</div>
-
           <button type="submit" class="btn btn-primary w-100 btn-auth" :disabled="isLoading">
             <span v-if="isLoading" class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
             {{ isLoading ? '로그인 중...' : '로그인' }}
           </button>
         </form>
+
+        <!-- CustomAlert Component -->
+        <CustomAlert ref="customAlert" @alert-opened="handleAlertOpened" @alert-closed="handleAlertClosed" />
 
         <div class="auth-links">
           <router-link to="/signup">회원가입</router-link>
@@ -61,12 +62,13 @@ import { useRoute, useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { AxiosError } from 'axios';
 import apiClient from '@/api';
+import CustomAlert from '@/components/common/CustomAlert.vue';
 
 // --- Image Slider State ---
 const images = ref([
   {
     src: '/images/man.png',
-    title: '누구나 쉽게 작가가 될 수 있어요',
+    title: '누구나 작가가 될 수 있어요',
     subtitle: 'AI 도우미 아띠와 함께 <br />나만의 이야기로 책을 만들어 보세요'
   },
   {
@@ -115,17 +117,20 @@ const route = useRoute();
 // --- Reactive State ---
 const email = ref('');
 const password = ref('');
-const errorMessage = ref('');
 const isLoading = ref(false);
+
+// --- Refs for CustomAlert ---
+const customAlert = ref<InstanceType<typeof CustomAlert> | null>(null);
 
 // --- Functions ---
 async function handleLogin() {
   if (!email.value || !password.value) {
-    errorMessage.value = '이메일과 비밀번호를 모두 입력해주세요.';
+    if (customAlert.value) {
+      customAlert.value.showAlert({ message: '이메일과 비밀번호를 모두 입력해주세요.', title: '입력 오류' });
+    }
     return;
   }
   isLoading.value = true;
-  errorMessage.value = '';
 
   try {
     await authStore.login({
@@ -136,12 +141,17 @@ async function handleLogin() {
     const redirectPath = route.query.redirect as string || '/';
     router.push(redirectPath);
   } catch (error) {
+    let alertMessage = '로그인 중 알 수 없는 오류가 발생했습니다.';
+    let alertTitle = '로그인 오류';
+
     if (error instanceof AxiosError && error.response) {
-      errorMessage.value = error.response.data.message || '아이디 또는 비밀번호를 확인해주세요.';
+      alertMessage = error.response.data.message || '아이디 또는 비밀번호를 확인해주세요.';
     } else if (error instanceof Error) {
-      errorMessage.value = error.message;
-    } else {
-      errorMessage.value = '로그인 중 알 수 없는 오류가 발생했습니다.';
+      alertMessage = error.message;
+    }
+
+    if (customAlert.value) {
+      customAlert.value.showAlert({ message: alertMessage, title: alertTitle });
     }
   } finally {
     isLoading.value = false;
@@ -151,6 +161,14 @@ async function handleLogin() {
 function handleSocialLogin(provider: 'google') {
   const baseURL = apiClient.defaults.baseURL;
   window.location.href = `${baseURL}/oauth2/authorization/${provider}`;
+}
+
+function handleAlertOpened() {
+  document.body.style.overflow = 'hidden';
+}
+
+function handleAlertClosed() {
+  document.body.style.overflow = ''; // Reset to default
 }
 </script>
 
@@ -303,6 +321,7 @@ function handleSocialLogin(provider: 'google') {
   text-decoration: none;
   font-size: 0.9rem;
   transition: color 0.2s;
+  font-weight: 600;
 }
 
 .auth-links a:hover {
