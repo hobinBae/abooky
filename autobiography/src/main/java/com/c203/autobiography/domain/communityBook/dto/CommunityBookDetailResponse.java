@@ -25,6 +25,7 @@ public class CommunityBookDetailResponse {
     // 기본 정보
     private Long communityBookId;
     private Long memberId;
+    private String authorNickname;
     private String title;
     private String summary;
 
@@ -62,6 +63,7 @@ public class CommunityBookDetailResponse {
         return CommunityBookDetailResponse.builder()
                 .communityBookId(communityBook.getCommunityBookId())
                 .memberId(communityBook.getMember().getMemberId())
+                .authorNickname(communityBook.getMember().getNickname())
                 .title(communityBook.getTitle())
                 .summary(communityBook.getSummary())
                 .categoryId(communityBook.getCategory() != null ? communityBook.getCategory().getBookCategoryId() : null)
