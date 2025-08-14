@@ -189,13 +189,13 @@ const sortedTimeline = computed(() => {
   return [...timeline.value].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 });
 
-const isOwnerOrManager = computed(() => {
-  if (!group.value || !currentUser.value) return false;
-  const currentUserIsOwner = String(group.value.leaderId) === String(currentUser.value.memberId);
-  // managers 배열이 GroupMember 객체 배열이라고 가정하고 수정합니다.
-  const currentUserIsManager = group.value.managers.some(m => String(m.memberId) === String(currentUser.value!.memberId));
-  return currentUserIsOwner || currentUserIsManager;
-});
+// const isOwnerOrManager = computed(() => {
+//   if (!group.value || !currentUser.value) return false;
+//   const currentUserIsOwner = String(group.value.leaderId) === String(currentUser.value.memberId);
+//   // managers 배열이 GroupMember 객체 배열이라고 가정하고 수정합니다.
+//   const currentUserIsManager = group.value.managers.some(m => String(m.memberId) === String(currentUser.value!.memberId));
+//   return currentUserIsOwner || currentUserIsManager;
+// });
 
 // --- Functions ---
 async function fetchGroupInfo() {
@@ -273,7 +273,7 @@ const canManageGroup = (g: Group) => {
   const currentMember = g.members.find(m => m.memberId === currentUser.value!.memberId);
   return currentMember?.role === 'MANAGER';
 }
-const canInvite = (g: Group) => isGroupOwner(g) || (currentUser.value && g.managers.some(m => m.memberId === currentUser.value!.memberId));
+// const canInvite = (g: Group) => isGroupOwner(g) || (currentUser.value && g.managers.some(m => m.memberId === currentUser.value!.memberId));
 const canToggleManager = (g: Group, member: GroupMember) => {
   if(!isGroupOwner(g)) return false;
   if(String(g.leaderId) === String(member.memberId)) return false;
