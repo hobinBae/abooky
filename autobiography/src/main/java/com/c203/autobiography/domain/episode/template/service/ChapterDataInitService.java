@@ -59,42 +59,67 @@ public class ChapterDataInitService {
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("INTRO")
+                .dynamicPromptTemplate("INTRO_FEELING")
                 .chapter(chapter)
                 .build();
         templateRepo.save(currentFeeling);
 
         // 기존의 길었던 자기소개 질문을 '역할'과 '출생'으로 명확히 나눕니다.
         ChapterTemplate nameAndRole = ChapterTemplate.builder()
-                .templateId("prologue_name_and_role") // 신규 (intro_profile 분리)
-                .stageName("나의 이름과 역할")
-                .mainQuestion("이야기 속에서 당신을 어떻게 부르면 좋을까요? 그리고 현재 당신의 삶에서 스스로 가장 중요하다고 생각하는 역할이 있다면 무엇인지 들려주세요.")
+                .templateId("prologue_preferred_name") // 신규 (intro_profile 분리)
+                .stageName("당신의 이름")
+                .mainQuestion("이 이야기 속에서 당신을 어떻게 부르면 가장 편안하고 자연스러울까요? 당신의 이름도 좋고, 특별한 애칭이나 별명도 좋습니다.")
                 .templateOrder(2)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("INTRO")
+                .dynamicPromptTemplate("PROMPT_ACKNOWLEDGE_NAME")
                 .chapter(chapter)
                 .build();
         templateRepo.save(nameAndRole);
 
-        ChapterTemplate birthInfo = ChapterTemplate.builder()
-                .templateId("prologue_birth_info") // 신규 (intro_profile 분리)
-                .stageName("나의 시작점")
-                .mainQuestion("당신은 어떤 계절에, 어디에서 태어나셨나요? 태어난 곳에 대한 어렴풋한 기억이나, 부모님께 전해 들은 이야기가 있다면 궁금합니다.")
+        ChapterTemplate identityAndRole = ChapterTemplate.builder()
+                .templateId("prologue_identity_and_role")
+                .stageName("지금의 나를 이루는 것들")
+                .mainQuestion("지금 이 순간, 당신의 삶을 가장 잘 설명해주는 역할이나 정체성이 있다면 무엇인가요? 예를 들어 '누군가의 부모', '어떤 분야의 전문가'처럼요.")
                 .templateOrder(3)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("INTRO")
+                .dynamicPromptTemplate("PROMPT_ROLE_DEEPEN")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(birthInfo);
+        templateRepo.save(identityAndRole);
+
+        ChapterTemplate birthStory = ChapterTemplate.builder()
+                .templateId("prologue_birth_story") // ID 변경 제안 (birth_info -> birth_story)
+                .stageName("나의 탄생 설화")
+                .mainQuestion("물론 태어난 순간을 직접 기억할 순 없겠지요. 하지만 모든 사람에겐 자신만의 '탄생 설화'가 있다고 합니다. 부모님이나 가족에게 전해 들은 당신의 탄생 이야기는 무엇인가요? 유난히 특별했던 날씨나, 재미있는 태몽 이야기 같은 것들이요.")
+                .templateOrder(4)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("PROMPT_STORY_IMAGINE") // 이야기 속 풍경, 분위기, 감정을 상상하며 되묻는 프롬프트
+                .chapter(chapter)
+                .build();
+        templateRepo.save(birthStory);
+
+        ChapterTemplate birthFacts = ChapterTemplate.builder()
+                .templateId("prologue_birth_facts") // 신규 템플릿
+                .stageName("이야기의 시간과 공간")
+                .mainQuestion("당신의 이야기가 시작된 해와 장소는 어디인가요? (예: 1985년, 부산)")
+                .templateOrder(5) // 순서 5 (새로 추가)
+                .stageLevel(lv++)
+                .followUpType(FollowUpType.DYNAMIC)
+                .dynamicPromptTemplate("PROMPT_FACTS_CONNECT") // "아, OOOO년 OO이군요. 그 시절의 풍경이 그려지네요." 처럼 사실을 시대적 배경과 연결하는 프롬프트
+                .chapter(chapter)
+                .build();
+        templateRepo.save(birthFacts);
+
 
         // 기록의 동기를 묻는 질문을 구체화하고 Static 후속 질문으로 방향을 명확히 합니다.
         ChapterTemplate motivation = ChapterTemplate.builder()
                 .templateId("prologue_motivation_static") // 기존 intro_static 대체
                 .stageName("기록의 이유")
-                .mainQuestion("이번 자서전을 기록하기로 마음먹은 특별한 계기가 있으신가요?")
-                .templateOrder(4)
+                .mainQuestion("이번 자서전을 기록하기로 마음먹은 특별한 계기가 있으신가요? 혹은 이 기록을 통해 얻고 싶은 것이 있다면 무엇인가요?")
+                .templateOrder(6)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
@@ -111,26 +136,26 @@ public class ChapterDataInitService {
                 .templateId("prologue_expectation") // 신규
                 .stageName("기록의 여정")
                 .mainQuestion("이 자서전을 써 내려가는 과정 자체에 기대하는 것이 있으신가요? 예를 들어, 잊었던 나를 발견하는 즐거움이나, 누군가에게 나의 이야기를 들려주는 보람 같은 것들이요.")
-                .templateOrder(5) // 순서 조정
+                .templateOrder(7) // 순서 조정
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("INTRO") // 기존 프롬프트 활용 가능
+                .dynamicPromptTemplate("PROMPT_EXPECT_EXPAND") // 기존 프롬프트 활용 가능
                 .chapter(chapter)
                 .build();
         templateRepo.save(expectation);
 
         // 프롤로그의 마지막을 장식하는 강력한 '첫 장면'으로, 이야기의 시작을 알립니다.
-        ChapterTemplate openingScene = ChapterTemplate.builder()
-                .templateId("prologue_opening_scene") // 기존 intro_identity_scene 대체
-                .stageName("이야기의 첫 장면")
-                .mainQuestion("자, 이제 당신의 이야기를 시작해볼까요? 지금의 당신을 가장 잘 보여주는 '하루의 한 장면'을 생생하게 묘사해주시면서, 이야기의 문을 열어주세요.")
-                .templateOrder(6)
+        ChapterTemplate closingScene = ChapterTemplate.builder()
+                .templateId("prologue_closing_scene") // ID 변경 제안 (opening_scene -> closing_scene)
+                .stageName("프롤로그를 닫으며")
+                .mainQuestion("지금까지 당신의 마음에 귀 기울이고, 삶의 중요한 부분들을 짚어보았습니다. 이제 긴 호흡의 이야기로 들어가기에 앞서, 이 프롤로그의 마지막 페이지를 장식할 한 장면을 그려주시겠어요? '지금의 당신'을 가장 잘 상징하는 순간을요.")
+                .templateOrder(8)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("INTRO_SCENE")
+                .dynamicPromptTemplate("PROMPT_SCENE_DETAIL") // 묘사된 장면에 대한 감정이나 생각을 깊이 묻는 프롬프트
                 .chapter(chapter)
                 .build();
-        templateRepo.save(openingScene);
+        templateRepo.save(closingScene);
 
 
         return lv;
@@ -165,7 +190,7 @@ public class ChapterDataInitService {
                 .templateId("childhood_caregivers")
                 .stageName("풍경 속 사람들")
                 .mainQuestion(
-                        "그 풍경 속에는 주로 누가 함께 있었나요? 당시 당신을 돌봐주셨던 분들의 말투, 자주 하던 말, 기억나는 손길이나 습관이 있다면 이야기해주세요."
+                        "그 따뜻하거나 혹은 익숙한 풍경 속에, 주로 누가 함께 있었나요? 당시 당신을 돌봐주셨던 분의 목소리, 자주 하던 말, 혹은 기억에 남는 손길이나 표정이 있다면 이야기해주세요."
                 )
                 .templateOrder(2)
                 .stageLevel(lv++)
@@ -176,13 +201,13 @@ public class ChapterDataInitService {
         templateRepo.save(caregivers);
 
         ChapterTemplate personality = ChapterTemplate.builder()
-                .templateId("childhood_personality") // 신규
+                .templateId("childhood_personality")
                 .stageName("어른들 눈에 비친 아이")
-                .mainQuestion("그 시절, 주변 어른들은 당신을 보통 어떤 아이라고 이야기하셨나요? 혹시 스스로 생각하는 '어린 시절의 나'는 다른 모습이었는지도 궁금합니다. (예: 겉으로는 조용했지만 속으로는 호기심이 많았다 등)")
+                .mainQuestion("그 시절, 주변 어른들은 당신을 보통 어떤 아이라고 이야기하셨나요? 혹시 스스로 생각하는 '어린 시절의 나'는 다른 모습이었는지도 궁금합니다. (예: 겉으론 조용했지만 속으론 호기심 대장이었다거나, 얌전해 보였지만 사실은 골목대장이었다 등)")
                 .templateOrder(3)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("CHILDHOOD_PERSONALITY") // 프롬프트 키 신규
+                .dynamicPromptTemplate("CHILDHOOD_PERSONALITY")
                 .chapter(chapter)
                 .build();
         templateRepo.save(personality);
@@ -246,9 +271,10 @@ public class ChapterDataInitService {
         templateRepo.save(wrapUp);
 
         saveStaticFollowUps(wrapUp, Arrays.asList(
-                "그 시절, 당신은 스스로를 어떤 아이라고 생각했나요? (예: 활발한, 조용한, 호기심 많은 등)",
-                "어린 시절의 경험 중, 어른이 된 지금도 당신을 웃게 하거나 혹은 마음 아프게 하는 것이 있다면 무엇인가요?",
-                "만약 타임머신을 타고 그때의 나에게 돌아가 딱 한 가지를 선물할 수 있다면, 무엇을 주고 싶으신가요? (물건이 아니어도 좋습니다)"
+                "만약 타임머신을 타고 그때의 나에게 돌아가 딱 한 가지를 선물할 수 있다면, 무엇을 주고 싶으신가요? (물건이 아니어도 좋습니다)",
+                "유년 시절의 '나'에게서, 지금의 '나'가 다시 배우고 싶은 모습이 있다면 무엇일까요?",
+                "어린 시절의 경험 중, 어른이 된 지금도 당신을 웃게 하거나 혹은 마음 아프게 하는 것이 있다면 무엇인가요?"
+
         ));
 
 
@@ -271,7 +297,7 @@ public class ChapterDataInitService {
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_SCHOOL")
+                .dynamicPromptTemplate("PROMPT_ELEM_SCENERY")
                 .chapter(chapter)
                 .build();
         templateRepo.save(schoolScenery);
@@ -283,7 +309,7 @@ public class ChapterDataInitService {
                 .templateOrder(2)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_SCHOOL") // 같은 프롬프트 키 사용 가능
+                .dynamicPromptTemplate("PROMPT_ELEM_SENSES") // 같은 프롬프트 키 사용 가능
                 .chapter(chapter)
                 .build();
         templateRepo.save(schoolSenses);
@@ -295,7 +321,7 @@ public class ChapterDataInitService {
                 .templateOrder(3)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_SCHOOL") // 기존 프롬프트 활용 가능
+                .dynamicPromptTemplate("PROMPT_ELEM_PLEASURE") // 기존 프롬프트 활용 가능
                 .chapter(chapter)
                 .build();
         templateRepo.save(dailyPleasures);
@@ -308,7 +334,7 @@ public class ChapterDataInitService {
                 .templateOrder(4)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE")
+                .dynamicPromptTemplate("PROMPT_ELEM_BEST_FRIEND")
                 .chapter(chapter)
                 .build();
         templateRepo.save(bestFriend);
@@ -320,7 +346,7 @@ public class ChapterDataInitService {
                 .templateOrder(5)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE")
+                .dynamicPromptTemplate("PROMPT_ELEM_PLAYTIME")
                 .chapter(chapter)
                 .build();
         templateRepo.save(peerPlaytime);
@@ -332,7 +358,7 @@ public class ChapterDataInitService {
                 .templateOrder(6)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE") // 같은 프롬프트 키 사용 가능
+                .dynamicPromptTemplate("PROMPT_ELEM_PEER_ROLE") // 같은 프롬프트 키 사용 가능
                 .chapter(chapter)
                 .build();
         templateRepo.save(peerRole);
@@ -344,7 +370,7 @@ public class ChapterDataInitService {
                 .templateOrder(7)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_PEOPLE")
+                .dynamicPromptTemplate("PROMPT_ELEM_CONFLICT")
                 .chapter(chapter)
                 .build();
         templateRepo.save(peerConflict);
@@ -357,7 +383,7 @@ public class ChapterDataInitService {
                 .templateOrder(8)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM")
+                .dynamicPromptTemplate("PROMPT_ELEM_TALENT")
                 .chapter(chapter)
                 .build();
         templateRepo.save(talents);
@@ -370,7 +396,7 @@ public class ChapterDataInitService {
                 .templateOrder(9)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM")
+                .dynamicPromptTemplate("PROMPT_ELEM_DISLIKED")
                 .chapter(chapter)
                 .build();
         templateRepo.save(dislikedActivities);
@@ -383,7 +409,7 @@ public class ChapterDataInitService {
                 .templateOrder(10)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_DREAM_JOB") // 프롬프트 키 신규
+                .dynamicPromptTemplate("PROMPT_ELEM_DREAM_JOB") // 프롬프트 키 신규
                 .chapter(chapter)
                 .build();
         templateRepo.save(dreamJob);
@@ -395,7 +421,7 @@ public class ChapterDataInitService {
                 .templateOrder(11)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM") // 같은 프롬프트 키 사용 가능
+                .dynamicPromptTemplate("PROMPT_ELEM_HOBBY") // 같은 프롬프트 키 사용 가능
                 .chapter(chapter)
                 .build();
         templateRepo.save(pureJoy);
@@ -407,7 +433,7 @@ public class ChapterDataInitService {
                 .templateOrder(12)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_EVENT")
+                .dynamicPromptTemplate("PROMPT_ELEM_EVENT_TRIP")
                 .chapter(chapter)
                 .build();
         templateRepo.save(schoolEvents);
@@ -419,26 +445,30 @@ public class ChapterDataInitService {
                 .templateOrder(13)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("UPPER_ELEM_EVENT")
+                .dynamicPromptTemplate("PROMPT_ELEM_EVENT_FESTIVAL")
                 .chapter(chapter)
                 .build();
         templateRepo.save(schoolFestival);
 
         ChapterTemplate definingMoment = ChapterTemplate.builder()
                 .templateId("upper_elem_wrapup_static")
-                .stageName("성장의 발자국")
-                .mainQuestion("초등학교 시절을 통틀어, 지금의 '나'에게 가장 큰 영향을 준 하나의 기억을 꼽는다면 무엇일까요?")
-                .templateOrder(14) // 마지막 순서
+                .stageName("마음에 새겨진 빛깔") // 감성적인 StageName으로 변경
+                .mainQuestion(
+                        "초등학교 시절의 수많은 기억들을 하나씩 다시 열어본 기분이네요. " +
+                                "모든 것을 되돌아봤을 때, 그 시절을 대표하는 하나의 '맛'이나 '색깔'이 있다면 무엇일까요? " +
+                                "당신의 초등학생 시절은 어떤 느낌으로 남아있나요?"
+                )
+                .templateOrder(14) // 기존 순서 유지
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)
                 .build();
         templateRepo.save(definingMoment);
 
-
+// Static 후속 질문들도 이 새로운 MainQuestion에 맞게 수정하면 좋습니다.
         saveStaticFollowUps(definingMoment, Arrays.asList(
-                "그 기억이 지금의 당신에게 어떤 의미로 남아있나요?",
-                "그 경험을 통해 얻게 된 교훈이나 삶의 태도가 있다면 무엇인가요?",
+                "그 '맛'이나 '색깔'은 지금의 당신에게 어떤 의미로 남아있나요?",
+                "그 시절의 경험을 통해 얻게 된, 지금까지도 간직하고 있는 삶의 태도가 있다면 무엇인가요?",
                 "그때의 나에게 돌아가 딱 한마디만 해줄 수 있다면, 뭐라고 말해주고 싶으세요?"
         ));
 
@@ -463,7 +493,7 @@ public class ChapterDataInitService {
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE_PUBERTY")
+                .dynamicPromptTemplate("PROMPT_MIDDLE_CHANGES")
                 .chapter(chapter)
                 .build();
         templateRepo.save(pubertyChanges);
@@ -475,7 +505,7 @@ public class ChapterDataInitService {
                 .templateOrder(2)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE_MEDIA")
+                .dynamicPromptTemplate("PROMPT_MIDDLE_MEDIA")
                 .chapter(chapter)
                 .build();
         templateRepo.save(mediaInfluence);
@@ -490,7 +520,7 @@ public class ChapterDataInitService {
                 .templateOrder(3)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE_PEOPLE")
+                .dynamicPromptTemplate("PROMPT_MIDDLE_PEER_GROUP")
                 .chapter(chapter)
                 .build();
         templateRepo.save(peerGroup);
@@ -502,7 +532,7 @@ public class ChapterDataInitService {
                 .templateOrder(4)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE_PEOPLE")
+                .dynamicPromptTemplate("PROMPT_MIDDLE_FIRST_CRUSH")
                 .chapter(chapter)
                 .build();
         templateRepo.save(firstCrush);
@@ -517,7 +547,7 @@ public class ChapterDataInitService {
                 .templateOrder(5)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE_ACADEMICS")
+                .dynamicPromptTemplate("PROMPT_MIDDLE_ACADEMIC_STRESS")
                 .chapter(chapter)
                 .build();
         templateRepo.save(academicStress);
@@ -529,7 +559,7 @@ public class ChapterDataInitService {
                 .templateOrder(6)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE_ACADEMICS")
+                .dynamicPromptTemplate("PROMPT_MIDDLE_FUTURE_DREAM")
                 .chapter(chapter)
                 .build();
         templateRepo.save(futureDream);
@@ -544,7 +574,7 @@ public class ChapterDataInitService {
                 .templateOrder(7)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("MIDDLE_GROWTH")
+                .dynamicPromptTemplate("PROMPT_MIDDLE_REBELLION")
                 .chapter(chapter)
                 .build();
         templateRepo.save(rebellion);
@@ -573,9 +603,9 @@ public class ChapterDataInitService {
     private int createChapter5(int lv) {
         Chapter chapter = Chapter.builder()
                 .chapterId("chapter5")
-                .chapterName("고등학교")
+                .chapterName("고등학교: 폭풍 속의 항해")
                 .chapterOrder(5)
-                .description("학업/진로 압력, 의미 있는 목표/실패, 규율 형성")
+                .description("치열한 입시, 끈끈한 우정, 그리고 어른이 되어가는 길목에서의 성장을 탐색합니다.")
                 .build();
         chapterRepo.save(chapter);
 
@@ -586,7 +616,7 @@ public class ChapterDataInitService {
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("HIGH_ACADEMICS") // 프롬프트 키 신규
+                .dynamicPromptTemplate("PROMPT_HIGH_GOAL") // 프롬프트 키 신규
                 .chapter(chapter)
                 .build();
         templateRepo.save(futureGoal);
@@ -599,7 +629,7 @@ public class ChapterDataInitService {
                 .templateOrder(2)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("HIGH_ACADEMICS")
+                .dynamicPromptTemplate("PROMPT_HIGH_STRUGGLE")
                 .chapter(chapter)
                 .build();
         templateRepo.save(struggle);
@@ -611,7 +641,7 @@ public class ChapterDataInitService {
                 .templateOrder(3)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("HIGH_HOBBY") // 프롬프트 키 신규
+                .dynamicPromptTemplate("PROMPT_HIGH_HOBBY") // 프롬프트 키 신규
                 .chapter(chapter)
                 .build();
         templateRepo.save(healingHobby);
@@ -623,7 +653,7 @@ public class ChapterDataInitService {
                 .templateOrder(4)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("HIGH_FRIEND") // 프롬프트 키 신규
+                .dynamicPromptTemplate("PROMPT_HIGH_FRIEND") // 프롬프트 키 신규
                 .chapter(chapter)
                 .build();
         templateRepo.save(healingFriend);
@@ -635,7 +665,7 @@ public class ChapterDataInitService {
                 .templateOrder(5)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("HIGH_EVENT") // 프롬프트 키 신규
+                .dynamicPromptTemplate("PROMPT_HIGH_EVENT") // 프롬프트 키 신규
                 .chapter(chapter)
                 .build();
         templateRepo.save(memorableDay);
@@ -647,7 +677,7 @@ public class ChapterDataInitService {
                 .templateOrder(6)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("HIGH_GROWTH") // 프롬프트 키 신규
+                .dynamicPromptTemplate("PROMPT_HIGH_GROWTH") // 프롬프트 키 신규
                 .chapter(chapter)
                 .build();
         templateRepo.save(influence);
@@ -675,87 +705,73 @@ public class ChapterDataInitService {
     private int createChapter6(int lv) {
         Chapter chapter = Chapter.builder()
                 .chapterId("chapter6")
-                .chapterName("홀로서기, 사회의 첫걸음") // 챕터 이름 변경
+                .chapterName("홀로서기: 사회의 첫걸음")
                 .chapterOrder(6)
-                .description("고등학교 졸업 후, 각자의 길 위에서 겪었던 선택과 고민, 새로운 시작과 성장의 경험을 탐색합니다.") // 설명 변경
+                .description("고등학교 졸업 후, 각자의 길 위에서 겪었던 선택과 고민, 새로운 시작과 성장의 경험을 탐색합니다.")
                 .build();
         chapterRepo.save(chapter);
 
-        // --- 인생의 큰 선택 (공통 질문) ---
+        // 1. 인생의 큰 선택 (기존과 동일)
         ChapterTemplate theChoice = ChapterTemplate.builder()
-                .templateId("transition_the_choice") // ID 재사용 및 역할 재정의
-                .stageName("인생의 큰 선택")
-                .mainQuestion("고등학교 졸업은 인생의 큰 갈림길이죠. 당시 대학 진학, 취업 등 앞으로의 길에 대해 어떤 고민을 하셨고, 최종적으로 어떤 선택을 내리셨나요? 그 결정의 배경이 궁금합니다.")
+                .templateId("transition_the_choice")
+                .stageName("인생의 갈림길에서")
+                .mainQuestion("고등학교 졸업이라는 첫 번째 큰 갈림길에 섰을 때, 당신의 마음은 어땠나요? 대학 진학, 취업 등 앞으로의 길에 대해 어떤 고민을 했고, 최종적으로 어떤 선택을 내리셨는지 궁금합니다.")
                 .templateOrder(1)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("TRANSITION")
+                .dynamicPromptTemplate("PROMPT_TRANSITION_CHOICE")
                 .chapter(chapter)
                 .build();
         templateRepo.save(theChoice);
 
-
-        // --- 캠퍼스의 낭만과 현실 (대학 진학자들을 위한 질문) ---
-        ChapterTemplate collegeMajor = ChapterTemplate.builder()
-                .templateId("college_major_satisfaction") // 신규
-                .stageName("캠퍼스 이야기: 전공과 공부")
-                .mainQuestion("대학에서는 어떤 전공을 공부하셨나요? 그 전공을 선택한 특별한 이유가 있었는지, 그리고 직접 공부해 보니 만족도는 어땠는지 궁금합니다.")
+        // 2. [신규] 새로운 환경 (대학/직장 공통)
+        ChapterTemplate newEnvironment = ChapterTemplate.builder()
+                .templateId("transition_new_environment")
+                .stageName("낯선 세계, 새로운 규칙")
+                .mainQuestion("그 선택 이후 마주한 새로운 세상은 고등학교와는 어떻게 달랐나요? 시간표를 직접 짜던 대학 캠퍼스든, 처음으로 상사를 마주한 직장이든, 가장 크게 느꼈던 '차이점'은 무엇이었나요?")
                 .templateOrder(2)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("COLLEGE_OR_WORK")
+                .dynamicPromptTemplate("PROMPT_TRANSITION_ENVIRONMENT")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(collegeMajor);
+        templateRepo.save(newEnvironment);
 
-        ChapterTemplate collegeLife = ChapterTemplate.builder()
-                .templateId("college_life_memories") // 신규
-                .stageName("캠퍼스 이야기: 낭만과 추억")
-                .mainQuestion("대학 생활의 기억 중 가장 먼저 떠오르는 것은 무엇인가요? 즐거웠던 동아리 활동, 새로운 친구들과의 만남, 혹은 잊을 수 없는 수업이나 과제에 대한 추억도 좋습니다.")
+        // 3. [신규] 새로운 관계 (대학/직장 공통)
+        ChapterTemplate newRelationships = ChapterTemplate.builder()
+                .templateId("transition_new_relationships")
+                .stageName("새로운 인연, 다른 관계")
+                .mainQuestion("새로운 사회에서는 이전과는 다른 종류의 관계를 맺게 되죠. 기억에 남는 교수님이나 선배, 혹은 처음으로 '동료'라고 불렀던 사람과의 특별한 에피소드가 있다면 들려주세요.")
                 .templateOrder(3)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("COLLEGE_OR_WORK")
+                .dynamicPromptTemplate("PROMPT_TRANSITION_RELATIONSHIPS")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(collegeLife);
+        templateRepo.save(newRelationships);
 
-
-        // ---  첫 월급의 무게 (사회 초년생들을 위한 질문) ---
-        ChapterTemplate firstJob = ChapterTemplate.builder()
-                .templateId("first_job_story") // 신규
-                .stageName("사회 초년생 이야기: 첫 직장")
-                .mainQuestion("처음으로 '내 힘으로 돈을 번다'는 경험은 어떠셨나요? 첫 직장이나 아르바이트를 구하게 된 과정과, 그곳에서 맡았던 역할에 대해 이야기해주세요.")
+        // 4. [신규] 첫 번째 성취 혹은 시련 (대학/직장 공통)
+        ChapterTemplate firstChallenge = ChapterTemplate.builder()
+                .templateId("transition_first_challenge")
+                .stageName("내 힘으로 이겨낸 첫 번째 과제")
+                .mainQuestion("그곳에서 처음으로 '내 힘으로 무언가를 해냈다'고 느꼈던 뿌듯한 성취의 순간은 언제였나요? 혹은, 학생 때와는 다른 현실의 벽에 부딪혀 막막함을 느꼈던 첫 시련은 무엇이었나요?")
                 .templateOrder(4)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("COLLEGE_OR_WORK")
+                .dynamicPromptTemplate("PROMPT_TRANSITION_CHALLENGE")
                 .chapter(chapter)
                 .build();
-        templateRepo.save(firstJob);
+        templateRepo.save(firstChallenge);
 
-        ChapterTemplate workLessons = ChapterTemplate.builder()
-                .templateId("work_life_lessons") // 신규
-                .stageName("사회 초년생 이야기: 배움과 현실")
-                .mainQuestion("사회생활을 일찍 시작하며 배운 가장 큰 교훈은 무엇이었나요? 학생일 때와는 다른 책임감이나 어려움을 느꼈던 순간이 있었다면 들려주세요.")
+        // 5. 홀로서기의 시작 (순서만 변경)
+        ChapterTemplate independence = ChapterTemplate.builder()
+                .templateId("independence_and_freedom")
+                .stageName("진짜 어른이 되는 순간")
+                .mainQuestion("스무 살이 넘으면서 이전과는 다른 자유와 책임을 느끼셨을 것 같아요. 처음으로 '아, 나도 이제 진짜 어른이구나' 하고 실감했던 순간은 언제였나요?")
                 .templateOrder(5)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("COLLEGE_OR_WORK")
-                .chapter(chapter)
-                .build();
-        templateRepo.save(workLessons);
-
-
-        // --- 홀로서기의 시작 (공통 질문) ---
-        ChapterTemplate independence = ChapterTemplate.builder()
-                .templateId("independence_and_freedom") // 신규
-                .stageName("홀로서기의 시작")
-                .mainQuestion("스무 살이 넘으면서 이전과는 다른 자유를 느끼셨을 것 같아요. 처음으로 진짜 어른이 되었다고 실감했던 순간은 언제였나요?")
-                .templateOrder(6)
-                .stageLevel(lv++)
-                .followUpType(FollowUpType.DYNAMIC)
-                .dynamicPromptTemplate("TRANSITION")
+                .dynamicPromptTemplate("PROMPT_TRANSITION_INDEPENDENCE")
                 .chapter(chapter)
                 .build();
         templateRepo.save(independence);
@@ -765,7 +781,7 @@ public class ChapterDataInitService {
                 .templateId("transition_wrapup_static") // ID 재사용 및 역할 재정의
                 .stageName("되돌아보는 나의 선택")
                 .mainQuestion("그 모든 선택과 경험들이 쌓여 지금의 당신이 되었습니다. 20대의 문턱에서 내렸던 선택들을 되돌아볼 때, 그 시간이 지금의 당신에게 남긴 가장 큰 선물은 무엇이라고 생각하시나요?")
-                .templateOrder(7)
+                .templateOrder(6)
                 .stageLevel(lv++)
                 .followUpType(FollowUpType.STATIC)
                 .chapter(chapter)

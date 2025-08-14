@@ -6,7 +6,7 @@ public interface AiClient {
 
 
 
-    String generateDynamicFollowUpBySection(String sectionKey, String userAnswer);
+    String generateDynamicFollowUpBySection(String sectionKey, String userAnswer, String nextTemplateQuestion);
     /**
      * 대화 내용을 바탕으로 자서전 에피소드를 생성합니다.
      */

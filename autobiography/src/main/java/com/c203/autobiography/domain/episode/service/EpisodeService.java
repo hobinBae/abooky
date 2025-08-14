@@ -31,5 +31,6 @@ public interface EpisodeService {
     List<EpisodeImageResponse> getImages(Long bookId, Long episodeId, Long memberId);
     
     void deleteImage(Long bookId, Long episodeId, Long imageId, Long memberId);
+    EpisodeResponse createEpisodeBySessionId(String sessionId) throws JsonProcessingException;
 
 }

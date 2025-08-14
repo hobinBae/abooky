@@ -34,6 +34,7 @@ import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import java.io.IOException;
+import java.util.Set;
 import java.util.UUID;
 
 import jakarta.annotation.Nullable;
@@ -69,6 +70,10 @@ public class ConversationServiceImpl implements ConversationService {
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
     private final EpisodeRepository episodeRepository;
+    private static final Set<String> COMMENT_PROMPT_KEYS = Set.of(
+            "PROMPT_ACKNOWLEDGE_NAME",
+            "PROMPT_FACTS_CONNECT"
+    );
 
     // == 인메모리 상태 관리 ==
     // 세션별 질문 큐 관리 (0부터 시작)
@@ -558,25 +563,64 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     private String processDynamicFollowUp(ConversationSession session, ChapterTemplate template, String userAnswer) {
-        Deque<String> dynamicQueue = dynamicFollowUpQueues.get(session.getSessionId());
+        String sectionKey = template.getDynamicPromptTemplate();
 
-        if (dynamicQueue == null && session.getFollowUpQuestionIndex() == 0) {
-            String sectionKey = template.getDynamicPromptTemplate();
-            String generatedQuestions = null;
-            try {
-                generatedQuestions = aiClient.generateDynamicFollowUpBySection(sectionKey, userAnswer);
-            } catch (Exception e) {
-                log.warn("동적 후속질문 생성 실패(sectionKey={}):", sectionKey, e.getMessage(), e);
+        // AI에게 '어떤 재료'를 줄지 결정하기 위해 키를 확인합니다.
+        if (COMMENT_PROMPT_KEYS.contains(sectionKey)) {
+            // --- 재료: [사용자 답변] + [다음 본 질문] ---
+
+            ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
+                    session.getCurrentChapterOrder(),
+                    session.getCurrentTemplateOrder() + 1
+            ).orElse(null);
+
+            if (nextTemplate == null) return null; // 다음 질문 없으면 종료
+
+            String combinedResponse = aiClient.generateDynamicFollowUpBySection(
+                    sectionKey,
+                    userAnswer,
+                    nextTemplate.getMainQuestion()
+            );
+
+            // ★ AI가 다음 질문까지 만들어줬으니, 우리 시스템의 상태도 다음으로 넘겨줍니다.
+            advanceSessionToTemplate(session, nextTemplate);
+
+            return combinedResponse; // "코멘트\n다음 본 질문" 텍스트를 반환
+
+        } else {
+            // --- 재료: [사용자 답변] --- (기존 로직)
+            Deque<String> dynamicQueue = dynamicFollowUpQueues.get(session.getSessionId());
+
+            if (dynamicQueue == null && session.getFollowUpQuestionIndex() == 0) {
+                String generatedQuestions = aiClient.generateDynamicFollowUpBySection(sectionKey, userAnswer, null);
+                dynamicQueue = parseAndCreateDynamicQueue(generatedQuestions);
+                dynamicFollowUpQueues.put(session.getSessionId(), dynamicQueue);
             }
-            dynamicQueue = parseAndCreateDynamicQueue(generatedQuestions);
-            dynamicFollowUpQueues.put(session.getSessionId(), dynamicQueue);
-        }
 
-        if (dynamicQueue != null && !dynamicQueue.isEmpty()) {
-            updateFollowUpIndex(session, session.getFollowUpQuestionIndex() + 1);
-            return dynamicQueue.poll();
+            if (dynamicQueue != null && !dynamicQueue.isEmpty()) {
+                updateFollowUpIndex(session, session.getFollowUpQuestionIndex() + 1);
+                return dynamicQueue.poll();
+            }
+
+            return null;
         }
-        return null;
+    }
+
+    /**
+     * 세션 상태를 다음 템플릿으로 업데이트하는 헬퍼 메소드
+     */
+    private void advanceSessionToTemplate(ConversationSession session, ChapterTemplate nextTemplate) {
+        ConversationSession freshSession = sessionRepo.findById(session.getSessionId())
+                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_INPUT_VALUE));
+
+        ConversationSession updatedSession = freshSession.toBuilder()
+                .currentTemplateId(nextTemplate.getTemplateId())
+                .currentTemplateOrder(nextTemplate.getTemplateOrder())
+                .followUpQuestionIndex(0)
+                .build();
+
+        sessionRepo.save(updatedSession);
+        dynamicFollowUpQueues.remove(session.getSessionId());
     }
 
     private Deque<String> parseAndCreateDynamicQueue(String aiResponse) {
