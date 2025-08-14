@@ -385,7 +385,7 @@ async function loadMyGroups() {
     allGroups.value = groupsWithBooks;
   } catch (error) {
     console.error("내 그룹 목록을 불러오는데 실패했습니다:", error);
-    showMessageBox('그룹 목록을 가져오는 데 실패했습니다. 다시 시도해주세요.', '오류');
+    showMessageBox('그룹 추가 버튼을 눌러서 그룹을 생성해주세요.', '오류');
   }
 }
 // 클릭 시 바로 상세 페이지로 이동하도록 변경
