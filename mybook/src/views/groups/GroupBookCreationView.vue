@@ -69,7 +69,7 @@
                 :key="participant.identity"
                 class="video-participant remote-participant">
                 <video
-                  :ref="el => setParticipantVideoRef(el, participant.identity)"
+                  :ref="(el: unknown) => setParticipantVideoRef(el as HTMLVideoElement | null, participant.identity)"
                   autoplay
                   playsinline
                   class="participant-video">
@@ -134,7 +134,7 @@
                     :key="participant.identity"
                     class="thumbnail-participant">
                     <video
-                      :ref="el => setParticipantVideoRef(el, participant.identity)"
+                      :ref="(el: unknown) => setParticipantVideoRef(el as HTMLVideoElement | null, participant.identity)"
                       autoplay
                       playsinline
                       class="thumbnail-video">
@@ -233,12 +233,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import apiClient from '@/api';
+// import apiClient from '@/api';
 
 // LiveKit 타입 정의
 declare global {
   interface Window {
-    LivekitClient: any;
+    LivekitClient: Record<string, unknown>;
   }
 }
 
@@ -247,8 +247,8 @@ interface RemoteParticipant {
   identity: string;
   isMicrophoneEnabled: boolean;
   isCameraEnabled: boolean;
-  videoTrack?: any;
-  audioTrack?: any;
+  videoTrack?: Record<string, unknown>;
+  audioTrack?: Record<string, unknown>;
   connectionQuality?: number;
 }
 
@@ -268,7 +268,8 @@ interface ChatMessage {
 // --- Router ---
 const route = useRoute();
 const router = useRouter();
-const groupId = (route.query.groupId as string) || 'default-room';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// const groupId = (route.query.groupId as string) || 'default-room';
 
 // --- Auth Store ---
 import { useAuthStore } from '@/stores/auth';
@@ -292,7 +293,7 @@ const connectionState = ref<'disconnected' | 'connecting' | 'connected' | 'recon
 const connectionStatus = ref<ConnectionStatus | null>(null);
 
 // LiveKit 관련 - non-reactive storage for WebRTC objects
-let livekitRoom: any = null;
+let livekitRoom: Record<string, unknown> | null = null;
 
 // UI state only (reactive)
 const remoteParticipants = ref<RemoteParticipant[]>([]);
@@ -345,58 +346,41 @@ function getStatusIcon(type: string): string {
   }
 }
 
-function setParticipantVideoRef(el: any, identity: string) {
+function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
   if (el && el instanceof HTMLVideoElement) {
     participantVideoRefs.value.set(identity, el);
   }
 }
 
 // --- LiveKit Functions ---
-async function getAccessToken(): Promise<{ url: string, token: string}> {
-  try {
-    const userName = authStore.user?.nickname || `User_${Date.now()}`;
-    
-    console.log('토큰 발급 요청:', {
-      groupId,
-      userName,
-      endpoint: `/api/v1/groups/${groupId}/rtc/token`
-    });
-
-    const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
-      userName
-    });
-
-    console.log('토큰 발급 응답:', response.data);
-
-    const data = response.data.data ?? response.data;
-    if (!data?.token || !data?.url) {
-      throw new Error('응답에 url/token 없음');
-    }
-    
-    console.log('토큰 발급 성공:', { url: data.url, hasToken: !!data.token });
-    return { url: data.url, token: data.token };
-    
-  } catch (error) {
-    console.error('토큰 발급 실패:', error);
-    
-    if (error.response?.status === 500) {
-      console.error('서버 내부 오류 상세:', error.response?.data);
-      console.error('백엔드 LiveKit 설정 확인이 필요합니다:');
-      console.error('1. LiveKit 서버 URL이 올바른지 확인');
-      console.error('2. LiveKit API Key/Secret이 올바른지 확인');
-      console.error('3. LiveKit 서버가 실행 중인지 확인');
-      throw new Error('LiveKit 서버 연결에 문제가 있습니다. 잠시 후 다시 시도해주세요.');
-    } else if (error.response?.status === 404) {
-      throw new Error('그룹을 찾을 수 없습니다. 그룹 ID를 확인해주세요.');
-    } else if (error.response?.status === 403) {
-      throw new Error('이 그룹에 접근할 권한이 없습니다.');
-    } else if (error.code === 'NETWORK_ERROR' || error.code === 'ERR_NETWORK') {
-      throw new Error('네트워크 연결을 확인해주세요.');
-    }
-    
-    throw error;
-  }
-}
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// async function getAccessToken(): Promise<{ url: string, token: string}> {
+//   try {
+//     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+//     const userName = `User_${Date.now()}`;
+//
+//     // 로컬 테스트를 위한 더미 토큰/URL 반환
+//     console.log('🔧 로컬 테스트 모드: 더미 토큰 사용');
+//     return {
+//       url: 'ws://localhost:7880',
+//       token: 'dummy-token-for-local-test'
+//     };
+//
+//     // 실제 API 호출은 주석 처리
+//     // const response = await apiClient.post(`/api/v1/groups/${groupId}/rtc/token`, {
+//     //   userName
+//     // });
+//     //
+//     // const data = response.data.data ?? response.data;
+//     // if (!data?.token || !data?.url) {
+//     //   throw new Error('응답에 url/token 없음');
+//     // }
+//     // return { url: data.url, token: data.token };
+//   } catch (error) {
+//     console.error('토큰 발급 오류:', error);
+//     throw error;
+//   }
+// }
 
 async function setupLocalMedia() {
   try {
@@ -437,10 +421,170 @@ async function joinRoom() {
   connectionState.value = 'connecting';
 
   try {
-    // LiveKit 연결 정보 가져오기
-    connectionStatus.value = {
-      type: 'info',
-      message: '서버 연결 정보를 가져오는 중...'
+    console.log('🔧 로컬 테스트 모드: 실제 LiveKit 연결 없이 진행');
+
+    // 로컬 테스트를 위한 더미 연결 시뮬레이션
+    await new Promise(resolve => setTimeout(resolve, 1500)); // 1.5초 로딩 시뮬레이션
+
+    // 더미 livekitRoom 객체 생성 (기본 기능만)
+    livekitRoom = {
+      localParticipant: {
+        identity: 'LocalUser',
+        enableCameraAndMicrophone: async () => console.log('더미: 카메라/마이크 활성화'),
+        enableMicrophone: async () => console.log('더미: 마이크 활성화'),
+        setMicrophoneEnabled: async (enabled: boolean) => {
+          console.log('더미: 마이크', enabled ? '활성화' : '비활성화');
+          isAudioEnabled.value = enabled;
+
+          // 실제 오디오 스트림 제어
+          if (localVideoElement.value?.srcObject) {
+            const stream = localVideoElement.value.srcObject as MediaStream;
+            const audioTracks = stream.getAudioTracks();
+            audioTracks.forEach(track => {
+              track.enabled = enabled;
+            });
+          }
+        },
+        setCameraEnabled: async (enabled: boolean) => {
+          console.log('더미: 카메라', enabled ? '활성화' : '비활성화');
+          isVideoEnabled.value = enabled;
+
+          // 실제 비디오 스트림 제어
+          if (localVideoElement.value?.srcObject) {
+            const stream = localVideoElement.value.srcObject as MediaStream;
+            const videoTracks = stream.getVideoTracks();
+            videoTracks.forEach(track => {
+              track.enabled = enabled;
+            });
+          }
+        },
+        setScreenShareEnabled: async (enabled: boolean) => {
+          console.log('더미: 화면공유', enabled ? '시작' : '중지');
+          isScreenSharing.value = enabled;
+
+          try {
+            if (enabled) {
+              // 화면 공유 시작
+              console.log('화면 공유 스트림 요청 시작...');
+              const screenStream = await navigator.mediaDevices.getDisplayMedia({
+                video: {
+                  width: { max: 1920 },
+                  height: { max: 1080 },
+                  frameRate: { max: 30 }
+                },
+                audio: true
+              });
+
+              console.log('화면 공유 스트림 획득:', screenStream);
+              console.log('비디오 트랙:', screenStream.getVideoTracks());
+              console.log('오디오 트랙:', screenStream.getAudioTracks());
+
+              if (localVideoElement.value) {
+                console.log('비디오 요소에 화면 공유 스트림 설정');
+
+                // 비디오 요소 속성 설정
+                localVideoElement.value.muted = true; // 화면 공유는 음소거
+                localVideoElement.value.autoplay = true;
+                localVideoElement.value.playsInline = true;
+
+                // 스트림 설정
+                localVideoElement.value.srcObject = screenStream;
+
+                // loadedmetadata 이벤트 대기
+                const waitForMetadata = new Promise<void>((resolve, reject) => {
+                  const timeout = setTimeout(() => {
+                    reject(new Error('비디오 메타데이터 로딩 타임아웃'));
+                  }, 5000);
+
+                  localVideoElement.value!.onloadedmetadata = () => {
+                    clearTimeout(timeout);
+                    console.log('비디오 메타데이터 로드 완료');
+                    console.log('비디오 크기:', localVideoElement.value!.videoWidth, 'x', localVideoElement.value!.videoHeight);
+                    resolve();
+                  };
+
+                  localVideoElement.value!.onerror = (error) => {
+                    clearTimeout(timeout);
+                    console.error('비디오 로딩 에러:', error);
+                    reject(error);
+                  };
+                });
+
+                // 메타데이터 로딩 대기
+                await waitForMetadata;
+
+                // 카메라 썸네일에 원래 카메라 스트림 설정
+                if (localCameraThumbnail.value && localVideo.value?.srcObject) {
+                  localCameraThumbnail.value.srcObject = localVideo.value.srcObject;
+                  try {
+                    await localCameraThumbnail.value.play();
+                    console.log('카메라 썸네일 재생 시작');
+                  } catch (thumbError) {
+                    console.warn('카메라 썸네일 자동 재생 실패:', thumbError);
+                  }
+                }
+
+                // 비디오 재생 시작 (여러 번 시도)
+                let playAttempts = 0;
+                const maxPlayAttempts = 3;
+
+                const attemptPlay = async () => {
+                  try {
+                    await localVideoElement.value!.play();
+                    console.log('화면 공유 스트림 재생 시작 성공');
+
+                    // 재생 성공 후 상태 확인
+                    setTimeout(() => {
+                      console.log('재생 후 비디오 요소 상태:');
+                      console.log('- paused:', localVideoElement.value?.paused);
+                      console.log('- currentTime:', localVideoElement.value?.currentTime);
+                      console.log('- videoWidth:', localVideoElement.value?.videoWidth);
+                      console.log('- videoHeight:', localVideoElement.value?.videoHeight);
+                      console.log('- readyState:', localVideoElement.value?.readyState);
+                    }, 500);
+
+                  } catch (playError) {
+                    playAttempts++;
+                    console.warn(`화면 공유 비디오 재생 실패 (시도 ${playAttempts}/${maxPlayAttempts}):`, playError);
+
+                    if (playAttempts < maxPlayAttempts) {
+                      setTimeout(attemptPlay, 1000);
+                    } else {
+                      console.error('화면 공유 비디오 재생 최종 실패');
+                      // 사용자에게 수동으로 재생하도록 안내
+                      localVideoElement.value!.controls = true;
+                    }
+                  }
+                };
+
+                await attemptPlay();
+
+                // 화면 공유 종료 감지
+                screenStream.getVideoTracks()[0].onended = () => {
+                  console.log('화면 공유가 사용자에 의해 종료됨');
+                  isScreenSharing.value = false;
+                  // 원래 카메라 스트림으로 복구
+                  restoreCameraStream();
+                };
+              }
+            } else {
+              // 화면 공유 종료 - 원래 카메라 스트림으로 복구
+              restoreCameraStream();
+            }
+          } catch (error) {
+            console.error('화면 공유 실패:', error);
+            isScreenSharing.value = false;
+            alert('화면 공유에 실패했습니다. 브라우저에서 화면 공유 권한을 허용해주세요.');
+          }
+        },
+        publishData: async (data: Uint8Array) => {
+          console.log('더미: 데이터 전송', data);
+          return Promise.resolve();
+        }
+      },
+      disconnect: async () => {
+        console.log('더미: 방 나가기');
+      }
     };
 
     const { url, token } = await getAccessToken();
@@ -525,6 +669,7 @@ async function joinRoom() {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function setupRoomEventListeners() {
   if (!livekitRoom || !window.LivekitClient) return;
 
@@ -745,24 +890,26 @@ async function restoreCameraStream() {
 }
 
 
-function addRemoteParticipant(participant: any) {
+function addRemoteParticipant(participant: Record<string, unknown>) {
   const newParticipant: RemoteParticipant = {
-    identity: participant.identity,
-    isMicrophoneEnabled: participant.isMicrophoneEnabled,
-    isCameraEnabled: participant.isCameraEnabled,
+    identity: participant.identity as string,
+    isMicrophoneEnabled: participant.isMicrophoneEnabled as boolean,
+    isCameraEnabled: participant.isCameraEnabled as boolean,
     connectionQuality: undefined
   };
 
   remoteParticipants.value.push(newParticipant);
 
   // 기존 트랙들 처리
-  participant.videoTracks.forEach((publication: any) => {
+  const videoTracks = participant.videoTracks as { track?: Record<string, unknown> }[];
+  videoTracks?.forEach((publication) => {
     if (publication.track) {
       handleTrackSubscribed(publication.track, participant);
     }
   });
 
-  participant.audioTracks.forEach((publication: any) => {
+  const audioTracks = participant.audioTracks as { track?: Record<string, unknown> }[];
+  audioTracks?.forEach((publication) => {
     if (publication.track) {
       handleTrackSubscribed(publication.track, participant);
     }
@@ -777,36 +924,36 @@ function removeRemoteParticipant(identity: string) {
   participantVideoRefs.value.delete(identity);
 }
 
-function handleTrackSubscribed(track: any, participant: any) {
-  const participantData = remoteParticipants.value.find(p => p.identity === participant.identity);
+function handleTrackSubscribed(track: Record<string, unknown>, participant: Record<string, unknown>) {
+  const participantData = remoteParticipants.value.find(p => p.identity === (participant.identity as string));
   if (!participantData) return;
 
-  if (track.kind === 'video') {
+  if ((track.kind as string) === 'video') {
     participantData.videoTrack = track;
 
     // 비디오 엘리먼트에 연결
     nextTick(() => {
-      const videoElement = participantVideoRefs.value.get(participant.identity);
+      const videoElement = participantVideoRefs.value.get(participant.identity as string);
       if (videoElement) {
-        track.attach(videoElement);
+        (track.attach as (el: HTMLVideoElement) => void)(videoElement);
       }
     });
-  } else if (track.kind === 'audio') {
+  } else if ((track.kind as string) === 'audio') {
     participantData.audioTrack = track;
-    track.attach(); // 오디오는 자동 재생
+    (track.attach as () => void)(); // 오디오는 자동 재생
   }
 }
 
-function handleTrackUnsubscribed(track: any, participant: any) {
-  const participantData = remoteParticipants.value.find(p => p.identity === participant.identity);
+function handleTrackUnsubscribed(track: Record<string, unknown>, participant: Record<string, unknown>) {
+  const participantData = remoteParticipants.value.find(p => p.identity === (participant.identity as string));
   if (!participantData) return;
 
-  if (track.kind === 'video') {
+  if ((track.kind as string) === 'video') {
     participantData.videoTrack = undefined;
-    track.detach();
-  } else if (track.kind === 'audio') {
+    (track.detach as () => void)();
+  } else if ((track.kind as string) === 'audio') {
     participantData.audioTrack = undefined;
-    track.detach();
+    (track.detach as () => void)();
   }
 }
 
@@ -857,7 +1004,7 @@ async function toggleMicrophone() {
 
   try {
     const enabled = !isAudioEnabled.value;
-    await livekitRoom.localParticipant.setMicrophoneEnabled(enabled);
+    await (livekitRoom as { localParticipant: { setMicrophoneEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setMicrophoneEnabled(enabled);
     isAudioEnabled.value = enabled;
   } catch (error) {
     console.error('마이크 토글 실패:', error);
@@ -869,7 +1016,7 @@ async function toggleCamera() {
 
   try {
     const enabled = !isVideoEnabled.value;
-    await livekitRoom.localParticipant.setCameraEnabled(enabled);
+    await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(enabled);
     isVideoEnabled.value = enabled;
   } catch (error) {
     console.error('카메라 토글 실패:', error);
@@ -908,11 +1055,16 @@ async function toggleScreenShare() {
     console.log('목표 상태:', enabled ? '시작' : '종료');
 
     if (enabled) {
-      console.log('🖥️ 화면 공유 시작 프로세스...');
-      
-      // 브라우저 지원 확인
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-        throw new Error('이 브라우저는 화면 공유를 지원하지 않습니다.');
+      // 화면 공유 시작
+      await (livekitRoom as { localParticipant: { setScreenShareEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setScreenShareEnabled(true);
+      // 화면공유 중에는 카메라를 끄되, 상태는 유지
+      await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(false);
+    } else {
+      // 화면 공유 종료
+      await (livekitRoom as { localParticipant: { setScreenShareEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setScreenShareEnabled(false);
+      // 비디오가 활성화 상태였다면 카메라 다시 켜기
+      if (isVideoEnabled.value) {
+        await (livekitRoom as { localParticipant: { setCameraEnabled: (enabled: boolean) => Promise<void> } }).localParticipant.setCameraEnabled(true);
       }
 
       console.log('브라우저 지원 확인 완료');
@@ -1162,7 +1314,7 @@ async function leaveRoom() {
     }
 
     if (livekitRoom) {
-      await livekitRoom.disconnect();
+      await (livekitRoom as { disconnect: () => Promise<void> }).disconnect();
       livekitRoom = null;
     }
 
@@ -1303,7 +1455,7 @@ const cleanup = async () => {
   }
 
   if (livekitRoom) {
-    livekitRoom.disconnect();
+    (livekitRoom as { disconnect: () => void }).disconnect();
     livekitRoom = null;
   }
 
