@@ -22,6 +22,12 @@ public class CommunityBookCommentDetailResponse {
     @Schema(description = "작성자 ID", example = "101")
     private Long memberId;
 
+    @Schema(description = "작성자 닉네임", example = "독서광")
+    private String nickname;
+
+    @Schema(description = "작성자 프로필 이미지 URL", example = "https://~~.jpg")
+    private String profileImageUrl;
+
     @Schema(description = "댓글 내용", example = "정말 감동적인 책이에요!")
     private String content;
 
@@ -38,6 +44,8 @@ public class CommunityBookCommentDetailResponse {
         return CommunityBookCommentDetailResponse.builder()
                 .communityBookCommentId(comment.getCommunityBookCommentId())
                 .memberId(comment.getMember().getMemberId())
+                .nickname(comment.getMember().getNickname())
+                .profileImageUrl(comment.getMember().getProfileImageUrl())
                 .content(comment.getContent())
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
