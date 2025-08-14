@@ -23,6 +23,12 @@ public class CommunityBookSummaryResponse {
     @Schema(description = "커뮤니티 책 ID", example = "1001")
     private Long communityBookId;
 
+    @Schema(description = "작가 ID", example = "1")
+    private Long memberId;
+
+    @Schema(description = "작가 닉네임", example = "nickname")
+    private String authorNickname;
+
     @Schema(description = "책 제목", example = "나의 첫 번째 자서전")
     private String title;
 
@@ -70,6 +76,8 @@ public class CommunityBookSummaryResponse {
     public static CommunityBookSummaryResponse of(CommunityBook communityBook, List<CommunityBookTagResponse> tags) {
         return CommunityBookSummaryResponse.builder()
                 .communityBookId(communityBook.getCommunityBookId())
+                .memberId(communityBook.getMember().getMemberId())
+                .authorNickname(communityBook.getMember().getNickname())
                 .title(communityBook.getTitle())
                 .coverImageUrl(communityBook.getCoverImageUrl())
                 .summary(communityBook.getSummary())
