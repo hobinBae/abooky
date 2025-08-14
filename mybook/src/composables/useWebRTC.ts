@@ -99,6 +99,11 @@ export function useWebRTC() {
         dynacast: true,
         videoCaptureDefaults: {
           resolution: { width: 1280, height: 720 }
+        },
+        audioCaptureDefaults: {
+          autoGainControl: false,
+          noiseSuppression: false,
+          echoCancellation: false
         }
       });
 
