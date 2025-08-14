@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.groupbook.service;
 
+import com.c203.autobiography.domain.book.dto.BookType;
 import com.c203.autobiography.domain.book.entity.BookCategory;
 import com.c203.autobiography.domain.book.entity.Tag;
 import com.c203.autobiography.domain.book.repository.BookCategoryRepository;
