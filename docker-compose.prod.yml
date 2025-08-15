@@ -100,11 +100,12 @@ services:
     ports:
       - "7880:7880"  # HTTP/WebSocket 포트
       - "7881:7881"  # RTC TCP 포트
-      - "7900-7999:7900-7999/udp"  # RTC UDP 포트 범위
+      # - "7900-7999:7900-7999/udp"  # RTC UDP 포트 범위
+      - "7900-7905:7900-7905/udp"
       - "3478:3478"  # TURN UDP 포트
       - "3479:3479"  # TURN TCP 포트
       - "5349:5349"  # TURN TLS 포트
-      - "50000-60000:50000-60000/udp"  # TURN 릴레이 포트 범위
+      # - "50000-60000:50000-60000/udp"  # TURN 릴레이 포트 범위
     volumes:
       - ./infrastructure/livekit/livekit-prod.yaml:/etc/livekit.yaml
     depends_on:
