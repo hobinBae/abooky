@@ -45,7 +45,7 @@ export interface CommunityBook {
 }
 
 export interface CommunityBookDetailResponse extends CommunityBook {
-  episodes: CommunityBookEpisode[];
+  communityEpisodes: CommunityBookEpisode[];
   categoryName?: string;
 }
 
