@@ -19,6 +19,8 @@ export interface GroupMember {
   nickname: string;
   profileImageUrl: string;
   role?: 'LEADER' | 'MANAGER' | 'MEMBER';
+  joinedAt?: string; // 가입일 필드 추가
+  birthDate?: string; // 생일 필드 추가
 }
 
 export interface GroupRoleChangeRequest {
@@ -384,6 +386,17 @@ class GroupService {
   async endGroupBookSession(groupId: number): Promise<void> {
     this.removeSession(groupId);
     console.log('그룹책 세션 종료:', groupId);
+  }
+
+  // 그룹 책 목록 조회 함수
+  async fetchGroupBooks(groupId: string): Promise<any[]> {
+    try {
+      const response = await apiClient.get(`/api/v1/groups/${groupId}/books`);
+      return response.data.data;
+    } catch (error) {
+      console.error(`그룹 책 목록 조회 실패 (ID: ${groupId}):`, error);
+      return [];
+    }
   }
 }
 
