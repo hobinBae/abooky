@@ -25,17 +25,17 @@
     </section>
 
     <!-- 그룹 선택 모달 -->
-    <SimpleModal 
-      :is-visible="showGroupModal" 
-      title="내가 속한 그룹 선택" 
+    <SimpleModal
+      :is-visible="showGroupModal"
+      title="내가 속한 그룹 선택"
       @close="closeGroupModal"
     >
       <div v-if="loading" style="padding: 2rem; text-align: center;">
         <LoadingSpinner message="그룹 목록을 불러오는 중..." />
       </div>
-      
+
       <div v-else-if="myGroups.length === 0" style="padding: 2rem;">
-        <EmptyState 
+        <EmptyState
           icon-class="bi bi-people"
           title="참여한 그룹이 없습니다"
           description="먼저 '나의 서재'에서 그룹을 생성하거나 다른 그룹에 참여해보세요."
@@ -44,10 +44,10 @@
           @action="goToMyLibrary"
         />
       </div>
-      
+
       <div v-else class="group-list">
-        <GroupItem 
-          v-for="group in myGroups" 
+        <GroupItem
+          v-for="group in myGroups"
           :key="group.groupId"
           :group="group"
           :current-user-id="currentUserId"
@@ -58,18 +58,18 @@
     </SimpleModal>
 
     <!-- 그룹책 참여 모달 -->
-    <SimpleModal 
+    <SimpleModal
       :key="joinModalKey"
-      :is-visible="showJoinModal" 
-      title="내가 속한 그룹 선택" 
+      :is-visible="showJoinModal"
+      title="내가 속한 그룹 선택"
       @close="closeJoinModal"
     >
       <div v-if="loadingSessions" style="padding: 2rem; text-align: center;">
         <LoadingSpinner message="활성화된 그룹책 방을 확인하는 중..." />
       </div>
-      
+
       <div v-else-if="activeGroupsForJoin.length === 0" style="padding: 2rem;">
-        <EmptyState 
+        <EmptyState
           icon-class="bi bi-book"
           title="활성화된 그룹책 방이 없습니다"
           description="활성화된 그룹책 방이 없습니다.\n그룹책 방 만들기를 이용해 활성화 시켜주세요."
@@ -78,10 +78,10 @@
           @action="handleCreateFromJoin"
         />
       </div>
-      
+
       <div v-else class="group-list">
-        <GroupItem 
-          v-for="group in activeGroupsForJoin" 
+        <GroupItem
+          v-for="group in activeGroupsForJoin"
           :key="group.groupId"
           :group="group"
           :current-user-id="currentUserId"
@@ -91,17 +91,17 @@
     </SimpleModal>
 
     <!-- 그룹책 만들기 모달 -->
-    <SimpleModal 
-      :is-visible="showCreateModal" 
-      title="그룹책을 만들 그룹 선택" 
+    <SimpleModal
+      :is-visible="showCreateModal"
+      title="그룹책을 만들 그룹 선택"
       @close="closeCreateModal"
     >
       <div v-if="loading" style="padding: 2rem; text-align: center;">
         <LoadingSpinner message="그룹 목록을 불러오는 중..." />
       </div>
-      
+
       <div v-else-if="myGroups.length === 0" style="padding: 2rem;">
-        <EmptyState 
+        <EmptyState
           icon-class="bi bi-people"
           title="참여한 그룹이 없습니다"
           description="먼저 '나의 서재'에서 그룹을 생성하거나 다른 그룹에 참여해보세요."
@@ -110,10 +110,10 @@
           @action="goToMyLibrary"
         />
       </div>
-      
+
       <div v-else class="group-list">
-        <GroupItem 
-          v-for="group in myGroups" 
+        <GroupItem
+          v-for="group in myGroups"
           :key="group.groupId"
           :group="group"
           :current-user-id="currentUserId"
@@ -171,7 +171,7 @@ const availableGroupBookSessions = computed(() => {
 // 참여하기용: 활성화된 세션이 있는 그룹들만 필터링
 const activeGroupsForJoin = computed(() => {
   const activeSessionGroupIds = availableGroupBookSessions.value.map(session => session.groupId);
-  const activeGroups = myGroups.value.filter(group => 
+  const activeGroups = myGroups.value.filter(group =>
     activeSessionGroupIds.includes(group.groupId)
   );
   console.log('🔍 activeGroupsForJoin computed 실행됨, 결과:', activeGroups.length);
@@ -218,7 +218,7 @@ const openCreateModal = async () => {
 const openJoinModal = async () => {
   showJoinModal.value = true;
   loadingSessions.value = true;
-  
+
   try {
     // 그룹 데이터와 활성 세션을 모두 가져옴 (최신 상태로 업데이트)
     console.log('🔍 참여하기 모달 열기 - 최신 세션 상태 확인');
@@ -226,7 +226,7 @@ const openJoinModal = async () => {
       fetchMyGroups(),
       fetchAllActiveGroupBookSessions()
     ]);
-    
+
     console.log('🔍 현재 활성 세션:', allActiveGroupBookSessions.value.length);
     console.log('🔍 참여 가능한 그룹:', activeGroupsForJoin.value.length);
   } catch (error) {
@@ -239,20 +239,20 @@ const openJoinModal = async () => {
 // 모달 닫기 함수들
 const closeGroupModal = () => {
   console.log('=== 그룹 모달 닫기 시작 ===');
-  
+
   // 1단계: 모든 상태 강제 초기화
   showGroupModal.value = false;
   showJoinModal.value = false;
   showCreateModal.value = false;
   loading.value = false;
   loadingSessions.value = false;
-  
+
   // 2단계: 비동기로 다시 한 번 확인
   setTimeout(() => {
     showGroupModal.value = false;
     console.log('그룹 모달 완전 닫기 완료');
   }, 10);
-  
+
   console.log('=== 그룹 모달 닫기 완료 ===');
 };
 
@@ -266,20 +266,20 @@ const closeCreateModal = () => {
 const closeJoinModal = () => {
   console.log('🔥🔥🔥 부모 컴포넌트에서 closeJoinModal 호출됨!');
   console.log('호출 전 showJoinModal 값:', showJoinModal.value);
-  
+
   // 1단계: 상태 변경 전 로그
   showJoinModal.value = false;
   console.log('showJoinModal.value = false 설정 후:', showJoinModal.value);
-  
+
   showGroupModal.value = false;
   showCreateModal.value = false;
   loading.value = false;
   loadingSessions.value = false;
-  
+
   // 2단계: 강제 재렌더링
   joinModalKey.value = Date.now();
   console.log('joinModalKey 업데이트:', joinModalKey.value);
-  
+
   // 3단계: nextTick으로 DOM 업데이트 대기
   nextTick(() => {
     console.log('nextTick에서 showJoinModal 값:', showJoinModal.value);
@@ -287,28 +287,28 @@ const closeJoinModal = () => {
       console.error('❌ nextTick에서도 모달이 여전히 true입니다!');
     }
   });
-  
+
   // 4단계: 추가 안전장치
   setTimeout(() => {
     showJoinModal.value = false;
     console.log('setTimeout에서 최종 확인:', showJoinModal.value);
   }, 10);
-  
+
   console.log('🔥🔥🔥 closeJoinModal 함수 완료');
 };
 
 const selectGroup = async (group: Group) => {
   console.log('선택된 그룹:', group);
-  
+
   try {
     const isGroupAlreadyActive = isGroupActive(group.groupId);
-    
+
     if (isGroupAlreadyActive) {
       // 활성화된 그룹인 경우 바로 참여
       router.push({
         path: '/group-book-creation',
-        query: { 
-          groupId: group.groupId.toString(), 
+        query: {
+          groupId: group.groupId.toString(),
           groupName: group.groupName,
           mode: 'join'
         }
@@ -316,12 +316,12 @@ const selectGroup = async (group: Group) => {
     } else {
       // 비활성화된 그룹인 경우 새로 세션 시작
       await groupService.startGroupBookSession(group.groupId, group.groupName);
-      
+
       router.push({
         path: '/group-book-creation',
-        query: { 
-          groupId: group.groupId.toString(), 
-          groupName: group.groupName 
+        query: {
+          groupId: group.groupId.toString(),
+          groupName: group.groupName
         }
       });
     }
@@ -336,12 +336,12 @@ const selectGroup = async (group: Group) => {
 
 const joinGroupBookSession = (session: ActiveSession) => {
   console.log('참여할 세션:', session);
-  
+
   try {
     router.push({
       path: '/group-book-creation',
-      query: { 
-        groupId: session.groupId.toString(), 
+      query: {
+        groupId: session.groupId.toString(),
         groupName: session.groupName,
         mode: 'join'
       }
@@ -355,12 +355,12 @@ const joinGroupBookSession = (session: ActiveSession) => {
 
 const joinExistingGroupBookSession = (group: Group) => {
   console.log('활성화된 그룹책 방에 참여:', group);
-  
+
   try {
     router.push({
       path: '/group-book-creation',
-      query: { 
-        groupId: group.groupId.toString(), 
+      query: {
+        groupId: group.groupId.toString(),
         groupName: group.groupName,
         mode: 'join'
       }
@@ -384,12 +384,12 @@ const handleCreateFromJoin = () => {
 
 const selectGroupForCreate = (group: Group) => {
   console.log('그룹책 만들기용 그룹 선택:', group);
-  
+
   try {
     router.push({
       path: '/group-book-editor',
-      query: { 
-        groupId: group.groupId.toString(), 
+      query: {
+        groupId: group.groupId.toString(),
         groupName: group.groupName
       }
     });
@@ -564,14 +564,14 @@ onMounted(() => {
     font-size: 3.5rem;
     margin-left: 2rem;
   }
-  
+
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
     font-size: 2.5rem;
     margin-left: 2.5rem;
   }
-  
+
   .choice-cards {
     grid-template-columns: repeat(3, minmax(0, 300px));
     gap: 2rem;
@@ -582,12 +582,12 @@ onMounted(() => {
   .create-book-page {
     padding: 1.5rem 1.5rem 1.5rem 1.5rem;
   }
-  
+
   .section-title {
     font-size: 3rem;
     margin-left: 1.5rem;
   }
-  
+
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
@@ -595,16 +595,16 @@ onMounted(() => {
     margin-left: 2rem;
     margin-bottom: -0.3rem;
   }
-  
+
   .section-subtitle3 {
     margin-bottom: 3rem;
   }
-  
+
   .choice-cards {
     grid-template-columns: repeat(2, minmax(0, 280px));
     gap: 1.5rem;
   }
-  
+
   .choice-card {
     padding: 2rem;
   }
@@ -614,13 +614,13 @@ onMounted(() => {
   .create-book-page {
     padding: 1rem;
   }
-  
+
   .section-title {
     font-size: 2.5rem;
     margin-left: 1rem;
     text-align: center;
   }
-  
+
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
@@ -628,26 +628,26 @@ onMounted(() => {
     margin-left: 1rem;
     text-align: center;
   }
-  
+
   .choice-cards {
     grid-template-columns: 1fr;
     gap: 1.5rem;
     max-width: 400px;
     margin: 0 auto;
   }
-  
+
   .choice-card {
     padding: 1.5rem;
   }
-  
+
   .card-icon {
     font-size: 2.5rem;
   }
-  
+
   .card-title {
     font-size: 1.5rem;
   }
-  
+
   .card-description {
     font-size: 0.9rem;
   }
@@ -657,26 +657,26 @@ onMounted(() => {
   .section-title {
     font-size: 2rem;
   }
-  
+
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
     font-size: 1.2rem;
   }
-  
+
   .choice-card {
     padding: 1rem;
     border-radius: 25px;
   }
-  
+
   .card-icon {
     font-size: 2rem;
   }
-  
+
   .card-title {
     font-size: 1.3rem;
   }
-  
+
   .card-description {
     font-size: 0.85rem;
   }

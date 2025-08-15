@@ -29,7 +29,7 @@ const props = defineProps({
   // 마우스 패럴랙스 강도. 값이 클수록 마우스에 더 크게 반응
   parallaxFactor: {
     type: Number,
-    default: 1.25
+    default: 0.3
   }
 })
 
@@ -140,6 +140,9 @@ function initScene() {
   RectAreaLightUniformsLib.init()
   setupLights()
   loadHDR()
+
+  // ✅ 사진 한 장 추가: 배경/조명 세팅 직후에 배치
+  addPhoto()
   // loadModel() // 필요 시 외부에서 호출
 }
 
@@ -204,19 +207,40 @@ function setupLights() {
   point1a.position.set(-12, 3, 2)
   scene.add(point1a)
 
-  const point4 = new THREE.PointLight(0xf0ab43, 10, 15)
-  point4.position.set(8.5, 3, -0.33191)
-  scene.add(point4)
+  // PointLight 2 (문)
+  const point2 = new THREE.PointLight(0xf0ab43, 30, 30);
+  point2.position.set(7.3, 5, 25);
+  scene.add(point2);
+  // scene.add(new THREE.PointLightHelper(point2));
 
-  // 필요 시 RectAreaLight를 켜서 포인트 라이트 대비 부드러운 면광원 효과를 추가할 수 있음
-  // const areaLight = new THREE.RectAreaLight(0xeba64d, 8, 2.28, 2.28)
-  // areaLight.position.set(7.3, 5, 25)
-  // areaLight.rotation.set(
-  //   THREE.MathUtils.degToRad(91.174),
-  //   THREE.MathUtils.degToRad(180.48163),
-  //   THREE.MathUtils.degToRad(-0.75941)
-  // )
-  // scene.add(areaLight)
+  // PointLight 3
+  const point3 = new THREE.PointLight(0xf0ab43, 8, 100);
+  point3.position.set(-8, 2.5, -4.3);
+  scene.add(point3);
+  // scene.add(new THREE.PointLightHelper(point3));
+
+  // PointLight 4
+  const point4 = new THREE.PointLight(0xf0ab43, 8, 100);
+  point4.position.set(-5, 2.5, -4.3);
+  scene.add(point4);
+  // scene.add(new THREE.PointLightHelper(point4));
+
+  // PointLight 5
+  const point5 = new THREE.PointLight(0xf0ab43, 5, 30);
+  point5.position.set(1.55, 2.25, -4.3);
+  scene.add(point5);
+  // scene.add(new THREE.PointLightHelper(point5));
+
+  // PointLight 6
+  const point6 = new THREE.PointLight(0xf0ab43, 5, 30);
+  point6.position.set(4.8, 2.25, -4.3);
+  scene.add(point6);
+  // scene.add(new THREE.PointLightHelper(point6));
+
+  const point7 = new THREE.PointLight(0xf0ab43, 10, 15)
+  point7.position.set(8.5, 3, -0.33191)
+  scene.add(point7)
+
 }
 
 /* --------------------------------- HDR 로드 -------------------------------- */
@@ -227,6 +251,63 @@ function loadHDR() {
     scene.environment = texture
     emit('background-loaded')
   })
+}
+
+/* ----------------------------- 사진 한 장 추가 ----------------------------- */
+/**
+ * PNG 한 장을 Plane 메시로 추가한다.
+ * - sRGB 색공간 적용으로 정확한 색 재현
+ * - 로드 완료 후 실제 이미지 비율대로 높이를 보정
+ * - 양면 렌더링 불필요하므로 FrontSide로 성능 최적화
+ */
+function addPhoto() {
+  const BASE_WIDTH = 8 // 기준 가로 길이 (필요 시 숫자만 조정)
+
+  // 텍스처 로드
+  const texture = new THREE.TextureLoader().load(
+    '/3D/bookstore.png',
+    onLoad,
+    undefined,
+    onError
+  )
+
+  // three r152+ / r150- 호환 색공간 설정
+  if ('colorSpace' in texture) {
+    ;(texture as any).colorSpace = THREE.SRGBColorSpace
+  }
+
+  // 초기에는 정사각 비율로 만들고, 로드 완료 후 실제 비율로 교체
+  const geometry = new THREE.PlaneGeometry(BASE_WIDTH, BASE_WIDTH)
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    side: THREE.FrontSide // 한 면만 필요
+  })
+
+  const mesh = new THREE.Mesh(geometry, material)
+  mesh.position.set(-1.3, 2.04, -13) // 사용자가 지정한 위치
+  mesh.rotation.y = 0        // Y축으로 0도 회전
+  scene.add(mesh)
+
+  // 텍스처 로드 성공 시: 비율 보정 및 품질 옵션
+  function onLoad(tex: THREE.Texture) {
+    const img = (tex.image as HTMLImageElement | { width: number; height: number }) || null
+    if (img && img.width && img.height) {
+      const aspectH = img.height / img.width // 높이/너비
+      const newHeight = BASE_WIDTH * aspectH
+      mesh.geometry.dispose()
+      mesh.geometry = new THREE.PlaneGeometry(BASE_WIDTH, newHeight)
+    }
+
+    // 비스듬한 시선에서 선명도 향상 (옵션)
+    if (renderer) {
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy()
+    }
+  }
+
+  // 텍스처 로드 에러 핸들링
+  function onError(err: unknown) {
+    console.error('텍스처 로드 실패: /3D/bookstore.png', err)
+  }
 }
 
 /* -------------------------------- 모델 로드 -------------------------------- */
@@ -304,7 +385,7 @@ function createHotspots() {
   // 서점
   hotspots.push(
     createHotspot(new THREE.Vector3(-2.5, 2, -6), texture, 'store', () => {
-      moveCameraTo(-2, 2, -6.5, -2, 2, -10.5, () => emit('hotspot', 'store'))
+      moveCameraTo(-1.5, 2, -7, -1.5, 2, -10.5, () => emit('hotspot', 'store'))
     })
   )
 
@@ -338,7 +419,7 @@ function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, name: string,
   sprite.scale.set(1, 1, 1)
   sprite.position.copy(pos)
   sprite.name = name
-  ;(sprite as any).userData.onClick = onClick
+  sprite.userData.onClick = onClick
   return sprite
 }
 
@@ -352,10 +433,6 @@ function moveCameraTo(
   tx: number, ty: number, tz: number,
   onCompleteCallback?: () => void
 ) {
-  // 기존 카메라 애니메이션을 중지하여 충돌 방지
-  gsap.killTweensOf(camera.position)
-  gsap.killTweensOf((controls as any).target)
-
   const tl = gsap.timeline({
     onStart: () => {
       parallaxEnabled = false
@@ -368,7 +445,7 @@ function moveCameraTo(
     }
   })
   tl.to(camera.position, { x: px, y: py, z: pz, duration: 2 })
-  tl.to((controls as any).target, { x: tx, y: ty, z: tz, duration: 2 }, '<')
+  tl.to(controls.target, { x: tx, y: ty, z: tz, duration: 2 }, '<')
 }
 
 function moveToYard() {
@@ -383,10 +460,10 @@ function moveToYard() {
       emit('yard-animation-finished')
     }
   })
-  tl.to(camera.position, { x: 7.3, y: 2.5, z: 30, duration: 4 })
-  tl.to((controls as any).target, { x: 7.3, y: 2.5, z: 0, duration: 4 }, '<')
+  tl.to(camera.position, { x: 7.3, y: 3.5, z: 30, duration: 4 })
+  tl.to(controls.target, { x: 7.3, y: 3.5, z: 0, duration: 4 }, '<')
   tl.to(camera.position, { x: 5.5, y: 2.5, z: 14, duration: 2 })
-  tl.to((controls as any).target, { x: 1, y: 3, z: 3.579, duration: 2 }, '<')
+  tl.to(controls.target, { x: 1, y: 3, z: 3.579, duration: 2 }, '<')
 }
 
 /* ------------------------------ 렌더 루프/리사이즈 ------------------------------ */
@@ -434,9 +511,9 @@ function onCanvasClick(event: MouseEvent) {
   const intersects = globalRaycaster.intersectObjects(hotspots, true)
 
   if (intersects.length > 0) {
-    const first = intersects[0].object as any
+    const first = intersects[0].object
     if (first.userData && typeof first.userData.onClick === 'function') {
-      first.userData.onClick()
+      ;(first.userData.onClick as () => void)()
     }
   }
 }
