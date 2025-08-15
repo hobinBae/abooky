@@ -247,4 +247,18 @@ public class CommunityBookController {
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "책 평점 조회 성공", response, httpRequest.getRequestURI()));
     }
+
+    @Operation(summary = "북마크한 커뮤니티 책 목록 조회", description = "사용자가 북마크한 커뮤니티 책 목록을 조회합니다")
+    @GetMapping("/bookmarks")
+    public ResponseEntity<ApiResponse<CommunityBookListResponse>> getBookmarkedCommunityBooks(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest,
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        
+        Long memberId = userDetails.getMemberId();
+        CommunityBookListResponse response = communityBookService.getBookmarkedCommunityBooks(memberId, pageable);
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "북마크한 커뮤니티 책 목록 조회 성공", response, httpRequest.getRequestURI()));
+    }
 }
