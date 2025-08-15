@@ -94,7 +94,7 @@
           <section v-else class="other-episodes-section">
             <h3>목차</h3>
             <ul class="other-episodes-list">
-              <li v-for="(episode, index) in book.episodes" :key="episode.episodeId" @click="selectEpisode(index)"
+              <li v-for="(episode, index) in book.communityEpisodes" :key="episode.episodeId" @click="selectEpisode(index)"
                 :class="{ active: index === currentEpisodeIndex }">
                 <div class="episode-list-item-title">
                   <span class="episode-number">{{ index + 1 }}.</span>
@@ -198,14 +198,14 @@ const formattedPublicationDate = computed(() => {
 });
 const currentEpisode = computed(() => {
   if (book.value && currentEpisodeIndex.value !== null) {
-    return book.value.episodes[currentEpisodeIndex.value];
+    return book.value.communityEpisodes[currentEpisodeIndex.value];
   }
   return null;
 });
 const isAuthor = computed(() => {
   return book.value && authStore.user && book.value.memberId === authStore.user.memberId;
 });
-const hasNextEpisode = computed(() => book.value && currentEpisodeIndex.value !== null && currentEpisodeIndex.value < book.value.episodes.length - 1);
+const hasNextEpisode = computed(() => book.value && currentEpisodeIndex.value !== null && currentEpisodeIndex.value < book.value.communityEpisodes.length - 1);
 const hasPreviousEpisode = computed(() => currentEpisodeIndex.value !== null && currentEpisodeIndex.value > 0);
 const formattedContent = (content: string) => content.replace(/\n/g, '<br />');
 
@@ -217,7 +217,7 @@ function goBackToList() { currentEpisodeIndex.value = null; }
 function goToNextEpisode() { if (hasNextEpisode.value) selectEpisode(currentEpisodeIndex.value! + 1); }
 function goToPreviousEpisode() { if (hasPreviousEpisode.value) selectEpisode(currentEpisodeIndex.value! - 1); }
 function selectEpisode(index: number) {
-  if (book.value && index >= 0 && index < book.value.episodes.length) {
+  if (book.value && index >= 0 && index < book.value.communityEpisodes.length) {
     currentEpisodeIndex.value = index;
     document.querySelector('.right-panel-scroller')?.scrollTo(0, 0);
   }
