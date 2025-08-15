@@ -415,4 +415,44 @@ public class EpisodeServiceImpl implements EpisodeService {
         // 3. 소프트 삭제
         image.softDelete();
     }
+
+    @Override
+    @Transactional
+    public EpisodeResponse createEpisodeBySessionId(String sessionId) throws JsonProcessingException {
+        log.info("테스트 목적으로 Session ID '{}'의 에피소드 생성을 시작합니다.", sessionId);
+
+        // 1. 세션 정보를 조회하여 bookId를 가져옵니다.
+        ConversationSession session = conversationSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_INPUT_VALUE));
+
+        Long bookId = session.getBookId();
+
+        // 2. bookId를 통해 책의 소유자(memberId)를 확인합니다.
+        Book book = bookRepository.findById(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        Long memberId = book.getMember().getMemberId();
+
+        // TODO: [보안] 실제 프로덕션에서는 현재 요청을 보낸 사용자와 세션의 소유자(memberId)가 일치하는지
+        //       확인하는 로직이 반드시 필요합니다. (예: @PreAuthorize 또는 SecurityContextHolder 활용)
+
+        // 3. AI가 생성한 내용을 담을 '새로운 빈 에피소드'를 먼저 생성합니다.
+        // 기존의 createEpisode 메소드를 호출하여 새 에피소드 슬롯을 만듭니다.
+        EpisodeResponse newEmptyEpisodeResponse = this.createEpisode(memberId, bookId);
+        Long newEpisodeId = newEmptyEpisodeResponse.getEpisodeId();
+
+        // 방금 생성된 Episode 엔티티를 DB에서 다시 조회합니다.
+        Episode newEpisode = episodeRepository.findById(newEpisodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+
+        log.info("에피소드 내용을 채워넣을 빈 에피소드(ID: {})를 생성했습니다.", newEpisodeId);
+
+        // 4. 기존의 에피소드 생성 로직을 호출하여, 빈 에피소드에 AI가 생성한 제목과 본문을 채워넣습니다.
+        // 이 메소드는 내부적으로 AI 호출, 파싱, DB 저장을 모두 처리합니다.
+        EpisodeResponse finalEpisode = this.createEpisodeFromCurrentWindow(newEpisode, sessionId);
+
+        log.info("Session ID '{}'의 에피소드(ID: {}) 생성이 완료되었습니다.", sessionId, finalEpisode.getEpisodeId());
+
+        return finalEpisode;
+    }
+
 }

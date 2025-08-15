@@ -34,49 +34,69 @@ public class OpenAiClient implements AiClient {
 
     private Map<String, Function<OpenAiProperties, String>> promptMapping;
 
-    @PostConstruct
-    public void init() {
-        promptMapping = Map.ofEntries(
-                Map.entry("INTRO", OpenAiProperties::getDynUserIntro),
-                Map.entry("INTRO_SCENE", OpenAiProperties::getDynUserIntroScene),
-                Map.entry("CHILDHOOD_HOME", OpenAiProperties::getDynUserChildhoodHome),
-                Map.entry("CHILDHOOD_CAREGIVER", OpenAiProperties::getDynUserChildhoodCaregiver),
-                Map.entry("CHILDHOOD_PERSONALITY", OpenAiProperties::getDynUserChildhoodPersonality),
-                Map.entry("CHILDHOOD_PLAY", OpenAiProperties::getDynUserChildhoodPlay),
-                Map.entry("CHILDHOOD_FAVORITES", OpenAiProperties::getDynUserChildhoodFavorites),
-                Map.entry("CHILDHOOD_DREAM_JOB", OpenAiProperties::getDynUserChildhoodDreamJob),
-                Map.entry("CHILDHOOD_SCENE", OpenAiProperties::getDynUserChildhoodScene),
-                Map.entry("UPPER_ELEM_SCHOOL", OpenAiProperties::getDynUserUpperElemSchool),
-                Map.entry("UPPER_ELEM_PEOPLE", OpenAiProperties::getDynUserUpperElemPeople),
-                Map.entry("UPPER_ELEM", OpenAiProperties::getDynUserUpperElem),
-                Map.entry("UPPER_ELEM_EVENT", OpenAiProperties::getDynUserUpperElemEvent),
-                Map.entry("MIDDLE_PUBERTY", OpenAiProperties::getDynUserMiddlePuberty),
-                Map.entry("MIDDLE_MEDIA", OpenAiProperties::getDynUserMiddleMedia),
-                Map.entry("MIDDLE_PEOPLE", OpenAiProperties::getDynUserMiddlePeople),
-                Map.entry("MIDDLE_ACADEMICS", OpenAiProperties::getDynUserMiddleAcademics),
-                Map.entry("MIDDLE_GROWTH", OpenAiProperties::getDynUserMiddleGrowth),
-                Map.entry("HIGH_ACADEMICS", OpenAiProperties::getDynUserHighAcademics),
-                Map.entry("HIGH_HOBBY", OpenAiProperties::getDynUserHighHobby),
-                Map.entry("HIGH_FRIEND", OpenAiProperties::getDynUserHighFriend),
-                Map.entry("HIGH_EVENT", OpenAiProperties::getDynUserHighEvent),
-                Map.entry("HIGH_GROWTH", OpenAiProperties::getDynUserHighGrowth),
-                Map.entry("TRANSITION", OpenAiProperties::getDynUserTransition),
-                Map.entry("COLLEGE_OR_WORK", OpenAiProperties::getDynUserCollegeOrWork)
-        );
-    }
+//    @PostConstruct
+//    public void init() {
+//        promptMapping = Map.ofEntries(
+//                Map.entry("INTRO", OpenAiProperties::getDynUserIntro),
+//                Map.entry("INTRO_SCENE", OpenAiProperties::getDynUserIntroScene),
+//                Map.entry("CHILDHOOD_HOME", OpenAiProperties::getDynUserChildhoodHome),
+//                Map.entry("CHILDHOOD_CAREGIVER", OpenAiProperties::getDynUserChildhoodCaregiver),
+//                Map.entry("CHILDHOOD_PERSONALITY", OpenAiProperties::getDynUserChildhoodPersonality),
+//                Map.entry("CHILDHOOD_PLAY", OpenAiProperties::getDynUserChildhoodPlay),
+//                Map.entry("CHILDHOOD_FAVORITES", OpenAiProperties::getDynUserChildhoodFavorites),
+//                Map.entry("CHILDHOOD_DREAM_JOB", OpenAiProperties::getDynUserChildhoodDreamJob),
+//                Map.entry("CHILDHOOD_SCENE", OpenAiProperties::getDynUserChildhoodScene),
+//                Map.entry("UPPER_ELEM_SCHOOL", OpenAiProperties::getDynUserUpperElemSchool),
+//                Map.entry("UPPER_ELEM_PEOPLE", OpenAiProperties::getDynUserUpperElemPeople),
+//                Map.entry("UPPER_ELEM", OpenAiProperties::getDynUserUpperElem),
+//                Map.entry("UPPER_ELEM_EVENT", OpenAiProperties::getDynUserUpperElemEvent),
+//                Map.entry("MIDDLE_PUBERTY", OpenAiProperties::getDynUserMiddlePuberty),
+//                Map.entry("MIDDLE_MEDIA", OpenAiProperties::getDynUserMiddleMedia),
+//                Map.entry("MIDDLE_PEOPLE", OpenAiProperties::getDynUserMiddlePeople),
+//                Map.entry("MIDDLE_ACADEMICS", OpenAiProperties::getDynUserMiddleAcademics),
+//                Map.entry("MIDDLE_GROWTH", OpenAiProperties::getDynUserMiddleGrowth),
+//                Map.entry("HIGH_ACADEMICS", OpenAiProperties::getDynUserHighAcademics),
+//                Map.entry("HIGH_HOBBY", OpenAiProperties::getDynUserHighHobby),
+//                Map.entry("HIGH_FRIEND", OpenAiProperties::getDynUserHighFriend),
+//                Map.entry("HIGH_EVENT", OpenAiProperties::getDynUserHighEvent),
+//                Map.entry("HIGH_GROWTH", OpenAiProperties::getDynUserHighGrowth),
+//                Map.entry("TRANSITION", OpenAiProperties::getDynUserTransition),
+//                Map.entry("COLLEGE_OR_WORK", OpenAiProperties::getDynUserCollegeOrWork)
+//        );
+//    }
 
     @Override
-    public String generateDynamicFollowUpBySection(String sectionKey, String userAnswer) {
-        log.info("다이나믹 후속 질문 생성. Key: {}", sectionKey);
-        String ua = safe(userAnswer);
+    public String generateDynamicFollowUpBySection(String sectionKey, String userAnswer, String nextTemplateQuestion) {
+        log.info("다이나믹 후속 질문 생성. Key: {}, NextQ 제공 여부: {}", sectionKey, nextTemplateQuestion != null);
 
-        // Map에서 프롬프트 템플릿을 가져옴. 키가 없으면 기본값(INTRO)으로 대체
-        String promptTemplate = promptMapping.getOrDefault(sectionKey, OpenAiProperties::getDynUserIntro).apply(props);
-        String userPrompt = String.format(promptTemplate, ua);
+        // 1. 새로운 프롬프트 맵에서 sectionKey에 해당하는 Prompt 객체를 가져옵니다.
+        OpenAiProperties.Prompt prompt = props.getDynamicPrompts().get(sectionKey);
 
-        ChatMessage system = ChatMessage.of("system", props.getDynamicFollowUpSystem());
+        // 2. 키에 해당하는 프롬프트가 없으면 경고 후 null 반환
+        if (prompt == null) {
+            log.warn("정의되지 않은 다이나믹 프롬프트 Key입니다: {}", sectionKey);
+            return null;
+        }
+
+        // 3. Prompt 객체에서 시스템 메시지와 사용자 프롬프트 템플릿을 가져옵니다.
+        String systemMessage = prompt.system();
+        String userPromptTemplate = prompt.userTemplate();
+        String userPrompt;
+
+        // 4. '다음 본 질문' 파라미터의 유무에 따라 사용자 프롬프트를 완성합니다.
+        if (nextTemplateQuestion != null && !nextTemplateQuestion.isBlank()) {
+            // '다음 본 질문'이 있으면 2개의 인자로 포맷팅
+            userPrompt = String.format(userPromptTemplate, safe(userAnswer), nextTemplateQuestion);
+        } else {
+            // 없으면 기존처럼 1개의 인자로 포맷팅
+            userPrompt = String.format(userPromptTemplate, safe(userAnswer));
+        }
+
+        // 5. API 요청 메시지 생성
+        ChatMessage system = ChatMessage.of("system", systemMessage);
         ChatMessage user = ChatMessage.of("user", userPrompt);
 
+        // 6. OpenAI API 요청 및 응답 반환
         ChatCompletionRequest request = ChatCompletionRequest.builder()
                 .model(props.getModel())
                 .messages(List.of(system, user))
@@ -91,10 +111,10 @@ public class OpenAiClient implements AiClient {
         return response.isBlank() ? null : response;
     }
 
-
     private String safe(String s) {
         return s == null ? "" : s.trim();
     }
+
 
     @Override
     public String generateEpisode(String conversationHistory) {
