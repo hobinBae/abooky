@@ -1,102 +1,180 @@
-spring.application.name=autobiography
+# docker-compose.prod.yml
+# 전체 AUTOBIOGRAPHY CICD 스택 (프로덕션 환경)
 
-spring.http.encoding.enabled=true
-spring.http.encoding.charset=UTF-8
-spring.http.encoding.force=true
+version: '3.8'
 
-# Spring Boot Actuator ??
-management.endpoints.web.exposure.include=health,info
-management.endpoint.health.show-components=always
-management.endpoint.health.show-details=never
+services:
+  # 백엔드 서비스 (Spring Boot) - 내부 접근만 허용
+  backend:
+    image: autobiography-backend:${BACKEND_IMAGE_TAG:-latest}
+    container_name: autobiography-backend
+    environment:
+      # Spring 프로파일
+      SPRING_PROFILES_ACTIVE: prod
+      
+      # 데이터베이스 연결
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/autobiography_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useUnicode=true
+      SPRING_DATASOURCE_USERNAME: ssafy
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      
+      # JPA 설정
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: false
+      SPRING_JPA_DATABASE_PLATFORM: org.hibernate.dialect.MySQL8Dialect
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
+      
+      # Redis 연결
+      SPRING_DATA_REDIS_HOST: redis-server
+      SPRING_DATA_REDIS_PORT: 6379
+      SPRING_DATA_REDIS_TIMEOUT: 2000ms
+      SPRING_DATA_REDIS_DATABASE: 0
+      
+      # 서버 설정
+      SERVER_PORT: 8081
+      
+      # 로깅 설정
+      LOGGING_LEVEL_COM_SSAFY: INFO
+      LOGGING_LEVEL_ROOT: WARN
+      
+      # Jenkins에서 주입받을 민감 정보들
+      AWS_S3_ACCESS_KEY: ${AWS_S3_ACCESS_KEY}
+      AWS_S3_SECRET_KEY: ${AWS_S3_SECRET_KEY}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      CLOVA_STT_API_KEY: ${CLOVA_STT_API_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
+    ports:
+      - "127.0.0.1:8081:8081"  # 🔒 로컬호스트에서만 접근 가능
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 30s
+      timeout: 30s
+      retries: 3
+      start_period: 120s
 
-# Health Check ?? ???
-management.health.redis.enabled=true
-management.health.db.enabled=true
+  # 프론트엔드 서비스 (Vue.js + Nginx) - 공개 접근 허용
+  frontend:
+    image: autobiography-frontend:${FRONTEND_IMAGE_TAG:-latest}
+    container_name: autobiography-frontend
+    ports:
+      - "3000:80"  # 🌐 외부 접근 허용 (프론트엔드는 공개)
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
-# ???? Health Indicator ????
-management.health.diskspace.enabled=false
-management.health.ping.enabled=false
+  # MySQL 데이터베이스 - 로컬호스트에서만 접근
+  mysql:
+    image: mysql:8.0.37
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: 959697989900
+      MYSQL_DATABASE: autobiography_db
+      MYSQL_USER: ssafy
+      MYSQL_PASSWORD: 959697989900
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "127.0.0.1:3307:3306"  # 🔒 로컬호스트에서만 접근 가능
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./infrastructure/mysql/init:/docker-entrypoint-initdb.d
+      - ./infrastructure/mysql/conf:/etc/mysql/conf.d
+    restart: always
+    command: 
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --innodb-buffer-pool-size=256M
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "ssafy", "-p959697989900"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
-# Health Check ?? (?? ??)
-management.endpoint.health.cache.time-to-live=10s
+  # Redis 캐시 - 로컬호스트에서만 접근
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-server
+    command: 
+      - redis-server
+      - --appendonly 
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory 
+      - 128mb
+      - --maxmemory-policy 
+      - allkeys-lru
+      - --replica-read-only
+      - "no"
+      - --save
+      - ""   
+    ports:
+      - "127.0.0.1:6379:6379"  # 🔒 로컬호스트에서만 접근 가능
+    volumes:
+      - redis_data:/data
+    restart: always
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
-#AWS S3
-# S3 ?? ??
-aws.s3.bucket=ssafytrip
+  # 데이터베이스 관리 도구 (개발/관리용) - 로컬호스트에서만 접근
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: autobiography-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ssafy
+      PMA_PASSWORD: 959697989900
+      PMA_ABSOLUTE_URI: http://localhost:8082/
+    ports:
+      - "127.0.0.1:8082:80"  # 🔒 로컬호스트에서만 접근 가능
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
 
-aws.s3.base-url=https://ssafytrip.s3.ap-northeast-2.amazonaws.com/
+volumes:
+  mysql-data:
+    driver: local
+  redis_data:
+    driver: local
 
-# ??
-aws.s3.region=ap-northeast-2
-
-#??? ??
-aws.s3.allowed-extensions=jpg,jpeg,png,mp3,wav,m4a
-aws.s3.max-file-size=10485760
-aws.s3.multipart-threshold=52428800
-
-#AWS ?? ??
-aws.s3.access-key= ${AWS_S3_ACCESS_KEY}
-aws.s3.secret-key= ${AWS_S3_SECRET_KEY}
-
-#database setting
-spring.datasource.url=jdbc:mysql://mysql:3306/autobiography_db?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Seoul&useSSL=false&allowPublicKeyRetrieval=true
-spring.datasource.username=ssafy
-spring.datasource.password=${DB_PASSWORD}
-spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
-spring.jpa.hibernate.ddl-auto=update
-spring.jpa.show-sql=true
-spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQL8Dialect
-
-logging.level.org.springframework.web:DEBUG
-
-# Redis ?? (?? ???)
-spring.data.redis.host=redis-server
-spring.data.redis.port=6379
-spring.data.redis.timeout=2000ms
-spring.data.redis.database=0
-
-# JWT
-jwt.secret=${JWT_SECRET}
-
-# OAuth2 ?? ???
-spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
-spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
-spring.security.oauth2.client.registration.google.redirect-uri=http://localhost:8080/login/oauth2/code/google
-spring.security.oauth2.client.registration.google.scope=profile,email
-
-spring.security.oauth2.client.provider.google.authorization-uri=https://accounts.google.com/o/oauth2/auth
-spring.security.oauth2.client.provider.google.token-uri=https://oauth2.googleapis.com/token
-spring.security.oauth2.client.provider.google.user-info-uri=https://www.googleapis.com/oauth2/v3/userinfo
-
-# OAuth2 redirect configuration
-app.oauth2.authorizedRedirectUri=http://localhost:3000/auth/callback
-
-spring.mail.host=smtp.gmail.com
-spring.mail.port=587
-spring.mail.username=${MAIL_USERNAME}
-spring.mail.password=${MAIL_PASSWORD}
-spring.mail.properties.mail.smtp.auth=true
-spring.mail.properties.mail.smtp.starttls.enable=true
-
-clova.stt.api-key=${CLOVA_STT_API_KEY}
-clova.stt.url=https://clovaspeech-gw.ncloud.com/recog/v1/stt
-
-openai.api-key=${OPENAI_API_KEY}
-
-# livekit
-livekit.serverUrl=http://localhost:7880
-livekit.apiKey=${LIVEKIT_API_KEY}
-livekit.apiSecret=${LIVEKIT_API_SECRET}
-
-# deepgram
-deepgram.api-key=${DEEPGRAM_API_KEY}
-
-stt.provider=deepgram
-
-# Multipart ?? ??? ?? (? ?? ?? ???)
-spring.servlet.multipart.max-file-size=50MB
-spring.servlet.multipart.max-request-size=50MB
-
-# HTTP ???? ??
-server.tomcat.connection-timeout=120000
-spring.mvc.async.request-timeout=120000
+networks:
+  app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.25.0.0/16
