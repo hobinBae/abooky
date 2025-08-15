@@ -10,6 +10,7 @@ import com.c203.autobiography.domain.episode.dto.ConversationSessionResponse;
 import com.c203.autobiography.domain.episode.dto.ConversationSessionUpdateRequest;
 import com.c203.autobiography.domain.episode.dto.MessageType;
 import com.c203.autobiography.domain.episode.dto.StartConversationResponse;
+import com.c203.autobiography.domain.episode.entity.ConversationMessage;
 import com.c203.autobiography.domain.episode.entity.ConversationSession;
 import com.c203.autobiography.domain.episode.repository.ConversationMessageRepository;
 import com.c203.autobiography.domain.episode.service.ConversationService;
@@ -129,11 +130,23 @@ public class ConversationController {
     }
 
     /**
+     * 메시지 생성
+     */
+    @PostMapping("/message")
+    public ResponseEntity<ConversationMessageResponse> createMessage(
+            @Valid @RequestBody ConversationMessageRequest req
+    ) {
+        ConversationMessageResponse res = conversationService.createMessage(req);
+        return ResponseEntity.status(HttpStatus.CREATED).body(res);
+    }
+
+    /**
      * 메시지 히스토리 조회
      */
     @GetMapping("/{sessionId}/history")
     public ResponseEntity<List<ConversationMessageResponse>> getHistory(
             @PathVariable String sessionId) {
+
         return ResponseEntity.ok(conversationService.getHistory(sessionId));
     }
 
@@ -211,9 +224,22 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("{bookId}/episodes/{episodeId}/skip")
+    public ResponseEntity<Void> skipQuestion(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long bookId,
+            @PathVariable Long episodeId,
+            @RequestParam String sessionId
+    ) {
+        Long memberId = userDetails.getMemberId();
+        conversationService.skipCurrentQuestion(memberId, bookId, episodeId, sessionId);
+        return ResponseEntity.ok().build();
+    }
+
     private Integer computeEpisodeStartNo(String sessionId) {
         // 세션 시작 시점에 포함할 구간 시작점: 현재 최대 messageNo + 1 (기록이 없으면 1)
         Integer maxNo = conversationMessageRepository.findMaxMessageNo(sessionId);
         return (maxNo == null) ? 1 : (maxNo + 1);
     }
+
 }

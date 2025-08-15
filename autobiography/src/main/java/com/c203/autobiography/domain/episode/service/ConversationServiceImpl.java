@@ -202,10 +202,85 @@ public class ConversationServiceImpl implements ConversationService {
 //        }
 
     }
+
+    @Override
+    @Transactional
+    public NextQuestionDto skipCurrentQuestion(Long memberId, Long bookId, Long episodeId, String sessionId) {
+        // 0) 세션/권한 검증 (기존 getNextQuestion와 동일한 검증 절차)
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        Episode episode = episodeRepository.findByEpisodeIdAndDeletedAtIsNull(episodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+        ConversationSession session = sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
+
+        // 1) 화면에 떠 있던 '마지막 QUESTION'은 DB에서 제거
+        messageRepo.findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
+                .ifPresent(messageRepo::delete);
+
+        // 팔로업 중이었다면 다 버리고, 다음 메인으로 가야 하므로 동적 큐/인덱스 초기화
+        dynamicFollowUpQueues.remove(sessionId);
+        updateFollowUpIndex(session, 0); // 내부에서 fresh 로딩해 저장
+
+        // 2) 다음 메인 템플릿으로 전진 (없다면 챕터 종료 처리)
+        ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
+                session.getCurrentChapterOrder(),
+                session.getCurrentTemplateOrder() + 1
+        ).orElse(null);
+
+        if (nextTemplate == null) {
+            // 챕터 종료 → 에피소드 생성 + CHAPTER_COMPLETE 푸시 (내부에서 pushEpisode/pushQuestion 수행)
+            NextQuestionDto completion = handleChapterTransition(member, book, episode, session);
+            // handleChapterTransition은 다음 질문을 안 보내는 설계이므로 null을 반환해도 정상
+            return completion; // 일반적으로 null
+        }
+
+        // 템플릿 전진
+        NextQuestionDto dto = moveToNextTemplate(session, nextTemplate); // 팔로업 인덱스 0으로 초기화 포함
+
+        // 3) 새 질문을 DB에 '저장' + SSE 푸시 (여기서 저장되는 건 '건너뛰기 후의 질문'뿐)
+        createMessage(
+                ConversationMessageRequest.builder()
+                        .sessionId(sessionId)
+                        .messageType(MessageType.QUESTION)
+                        .content(dto.getQuestionText())
+                        .build()
+        );
+
+        QuestionResponse response = QuestionResponse.builder()
+                .text(dto.getQuestionText())
+                .questionType(dto.getQuestionType())
+                .currentChapterName(dto.getCurrentChapterName())
+                .currentStageName(dto.getCurrentStageName())
+                .chapterProgress(dto.getChapterProgress())
+                .overallProgress(dto.getOverallProgress())
+                .isLastQuestion(dto.isLastQuestion())
+                .build();
+        sseService.pushQuestion(sessionId, response);
+
+        return dto;
+    }
+
     @Async
     public void processSseConnectionAsync(String sessionId, Long bookId, SseEmitter emitter) {
         try {
             ConversationSession session = getSessionEntity(sessionId); // 여기서는 트랜잭션 없이 단순 조회
+            // 1. 세션의 상태(status)를 가장 먼저 확인합니다.
+            if (session.getStatus() == SessionStatus.CLOSE) {
+                log.warn("이미 종료된 세션(SessionId: {})에 대한 SSE 연결 시도입니다. 연결을 거부하고 종료합니다.", sessionId);
+
+                // 2. 프론트엔드에 '이미 완료된 세션'임을 알리는 에러 이벤트를 보냅니다.
+                //    이를 통해 프론트엔드는 오래된 세션 ID를 사용하지 않고 새 인터뷰를 시작하도록 유도할 수 있습니다.
+                emitter.send(SseEmitter.event().name("error").data("이미 완료된 인터뷰 세션입니다. 새로운 인터뷰를 시작해주세요."));
+
+                // 3. 서버 측에서도 SSE 연결을 즉시 종료합니다.
+                emitter.complete();
+
+                // 4. 더 이상 진행하지 않고 메소드를 종료합니다.
+                return;
+            }
 
             if (session.getCurrentChapterId() == null) {
                 // 첫 연결 시나리오: DB 작업은 별도의 트랜잭션 메소드에서 수행
@@ -224,6 +299,7 @@ public class ConversationServiceImpl implements ConversationService {
             emitter.completeWithError(e);
         }
     }
+
     /**
      * [신규] 첫 질문 생성 및 전송을 담당하는 트랜잭션 메소드
      */
@@ -245,6 +321,7 @@ public class ConversationServiceImpl implements ConversationService {
                 // ... 등등
                 .build();
         sseService.pushQuestion(sessionId, response);
+        log.info("질문 전송 {}", response);
     }
 
     /**
@@ -258,7 +335,6 @@ public class ConversationServiceImpl implements ConversationService {
             sseService.pushQuestion(sessionId, QuestionResponse.builder().text(lastQuestion).build());
         }
     }
-
 
 
     @Override
@@ -477,7 +553,6 @@ public class ConversationServiceImpl implements ConversationService {
                 .build();
         sessionRepo.save(updatedSession);
 
-
         Chapter nextChapter = chapterRepo.findByChapterOrder(session.getCurrentChapterOrder() + 1)
                 .orElse(null);
 
@@ -487,10 +562,10 @@ public class ConversationServiceImpl implements ConversationService {
         // 모든 대화 종료
         if (nextChapter != null) {
             // 다음 질문 대신, 인터뷰가 한 단락 끝났음을 알리는 특별한 DTO를 반환합니다.
-           String completionMessage = String.format(
-                   "챕터 %d이(가) 완료되었습니다. 왼쪽 목차에 새 에피소드를 추가하고 'AI 인터뷰 시작'을 눌러 다음 챕터를 시작해주세요.",
-                   session.getCurrentChapterOrder()
-           );
+            String completionMessage = String.format(
+                    "챕터 %d이(가) 완료되었습니다. 왼쪽 목차에 새 에피소드를 추가하고 'AI 인터뷰 시작'을 눌러 다음 챕터를 시작해주세요.",
+                    session.getCurrentChapterOrder()
+            );
 
             QuestionResponse chapterCompleteResponse = QuestionResponse.builder()
                     .text(completionMessage)
@@ -574,7 +649,9 @@ public class ConversationServiceImpl implements ConversationService {
                     session.getCurrentTemplateOrder() + 1
             ).orElse(null);
 
-            if (nextTemplate == null) return null; // 다음 질문 없으면 종료
+            if (nextTemplate == null) {
+                return null; // 다음 질문 없으면 종료
+            }
 
             String combinedResponse = aiClient.generateDynamicFollowUpBySection(
                     sectionKey,

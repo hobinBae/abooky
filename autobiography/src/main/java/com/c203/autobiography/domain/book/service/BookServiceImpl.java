@@ -277,7 +277,7 @@ public class BookServiceImpl implements BookService {
                 .map(episode -> {
                     // 각 에피소드에 대해 OPEN 상태인 세션이 있는지 조회
                     Optional<ConversationSession> activeSession = conversationSessionRepository
-                            .findTopByEpisodeIdAndStatusOrderByCreatedAtDesc(episode.getEpisodeId(), SessionStatus.OPEN);
+                                .findTopByEpisodeIdAndStatusOrderByCreatedAtDesc(episode.getEpisodeId(), SessionStatus.OPEN);
                     // 세션이 있다면 ID를, 없다면 null을 DTO에 담는다.
                     return EpisodeResponse.of(episode, activeSession.map(ConversationSession::getSessionId).orElse(null));
                 })

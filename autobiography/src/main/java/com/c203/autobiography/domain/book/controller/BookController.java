@@ -287,9 +287,9 @@ public class BookController {
                 ));
     }
 
-    @PostMapping("/generate-from-session/{sessionId}")
-    public ResponseEntity<EpisodeResponse> generateEpisodeForTest(@PathVariable String sessionId) throws JsonProcessingException {
-        EpisodeResponse response = episodeService.createEpisodeBySessionId(sessionId);
-        return ResponseEntity.ok(response);
-    }
+//    @PostMapping("/generate-from-session/{sessionId}")
+//    public ResponseEntity<Void> generateEpisodeForTest(@PathVariable String sessionId) throws JsonProcessingException {
+//        episodeService.createEpisodeBySessionId(sessionId);
+//        return ResponseEntity.ok(Void);
+//    }
 }
