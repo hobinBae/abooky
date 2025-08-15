@@ -274,9 +274,6 @@ function addPhoto() {
   // three r152+ / r150- 호환 색공간 설정
   if ('colorSpace' in texture) {
     ;(texture as any).colorSpace = THREE.SRGBColorSpace
-  } else {
-    // @ts-expect-error: 구버전 호환
-    texture.encoding = THREE.SRGBEncoding
   }
 
   // 초기에는 정사각 비율로 만들고, 로드 완료 후 실제 비율로 교체
@@ -294,8 +291,8 @@ function addPhoto() {
   // 텍스처 로드 성공 시: 비율 보정 및 품질 옵션
   function onLoad(tex: THREE.Texture) {
     const img = (tex.image as HTMLImageElement | { width: number; height: number }) || null
-    if (img && (img as any).width && (img as any).height) {
-      const aspectH = (img as any).height / (img as any).width // 높이/너비
+    if (img && img.width && img.height) {
+      const aspectH = img.height / img.width // 높이/너비
       const newHeight = BASE_WIDTH * aspectH
       mesh.geometry.dispose()
       mesh.geometry = new THREE.PlaneGeometry(BASE_WIDTH, newHeight)
@@ -399,7 +396,7 @@ function createHotspots() {
         onStart: () => {
           parallaxEnabled = false
         },
-        onUpdate: () => controls.update(),
+        onUpdate: () => { controls.update() },
         onComplete: () => {
           parallaxEnabled = true
           baseCameraPosition.copy(camera.position)
@@ -422,7 +419,7 @@ function createHotspot(pos: THREE.Vector3, texture: THREE.Texture, name: string,
   sprite.scale.set(1, 1, 1)
   sprite.position.copy(pos)
   sprite.name = name
-  ;(sprite as any).userData.onClick = onClick
+  sprite.userData.onClick = onClick
   return sprite
 }
 
@@ -440,7 +437,7 @@ function moveCameraTo(
     onStart: () => {
       parallaxEnabled = false
     },
-    onUpdate: () => controls.update(),
+    onUpdate: () => { controls.update() },
     onComplete: () => {
       parallaxEnabled = true
       baseCameraPosition.copy(camera.position)
@@ -448,7 +445,7 @@ function moveCameraTo(
     }
   })
   tl.to(camera.position, { x: px, y: py, z: pz, duration: 2 })
-  tl.to((controls as any).target, { x: tx, y: ty, z: tz, duration: 2 }, '<')
+  tl.to(controls.target, { x: tx, y: ty, z: tz, duration: 2 }, '<')
 }
 
 function moveToYard() {
@@ -456,7 +453,7 @@ function moveToYard() {
     onStart: () => {
       parallaxEnabled = false
     },
-    onUpdate: () => controls.update(),
+    onUpdate: () => { controls.update() },
     onComplete: () => {
       parallaxEnabled = true
       baseCameraPosition.copy(camera.position)
@@ -464,9 +461,9 @@ function moveToYard() {
     }
   })
   tl.to(camera.position, { x: 7.3, y: 3.5, z: 30, duration: 4 })
-  tl.to((controls as any).target, { x: 7.3, y: 3.5, z: 0, duration: 4 }, '<')
+  tl.to(controls.target, { x: 7.3, y: 3.5, z: 0, duration: 4 }, '<')
   tl.to(camera.position, { x: 5.5, y: 2.5, z: 14, duration: 2 })
-  tl.to((controls as any).target, { x: 1, y: 3, z: 3.579, duration: 2 }, '<')
+  tl.to(controls.target, { x: 1, y: 3, z: 3.579, duration: 2 }, '<')
 }
 
 /* ------------------------------ 렌더 루프/리사이즈 ------------------------------ */
@@ -514,9 +511,9 @@ function onCanvasClick(event: MouseEvent) {
   const intersects = globalRaycaster.intersectObjects(hotspots, true)
 
   if (intersects.length > 0) {
-    const first = intersects[0].object as any
+    const first = intersects[0].object
     if (first.userData && typeof first.userData.onClick === 'function') {
-      first.userData.onClick()
+      ;(first.userData.onClick as () => void)()
     }
   }
 }
