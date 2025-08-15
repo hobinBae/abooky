@@ -89,6 +89,10 @@
             </header>
             <div class="content-body" v-html="formattedContent(truncatedContent)"></div>
 
+            <div v-if="currentEpisode.imageUrl" class="episode-image-container">
+              <img :src="currentEpisode.imageUrl" alt="에피소드 이미지" class="episode-image" />
+            </div>
+
             <div class="episode-navigation">
               <button v-if="hasPreviousEpisode" @click="goToPreviousEpisode" class="btn-nav prev">
                 <i class="bi bi-arrow-left-circle"></i> 이전 이야기
@@ -180,6 +184,8 @@ interface Episode {
   episodeId: number;
   title: string;
   content: string;
+  imageUrl?: string;
+  imageId?: number; // Add imageId to Episode interface
 }
 interface Book {
   bookId: string;
@@ -257,7 +263,15 @@ function goToPreviousEpisode() { if (hasPreviousEpisode.value) { selectEpisode(c
 async function fetchBookData() {
   try {
     const response = await apiClient.get(`/api/v1/books/${bookId.value}`);
-    book.value = response.data.data;
+    const bookData = response.data.data;
+    book.value = {
+      ...bookData,
+      episodes: bookData.episodes?.map((e: any) => ({
+        ...e,
+        imageUrl: e.imageUrl,
+        imageId: e.imageId // Ensure imageId is mapped
+      })) || []
+    };
     if (book.value) {
       likeCount.value = book.value.likeCount || 0;
     }
@@ -319,7 +333,32 @@ async function deleteBook() {
   }
 }
 
-function selectEpisode(index: number) { if (book.value && index >= 0 && index < book.value.episodes.length) { currentEpisodeIndex.value = index; document.querySelector('.right-panel-scroller')?.scrollTo(0, 0); } }
+async function fetchEpisodeImages(episodeId: number) {
+  if (!book.value) return;
+  try {
+    const response = await apiClient.get(`/api/v1/books/${book.value.bookId}/episodes/${episodeId}/images`);
+    if (response.data.data && response.data.data.length > 0) {
+      const episode = book.value.episodes.find(e => e.episodeId === episodeId);
+      if (episode) {
+        episode.imageUrl = response.data.data[0].imageUrl;
+        episode.imageId = response.data.data[0].imageId;
+      }
+    }
+  } catch (error) {
+    console.error(`${episodeId}번 에피소드의 이미지 정보를 불러오는데 실패했습니다.`, error);
+  }
+}
+
+async function selectEpisode(index: number) {
+  if (book.value && index >= 0 && index < book.value.episodes.length) {
+    currentEpisodeIndex.value = index;
+    const episode = book.value.episodes[index];
+    if (episode && !episode.imageUrl) {
+      await fetchEpisodeImages(episode.episodeId);
+    }
+    document.querySelector('.right-panel-scroller')?.scrollTo(0, 0);
+  }
+}
 function toggleCommentsVisibility() { areCommentsVisible.value = !areCommentsVisible.value; }
 function addComment() { if (!newComment.value.trim() || !book.value) return; const comment: Comment = { id: `c${Date.now()}`, bookId: book.value.bookId, authorId: currentUserId.value, authorName: '현재 사용자', text: newComment.value, createdAt: new Date() }; comments.value.unshift(comment); newComment.value = ''; areCommentsVisible.value = true; }
 function deleteComment(commentId: string) { if (confirm('정말로 삭제하시겠습니까?')) { comments.value = comments.value.filter(c => c.id !== commentId); } }
@@ -411,10 +450,24 @@ hr { border: 0; border-top: 1px solid #eee; margin: 32px 0; }
 .episode-header { text-align: left; margin-bottom: 32px; }
 .episode-header h2 { font-family: 'ChosunCentennial', serif; font-size: 26px; font-weight: 700; margin-bottom: 3px; }
 .episode-header p { font-size: 12px; color: #999; }
-.content-body { font-family: 'ChosunCentennial', serif; font-size: 13px; line-height: 2.0; color: #333; padding-bottom: 48px; text-align: justify; }
-.episode-navigation { display: flex; justify-content: space-between; margin-top: 32px; padding-top: 16px; border-top: 1px solid #eee; }
+.content-body { font-family: 'ChosunCentennial', serif; font-size: 13px; line-height: 2.0; color: #333; text-align: justify; }
+.episode-navigation { display: flex; justify-content: space-between; margin-top: 32px; padding-top: 16px; }
 .btn-nav { background: none; border: 1px solid #ddd; padding: 8px 16px; border-radius: 16px; font-size: 12px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
 .btn-nav:hover { background-color: #f8f8f8; border-color: #ccc; transform: scale(1.03); }
+.episode-image-container {
+  width: 100%;
+  aspect-ratio: 12 / 10;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 1.5rem 0;
+  border: 1px solid var(--border-color);
+  background-color: #f8f9fa;
+}
+.episode-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .other-episodes-section { padding-top: 32px; }
 .other-episodes-section:first-child { padding-top: 0; border-top: none; }
 .other-episodes-section h3 { font-size: 14px; font-weight: 700; margin-bottom: 19px; }
@@ -422,7 +475,7 @@ hr { border: 0; border-top: 1px solid #eee; margin: 32px 0; }
 .other-episodes-list li { padding: 16px; border: 1px solid #eee; border-radius: 6px; cursor: pointer; transition: all 0.2s ease; }
 .other-episodes-list li:hover { border-color: #ccc; transform: translateY(-2px); box-shadow: 0 3px 10px rgba(0,0,0,0.05); }
 .other-episodes-list li.active { background-color: #f8f8f8; border-color: #999; }
-.episode-list-item-title { display: flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 6px; }
+.episode-list-item-title { display: flex; align-items: center; gap: 6px; font-weight: 700; margin-bottom: 6px; font-family: 'ChosunCentennial', serif; font-size: 16px; }
 .episode-number { color: #999; }
 .episode-list-item-snippet { font-size: 11px; color: #666; line-height: 1.6; font-family: 'ChosunCentennial', serif; }
 
@@ -451,4 +504,31 @@ hr { border: 0; border-top: 1px solid #eee; margin: 32px 0; }
 .btn-action:hover { text-decoration: underline; transform: scale(1.1); }
 .btn-delete { color: #fa5252; }
 .comment-edit-form textarea { min-height: 80px; }
+
+@media (max-width: 1024px) {
+  .book-wrapper {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+    padding: 1rem;
+  }
+
+  .left-panel, .right-panel {
+    height: auto;
+    max-height: none;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .right-panel-scroller {
+    padding: 1.5rem;
+  }
+
+  .author-controls {
+    justify-content: center;
+  }
+
+  .author-controls .btn-edit {
+    flex: initial;
+  }
+}
 </style>
