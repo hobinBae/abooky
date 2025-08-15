@@ -1,6 +1,8 @@
 <template>
   <footer class="footer mt-auto">
     <div class="container text-center">
+      <img src="/aaddi.png" alt="Logo" class="footer-logo">
+      
       <div class="footer-links">
         <router-link to="/bookstore">서점</router-link>
         <router-link to="/create-book">책 집필</router-link>
@@ -12,7 +14,7 @@
         <a href="#" target="_blank" aria-label="Facebook"><i class="bi bi-facebook"></i> 공식 페이스북</a>
       </div>
       <span class="c203">Made By 5 TO 0</span>
-      <span class="c203">5-BHB | 4-KAY | 3-JHB | 2-JUH | 1-LCE | 0-CJW</span>
+      <span class="c203">5-CJW | 6-LCE | 7-JUH | 8-JHB | 9-KAY | 0-BHB</span>
       <span class="copyright">&copy; 2025 아 북 이</span>
 
 
@@ -35,7 +37,7 @@
   /* Light text color */
   font-family: 'SCDream4', sans-serif;
   /* Consistent font */
-  padding-top: 3.6rem;
+  padding-top: 2rem;
   /* Increased padding for content */
   padding-bottom: 1.8rem;
   /* More padding for content */
@@ -98,5 +100,11 @@
   font-size: 0.75rem;
   margin-bottom: 0rem;
   font-family: 'MaruBuri-Light', sans-serif;
+}
+.footer-logo {
+  max-width: 50px;
+  /* Limit logo size */
+  height: auto;
+  margin-bottom: 10px;
 }
 </style>

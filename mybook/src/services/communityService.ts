@@ -33,6 +33,7 @@ export interface CommunityBook {
   description: string; // Note: description is not in DetailResponse, but might be in ListResponse. Keeping for flexibility.
   coverImageUrl: string;
   authorNickname: string; // This needs to be mapped from member info. Assuming it comes with the list response.
+  categoryName?: string;
   createdAt: string;
   updatedAt: string;
   likeCount: number;
@@ -44,7 +45,7 @@ export interface CommunityBook {
 }
 
 export interface CommunityBookDetailResponse extends CommunityBook {
-  episodes: CommunityBookEpisode[];
+  communityEpisodes: CommunityBookEpisode[];
   categoryName?: string;
 }
 
@@ -104,7 +105,7 @@ export interface CommunityBookLikeCntResponse {
 
 export interface CommunityBookRatingRequest {
     communityBookId: number;
-    rating: number;
+    score: number;
 }
 
 export interface CommunityBookRatingResponse {

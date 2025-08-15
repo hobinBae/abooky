@@ -1,12 +1,11 @@
 <template>
-  <nav class="navbar navbar-expand-lg"
-       :class="{
-         'navbar-content-hidden': isIntroActive,
-         'navbar-dark': isHome && !isMenuOpen,
-         'navbar-light': !isHome || isMenuOpen,
-         'scrolled': isScrolled,
-         'menu-open': isMenuOpen
-       }">
+  <nav class="navbar navbar-expand-lg" ref="navbarRef" :class="{
+    'navbar-content-hidden': isIntroActive,
+    'navbar-dark': isHome && !isMenuOpen,
+    'navbar-light': !isHome || isMenuOpen,
+    'scrolled': isScrolled,
+    'menu-open': isMenuOpen
+  }">
     <div class="container-fluid position-relative">
       <a class="navbar-brand" href="#" @click.prevent="goHome">
         <div class="logo-container">
@@ -15,7 +14,8 @@
           <span class="logo-large">이</span><span class="logo-small">야길</span>
         </div>
       </a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+        aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
@@ -59,9 +59,10 @@
   <div v-if="showNotificationModal" class="notification-modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h2>알림</h2>
-        <button @click="toggleNotificationModal" class="close-button">&times;</button>
+        <h2>그룹 초대 알림</h2>
       </div>
+      <button @click="toggleNotificationModal" class="close-button"><i class="bi bi-x-lg"></i></button>
+
       <div class="modal-body">
         <ul v-if="myInvites.length > 0">
           <li v-for="invite in myInvites" :key="invite.groupApplyId">
@@ -101,6 +102,7 @@ const goHome = () => {
 
 const isScrolled = ref(false);
 const isMenuOpen = ref(false);
+const navbarRef = ref<HTMLElement | null>(null);
 
 const handleScroll = () => {
   isScrolled.value = window.scrollY > 50;
@@ -127,7 +129,10 @@ const myInvites = ref<GroupInvite[]>([]);
 const toggleNotificationModal = () => {
   showNotificationModal.value = !showNotificationModal.value;
   if (showNotificationModal.value) {
+    document.body.style.overflow = 'hidden';
     fetchMyInvites();
+  } else {
+    document.body.style.overflow = '';
   }
 };
 
@@ -173,7 +178,8 @@ onMounted(() => {
   position: sticky;
   top: 0;
   background-color: transparent !important;
-  z-index: 1030;
+  z-index: 999;
+  /* MyLibraryView 모달보다 낮게 설정 */
   transition: background-color 0.5s ease;
   padding-top: 18px;
   padding-bottom: 18px;
@@ -187,6 +193,7 @@ onMounted(() => {
 .navbar.menu-open:not(.scrolled) {
   background-color: #fff !important;
 }
+
 .navbar.scrolled.menu-open {
   background-color: rgba(152, 164, 115, 0.95) !important;
 }
@@ -225,27 +232,42 @@ onMounted(() => {
   position: absolute;
   top: 4px;
   right: 0px;
-  padding: 3px 5px;
+  padding: 3px 5.5px;
   border-radius: 50%;
-  background-color: rgb(163, 24, 24);
+  background-color: rgb(208, 42, 42);
   color: white;
   font-size: 9px;
 }
 
 .notification-modal {
   position: fixed;
-  top: 54px;
-  right: 9px;
-  width: 405px;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 13px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 1055;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(38, 30, 23, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
 }
 
-.modal-content {
-  padding: 13px;
+.notification-modal .modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.notification-modal .modal-body {
+  overflow-y: auto;
 }
 
 .modal-header {
@@ -257,11 +279,28 @@ onMounted(() => {
   margin-bottom: 9px;
 }
 
+.modal-header h2 {
+  font-family: 'SCDream4', sans-serif;
+  font-size: 1.2rem;
+  /* 글씨 크기 축소 */
+  font-weight: 600;
+}
+
 .close-button {
+  color: #594C40;
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  cursor: pointer;
   background: none;
   border: none;
   font-size: 1.35rem;
-  cursor: pointer;
+  line-height: 1;
+  padding: 0.45rem;
+}
+
+.close-button:hover {
+  color: #261E17;
 }
 
 .modal-body ul {
@@ -281,6 +320,9 @@ onMounted(() => {
 .modal-body li span {
   flex-grow: 1;
   margin-right: 13px;
+  font-family: 'SCDream4', sans-serif;
+  font-size: 0.85rem;
+  /* 글씨 크기 축소 */
 }
 
 .modal-body li:last-child {
@@ -294,22 +336,29 @@ onMounted(() => {
 }
 
 .btn-invite {
-  background: none;
-  border: 1px solid;
-  padding: 4px 8px;
-  border-radius: 4px;
+  border: 2px solid transparent;
+  padding: 0.4rem 0.8rem;
+  border-radius: 16px;
   cursor: pointer;
-  font-weight: bold;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: white;
 }
 
 .btn-accept {
-  color: #28a745;
-  border-color: #28a745;
+  background-color: #7f924c;
+}
+
+.btn-accept:hover {
+  background-color: #546127;
 }
 
 .btn-reject {
-  color: #dc3545;
-  border-color: #dc3545;
+  background-color: #d87777;
+}
+
+.btn-reject:hover {
+  background-color: #823232;
 }
 
 .auth-button {
@@ -393,19 +442,27 @@ onMounted(() => {
 /* 기본 (모바일) 스타일 */
 .center-nav {
   display: flex;
-  flex-direction: column; /* 세로 정렬 */
-  align-items: center;   /* 가운데 정렬 */
+  flex-direction: column;
+  /* 세로 정렬 */
+  align-items: center;
+  /* 가운데 정렬 */
   list-style: none;
-  padding: 2rem 0;       /* 위아래 여백 추가 */
-  gap: 1.5rem;           /* 모바일에 맞는 적절한 간격 */
-  margin-left: 0;        /* 중앙 정렬을 위해 margin 초기화 */
-  width: 100%;           /* 너비 100% 차지 */
+  padding: 2rem 0;
+  /* 위아래 여백 추가 */
+  gap: 1.5rem;
+  /* 모바일에 맞는 적절한 간격 */
+  margin-left: 0;
+  /* 중앙 정렬을 위해 margin 초기화 */
+  width: 100%;
+  /* 너비 100% 차지 */
 }
 
 .navbar-nav.ms-auto {
-    width: 100%;
-    justify-content: center; /* 버튼 중앙 정렬 */
-    padding-bottom: 1.5rem;  /* 하단 여백 */
+  width: 100%;
+  justify-content: center;
+  /* 버튼 중앙 정렬 */
+  padding-bottom: 1.5rem;
+  /* 하단 여백 */
 }
 
 /* 데스크톱 (화면이 992px 이상일 때) 스타일 */
@@ -414,14 +471,17 @@ onMounted(() => {
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
-    flex-direction: row; /* 가로 정렬 */
+    flex-direction: row;
+    /* 가로 정렬 */
     padding: 0;
     gap: 3.6rem;
-    width: auto; /* 너비 자동 */
+    width: auto;
+    /* 너비 자동 */
   }
 
   .navbar-nav.ms-auto {
-    width: auto; /* 너비 자동 */
+    width: auto;
+    /* 너비 자동 */
     padding-bottom: 0;
   }
 }

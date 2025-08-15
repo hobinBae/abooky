@@ -3,7 +3,10 @@
     <div class="custom-alert-box">
       <h2>{{ currentTitle }}</h2>
       <p>{{ currentMessage }}</p>
-      <button @click="closeAlert">{{ buttonText }}</button>
+      <div class="alert-actions">
+        <button v-if="isConfirm" @click="handleCancel" class="cancel-btn">{{ cancelButtonText }}</button>
+        <button @click="handleConfirm" class="confirm-btn">{{ confirmButtonText }}</button>
+      </div>
     </div>
   </div>
 </template>
@@ -12,17 +15,22 @@
 import { ref } from 'vue';
 
 const props = defineProps({
-  buttonText: {
+  confirmButtonText: {
     type: String,
     default: '확인',
   },
+  cancelButtonText: {
+    type: String,
+    default: '취소',
+  },
 });
 
-const emits = defineEmits(['alert-opened', 'alert-closed']);
-
 const isVisible = ref(false);
+const isConfirm = ref(false); // To distinguish between alert and confirm
 const currentTitle = ref('알림');
 const currentMessage = ref('');
+
+let resolvePromise: ((value: boolean) => void) | null = null;
 
 interface ShowAlertOptions {
   title?: string;
@@ -32,18 +40,39 @@ interface ShowAlertOptions {
 const showAlert = (options: ShowAlertOptions) => {
   currentTitle.value = options.title || '알림';
   currentMessage.value = options.message;
+  isConfirm.value = false;
   isVisible.value = true;
-  emits('alert-opened');
 };
 
-const closeAlert = () => {
+const showConfirm = (options: ShowAlertOptions): Promise<boolean> => {
+  currentTitle.value = options.title || '확인';
+  currentMessage.value = options.message;
+  isConfirm.value = true;
+  isVisible.value = true;
+  return new Promise<boolean>((resolve) => {
+    resolvePromise = resolve;
+  });
+};
+
+const handleConfirm = () => {
   isVisible.value = false;
-  emits('alert-closed');
+  if (isConfirm.value && resolvePromise) {
+    resolvePromise(true);
+  }
+  resolvePromise = null;
+};
+
+const handleCancel = () => {
+  isVisible.value = false;
+  if (isConfirm.value && resolvePromise) {
+    resolvePromise(false);
+  }
+  resolvePromise = null;
 };
 
 defineExpose({
   showAlert,
-  closeAlert,
+  showConfirm,
 });
 </script>
 
@@ -94,26 +123,37 @@ defineExpose({
 }
 
 .custom-alert-box button {
-  background-color: #8b8b8b; /* Olive green button from LoginView */
   color: white;
   border: none;
-  padding: 4px 15px; /* Larger button padding */
-  border-radius: 15px; /* Rounded button corners */
-  border: 1.5px solid #000000; /* Olive border from LoginView */
-
+  padding: 8px 20px;
+  border-radius: 15px;
+  border: 1.5px solid #000000;
   cursor: pointer;
-  font-size: 1rem; /* Consistent font size */
+  font-size: 1rem;
   font-weight: 500;
   transition: background-color 0.3s ease;
-  margin-top: auto; /* Push button to the bottom */
 }
 
 .alert-actions {
-  text-align: right;
-  margin-top: 20px; /* Add some space above the button */
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 20px;
 }
 
-.custom-alert-box button:hover {
-  background-color: #464646; /* Darker olive on hover */
+.confirm-btn {
+  background-color: #d9534f; /* Red for delete/confirm */
+}
+
+.confirm-btn:hover {
+  background-color: #c9302c;
+}
+
+.cancel-btn {
+  background-color: #8b8b8b;
+}
+
+.cancel-btn:hover {
+  background-color: #464646;
 }
 </style>
