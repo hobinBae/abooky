@@ -36,6 +36,8 @@ services:
       LIVEKIT_API_KEY : ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET : ${LIVEKIT_API_SECRET}
       DEEPGRAM_API_KEY : ${DEEPGRAM_API_KEY}
+      LIVEKIT_SERVERURL : ${LIVEKIT_SERVERURL}
+      LIVEKIT_WS_URL : ${LIVEKIT_WS_URL}
     # 🔐 백엔드를 외부에 굳이 열지 않아도 된다면, 아래 ports 블록을 삭제하세요.
     ports:
       # - "8081:8081"

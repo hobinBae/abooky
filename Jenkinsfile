@@ -43,6 +43,8 @@ pipeline {
         LIVEKIT_API_KEY = credentials('LIVEKIT_API_KEY')
         LIVEKIT_API_SECRET = credentials('LIVEKIT_API_SECRET')
         DEEPGRAM_API_KEY = credentials('DEEPGRAM_API_KEY')
+        LIVEKIT_SERVERURL = credentials('LIVEKIT_SERVERURL')
+        LIVEKIT_WS_URL = credentials('LIVEKIT_WS_URL')
 
         // 캐시 경로
         NPM_CACHE_DIR = "/var/jenkins_home/.npm-cache"
