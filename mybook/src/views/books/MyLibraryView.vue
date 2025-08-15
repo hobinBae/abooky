@@ -45,9 +45,12 @@
 
       <div class="my-books-shelf-wrapper">
         <div class="shelf-title-container">
-          <h3 class="shelf-title">내가 쓴 책들
-            <small>책을 드래그하여 아래 그룹에 추가하세요</small>
-          </h3>
+          <div>
+            <div class="group-nameplate shelf-nameplate">
+              <h3 class="shelf-title">내가 쓴 책</h3>
+            </div>
+            <small class="shelf-subtitle-small">책을 드래그하여 아래 그룹에 추가하세요</small>
+          </div>
           <div class="group-shortcut-wrapper">
             <button @click="toggleGroupList" class="btn btn-secondary group-shortcut-btn">
               그룹 바로가기 <i :class="['bi', isGroupToggleVisible ? 'bi-chevron-up' : 'bi-chevron-down']"></i>
@@ -110,11 +113,13 @@
         <div v-for="(group, index) in displayedGroups" :key="group.groupId" :id="`group-shelf-${group.groupId}`"
           class="group-shelf-wrapper">
           <div class="group-shelf-title-bar">
-            <router-link v-if="group.groupId" :to="`/group-timeline/${group.groupId}`" class="group-shelf-title"
-              :title="`${group.groupName} 타임라인으로 이동`">
-              <span class="roman-numeral">{{ toRoman(index + 1) }}. </span>{{ group.groupName }}
-            </router-link>
-            <span v-else class="group-shelf-title-placeholder">{{ group.groupName }}</span>
+            <div class="group-nameplate">
+              <router-link v-if="group.groupId" :to="`/group-timeline/${group.groupId}`" class="group-shelf-title"
+                :title="`${group.groupName} 타임라인으로 이동`">
+                {{ group.groupName }}
+              </router-link>
+              <span v-else class="group-shelf-title-placeholder">{{ group.groupName }}</span>
+            </div>
             <button v-if="group.groupId" @click="toggleEditMode(group.groupId)"
               class="btn btn-secondary edit-group-btn">
               {{ editingGroupId === group.groupId ? '완료' : '책 삭제' }}
@@ -276,6 +281,7 @@ const repBookRotationY = ref(0);
 const isGroupToggleVisible = ref(false);
 const editingGroupId = ref<string | null>(null);
 const isMouseOver = ref(false);
+const userNickname = ref(''); // 사용자 닉네임 상태 추가
 
 // --- Computed Properties ---
 const currentRepBook = computed(() => (representativeBooks.value.length > 0 ? representativeBooks.value[0] : null));
@@ -310,6 +316,17 @@ const displayedGroups = computed(() => {
 });
 
 // --- Functions ---
+async function loadUserInfo() {
+  try {
+    const response = await apiClient.get('/api/v1/members/me');
+    if (response.data && response.data.data && response.data.data.nickname) {
+      userNickname.value = response.data.data.nickname;
+    }
+  } catch (error) {
+    console.error("사용자 정보를 불러오는데 실패했습니다:", error);
+  }
+}
+
 async function loadMyBooks() {
   try {
     const personalBooksPromise = apiClient.get('/api/v1/books');
@@ -318,8 +335,12 @@ async function loadMyBooks() {
     const [personalBooksResponse, communityBooksResponse] = await Promise.all([personalBooksPromise, communityBooksPromise]);
 
     const personalBooks = personalBooksResponse.data.data
-      .filter((book: Book) => book.completed)
-      .map((book: Book) => ({ ...book, isCommunityBook: false, authorName: book.authorName }));
+      .filter((book: any) => book.completed)
+      .map((book: any) => ({
+        ...book,
+        isCommunityBook: false,
+        authorName: book.authorNickname || userNickname.value // API 응답에 작가 이름이 있으면 사용하고, 없으면 로그인한 사용자 닉네임 사용
+      }));
 
     const communityBooks = communityBooksResponse.content.map((book: CommunityBook) => ({
       bookId: String(book.communityBookId),
@@ -550,8 +571,10 @@ function toRoman(num: number): string {
 }
 
 onMounted(() => {
-  loadMyBooks();
-  loadMyGroups();
+  loadUserInfo().then(() => {
+    loadMyBooks();
+    loadMyGroups();
+  });
 });
 </script>
 
@@ -592,7 +615,6 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   border-radius: 2px 4px 4px 2px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .book-face.front .bright-edge-effect {
@@ -700,7 +722,6 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   background-color: #f0e9dd;
-  border: 1px solid rgba(0, 0, 0, 0.1);
   backface-visibility: hidden;
 }
 
@@ -1085,13 +1106,16 @@ onMounted(() => {
 }
 
 .shelf-title {
-  font-family: 'EBSHunminjeongeumSaeronL', serif;
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0;
+  font-family: 'SCDream3', serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #222;
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.7);
+  margin-bottom: 2.5px;
+  margin-top: 4.5px;
 }
 
-.shelf-title small {
+.shelf-subtitle-small {
   font-family: 'SCDream4', sans-serif;
   font-size: 0.8rem;
   font-weight: 400;
@@ -1326,13 +1350,75 @@ onMounted(() => {
   gap: 0.9rem;
 }
 
+@keyframes pulse-and-shake {
+  0%, 100% {
+    transform: scale(1) translateX(0);
+  }
+  50% {
+    transform: scale(1.01) rotate(0.4deg);
+  }
+  75% {
+    transform: scale(0.99) rotate(-0.4deg);
+  }
+}
+
+.group-nameplate {
+  background: linear-gradient(to bottom, #d2d2d2, #f5f5f5);
+  border: 1px solid #888;
+  border-radius: 9px;
+  padding: 5px 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  display: inline-block;
+  position: relative;
+  outline: 1px solid #000;
+  outline-offset: -3px;
+  transition: transform 0.5s ease;
+  animation: pulse-and-shake 4s infinite;
+}
+
+.shelf-nameplate {
+  animation: none !important;
+  cursor: default;
+}
+
+.shelf-nameplate:hover {
+  transform: none !important;
+}
+
+.group-nameplate:hover {
+  animation: none;
+  transform: scale(1.1);
+}
+
+.group-nameplate::before,
+.group-nameplate::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 5px;
+  background-color: #888;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgb a(0, 0, 0, 0.5);
+}
+
+.group-nameplate::before {
+  left: 6px;
+}
+
+.group-nameplate::after {
+  right: 5px;
+}
+
 .group-shelf-title {
-  font-family: 'EBSHunminjeongeumSaeronL', serif;
-  font-size: 1.25rem;
+  font-family: 'SCDream3', serif;
+  font-size: 1rem;
   font-weight: 700;
-  color: #000000;
+  color: #222;
   text-decoration: none;
-  transition: color 0.2s, transform 0.2s;
+  transition: color 0.2s;
+  text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.7);
 }
 
 .group-shelf-title:hover {
@@ -1633,16 +1719,30 @@ onMounted(() => {
 
 .community-sash {
   position: absolute;
-  top: 9px;
-  left: -31px;
-  background-color: #D4A373;
+  /* --- 책갈피 스타일 조정 --- */
+  top: -8px;
+  /* 위쪽 가장자리에서의 위치 */
+  right: 5px;
+  /* 오른쪽 가장자리에서의 위치 */
+  background-color: #dc4848;
+  font-family: 'SCDream3', sans-serif;
   color: white;
-  padding: 4px 27px;
-  font-size: 11px;
+  padding: 5px 3px 20px;
+  /* 세로 길이를 늘리기 위해 패딩 조정 */
+  font-size: 7px;
   font-weight: bold;
-  transform: rotate(-45deg);
+  transform: rotate(0deg);
+  /* 회전 없음 */
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
   z-index: 11;
+  writing-mode: vertical-rl;
+  /* 텍스트를 세로로 표시 */
+  text-orientation: mixed;
+  border-radius:  1.5px 1.5px 3px 3px;
+  /* 아래쪽 모서리를 둥글게 */
+  border: 0.5px solid #b32a2a;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 90%, 0 100%);
+  /* 책갈피 모양처럼 아래쪽을 뾰족하게 */
 }
 
 @media (max-width: 1200px) {
