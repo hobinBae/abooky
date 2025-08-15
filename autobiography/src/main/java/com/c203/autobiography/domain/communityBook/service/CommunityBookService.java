@@ -34,4 +34,6 @@ public interface CommunityBookService {
     CommunityBookRatingResponse createRating(Long memberId, @Valid CommunityBookRatingRequest request);
 
     CommunityBookRatingResponse getAverageRating(Long communityBookId);
+
+    CommunityBookListResponse getBookmarkedCommunityBooks(Long memberId, Pageable pageable);
 }
