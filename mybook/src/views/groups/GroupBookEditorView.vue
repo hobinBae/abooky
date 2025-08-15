@@ -26,7 +26,7 @@
             </button>
           </div>
         </div>
-        
+
         <div class="form-group">
           <label>카테고리 선택</label>
           <div class="genre-toggle">
@@ -222,6 +222,7 @@ const coverOptions = ['https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/de
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const groupId = route.params.groupId as string;
 
 // --- 컴포넌트 상태 ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
@@ -289,6 +290,13 @@ async function moveToEditingStep() {
   bookData.append('title', currentBook.value.title);
   if (currentBook.value.summary) bookData.append('summary', currentBook.value.summary);
 
+  // 그룹 타입 추가
+  if (currentBook.value.groupType) {
+    bookData.append('groupType', currentBook.value.groupType.toUpperCase());
+  } else {
+    bookData.append('groupType', 'FAMILY'); // 기본값
+  }
+
   let bookTypeValue = 'AUTO'; // 기본값
   if (currentBook.value.type === 'diary') {
     bookTypeValue = 'DIARY';
@@ -300,7 +308,7 @@ async function moveToEditingStep() {
   bookData.append('categoryId', String(selectedCategoryId.value));
 
   try {
-    const response = await apiClient.post('/api/v1/books', bookData, {
+    const response = await apiClient.post(`/api/v1/groups/${groupId}/books`, bookData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -422,7 +430,7 @@ function visualize() {
 
 async function loadBookForEditing(bookId: string) {
   try {
-    const response = await apiClient.get(`/api/v1/books/${bookId}`);
+    const response = await apiClient.get(`/api/v1/groups/${groupId}/books/${bookId}`);
     const bookData = response.data.data;
     currentBook.value = {
       id: bookData.bookId,
@@ -463,7 +471,7 @@ async function deleteStory(story: Story, index: number) {
   }
 
   try {
-    await apiClient.delete(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`);
+    await apiClient.delete(`/api/v1/groups/${groupId}/books/${currentBook.value.id}/episodes/${story.id}`);
     currentBook.value.stories?.splice(index, 1);
 
     if (currentStoryIndex.value === index) {
@@ -546,7 +554,7 @@ async function saveStory() {
         content: currentStory.value.content
       };
       await apiClient.patch(
-        `/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}`,
+        `/api/v1/groups/${groupId}/books/${currentBook.value.id}/episodes/${currentStory.value.id}`,
         episodeUpdateRequest
       );
       alert('에피소드가 성공적으로 저장되었습니다.');
@@ -740,7 +748,7 @@ async function saveDraft() {
         bookData.append('categoryId', String(selectedCategoryId.value));
       }
 
-      await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
+      await apiClient.patch(`/api/v1/groups/${groupId}/books/${currentBook.value.id}`, bookData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
@@ -834,14 +842,14 @@ async function finalizePublication() {
     }
 
     // 4. 책 정보(제목, 줄거리, 카테고리, 태그, 표지) 일괄 업데이트
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookUpdateData, {
+    await apiClient.patch(`/api/v1/groups/${groupId}/books/${currentBook.value.id}`, bookUpdateData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
 
     // 5. 책을 '완성' 상태로 변경
     // 이 API는 이제 상태 변경 역할만 하거나, 태그가 없는 경우를 위해 호출할 수 있습니다.
     // 백엔드 수정이 잘 되었다면 태그는 위에서 이미 업데이트됩니다.
-    await apiClient.patch(`/api/v1/books/${currentBook.value.id}/complete`, { tags: tags.value });
+    await apiClient.patch(`/api/v1/groups/${groupId}/books/${currentBook.value.id}/completed`, { tags: tags.value });
 
     alert('책이 성공적으로 발행되었습니다!');
     isSavedOrPublished.value = true;
@@ -967,7 +975,7 @@ onBeforeUnmount(() => {
       currentBook.value.stories?.forEach(story => {
         if (story.id) {
           const baseURL = apiClient.defaults?.baseURL || '';
-          const episodeUrl = `${baseURL}/api/v1/books/${bookId}/episodes/${story.id}`;
+          const episodeUrl = `${baseURL}/api/v1/groups/${groupId}/books/${bookId}/episodes/${story.id}`;
           fetch(episodeUrl, {
             method: 'DELETE',
             headers,
@@ -979,7 +987,7 @@ onBeforeUnmount(() => {
 
       // 2. 책 삭제 요청을 보냅니다.
       const baseURL = apiClient.defaults?.baseURL || '';
-      const bookUrl = `${baseURL}/api/v1/books/${bookId}`;
+      const bookUrl = `${baseURL}/api/v1/groups/${groupId}/books/${bookId}`;
       fetch(bookUrl, {
         method: 'DELETE',
         headers,
