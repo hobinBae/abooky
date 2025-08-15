@@ -177,10 +177,62 @@ pipeline {
                             export BACKEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
                             export FRONTEND_IMAGE_TAG=${BUILD_NUMBER_TAG}
                             
-                            echo "=== 기존 애플리케이션 배포 ==="
-                            docker compose -f ${COMPOSE_FILE} up -d
+                            echo "=== 배포 전 상태 확인 ==="
+                            docker compose -f ${COMPOSE_FILE} ps || true
                             
-                            echo "=== SSL 프록시 배포 ==="
+                            echo "=== 1단계: 기존 컨테이너 정리 ==="
+                            docker compose -f ${COMPOSE_FILE} down || true
+                            
+                            echo "=== 2단계: 인프라 서비스 시작 (MySQL, Redis) ==="
+                            docker compose -f ${COMPOSE_FILE} up -d mysql redis
+                            
+                            echo "=== 3단계: MySQL 헬스체크 대기 (최대 2분) ==="
+                            timeout 120 bash -c '
+                                while ! docker compose -f '${COMPOSE_FILE}' ps mysql | grep -q "healthy"; do
+                                    echo "⏳ MySQL 헬스체크 대기 중..."
+                                    sleep 5
+                                done
+                                echo "✅ MySQL 준비 완료"
+                            ' || {
+                                echo "❌ MySQL 헬스체크 실패"
+                                docker compose -f ${COMPOSE_FILE} logs mysql --tail 50
+                                exit 1
+                            }
+                            
+                            echo "=== 4단계: LiveKit 시작 ==="
+                            docker compose -f ${COMPOSE_FILE} up -d livekit
+                            
+                            echo "=== 5단계: LiveKit 시작 확인 (1분 대기) ==="
+                            sleep 30
+                            if docker compose -f ${COMPOSE_FILE} ps livekit | grep -q "Up"; then
+                                echo "✅ LiveKit 시작 완료"
+                                docker logs autobiography-livekit --tail 10
+                            else
+                                echo "⚠️ LiveKit 시작 실패 - 로그 확인"
+                                docker compose -f ${COMPOSE_FILE} logs livekit --tail 20
+                                echo "LiveKit 없이 계속 진행..."
+                            fi
+                            
+                            echo "=== 6단계: 백엔드 시작 ==="
+                            docker compose -f ${COMPOSE_FILE} up -d backend
+                            
+                            echo "=== 7단계: 백엔드 헬스체크 대기 (최대 3분) ==="
+                            timeout 180 bash -c '
+                                while ! docker compose -f '${COMPOSE_FILE}' ps backend | grep -q "healthy"; do
+                                    echo "⏳ 백엔드 헬스체크 대기 중..."
+                                    sleep 10
+                                done
+                                echo "✅ 백엔드 준비 완료"
+                            ' || {
+                                echo "❌ 백엔드 헬스체크 실패"
+                                docker compose -f ${COMPOSE_FILE} logs backend --tail 50
+                                exit 1
+                            }
+                            
+                            echo "=== 8단계: 프론트엔드 및 기타 서비스 시작 ==="
+                            docker compose -f ${COMPOSE_FILE} up -d frontend phpmyadmin
+                            
+                            echo "=== 9단계: SSL 프록시 배포 ==="
                             # 기존 80포트 사용 컨테이너가 있으면 중지
                             docker stop nginx-ssl-proxy || true
                             docker rm nginx-ssl-proxy || true
@@ -194,11 +246,12 @@ pipeline {
                                 -v /home/ubuntu/certbot/conf:/etc/letsencrypt:ro \
                                 nginx:alpine
                             
-                            echo "=== 배포 완료 ==="
-                            docker ps
-
-                            echo "=== LiveKit 컨테이너 상태 확인 ==="
-                            docker logs autobiography-livekit --tail 20 || echo "LiveKit 컨테이너 로그를 확인할 수 없습니다."
+                            echo "=== 최종 배포 상태 ==="
+                            docker compose -f ${COMPOSE_FILE} ps
+                            
+                            echo "=== LiveKit 최종 상태 확인 ==="
+                            docker logs autobiography-livekit --tail 20 || echo "LiveKit 로그 확인 실패"
+                            curl -f http://localhost:7880/ && echo "✅ LiveKit HTTP 응답 성공" || echo "⚠️ LiveKit HTTP 응답 실패"
                         '''
                     }
                 }
