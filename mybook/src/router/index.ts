@@ -88,9 +88,10 @@ const mainRoutes: Array<RouteRecordRaw> = [
     meta: { requiresAuth: true }
   },
   {
-    path: '/group-book-editor',
+    path: '/group-book-editor/:groupId/:bookId?',
     name: 'group-book-editor',
     component: () => import('../views/groups/GroupBookEditorView.vue'),
+    props: true,
     meta: { requiresAuth: true }
   },
   {

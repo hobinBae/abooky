@@ -114,12 +114,12 @@ class GroupService {
     try {
       const response = await apiClient.get(`/api/v1/groups/${groupId}`);
       const group: Group = response.data.data;
-      
+
       const members = await this.fetchGroupMembers(groupId);
       group.members = members;
       group.managers = members.filter(member => member.role === 'MANAGER');
       return group;
-      
+
     } catch (error) {
       console.error(`그룹 상세 정보 조회 실패 (ID: ${groupId}):`, error);
       return null;
@@ -342,7 +342,7 @@ class GroupService {
     if (stored.length > 0) {
       return stored;
     }
-    
+
     // 초기 더미 데이터 - 테스트를 위해 일부 그룹이 활성화된 상태로 설정
     const initialSessions = [
       {
@@ -353,12 +353,12 @@ class GroupService {
         participantCount: 2
       }
     ];
-    
+
     // localStorage에 저장
     localStorage.setItem('activeGroupBookSessions', JSON.stringify(initialSessions));
-    
+
     return initialSessions;
-    
+
     // 모든 세션이 비활성화된 상태로 테스트하려면:
     // return [];
   }
@@ -384,6 +384,128 @@ class GroupService {
   async endGroupBookSession(groupId: number): Promise<void> {
     this.removeSession(groupId);
     console.log('그룹책 세션 종료:', groupId);
+  }
+
+  async createGroupBook(groupId: string, bookData: { title: string; summary: string; categoryId: number | null }): Promise<any> {
+    const formData = new FormData();
+    formData.append('title', bookData.title);
+    formData.append('summary', bookData.summary);
+    if (bookData.categoryId) {
+      formData.append('categoryId', String(bookData.categoryId));
+    }
+
+    try {
+      const response = await apiClient.post(`/api/v1/groups/${groupId}/books`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`그룹 책 생성 실패 (Group ID: ${groupId}):`, error);
+      throw error;
+    }
+  }
+
+  // 그룹 책에 새로운 에피소드를 추가합니다.
+  async addEpisode(groupId: string, bookId: string, episodeData: { title: string }): Promise<any> {
+    try {
+      const response = await apiClient.post(`/api/v1/groups/${groupId}/books/${bookId}/episodes`, episodeData);
+      return response.data;
+    } catch (error) {
+      console.error(`에피소드 추가 실패 (Group ID: ${groupId}, Book ID: ${bookId}):`, error);
+      throw error;
+    }
+  }
+
+  async deleteEpisode(groupId: string, bookId: string, episodeId: number): Promise<void> {
+    try {
+      await apiClient.delete(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}`);
+    } catch (error) {
+      console.error(`에피소드 삭제 실패 (Group ID: ${groupId}, Book ID: ${bookId}, Episode ID: ${episodeId}):`, error);
+      throw error;
+    }
+  }
+
+  // 그룹 책의 에피소드를 수정합니다.
+  async updateEpisode(groupId: string, bookId: string, episodeId: number, episodeData: { title: string; content: string }): Promise<any> {
+    try {
+      const response = await apiClient.patch(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}`, episodeData);
+      return response.data;
+    } catch (error) {
+      console.error(`에피소드 수정 실패 (Group ID: ${groupId}, Book ID: ${bookId}, Episode ID: ${episodeId}):`, error);
+      throw error;
+    }
+  }
+
+  // 그룹 책을 완성합니다.
+  async completeGroupBook(groupId: string, bookId: string, tags: string[]): Promise<any> {
+    try {
+      const response = await apiClient.patch(`/api/v1/groups/${groupId}/books/${bookId}/completed`, { tags });
+      return response.data;
+    } catch (error) {
+      console.error(`그룹 책 완성 실패 (Group ID: ${groupId}, Book ID: ${bookId}):`, error);
+      throw error;
+    }
+  }
+
+  // 그룹 책 에피소드에 이미지를 업로드합니다.
+  async uploadEpisodeImage(groupId: string, bookId: string, episodeId: number, file: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await apiClient.post(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}/images`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`에피소드 이미지 업로드 실패 (Group ID: ${groupId}, Book ID: ${bookId}, Episode ID: ${episodeId}):`, error);
+      throw error;
+    }
+  }
+
+  // 그룹 책 에피소드의 이미지를 삭제합니다.
+  async deleteEpisodeImage(groupId: string, bookId: string, episodeId: number, imageId: number): Promise<void> {
+    try {
+      await apiClient.delete(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}/images/${imageId}`);
+    } catch (error) {
+      console.error(`에피소드 이미지 삭제 실패 (Group ID: ${groupId}, Book ID: ${bookId}, Episode ID: ${episodeId}, Image ID: ${imageId}):`, error);
+      throw error;
+    }
+  }
+
+  // 그룹 책 상세 정보를 조회합니다.
+  async getGroupBookDetails(groupId: string, bookId: string): Promise<any> {
+    try {
+      const response = await apiClient.get(`/api/v1/groups/${groupId}/books/${bookId}`);
+      return response.data;
+    } catch (error) {
+      console.error(`그룹 책 상세 정보 조회 실패 (Group ID: ${groupId}, Book ID: ${bookId}):`, error);
+      throw error;
+    }
+  }
+
+  // 그룹 책 에피소드의 대화 세션을 시작합니다.
+  async startConversation(groupId: string, bookId: string, episodeId: number): Promise<any> {
+    try {
+      const response = await apiClient.post(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}/sessions`);
+      return response.data;
+    } catch (error) {
+      console.error(`대화 세션 시작 실패 (Group ID: ${groupId}, Book ID: ${bookId}, Episode ID: ${episodeId}):`, error);
+      throw error;
+    }
+  }
+
+  // SSE 스트림 연결을 종료합니다.
+  async closeSseStream(groupId: string, bookId: string, episodeId: number, sessionId: string): Promise<void> {
+    try {
+      await apiClient.delete(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}/stream/${sessionId}`);
+    } catch (error) {
+      console.error(`SSE 스트림 연결 종료 실패 (Session ID: ${sessionId}):`, error);
+      throw error;
+    }
   }
 }
 
