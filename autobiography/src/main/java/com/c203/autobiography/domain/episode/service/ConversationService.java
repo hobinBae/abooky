@@ -42,5 +42,6 @@ public interface ConversationService {
     // 기존 대화 재연결
     void establishConversationStream(String sessionId, Long bookId, SseEmitter emitter);
 
+    NextQuestionDto skipCurrentQuestion(Long memberId, Long bookId, Long episodeId, String sessionId);
 
 }
