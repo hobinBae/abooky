@@ -889,3 +889,20 @@
     width: 120px;
   }
 }
+
+/* 화면 공유 배지 스타일 */
+.screen-sharing-badge {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-success);
+  color: white;
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+  font-size: 0.6rem;
+  margin-left: 0.3rem;
+  line-height: 1;
+}
+
+.screen-sharing-badge i {
+  font-size: 0.6rem;
+}

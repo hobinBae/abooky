@@ -258,112 +258,112 @@ class GroupService {
     return { url: data.url, token: data.token };
   }
 
-  private getDummyGroups(): Group[] {
-    const currentUserId = this.getCurrentUserId();
+  // private getDummyGroups(): Group[] {
+  //   const currentUserId = this.getCurrentUserId();
 
-    // 사용자별로 다른 그룹 반환
-    if (currentUserId === 1001) { // 사용자 A
-      return [
-        {
-          groupId: 1,
-          groupName: "우리 가족",
-          description: "가족들과 추억을 기록하는 공간",
-          themeColor: "#FFCC00",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 1001,
-          leaderNickname: "김싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: [
-            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
-            { memberId: 1002, nickname: '엄마', profileImageUrl: '' },
-            { memberId: 1003, nickname: '아빠', profileImageUrl: '' }
-          ]
-        },
-        {
-          groupId: 2,
-          groupName: "대학 동기",
-          description: "대학 동기들과 추억을 기록하는 공간",
-          themeColor: "#42b983",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 5001,
-          leaderNickname: "이싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: [
-            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
-            { memberId: 5001, nickname: '이싸피123', profileImageUrl: '' },
-            { memberId: 5002, nickname: '박싸피456', profileImageUrl: '' }
-          ]
-        }
-      ];
-    } else if (currentUserId === 5001) { // 사용자 B
-      return [
-        {
-          groupId: 2,
-          groupName: "대학 동기",
-          description: "대학 동기들과 추억을 기록하는 공간",
-          themeColor: "#42b983",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 5001,
-          leaderNickname: "이싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: [
-            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
-            { memberId: 5001, nickname: '이싸피123', profileImageUrl: '' },
-            { memberId: 5002, nickname: '박싸피456', profileImageUrl: '' }
-          ]
-        },
-        {
-          groupId: 1,
-          groupName: "우리 가족",
-          description: "가족들과 추억을 기록하는 공간",
-          themeColor: "#FFCC00",
-          groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
-          leaderId: 1001,
-          leaderNickname: "김싸피123",
-          createdAt: "2025-07-22T10:00:00",
-          updatedAt: "2025-07-22T11:00:00",
-          members: [
-            { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
-            { memberId: 1002, nickname: '엄마', profileImageUrl: '' },
-            { memberId: 1003, nickname: '아빠', profileImageUrl: '' }
-          ]
-        }
-      ];
-    }
+  //   // 사용자별로 다른 그룹 반환
+  //   if (currentUserId === 1001) { // 사용자 A
+  //     return [
+  //       {
+  //         groupId: 1,
+  //         groupName: "우리 가족",
+  //         description: "가족들과 추억을 기록하는 공간",
+  //         themeColor: "#FFCC00",
+  //         groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+  //         leaderId: 1001,
+  //         leaderNickname: "김싸피123",
+  //         createdAt: "2025-07-22T10:00:00",
+  //         updatedAt: "2025-07-22T11:00:00",
+  //         members: [
+  //           { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+  //           { memberId: 1002, nickname: '엄마', profileImageUrl: '' },
+  //           { memberId: 1003, nickname: '아빠', profileImageUrl: '' }
+  //         ]
+  //       },
+  //       {
+  //         groupId: 2,
+  //         groupName: "대학 동기",
+  //         description: "대학 동기들과 추억을 기록하는 공간",
+  //         themeColor: "#42b983",
+  //         groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+  //         leaderId: 5001,
+  //         leaderNickname: "이싸피123",
+  //         createdAt: "2025-07-22T10:00:00",
+  //         updatedAt: "2025-07-22T11:00:00",
+  //         members: [
+  //           { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+  //           { memberId: 5001, nickname: '이싸피123', profileImageUrl: '' },
+  //           { memberId: 5002, nickname: '박싸피456', profileImageUrl: '' }
+  //         ]
+  //       }
+  //     ];
+  //   } else if (currentUserId === 5001) { // 사용자 B
+  //     return [
+  //       {
+  //         groupId: 2,
+  //         groupName: "대학 동기",
+  //         description: "대학 동기들과 추억을 기록하는 공간",
+  //         themeColor: "#42b983",
+  //         groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+  //         leaderId: 5001,
+  //         leaderNickname: "이싸피123",
+  //         createdAt: "2025-07-22T10:00:00",
+  //         updatedAt: "2025-07-22T11:00:00",
+  //         members: [
+  //           { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+  //           { memberId: 5001, nickname: '이싸피123', profileImageUrl: '' },
+  //           { memberId: 5002, nickname: '박싸피456', profileImageUrl: '' }
+  //         ]
+  //       },
+  //       {
+  //         groupId: 1,
+  //         groupName: "우리 가족",
+  //         description: "가족들과 추억을 기록하는 공간",
+  //         themeColor: "#FFCC00",
+  //         groupImageUrl: "https://your-bucket.s3.ap-northeast-2.amazonaws.com/profiles/550e8400-e29b-41d4-a716-446655440000.jpg",
+  //         leaderId: 1001,
+  //         leaderNickname: "김싸피123",
+  //         createdAt: "2025-07-22T10:00:00",
+  //         updatedAt: "2025-07-22T11:00:00",
+  //         members: [
+  //           { memberId: 1001, nickname: '김싸피123', profileImageUrl: '' },
+  //           { memberId: 1002, nickname: '엄마', profileImageUrl: '' },
+  //           { memberId: 1003, nickname: '아빠', profileImageUrl: '' }
+  //         ]
+  //       }
+  //     ];
+  //   }
 
-    // 기본값
-    return [];
-  }
+  //   // 기본값
+  //   return [];
+  // }
 
-  private getDummySessions(): ActiveSession[] {
-    // localStorage에서 먼저 확인하고, 없으면 초기 더미 데이터 생성
-    const stored = this.getStoredSessions();
-    if (stored.length > 0) {
-      return stored;
-    }
+  // private getDummySessions(): ActiveSession[] {
+  //   // localStorage에서 먼저 확인하고, 없으면 초기 더미 데이터 생성
+  //   const stored = this.getStoredSessions();
+  //   if (stored.length > 0) {
+  //     return stored;
+  //   }
     
-    // 초기 더미 데이터 - 테스트를 위해 일부 그룹이 활성화된 상태로 설정
-    const initialSessions = [
-      {
-        groupId: 1,
-        groupName: '독서 토론 모임',
-        hostName: '이영희',
-        startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10분 전 시작
-        participantCount: 2
-      }
-    ];
+  //   // 초기 더미 데이터 - 테스트를 위해 일부 그룹이 활성화된 상태로 설정
+  //   const initialSessions = [
+  //     {
+  //       groupId: 1,
+  //       groupName: '독서 토론 모임',
+  //       hostName: '이영희',
+  //       startedAt: new Date(Date.now() - 10 * 60 * 1000), // 10분 전 시작
+  //       participantCount: 2
+  //     }
+  //   ];
     
-    // localStorage에 저장
-    localStorage.setItem('activeGroupBookSessions', JSON.stringify(initialSessions));
+  //   // localStorage에 저장
+  //   localStorage.setItem('activeGroupBookSessions', JSON.stringify(initialSessions));
     
-    return initialSessions;
+  //   return initialSessions;
     
-    // 모든 세션이 비활성화된 상태로 테스트하려면:
-    // return [];
-  }
+  //   // 모든 세션이 비활성화된 상태로 테스트하려면:
+  //   // return [];
+  // }
 
   // 그룹책 세션 시작 (방 만들기)
   async startGroupBookSession(groupId: number, groupName: string): Promise<void> {
