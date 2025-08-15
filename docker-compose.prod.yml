@@ -47,10 +47,11 @@ services:
       CLOVA_STT_API_KEY: ${CLOVA_STT_API_KEY}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
+
       LIVEKIT_API_KEY : ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
       LIVEKIT_WS_URL : ${LIVEKIT_WS_URL}
-      LIVEKIT_SERVERURL : ${LIVEKIT_SERVER_URL}
+      LIVEKIT_SERVER_URL : ${LIVEKIT_SERVER_URL}
     ports:
       - "127.0.0.1:8081:8081"  # 🔒 로컬호스트에서만 접근 가능
     depends_on:
