@@ -47,7 +47,7 @@ public class ChapterDataInitService {
                 .chapterId("chapter1")
                 .chapterName("시작/기본정보")
                 .chapterOrder(1)
-                .description("현재 감정, 자기소개, 출생, 기록 목적, 기대, 대표 장면")
+                .description("본격적인 여정을 떠나기 전, 지금의 나를 돌아봅니다. 현재의 감정, 나의 역할과 뿌리, 그리고 이 기록을 시작하는 마음에 대하여 이야기합니다.")
                 .build();
         chapterRepo.save(chapter);
 
@@ -166,7 +166,7 @@ public class ChapterDataInitService {
                 .chapterId("chapter2")
                 .chapterName("유년기")
                 .chapterOrder(2)
-                .description("출생 배경, 가족 분위기, 초기 성격/기질을 구체 장면과 감정으로 수집")
+                .description("세상의 모든 것이 신비롭고 거대하게만 보였던 그 시절. 나를 둘러싼 세상의 풍경과 사람들, 그리고 그 안에서 싹트던 작은 나의 모습을 따라갑니다.")
                 .build();
         chapterRepo.save(chapter);
 
@@ -255,7 +255,7 @@ public class ChapterDataInitService {
                 .build();
         templateRepo.save(vividScene);
 
-        // 2-4) 정리(Static) — 가치/기질/지금의 나와의 연결 이건 좀 수정해야함
+        // 2-4) 정리(Static)
         ChapterTemplate wrapUp = ChapterTemplate.builder()
                 .templateId("childhood_wrapup_static")
                 .stageName("씨앗과 연결")
@@ -286,7 +286,7 @@ public class ChapterDataInitService {
                 .chapterId("chapter3")
                 .chapterName("아동기 후반~초등 고학년")
                 .chapterOrder(3)
-                .description("학교 적응, 또래 관계, 취미/관심사의 발아, 첫 성취/실패")
+                .description("집이라는 울타리를 넘어 '학교'라는 첫 사회를 만납니다. 친구들과의 관계 속에서 나를 발견하고, 처음으로 성취와 좌절을 배우던 시절의 기억을 펼쳐봅니다")
                 .build();
         chapterRepo.save(chapter);
 
