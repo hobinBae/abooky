@@ -14,15 +14,8 @@ public class GroupEpisodeCreateRequest {
     @NotBlank
     private String title;
 
-    @NotBlank
-    private String template;
+    private String summary;          // 에피소드 요약 (선택)
 
-    private Integer orderNo;
-
-    // 🎯 첫 답변 관련 필드 추가
-    @NotBlank
-    private String firstAnswer;      // 사용자의 첫 답변
-
-    private String questionKey;      // 답변하는 질문의 키 (검증용)
+    private Integer orderNo;         // 순서 (선택, 없으면 자동 설정)
 
 }

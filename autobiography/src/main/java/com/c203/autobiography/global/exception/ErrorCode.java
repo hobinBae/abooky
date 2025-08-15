@@ -41,7 +41,7 @@ public enum ErrorCode {
     // GroupBook 관련 에러
     GROUP_BOOK_NOT_FOUND("GROUP_BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "그룹 책을 찾을 수 없습니다."),
     GROUP_BOOK_ALREADY_DELETED("GROUP_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 그룹 책입니다."),
-    
+    SESSION_NOT_FOUND("SESSION_NOT_FOUND", HttpStatus.NOT_FOUND, "대화 세션을 찾을 수 없습니다."),
     // CommunityBook 관련 에러
     COMMUNITY_BOOK_NOT_FOUND("COMMUNITY_BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "커뮤니티 책을 찾을 수 없습니다."),
     COMMUNITY_BOOK_ALREADY_DELETED("COMMUNITY_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 커뮤니티 책입니다."),

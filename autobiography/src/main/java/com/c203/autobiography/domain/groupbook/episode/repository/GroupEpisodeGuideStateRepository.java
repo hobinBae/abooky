@@ -11,6 +11,8 @@ public interface GroupEpisodeGuideStateRepository extends JpaRepository<GroupEpi
 
     // 추가 필요한 메서드들 (같은 패턴으로)
     Optional<GroupEpisodeGuideState> findByGroupEpisode_GroupEpisodeIdAndStepNo(Long episodeId, Integer stepNo);
+    
+    Optional<GroupEpisodeGuideState> findByGroupEpisode_GroupEpisodeIdAndGuideKey(Long episodeId, String guideKey);
 
     List<GroupEpisodeGuideState> findByGroupEpisode_GroupEpisodeIdAndIsFinalTrue(Long episodeId);
 

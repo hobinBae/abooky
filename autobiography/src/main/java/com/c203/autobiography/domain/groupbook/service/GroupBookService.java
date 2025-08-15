@@ -10,6 +10,8 @@ import java.util.List;
 
 public interface GroupBookService {
     GroupBookResponse createBook(Long groupId, Long memberId, GroupBookCreateRequest request, MultipartFile file);
+    
+    GroupBookCreateResponse createBookSimple(Long groupId, Long memberId, GroupBookCreateRequest request, MultipartFile file);
 
     GroupBookResponse updateBook(Long groupId, Long memberId, Long bookId, GroupBookUpdateRequest request, MultipartFile file);
 

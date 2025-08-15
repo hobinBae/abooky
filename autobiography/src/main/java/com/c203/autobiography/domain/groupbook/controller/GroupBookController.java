@@ -32,9 +32,9 @@ public class GroupBookController {
     private final GroupBookService groupBookService;
     private final GroupEpisodeService episodeService;
 
-    @Operation(summary = "그룹 책 생성", description = "그룹 책 정보 등록합니다.")
+    @Operation(summary = "그룹 책 생성", description = "그룹 책 정보만 등록합니다. (에피소드는 별도 생성)")
     @PostMapping
-    public ResponseEntity<ApiResponse<GroupBookResponse>> createBook(
+    public ResponseEntity<ApiResponse<GroupBookCreateResponse>> createBook(
             @AuthenticationPrincipal CustomUserDetails userDetail,
             @PathVariable Long groupId,
             @Valid @ModelAttribute GroupBookCreateRequest request,
@@ -42,7 +42,7 @@ public class GroupBookController {
             HttpServletRequest httpRequest
             ) {
         Long memberId = userDetail.getMemberId();
-        GroupBookResponse response = groupBookService.createBook(groupId, memberId, request, file);
+        GroupBookCreateResponse response = groupBookService.createBookSimple(groupId, memberId, request, file);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "그룹책 생성 성공", response, httpRequest.getRequestURI()));
     }

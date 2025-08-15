@@ -15,18 +15,28 @@ import com.c203.autobiography.domain.groupbook.repository.GroupBookRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.s3.FileStorageService;
+import com.c203.autobiography.domain.sse.service.SseService;
+import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
+import com.c203.autobiography.domain.ai.client.AiClient;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class GroupEpisodeServiceImpl implements GroupEpisodeService {
 
     private final GroupBookRepository groupBookRepository;
@@ -36,82 +46,72 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
     private final GuideResolverService guideResolver;
     private final EditorService editorService;
     private final FileStorageService fileStorageService;
+    private final SseService sseService;
+    private final AiClient aiClient;
+
+    // 대화 세션 관리를 위한 메모리 저장소
+    private final ConcurrentHashMap<String, GroupConversationSession> activeSessions = new ConcurrentHashMap<>();
+
+    // 그룹 대화 세션 내부 클래스
+    private static class GroupConversationSession {
+        private final String sessionId;
+        private final Long memberId;
+        private final Long groupId;
+        private final Long groupBookId;
+        private Long currentEpisodeId; // 현재 활성 에피소드 ID (변경 가능)
+        private final GroupType groupType;
+        private String currentTemplate;
+        private int currentStep;
+
+        public GroupConversationSession(String sessionId, Long memberId, Long groupId, 
+                                      Long groupBookId, Long initialEpisodeId, GroupType groupType) {
+            this.sessionId = sessionId;
+            this.memberId = memberId;
+            this.groupId = groupId;
+            this.groupBookId = groupBookId;
+            this.currentEpisodeId = initialEpisodeId;
+            this.groupType = groupType;
+            this.currentTemplate = "INTRO";
+            this.currentStep = 0;
+        }
+
+        // getters
+        public String getSessionId() { return sessionId; }
+        public Long getMemberId() { return memberId; }
+        public Long getGroupId() { return groupId; }
+        public Long getGroupBookId() { return groupBookId; }
+        public Long getCurrentEpisodeId() { return currentEpisodeId; } // 이름 변경
+        public GroupType getGroupType() { return groupType; }
+        public String getCurrentTemplate() { return currentTemplate; }
+        public int getCurrentStep() { return currentStep; }
+
+        public void setCurrentTemplate(String template) { this.currentTemplate = template; }
+        public void setCurrentStep(int step) { this.currentStep = step; }
+        public void setCurrentEpisodeId(Long episodeId) { this.currentEpisodeId = episodeId; } // 새 에피소드로 전환
+        public void nextStep() { this.currentStep++; }
+    }
 
 
     @Override @Transactional
     public GroupEpisodeResponse create(Long groupId, Long groupBookId, GroupEpisodeCreateRequest req, Long memberId) {
-        GroupBook gb = groupBookRepository.findById(groupBookId)
-                .orElseThrow(() -> new IllegalArgumentException("GroupBook not found: " + groupBookId));
+        // 1. 그룹책 확인
+        GroupBook gb = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
 
-        // 순서 번호 계산
+        // 2. 그룹 멤버 권한 확인 (필요시 추가)
+        
+        // 3. 순서 번호 계산
         Integer orderNo = (req.getOrderNo() == null)
                 ? (int) (episodeRepository.findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(groupBookId).size() + 1)
                 : req.getOrderNo();
 
-        // 에피소드 생성
-        GroupEpisode ep = episodeRepository.save(GroupEpisode.toEntity(gb, req.getTitle(), orderNo, req.getTemplate()));
-
-        // 첫 질문 준비
-        GuideQuestion firstQuestion = guideResolver.resolveFirst(gb.getGroupType(), req.getTemplate());
-
-        // 🎯 첫 번째 답변 편집
-        String editedFirstAnswer = editorService.polish(req.getFirstAnswer(), "");
-
-        // 🎯 첫 번째 가이드 상태 저장 (완료된 상태로)
-        GroupEpisodeGuideState firstState = GroupEpisodeGuideState.builder()
-                .groupEpisode(ep)
-                .stepNo(1)
-                .guideKey(firstQuestion.key())
-                .question(firstQuestion.question())
-                .userAnswer(req.getFirstAnswer())
-                .editedParagraph(editedFirstAnswer)
-                .isFinal(true)  // 🎯 이미 완료된 상태
-                .build();
-        stateRepository.save(firstState);
-
-        // 🎯 에피소드에 첫 번째 편집 내용 추가
-        ep.appendEdited(editedFirstAnswer);
-        ep.nextStep(); // currentStep = 2가 됨
-        ep.setStatus(GroupEpisodeStatus.IN_PROGRESS);
-
-        // 🎯 두 번째 질문 준비
-        Optional<GuideQuestion> secondQuestionOpt = guideResolver.resolveNext(
-                gb.getGroupType(),
-                req.getTemplate(),
-                1, // 첫 번째 단계 완료
-                req.getFirstAnswer()
+        // 4. 간단한 에피소드 생성 (template는 기본값 INTRO 사용)
+        GroupEpisode ep = episodeRepository.save(
+            GroupEpisode.toEntity(gb, req.getTitle(), orderNo, "INTRO")
         );
 
-        String nextQuestion = null;
-
-        if (secondQuestionOpt.isPresent()) {
-            GuideQuestion secondQuestion = secondQuestionOpt.get();
-            nextQuestion = secondQuestion.question();
-            GroupEpisodeGuideState secondState = GroupEpisodeGuideState.builder()
-                    .groupEpisode(ep)
-                    .stepNo(2)
-                    .guideKey(secondQuestion.key())
-                    .question(secondQuestion.question())
-                    .userAnswer(null)
-                    .editedParagraph(null)
-                    .isFinal(false)
-                    .build();
-            stateRepository.save(secondState);
-        } else {
-            // 질문이 더 없으면 리뷰 상태로
-            ep.setStatus(GroupEpisodeStatus.REVIEW);
-        }
-
-        return GroupEpisodeResponse.builder()
-                .id(ep.getGroupEpisodeId())
-                .groupBookId(ep.getGroupBook().getGroupBookId())
-                .title(ep.getTitle())
-                .orderNo(ep.getOrderNo())
-                .status(ep.getStatus().name())
-                .currentStep(ep.getCurrentStep())
-                .editedContent(ep.getEditedContent())
-                .currentQuestion(nextQuestion) // 🎯 이 부분이 핵심!
-                .build();
+        // 5. 간단한 응답 반환
+        return GroupEpisodeResponse.of(ep);
     }
 
     // 🔧 현재 에피소드의 템플릿을 guide_key에서 추출하는 메서드
@@ -403,5 +403,427 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         
         // 4. 소프트 삭제
         image.softDelete();
+    }
+
+    // ========== 대화 세션 관련 메서드 (개인 book 로직과 동일) ==========
+
+    @Override
+    public String startNewConversation(Long memberId, Long groupId, Long groupBookId, Long episodeId) {
+        // 1. 그룹책 및 에피소드 검증
+        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        
+        GroupEpisode episode = episodeRepository.findById(episodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+        
+        if (!episode.getGroupBook().getGroupBookId().equals(groupBookId)) {
+            throw new ApiException(ErrorCode.EPISODE_NOT_FOUND);
+        }
+
+        // 2. 세션 ID 생성
+        String sessionId = UUID.randomUUID().toString();
+        
+        // 3. 세션 생성 및 저장
+        GroupConversationSession session = new GroupConversationSession(
+                sessionId, memberId, groupId, groupBookId, episodeId, groupBook.getGroupType()
+        );
+        activeSessions.put(sessionId, session);
+        
+        log.info("새로운 그룹 대화 세션 생성: sessionId={}, groupId={}, groupBookId={}, episodeId={}", 
+                sessionId, groupId, groupBookId, episodeId);
+        
+        return sessionId;
+    }
+
+    @Override
+    public SseEmitter establishConversationStream(String sessionId, Long groupId, Long groupBookId, Long episodeId) {
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        
+        try {
+            // 1. 세션 확인
+            GroupConversationSession session = activeSessions.get(sessionId);
+            if (session == null) {
+                throw new ApiException(ErrorCode
+                        .SESSION_NOT_FOUND);
+            }
+            
+            // 2. SSE 서비스에 등록
+            sseService.register(sessionId, emitter);
+            
+            // 3. 첫 번째 질문 전송
+            GuideQuestion firstQuestion = guideResolver.resolveFirst(session.getGroupType(), session.getCurrentTemplate());
+            
+            // 4. 클라이언트에게 연결 성공 메시지 전송
+            emitter.send(SseEmitter.event()
+                    .name("connected")
+                    .data("대화 세션이 연결되었습니다."));
+            
+            // 5. 첫 질문 전송
+            QuestionResponse questionResponse = QuestionResponse.builder()
+                    .text(firstQuestion.question())
+                    .currentChapter(session.getCurrentTemplate())
+                    .currentStage("step-" + session.getCurrentStep())
+                    .build();
+                    
+            sseService.pushQuestion(sessionId, questionResponse);
+            
+            log.info("SSE 스트림 연결 및 첫 질문 전송 완료: sessionId={}", sessionId);
+            
+        } catch (Exception e) {
+            log.error("SSE 스트림 설정 중 에러 발생. sessionId={}", sessionId, e);
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("error")
+                        .data("스트림 연결 중 서버 오류가 발생했습니다: " + e.getMessage()));
+            } catch (IOException ex) {
+                log.warn("SSE 에러 이벤트 전송 실패. sessionId={}", sessionId, ex);
+            }
+            emitter.completeWithError(e);
+        }
+        
+        return emitter;
+    }
+
+    @Override
+    public void getNextQuestion(Long memberId, Long groupId, Long groupBookId, Long episodeId, String sessionId) {
+        try {
+            // 1. 세션 확인
+            GroupConversationSession session = activeSessions.get(sessionId);
+            if (session == null) {
+                throw new ApiException(ErrorCode.SESSION_NOT_FOUND);
+            }
+            
+            // 2. 다음 질문 생성
+            session.nextStep();
+            
+            Optional<GuideQuestion> nextQuestion = guideResolver.resolveNext(
+                    session.getGroupType(), 
+                    session.getCurrentTemplate(), 
+                    session.getCurrentStep(), 
+                    "" // 마지막 답변 (필요시 구현)
+            );
+            
+            if (nextQuestion.isPresent()) {
+                // 3. 질문이 있으면 SSE로 전송
+                GuideQuestion question = nextQuestion.get();
+                QuestionResponse questionResponse = QuestionResponse.builder()
+                        .text(question.question())
+                        .currentChapter(session.getCurrentTemplate())
+                        .currentStage("step-" + session.getCurrentStep())
+                        .build();
+                        
+                sseService.pushQuestion(sessionId, questionResponse);
+                
+                log.info("다음 질문 전송 완료: sessionId={}, step={}", sessionId, session.getCurrentStep());
+                
+            } else {
+                // 4. 질문이 없으면 다음 템플릿으로 이동 또는 종료
+                String nextTemplate = getNextTemplate(session.getCurrentTemplate());
+                if (nextTemplate != null) {
+                    // 새로운 에피소드 생성 (템플릿별 분리)
+                    Long newEpisodeId = createNewEpisodeForTemplate(session, nextTemplate);
+                    
+                    // 세션의 현재 에피소드 ID 업데이트
+                    session.setCurrentEpisodeId(newEpisodeId);
+                    session.setCurrentTemplate(nextTemplate);
+                    session.setCurrentStep(0);
+                    
+                    GuideQuestion firstQuestionOfNextTemplate = guideResolver.resolveFirst(
+                            session.getGroupType(), nextTemplate);
+                    
+                    QuestionResponse questionResponse = QuestionResponse.builder()
+                            .text(firstQuestionOfNextTemplate.question())
+                            .currentChapter(nextTemplate)
+                            .currentStage("step-0")
+                            .build();
+                            
+                    sseService.pushQuestion(sessionId, questionResponse);
+                    
+                    log.info("다음 템플릿으로 이동 및 새 에피소드 생성: sessionId={}, template={}, newEpisodeId={}", 
+                            sessionId, nextTemplate, newEpisodeId);
+                    
+                } else {
+                    // 5. 모든 질문 완료 - QuestionResponse로 완료 메시지 전송
+                    QuestionResponse completeResponse = QuestionResponse.builder()
+                            .text("모든 질문이 완료되었습니다. 수고하셨습니다!")
+                            .currentChapter("COMPLETE")
+                            .currentStage("finished")
+                            .isLastQuestion(true)
+                            .build();
+                            
+                    sseService.pushQuestion(sessionId, completeResponse);
+                    log.info("모든 질문 완료: sessionId={}", sessionId);
+                }
+            }
+            
+        } catch (Exception e) {
+            log.error("다음 질문 생성 중 오류 발생: sessionId={}", sessionId, e);
+            // 에러도 QuestionResponse로 전송
+            QuestionResponse errorResponse = QuestionResponse.builder()
+                    .text("질문 생성 중 오류가 발생했습니다: " + e.getMessage())
+                    .currentChapter("ERROR")
+                    .currentStage("error")
+                    .build();
+            sseService.pushQuestion(sessionId, errorResponse);
+        }
+    }
+
+    @Override
+    public void closeSseStream(String sessionId) {
+        try {
+            // 1. SSE 연결 종료
+            sseService.closeConnection(sessionId);
+            
+            // 2. 세션 정리
+            activeSessions.remove(sessionId);
+            
+            log.info("SSE 스트림 연결 종료: sessionId={}", sessionId);
+            
+        } catch (Exception e) {
+            log.error("SSE 스트림 종료 중 오류 발생: sessionId={}", sessionId, e);
+        }
+    }
+
+    @Override
+    @Transactional
+    public void submitAnswer(Long memberId, Long groupId, Long groupBookId, Long episodeId, String sessionId, GroupAnswerRequest request) {
+        try {
+            log.info("사용자 답변 제출 시작: sessionId={}, memberId={}", sessionId, memberId);
+            
+            // 1. 세션 확인
+            GroupConversationSession session = activeSessions.get(sessionId);
+            if (session == null) {
+                throw new ApiException(ErrorCode.SESSION_NOT_FOUND);
+            }
+            
+            // 2. 세션 소유자 확인
+            if (!session.getMemberId().equals(memberId)) {
+                throw new ApiException(ErrorCode.FORBIDDEN);
+            }
+            
+            // 3. 세션의 현재 활성 에피소드 조회 (템플릿별 분리)
+            Long currentEpisodeId = session.getCurrentEpisodeId();
+            GroupEpisode episode = episodeRepository.findById(currentEpisodeId)
+                    .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+                    
+            log.info("답변 저장 대상 에피소드: sessionEpisodeId={}, currentTemplate={}", 
+                    currentEpisodeId, session.getCurrentTemplate());
+            
+            // 4. AI를 통한 답변 교정
+            String originalAnswer = request.getAnswer();
+            String correctedAnswer;
+            
+            try {
+                // 이전 컨텍스트 (현재 에피소드의 기존 내용)
+                String priorContext = episode.getEditedContent() != null ? episode.getEditedContent() : "";
+                
+                // AI로 답변 교정 (tone을 FORMAL로 고정, 필요시 요청에서 받을 수 있음)
+                correctedAnswer = aiClient.editText(originalAnswer, priorContext, "FORMAL");
+                
+                log.info("AI 답변 교정 완료: sessionId={}, 원본 길이={}, 교정본 길이={}", 
+                        sessionId, originalAnswer.length(), correctedAnswer.length());
+                        
+            } catch (Exception e) {
+                log.warn("AI 답변 교정 실패, 원본 답변 사용: sessionId={}, error={}", sessionId, e.getMessage());
+                correctedAnswer = originalAnswer;
+            }
+            
+            // 5. 현재 질문 텍스트 가져오기
+            String currentQuestionText = getCurrentQuestionText(session);
+            
+            // 6. 현재 단계의 가이드 상태 저장/업데이트
+            String currentQuestionKey = generateQuestionKey(session.getCurrentTemplate(), session.getCurrentStep());
+            
+            // 기존 답변이 있는지 확인 (현재 템플릿의 에피소드에서)
+            Optional<GroupEpisodeGuideState> existingState = stateRepository
+                    .findByGroupEpisode_GroupEpisodeIdAndGuideKey(currentEpisodeId, currentQuestionKey);
+            
+            GroupEpisodeGuideState guideState;
+            if (existingState.isPresent()) {
+                // 기존 답변 업데이트
+                guideState = existingState.get();
+                guideState.setUserAnswer(originalAnswer);
+                guideState.setEditedAnswer(correctedAnswer);
+                log.info("기존 답변 업데이트: questionKey={}", currentQuestionKey);
+            } else {
+                // 새 답변 생성
+                guideState = GroupEpisodeGuideState.builder()
+                        .groupEpisode(episode)
+                        .guideKey(currentQuestionKey)
+                        .stepNo(session.getCurrentStep())
+                        .question(currentQuestionText) // 질문 텍스트 추가
+                        .userAnswer(originalAnswer)
+                        .editedAnswer(correctedAnswer)
+                        .isFinal(false) // 기본값 설정
+                        .build();
+                log.info("새 답변 생성: questionKey={}, question={}", currentQuestionKey, 
+                        currentQuestionText.length() > 50 ? currentQuestionText.substring(0, 50) + "..." : currentQuestionText);
+            }
+            
+            stateRepository.save(guideState);
+            
+            // 6. 에피소드 전체 내용 업데이트 (모든 교정된 답변들을 합침)
+            updateEpisodeContent(episode);
+            
+            // 7. SSE로 답변 처리 완료 알림
+            QuestionResponse responseNotification = QuestionResponse.builder()
+                    .text("답변이 성공적으로 저장되었습니다.")
+                    .currentChapter(session.getCurrentTemplate())
+                    .currentStage("answer-saved")
+                    .build();
+            
+            sseService.pushQuestion(sessionId, responseNotification);
+            
+            log.info("사용자 답변 제출 완료: sessionId={}, questionKey={}", sessionId, currentQuestionKey);
+            
+        } catch (Exception e) {
+            log.error("사용자 답변 제출 중 오류 발생: sessionId={}", sessionId, e);
+            
+            // 에러 메시지를 SSE로 전송
+            QuestionResponse errorResponse = QuestionResponse.builder()
+                    .text("답변 저장 중 오류가 발생했습니다: " + e.getMessage())
+                    .currentChapter("ERROR")
+                    .currentStage("error")
+                    .build();
+            
+            sseService.pushQuestion(sessionId, errorResponse);
+            
+            if (e instanceof ApiException) {
+                throw e;
+            } else {
+                throw new ApiException(ErrorCode.INTERNAL_SERVER_ERROR);
+            }
+        }
+    }
+    
+    /**
+     * 새로운 템플릿용 에피소드 생성
+     */
+    @Transactional
+    public Long createNewEpisodeForTemplate(GroupConversationSession session, String templateName) {
+        try {
+            // 1. 그룹북 조회
+            GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(session.getGroupBookId())
+                    .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+            
+            // 2. 현재 그룹북의 에피소드 개수로 orderNo 계산
+            int nextOrderNo = (int) episodeRepository.findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(
+                    session.getGroupBookId()).size() + 1;
+            
+            // 3. 템플릿별 제목 생성
+            String episodeTitle = generateEpisodeTitleByTemplate(templateName, session.getGroupType());
+            
+            // 4. 새 에피소드 생성
+            GroupEpisode newEpisode = episodeRepository.save(
+                    GroupEpisode.toEntity(groupBook, episodeTitle, nextOrderNo, templateName)
+            );
+            
+            log.info("새 템플릿 에피소드 생성 완료: episodeId={}, template={}, title={}", 
+                    newEpisode.getGroupEpisodeId(), templateName, episodeTitle);
+            
+            return newEpisode.getGroupEpisodeId();
+            
+        } catch (Exception e) {
+            log.error("새 템플릿 에피소드 생성 실패: sessionId={}, template={}, error={}", 
+                    session.getSessionId(), templateName, e.getMessage());
+            throw new ApiException(ErrorCode.INTERNAL_SERVER_ERROR);
+        }
+    }
+    
+    /**
+     * 템플릿별 에피소드 제목 생성
+     */
+    private String generateEpisodeTitleByTemplate(String template, GroupType groupType) {
+        String groupTypeKorean = getGroupTypeKorean(groupType);
+        
+        return switch (template) {
+            case "INTRO" -> groupTypeKorean + " - 소개";
+            case "STORY" -> groupTypeKorean + " - 이야기"; 
+            case "REFLECTION" -> groupTypeKorean + " - 회상";
+            case "FUTURE" -> groupTypeKorean + " - 미래";
+            default -> groupTypeKorean + " - " + template;
+        };
+    }
+    
+    /**
+     * GroupType을 한글로 변환
+     */
+    private String getGroupTypeKorean(GroupType groupType) {
+        return switch (groupType) {
+            case FAMILY -> "가족";
+            case FRIENDS -> "친구들";
+            case COUPLE -> "커플";
+            case TEAM -> "팀";
+            case OTHER -> "기타";
+        };
+    }
+
+    /**
+     * 현재 세션의 질문 텍스트 가져오기
+     */
+    private String getCurrentQuestionText(GroupConversationSession session) {
+        try {
+            // GuideResolver를 사용해서 현재 단계의 질문을 가져옴
+            Optional<GuideQuestion> currentQuestion = guideResolver.resolveNext(
+                    session.getGroupType(), 
+                    session.getCurrentTemplate(), 
+                    session.getCurrentStep(), 
+                    ""
+            );
+            
+            if (currentQuestion.isPresent()) {
+                return currentQuestion.get().question();
+            } else {
+                // 첫 번째 질문일 경우
+                GuideQuestion firstQuestion = guideResolver.resolveFirst(session.getGroupType(), session.getCurrentTemplate());
+                return firstQuestion.question();
+            }
+        } catch (Exception e) {
+            log.warn("현재 질문 텍스트 가져오기 실패: sessionId={}, error={}", session.getSessionId(), e.getMessage());
+            return "질문을 가져올 수 없습니다."; // 기본값
+        }
+    }
+    
+    /**
+     * 질문 키 생성 (예: "INTRO_FAMILY_1", "STORY_FRIENDS_2")
+     */
+    private String generateQuestionKey(String template, int step) {
+        return String.format("%s_%s_%d", template, "QUESTION", step);
+    }
+    
+    /**
+     * 에피소드의 전체 내용을 모든 교정된 답변으로 업데이트
+     */
+    private void updateEpisodeContent(GroupEpisode episode) {
+        List<GroupEpisodeGuideState> allStates = stateRepository
+                .findByGroupEpisode_GroupEpisodeIdOrderByStepNoAsc(episode.getGroupEpisodeId());
+        
+        StringBuilder contentBuilder = new StringBuilder();
+        for (GroupEpisodeGuideState state : allStates) {
+            if (state.getEditedAnswer() != null && !state.getEditedAnswer().trim().isEmpty()) {
+                if (contentBuilder.length() > 0) {
+                    contentBuilder.append("\n\n");
+                }
+                contentBuilder.append(state.getEditedAnswer());
+            }
+        }
+        
+        String updatedContent = contentBuilder.toString();
+        episode.updateEpisodeWithContent(episode.getTitle(), episode.getOrderNo(), episode.getTemplate(), updatedContent);
+        episodeRepository.save(episode);
+        
+        log.info("에피소드 전체 내용 업데이트 완료: episodeId={}, contentLength={}", 
+                episode.getGroupEpisodeId(), updatedContent.length());
+    }
+
+    // 템플릿 순서 관리 헬퍼 메서드
+    private String getNextTemplate(String currentTemplate) {
+        return switch (currentTemplate) {
+            case "INTRO" -> "STORY";
+            case "STORY" -> "REFLECTION";
+            case "REFLECTION" -> "FUTURE";
+            case "FUTURE" -> null; // 종료
+            default -> null;
+        };
     }
 }

@@ -93,17 +93,58 @@ public class GroupBookServiceImpl implements GroupBookService {
 
         GroupBook saved = groupBookRepository.save(book);
 
-        // 🎯 첫 질문 미리 준비 (핵심!)
-        GuideQuestion firstQuestion = guideResolver.resolveFirst(saved.getGroupType(), "INTRO");
+        // 단순히 책 정보만 반환 (에피소드는 별도 생성)
+        return GroupBookResponse.of(saved, List.of(), List.of());
+    }
 
-        // 🎯 첫 질문과 함께 응답 생성
-        return GroupBookResponse.ofWithFirstQuestion(
-                saved,
-                List.of(),    // 아직 에피소드 없음
-                List.of(),    // 아직 태그 없음
-                firstQuestion.question(),  // 첫 질문 텍스트
-                firstQuestion.key()        // 질문 키
-        );
+    @Override
+    @Transactional
+    public GroupBookCreateResponse createBookSimple(Long groupId, Long memberId, GroupBookCreateRequest request, MultipartFile file) {
+        Group group = groupRepository.findByGroupIdAndDeletedAtIsNull(groupId)
+                .orElseThrow(() -> new ApiException(ErrorCode.GROUP_NOT_FOUND));
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // BookType이 null인 경우 FREE_FORM으로 기본값 설정
+        BookType bookType = (request.getBookType() != null) ? request.getBookType() : BookType.FREE_FORM;
+        
+        BookCategory category = switch (bookType) {
+            case AUTO -> bookCategoryRepository
+                    .findByCategoryName("자서전")
+                    .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+            case DIARY -> bookCategoryRepository
+                    .findByCategoryName("일기")
+                    .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+            case FREE_FORM -> {
+                if (request.getCategoryId() == null) {
+                    // bookType이 명시되지 않고 FREE_FORM으로 기본값 설정된 경우, 기본 카테고리 사용
+                    if (request.getBookType() == null) {
+                        yield bookCategoryRepository
+                                .findByCategoryName("자서전")
+                                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+                    } else {
+                        // 명시적으로 FREE_FORM을 선택했는데 categoryId가 없는 경우 에러
+                        throw new ApiException(ErrorCode.VALIDATION_FAILED);
+                    }
+                } else {
+                    yield bookCategoryRepository
+                            .findById(request.getCategoryId())
+                            .orElseThrow(() -> new ApiException(ErrorCode.BOOK_CATEGORY_NOT_FOUND));
+                }
+            }
+            default -> throw new ApiException(ErrorCode.INTERNAL_SERVER_ERROR);
+        };
+
+        String coverImageUrl = null;
+        if (file != null && !file.isEmpty()) {
+            coverImageUrl = fileStorageService.store(file, "groupBook");
+        }
+        GroupBook book = request.toEntity(member, group, category, coverImageUrl);
+
+        GroupBook saved = groupBookRepository.save(book);
+
+        // 간단한 생성 응답 반환
+        return GroupBookCreateResponse.from(saved, null, null);
     }
 
     @Override
