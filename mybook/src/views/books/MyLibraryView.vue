@@ -247,7 +247,7 @@ type Group = Omit<GroupResponse, 'createdAt'> & {
 interface GroupBook {
   groupBookId: string;
   title: string;
-  authorNickname: string;
+  nickname: string;
   coverImageUrl?: string;
 }
 interface ChangeEvent {
@@ -339,7 +339,7 @@ async function loadMyBooks() {
       .map((book: any) => ({
         ...book,
         isCommunityBook: false,
-        authorName: book.authorNickname || userNickname.value // API 응답에 작가 이름이 있으면 사용하고, 없으면 로그인한 사용자 닉네임 사용
+        authorName: book.nickname
       }));
 
     const communityBooks = communityBooksResponse.content.map((book: CommunityBook) => ({
@@ -378,7 +378,7 @@ async function loadMyGroups() {
           const books = booksResponse.data.data.map((book: GroupBook) => ({
             bookId: book.groupBookId, // groupBookId를 bookId로 매핑
             title: book.title,
-            authorName: book.authorNickname,
+            authorName: book.nickname,
             coverImageUrl: book.coverImageUrl,
             isGroupBook: true,
             groupId: group.groupId
