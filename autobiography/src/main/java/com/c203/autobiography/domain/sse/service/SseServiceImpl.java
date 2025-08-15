@@ -14,8 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * SSE 서비스 구현체: 세션별 SseEmitter를 관리하고,
- * 다양한 이벤트를 JSON 형태로 클라이언트에 푸시합니다.
+ * SSE 서비스 구현체: 세션별 SseEmitter를 관리하고, 다양한 이벤트를 JSON 형태로 클라이언트에 푸시합니다.
  */
 @Service
 @Slf4j
@@ -26,15 +25,30 @@ public class SseServiceImpl implements SseService {
 
     @Override
     public void register(String sessionId, SseEmitter emitter) {
-        SseEmitter old = emitters.put(sessionId, emitter);
+        // 이전 잔재 정리 후 등록
+        closeConnection(sessionId);
         emitters.put(sessionId, emitter);
-        if (old != null) { try { old.complete(); } catch (Exception ignored) {} }
+
+        // 자동 정리 훅
+        emitter.onTimeout(() -> closeConnection(sessionId));
+        emitter.onCompletion(() -> closeConnection(sessionId));
+        emitter.onError(ex -> closeConnection(sessionId));
+
+        // 일부 프록시 활성화를 위한 오픈 코멘트(선택)
+        sendSilently(sessionId, emitter, SseEmitter.event().comment("stream-open"));
+
         log.info("[SSE] Registered emitter for sessionId={}", sessionId);
     }
 
     @Override
     public void remove(String sessionId) {
-        emitters.remove(sessionId);
+        SseEmitter e = emitters.remove(sessionId);
+        if (e != null) {
+            try {
+                e.complete();
+            } catch (Exception ignore) {
+            }
+        }
         log.info("[SSE] Removed emitter for sessionId={}", sessionId);
     }
 
@@ -60,22 +74,20 @@ public class SseServiceImpl implements SseService {
 
     @Override
     public void closeConnection(String sessionId) {
-        SseEmitter emitter = emitters.get(sessionId);
-        if (emitter != null) {
+        SseEmitter e = emitters.remove(sessionId);
+        if (e != null) {
             try {
-                emitter.complete(); // emitter를 정상적으로 완료시킴
-                // onCompletion 콜백이 실행되면서 emitters 맵에서 자동으로 제거됩니다.
-                log.info("[SSE] Connection closed by client request. sessionId={}", sessionId);
-            } catch (Exception e) {
-                // 이미 끊겼거나 다른 이유로 에러가 나도, 그냥 맵에서 제거
-                remove(sessionId);
+                e.complete();
+            } catch (Exception ignore) {
             }
+            log.info("[SSE] Connection closed. sessionId={}", sessionId);
         }
     }
 
 
     /**
      * 공통 이벤트 전송 로직
+     *
      * @param sessionId 세션 식별자
      * @param eventName 이벤트 이름
      * @param payload   전송할 데이터 객체
@@ -86,24 +98,34 @@ public class SseServiceImpl implements SseService {
             log.warn("[SSE] No emitter found for sessionId={}", sessionId);
             return;
         }
-        try {
-            synchronized (emitter) {          // 동기화
-                emitter.send(SseEmitter.event()
+        sendSilently(sessionId, emitter,
+                SseEmitter.event()
                         .id(eventName + '-' + System.currentTimeMillis())
                         .name(eventName)
-                        .data(payload, MediaType.APPLICATION_JSON));
-            }
-            log.info("[SSE] Pushed event='{}' for sessionId={}", eventName, sessionId);
-        } catch (IOException ex) {
-            log.error("[SSE] send fail → remove {}", sessionId);
-            remove(sessionId);
-        }
+                        .data(payload, MediaType.APPLICATION_JSON)
+        );
+        log.info("[SSE] Pushed event='{}' for sessionId={}", eventName, sessionId);
     }
+
     @Scheduled(fixedRate = 15_000)
     public void heartbeat() {
-        emitters.forEach((id, emitter) -> {
-            try { synchronized (emitter) { emitter.send(SseEmitter.event().comment("ping")); } }
-            catch (IOException ex) { remove(id); }
-        });
+        emitters.forEach((id, emitter) ->
+                sendSilently(id, emitter, SseEmitter.event().comment("ping"))
+        );
+    }
+
+    // ✅ 공통 안전 전송: 완료/끊김/예외 시 자동 제거
+    private void sendSilently(String sessionId, SseEmitter emitter, SseEmitter.SseEventBuilder event) {
+        try {
+            synchronized (emitter) {
+                emitter.send(event);
+            }
+        } catch (IllegalStateException | IOException ex) { // 이미 complete 또는 전송 실패
+            log.debug("[SSE] dead/broken emitter → remove. sessionId={}", sessionId, ex);
+            closeConnection(sessionId);
+        } catch (Throwable t) {
+            log.warn("[SSE] unexpected send error → remove. sessionId={}", sessionId, t);
+            closeConnection(sessionId);
+        }
     }
 }
