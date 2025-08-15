@@ -54,6 +54,9 @@
                   playsinline
                   class="participant-video">
                 </video>
+                <div v-if="!isVideoEnabled" class="video-off-overlay">
+                  <i class="bi bi-camera-video-off-fill"></i>
+                </div>
                 <div class="participant-info">
                   <div class="participant-name">
                     <i class="bi me-1" :class="isAudioEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
@@ -793,7 +796,7 @@ async function restoreLocalCameraAfterRemoteScreenShare() {
 // --- LiveKit Functions ---
 async function getAccessToken(): Promise<{ url: string, token: string}> {
   try {
-    const userName = `User_${Date.now()}`;
+    const userName = userNickname.value || `User_${Date.now()}`;
     const { groupService } = await import('@/services/groupService');
     const { url, token } = await groupService.getRTCToken(route.query.groupId as string, userName);
     
@@ -1826,15 +1829,8 @@ onMounted(async () => {
     await setupLocalMedia();
   }
   
-  // 초기 모달 상태이므로 body 스크롤 방지
-  preventBodyScroll();
 });
 
-onUnmounted(() => {
-  cleanup();
-  // 컴포너트 언마운트 시 body 스크롤 복원
-  restoreBodyScroll();
-});
 
 const cleanup = async () => {
   const groupId = route.query.groupId;
