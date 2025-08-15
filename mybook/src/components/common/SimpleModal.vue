@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isVisible" class="modal-overlay" @click="handleOverlayClick">
+  <div v-if="isVisible" :class="['modal-overlay', { 'backdrop-blur': useBackdropBlur }]" @click="handleOverlayClick">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h2>{{ title }}</h2>
@@ -24,10 +24,12 @@ interface Props {
   isVisible: boolean;
   title: string;
   closeOnOverlay?: boolean;
+  useBackdropBlur?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  closeOnOverlay: true
+  closeOnOverlay: true,
+  useBackdropBlur: false
 });
 
 const emit = defineEmits<{
@@ -71,6 +73,11 @@ const handleOverlayClick = () => {
   justify-content: center !important;
   align-items: center !important;
   z-index: 999999 !important;
+}
+
+.modal-overlay.backdrop-blur {
+  backdrop-filter: blur(4px);
+  background-color: rgba(38, 30, 23, 0.6) !important;
 }
 
 .modal-content {
@@ -127,7 +134,6 @@ const handleOverlayClick = () => {
 }
 
 .close-button:hover {
-  background-color: #f0f0f0 !important;
   color: #333 !important;
 }
 

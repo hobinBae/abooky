@@ -2,27 +2,25 @@
 @import url("https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css");
 
 :root {
-  --font-main: 'Pretendard', sans-serif;
-  --color-bg: #f8f9fa;
-  --color-text: #212529;
-  --color-primary: #343a40;
+  --font-main: 'SCDream4', sans-serif;
+  --color-bg: #F5F5DC;
+  --color-text: #3D2C20;
+  --color-primary: #657143;
   --color-success: #28a745;
   --color-warning: #ffc107;
   --color-danger: #fa5252;
   --color-info: #17a2b8;
-  --color-surface: #ffffff;
-  --color-border: #dee2e6;
-  --color-muted-text: #868e96;
+  --color-surface: #FFFFFF;
+  --color-muted-text: #6c757d;
 }
 
 /* 페이지 기본 스타일 */
 .page-container {
-  padding: 2rem;
-  padding-top: calc(56px + 2rem); /* 네비게이션 바 높이 + 기본 패딩 */
+  padding: 1.6rem;
   background-color: var(--color-bg);
   min-height: 100vh;
   color: var(--color-text);
-  font-family: var(--font-main);
+  font-family: 'SCDream4', serif;
 }
 
 /* 로비 스타일 */
@@ -39,12 +37,12 @@
   background-color: var(--color-surface);
   padding: 2.5rem;
   border-radius: 12px;
-  border: 1px solid var(--color-border);
+  border: 3px solid #6F7D48;
   box-shadow: 0 8px 30px rgba(0,0,0,0.1);
 }
 
 .lobby-title {
-  font-family: var(--font-main);
+  font-family: 'SCDream4', serif;
   font-size: 2rem;
   font-weight: 700;
   text-align: center;
@@ -67,6 +65,7 @@
   background: #f1f3f5;
   border-radius: 8px;
   overflow: hidden;
+  border: 3px solid #6F7D48;
 }
 
 .video-preview {
@@ -113,18 +112,60 @@
 
 .btn-join {
   width: 100%;
-  background-color: #555;
-  color: white;
-  font-weight: 600;
-  font-size: 1rem;
-  padding: 0.8rem;
-  border-radius: 8px;
-  border: none;
-  transition: background-color 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+  display: inline-block;
+  border: 3px solid #5b673b !important;
+  border-radius: 18px !important;
+  padding: 0.8rem !important;
+  font-size: 1rem !important;
+  white-space: nowrap;
+  font-family: 'SCDream4', sans-serif;
+  transition: color 0.5s ease;
+  background-color: transparent;
+  color: #000000;
+}
+
+.btn-join::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(185, 174, 122, 0.4);
+  transform: scaleY(0);
+  z-index: -1;
+  animation: fill-animation 3s infinite ease-in-out;
 }
 
 .btn-join:hover:not(:disabled) {
-  opacity: 0.8;
+  color: white !important;
+  border-color: #dee2e6 !important;
+  background-color: transparent;
+}
+
+@keyframes fill-animation {
+  0% {
+    transform-origin: top;
+    transform: scaleY(0);
+  }
+
+  50% {
+    transform-origin: top;
+    transform: scaleY(1);
+  }
+
+  50.1% {
+    transform-origin: bottom;
+    transform: scaleY(1);
+  }
+
+  100% {
+    transform-origin: bottom;
+    transform: scaleY(0);
+  }
 }
 
 .btn-join:disabled {
@@ -139,9 +180,9 @@
   justify-content: center;
   gap: 0.5rem;
   text-align: center;
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
+  padding: 0.7rem 1rem;
+  border-radius: 15px;
+  margin-bottom: 1rem;
   font-size: 0.95rem;
   font-weight: 500;
   border: 1px solid transparent;
@@ -189,7 +230,7 @@
   border-radius: 12px;
   font-weight: 500;
   background: var(--color-bg);
-  border: 1px solid var(--color-border);
+  border: 1px solid #6F7D48;
 }
 
 .connection-indicator--connected {
@@ -243,7 +284,7 @@
   height: 100%;
   background-color: var(--color-surface);
   border-radius: 12px;
-  border: 1px solid var(--color-border);
+  border: 3px solid #6F7D48;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   overflow: hidden;
 }
@@ -255,7 +296,7 @@
 }
 
 .video-title {
-  font-family: var(--font-main);
+  font-family: 'SCDream4', serif;
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
@@ -328,7 +369,7 @@
   background: #e9ecef;
   border-radius: 8px;
   overflow: hidden;
-  border: 2px solid #dee2e6;
+  border: 3px solid #657143;
   transition: all 0.2s ease;
 }
 
@@ -339,6 +380,24 @@
 
 .video-participant.local-participant {
   border-color: var(--color-primary);
+}
+
+.video-off-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 5;
+}
+
+.video-off-overlay i {
+  font-size: 3rem;
+  color: white;
 }
 
 .participant-video {
@@ -395,17 +454,20 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.25rem;
   background-color: var(--color-surface);
   color: var(--color-muted-text);
-  border: 1px solid var(--color-border);
+  border: 2px solid #6F7D48;
   padding: 0.75rem 1rem;
   border-radius: 8px;
   font-size: 0.8rem;
-  min-width: 80px;
+  width: 90px;
+  height: 60px;
   cursor: pointer;
   transition: all 0.2s ease;
-  border-color: var(--color-info);
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 .btn-control:hover {
@@ -455,17 +517,31 @@
 .btn-control.btn-book {
   background-color: var(--color-surface);
   color: var(--color-muted-text);
-  border-color: var(--color-info);
+  border-color: var(--color-primary);
 }
 
 .btn-control.btn-book:hover {
-  background-color: rgba(23, 162, 184, 0.15);
+  background-color: rgba(101, 113, 67, 0.15);
 }
 
 /* 반응형 디자인 */
+@media (max-width: 1200px) {
+  .workspace-container {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .chat-section {
+    width: 100%;
+    min-width: auto;
+    height: 400px;
+  }
+}
+
 @media (max-width: 768px) {
   .page-container {
     padding: 1rem;
+    padding-top: calc(56px + 1rem);
   }
   
   .lobby-card {
@@ -482,7 +558,8 @@
   }
   
   .btn-control {
-    min-width: 70px;
+    width: calc(50% - 0.5rem);
+    min-width: auto;
     font-size: 0.75rem;
     padding: 0.6rem 0.8rem;
   }
@@ -491,12 +568,30 @@
     gap: 0.75rem;
   }
   
+  .participants-2,
+  .participants-3,
+  .participants-4,
+  .participants-5,
+  .participants-6 {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  .chat-section {
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .btn-control {
+    width: 100%;
+  }
+
+  .participants-2,
   .participants-3,
   .participants-4,
   .participants-5,
   .participants-6 {
     grid-template-columns: 1fr !important;
-    grid-template-rows: auto !important;
   }
 }
 
@@ -508,7 +603,7 @@
   flex-direction: column;
   background-color: var(--color-surface);
   border-radius: 12px;
-  border: 1px solid var(--color-border);
+  border: 3px solid #657143;
   box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   overflow: hidden;
 }
@@ -523,7 +618,7 @@
 }
 
 .chat-title {
-  font-family: var(--font-main);
+  font-family: 'SCDream4', serif;
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
@@ -650,13 +745,13 @@
 .chat-input {
   flex: 1;
   padding: 0.7rem 1rem;
-  border: 1px solid var(--color-border);
+  border: 2px solid var(--color-border);
   border-radius: 12px;
   font-size: 0.9rem;
   resize: none;
   outline: none;
   transition: border-color 0.2s ease;
-  font-family: var(--font-main);
+  font-family: 'SCDream4', serif;
   line-height: 1.4;
   height: 40px;
   width: 100%;
@@ -668,10 +763,10 @@
 }
 
 .btn-send-message {
-  background-color: #17a2b8 !important;
-  color: white !important;
-  border: 2px solid #17a2b8 !important;
-  border-radius: 8px;
+  background-color: #deeac0;
+  color: rgb(81, 81, 81) !important;
+  border: 2px solid #6F7D48;
+  border-radius: 15px;
   padding: 8px 12px;
   cursor: pointer;
   font-weight: 600;
@@ -685,8 +780,7 @@
 }
 
 .btn-send-message:hover {
-  background-color: #138496 !important;
-  border-color: #138496 !important;
+  opacity: 0.8;
 }
 
 /* 채팅 메시지 애니메이션 */
@@ -807,7 +901,7 @@
   background: #e9ecef;
   border-radius: 6px;
   overflow: hidden;
-  border: 2px solid #dee2e6;
+  border: 3px solid #6F7D48;
   transition: all 0.2s ease;
   cursor: pointer;
 }
