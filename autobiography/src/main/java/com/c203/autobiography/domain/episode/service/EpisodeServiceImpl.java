@@ -137,6 +137,60 @@ public class EpisodeServiceImpl implements EpisodeService {
         return null;
     }
 
+//    @Override
+//    public EpisodeResponse createEpisodeFromCurrentWindow(Episode episode, String sessionId)
+//            throws JsonProcessingException {
+//
+//        var session = conversationSessionRepository.findById(sessionId)
+//                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_INPUT_VALUE));
+//        Integer startNo = session.getEpisodeStartMessageNo();
+//
+//        if (startNo == null) {
+//            startNo = 1;
+//        }
+//
+//        Integer endNo = conversationMessageRepository.findMaxMessageNo(sessionId);
+//
+//        if (endNo == null || endNo < startNo) {
+//            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // 포함할 메시지가 없음
+//        }
+//        List<ConversationMessage> history = conversationMessageRepository
+//                .findBySessionIdAndMessageNoBetweenOrderByMessageNo(sessionId, startNo, endNo);
+//
+//        // 대화 텍스트 합치기
+//        StringBuilder dialog = new StringBuilder();
+//        for (ConversationMessage m : history) {
+//            dialog.append(m.getMessageType()).append(": ").append(m.getContent()).append("\n");
+//        }
+//
+//        // JSON 강제 포맷 요청 (기존 로직 그대로 사용 가능)
+//        String prompt = """
+//            다음 대화를 바탕으로 에피소드 제목과 본문을 JSON 형식으로 작성하세요.
+//            응답은 반드시 {"title": "...", "content": "..."} 포맷이어야 합니다.
+//            다른 설명 없이 오직 유효한 JSON 객체만 반환하세요.
+//
+//            [대화 내용]
+//            %s
+//            """.formatted(dialog.toString());
+//
+//
+//        String rawApiResponse = aiClient.generateEpisode(prompt, true);
+//
+//        String innerJsonContent = extractAssistantText(rawApiResponse); // 헬퍼 메소드 사용
+//        if (innerJsonContent == null) {
+//            throw new ApiException(ErrorCode.INVALID_FILE_FORMAT);
+//        }
+//        String cleaned = cleanInnerJsonText(innerJsonContent);
+//        ObjectMapper om = new ObjectMapper();
+//        JsonNode finalNode = om.readTree(cleaned);
+//        String title = finalNode.path("title").asText(null);
+//        String content = finalNode.path("content").asText(null);
+//
+//        // 4. 파싱된 결과를 가지고 DB에 저장하는 '트랜잭션 메소드'를 호출
+//        return saveEpisodeWithAiResult(episode, title, content);
+//
+//    }
+
     @Override
     public EpisodeResponse createEpisodeFromCurrentWindow(Episode episode, String sessionId)
             throws JsonProcessingException {
@@ -163,16 +217,14 @@ public class EpisodeServiceImpl implements EpisodeService {
             dialog.append(m.getMessageType()).append(": ").append(m.getContent()).append("\n");
         }
 
-        // JSON 강제 포맷 요청 (기존 로직 그대로 사용 가능)
-        String prompt = """
-                다음 JSON 포맷으로만 응답하세요:
-                {"title": "...", "content": "..."}
-                아래 대화를 바탕으로 에피소드 제목과 본문을 작성하세요.
+        String chapterId = session.getCurrentChapterId();
 
-                %s
-                """.formatted(dialog);
+        if (chapterId == null) {
+            // chapterId가 없는 예외적인 상황에 대한 처리
+            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE);
+        }
 
-        String rawApiResponse = aiClient.generateEpisode(prompt);
+        String rawApiResponse = aiClient.generateEpisode(chapterId, dialog.toString(), true);
 
         String innerJsonContent = extractAssistantText(rawApiResponse); // 헬퍼 메소드 사용
         if (innerJsonContent == null) {
@@ -188,9 +240,10 @@ public class EpisodeServiceImpl implements EpisodeService {
         return saveEpisodeWithAiResult(episode, title, content);
 
     }
+
+
     /**
-     * [신규] AI 결과를 DB에 저장하는 역할만 담당하는 새로운 트랜잭션 메소드
-     * 이 메소드는 매우 빠르게 실행되므로 커넥션을 오래 차지하지 않습니다.
+     * [신규] AI 결과를 DB에 저장하는 역할만 담당하는 새로운 트랜잭션 메소드 이 메소드는 매우 빠르게 실행되므로 커넥션을 오래 차지하지 않습니다.
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public EpisodeResponse saveEpisodeWithAiResult(Episode episode, String title, String content) {
@@ -212,7 +265,6 @@ public class EpisodeServiceImpl implements EpisodeService {
         );
         // save는 더티 체킹에 의해 필요 없을 수 있지만, 명시적으로 호출해도 괜찮습니다.
         episodeRepository.save(managedEpisode);
-
 
         // 세션의 다음 에피소드 시작점 업데이트 로직이 필요하다면 여기에 추가
         // ...
@@ -280,10 +332,9 @@ public class EpisodeServiceImpl implements EpisodeService {
                         t = unquoted;
                     }
                 }
-            } catch (Exception ignore) {}
+            } catch (Exception ignore) {
+            }
         }
-
-
 
         // 1) OpenAI chat 랩퍼에서 추출
         ObjectMapper om = new ObjectMapper();
@@ -359,30 +410,30 @@ public class EpisodeServiceImpl implements EpisodeService {
 
     @Override
     @Transactional
-    public EpisodeImageResponse uploadImage(Long bookId, Long episodeId, MultipartFile file, 
-                                          EpisodeImageUploadRequest request, Long memberId) {
+    public EpisodeImageResponse uploadImage(Long bookId, Long episodeId, MultipartFile file,
+                                            EpisodeImageUploadRequest request, Long memberId) {
         // 1. 책 및 에피소드 존재 확인
         Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
-        
+
         // 2. 파일 업로드
         String imageUrl = fileStorageService.store(file, "episode");
-        
+
         // 3. 순서 번호 결정 (요청에 없으면 자동 부여)
         Integer orderNo = request.getOrderNo();
         if (orderNo == null) {
             Integer maxOrder = episodeImageRepository.findMaxOrderNoByEpisodeId(episodeId);
             orderNo = (maxOrder == null ? 0 : maxOrder) + 1;
         }
-        
+
         // 4. 이미지 ID 생성 (타임스탬프 기반)
         Long imageId = System.currentTimeMillis();
-        
+
         // 5. 이미지 엔티티 생성 및 저장
         EpisodeImage image = EpisodeImage.create(
                 episode, imageId, imageUrl, orderNo, request.getDescription());
-        
+
         EpisodeImage savedImage = episodeImageRepository.save(image);
-        
+
         return EpisodeImageResponse.from(savedImage);
     }
 
@@ -391,11 +442,11 @@ public class EpisodeServiceImpl implements EpisodeService {
     public List<EpisodeImageResponse> getImages(Long bookId, Long episodeId, Long memberId) {
         // 1. 책 및 에피소드 존재 확인
         Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
-        
+
         // 2. 이미지 목록 조회
         List<EpisodeImage> images = episodeImageRepository
                 .findByEpisode_EpisodeIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(episodeId);
-        
+
         return images.stream()
                 .map(EpisodeImageResponse::from)
                 .collect(Collectors.toList());
@@ -406,12 +457,12 @@ public class EpisodeServiceImpl implements EpisodeService {
     public void deleteImage(Long bookId, Long episodeId, Long imageId, Long memberId) {
         // 1. 책 및 에피소드 존재 확인
         Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
-        
+
         // 2. 이미지 조회 및 삭제
         EpisodeImageId imageEntityId = EpisodeImageId.of(episodeId, imageId);
         EpisodeImage image = episodeImageRepository.findByIdAndDeletedAtIsNull(imageEntityId)
                 .orElseThrow(() -> new ApiException(ErrorCode.IMAGE_NOT_FOUND));
-        
+
         // 3. 소프트 삭제
         image.softDelete();
     }

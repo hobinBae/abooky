@@ -116,28 +116,82 @@ public class OpenAiClient implements AiClient {
     }
 
 
-    @Override
-    public String generateEpisode(String conversationHistory) {
-        ChatMessage system = ChatMessage.of("system", props.getEpisodeGenerationSystem());
-        ChatMessage user = ChatMessage.of("user",
-                String.format(props.getEpisodeGenerationTemplate(), conversationHistory));
+//    @Override
+//    public String generateEpisode(String prompt, boolean jsonMode) {
+//        ChatMessage system = ChatMessage.of("system", props.getEpisodeGenerationSystem());
+//        ChatMessage user = ChatMessage.of("user", prompt); // EpisodeServiceImpl에서 이미 포맷팅된 프롬프트를 받음
+//
+//        // 1. 요청 빌더를 먼저 생성합니다.
+//        ChatCompletionRequest.ChatCompletionRequestBuilder requestBuilder = ChatCompletionRequest.builder()
+//                .model(props.getModel())
+//                .messages(List.of(system, user))
+//                .maxTokens(1500)
+//                .temperature(0.8);
+//
+//        // 2. [핵심] jsonMode가 true일 때만 responseFormat을 설정합니다.
+//        if (jsonMode) {
+//            log.info("JSON 모드를 활성화하여 API를 호출합니다.");
+//            requestBuilder.responseFormat(new ChatCompletionRequest.ResponseFormat("json_object"));
+//        }
+//
+//        // 3. 최종 요청 객체를 빌드합니다.
+//        ChatCompletionRequest request = requestBuilder.build();
+//
+//        // 4. API 호출 및 결과 반환 (기존과 동일)
+//        String episode = openAiService.createChatCompletion(request)
+//                .getChoices()
+//                .get(0)
+//                .getMessage()
+//                .getContent()
+//                .trim();
+//
+//        return episode.isBlank() ? null : episode;
+//    }
 
-        ChatCompletionRequest request = ChatCompletionRequest.builder()
-                .model(props.getModel())
-                .messages(List.of(system, user))
-                .maxTokens(1500) // 에피소드는 더 긴 텍스트 필요
-                .temperature(0.8) // 창의적인 글쓰기를 위해 temperature 높임
-                .build();
+@Override
+public String generateEpisode(String chapterId, String dialog, boolean jsonMode) {
+    // 1. [핵심] chapterId를 이용해 챕터별 맞춤 프롬프트를 가져옵니다.
+    OpenAiProperties.Prompt episodePrompt = props.getEpisodePrompts().get(chapterId);
 
-        String episode = openAiService.createChatCompletion(request)
-                .getChoices()
-                .get(0)
-                .getMessage()
-                .getContent()
-                .trim();
-
-        return episode.isBlank() ? null : episode;
+    // 만약 해당 chapterId의 프롬프트가 없으면, 가장 일반적인 chapter1 프롬프트를 기본값으로 사용합니다.
+    if (episodePrompt == null) {
+        log.warn("'{}'에 해당하는 에피소드 프롬프트가 없어 기본(chapter1) 프롬프트로 대체합니다.", chapterId);
+        episodePrompt = props.getEpisodePrompts().get("chapter1");
+        if (episodePrompt == null) { // chapter1마저도 없는 비상상황 대비
+            throw new IllegalStateException("기본 에피소드 생성 프롬프트(chapter1)를 찾을 수 없습니다.");
+        }
     }
+
+    // 2. 가져온 프롬프트를 사용하여 시스템 메시지와 사용자 메시지를 구성합니다.
+    ChatMessage system = ChatMessage.of("system", episodePrompt.system());
+    // commonUserTemplate에 대화 내용을 삽입합니다.
+    ChatMessage user = ChatMessage.of("user", String.format(episodePrompt.userTemplate(), dialog));
+
+    // 3. API 요청 빌더 생성 (기존 로직과 유사)
+    ChatCompletionRequest.ChatCompletionRequestBuilder requestBuilder = ChatCompletionRequest.builder()
+            .model(props.getModel())
+            .messages(List.of(system, user))
+            .maxTokens(1500) // 에피소드는 충분한 길이 필요
+            .temperature(0.8); // 창의성을 위해 약간 높게 설정
+
+    // 4. JSON 모드 설정 (기존과 동일)
+    if (jsonMode) {
+        log.info("JSON 모드를 활성화하여 API를 호출합니다. (Chapter: {})", chapterId);
+        requestBuilder.responseFormat(new ChatCompletionRequest.ResponseFormat("json_object"));
+    }
+
+    ChatCompletionRequest request = requestBuilder.build();
+
+    // 5. API 호출 및 결과 반환 (기존과 동일)
+    String episode = openAiService.createChatCompletion(request)
+            .getChoices()
+            .get(0)
+            .getMessage()
+            .getContent()
+            .trim();
+
+    return episode.isBlank() ? null : episode;
+}
 
     @Override
     public String analyzeAnsweredQuestions(String userAnswer, String remainingQuestions) {
