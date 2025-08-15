@@ -231,9 +231,9 @@ import { useAuthStore } from '@/stores/auth';
 import CustomAlert from '@/components/common/CustomAlert.vue'; // [추가] CustomAlert 컴포넌트 가져오기
 
 // --- 인터페이스 정의 ---
-interface Story { id?: number; title: string; content: string; activeSessionId?: string | null; }
+interface Story { id?: number; title: string; content: string; activeSessionId?: string | null; imageUrl?: string; imageId?: number; }
 interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; completed?: boolean; }
-interface ApiEpisode { episodeId: number; title: string; content: string; activeSessionId?: string | null; }
+interface ApiEpisode { episodeId: number; title: string; content: string; activeSessionId?: string | null; imageUrl?: string; imageId?: number; }
 
 type QuestionType = 'MAIN' | 'FOLLOWUP' | 'CHAPTER_COMPLETE' | string;
 
@@ -546,7 +546,9 @@ async function loadBookForEditing(bookId: string) {
         id: e.episodeId,
         title: e.title,
         content: e.content,
-        activeSessionId: e.activeSessionId
+        activeSessionId: e.activeSessionId,
+        imageUrl: e.imageUrl,
+        imageId: e.imageId
       })) || [],
       tags: bookData.tags || [],
       categoryId: bookData.categoryId,
@@ -630,6 +632,21 @@ async function deleteStory(story: Story, index: number) {
   }
 }
 
+async function fetchEpisodeImages(episodeId: number) {
+  if (!currentBook.value?.id) return;
+  try {
+    const response = await apiClient.get(`/api/v1/books/${currentBook.value.id}/episodes/${episodeId}/images`);
+    if (response.data.data && response.data.data.length > 0) {
+      const story = currentBook.value.stories?.find(s => s.id === episodeId);
+      if (story) {
+        story.imageUrl = response.data.data[0].imageUrl;
+        story.imageId = response.data.data[0].imageId;
+      }
+    }
+  } catch (error) {
+    console.error(`${episodeId}번 이야기의 이미지 정보를 불러오는데 실패했습니다.`, error);
+  }
+}
 
 async function addStory() {
   if (!currentBook.value?.id) return;
@@ -674,6 +691,9 @@ async function selectStory(index: number) {
   isContentChanged.value = false;
 
   const story = currentBook.value.stories?.[index];
+  if (story && !story.imageUrl) {
+    await fetchEpisodeImages(story.id!);
+  }
 
   console.log('✅ 선택된 스토리:', {
     id: story?.id,
@@ -1410,33 +1430,65 @@ function triggerImageUpload() {
 }
 
 // [추가] 파일이 선택되었을 때 처리하는 함수
-function handleStoryImageUpload(event: Event) {
+async function handleStoryImageUpload(event: Event) {
   const target = event.target as HTMLInputElement;
-  if (target.files && target.files[0] && currentStory.value) {
+  if (target.files && target.files[0] && currentStory.value && currentBook.value?.id) {
     const file = target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
 
-    // 여기에서 실제 서버로 파일 업로드 API를 호출해야 합니다.
-    // 지금은 미리보기를 위해 임시 URL을 생성하여 사용합니다.
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    try {
+      const response = await apiClient.post(
+        `/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}/images`,
+        formData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
       if (currentStory.value) {
-        currentStory.value.imageUrl = e.target?.result as string;
+        currentStory.value.imageUrl = response.data.data.imageUrl;
       }
-    };
-    reader.readAsDataURL(file);
 
-    customAlertRef.value?.showAlert({
-      title: '업로드 완료',
-      message: `'${file.name}' 이미지가 첨부되었습니다.`
-    });
+      customAlertRef.value?.showAlert({
+        title: '업로드 완료',
+        message: `'${file.name}' 이미지가 성공적으로 첨부되었습니다.`
+      });
+    } catch (error) {
+      console.error('이미지 업로드 실패:', error);
+      customAlertRef.value?.showAlert({
+        title: '업로드 실패',
+        message: '이미지 업로드 중 오류가 발생했습니다.'
+      });
+    }
   }
 }
 // [추가] 이야기 이미지를 삭제하는 함수
-function removeStoryImage() {
-  if (currentStory.value) {
-    currentStory.value.imageUrl = undefined;
-    // 실제 서버에 저장된 이미지를 삭제하는 API 호출 로직도
-    // 나중에 이 곳에 추가해야 합니다.
+async function removeStoryImage() {
+  if (currentStory.value && currentBook.value?.id && currentStory.value.id && currentStory.value.imageId) {
+    if (!confirm('정말로 이미지를 삭제하시겠습니까?')) return;
+
+    try {
+      await apiClient.delete(
+        `/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}/images/${currentStory.value.imageId}`
+      );
+
+      currentStory.value.imageUrl = undefined;
+      currentStory.value.imageId = undefined;
+
+      customAlertRef.value?.showAlert({
+        title: '삭제 완료',
+        message: '이미지가 성공적으로 삭제되었습니다.'
+      });
+    } catch (error) {
+      console.error('이미지 삭제 실패:', error);
+      customAlertRef.value?.showAlert({
+        title: '삭제 실패',
+        message: '이미지 삭제 중 오류가 발생했습니다.'
+      });
+    }
   }
 }
 </script>
