@@ -181,6 +181,24 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+  
+  # 데이터베이스 관리 도구 (개발/관리용) - 로컬호스트에서만 접근
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: autobiography-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: ssafy
+      PMA_PASSWORD: 959697989900
+      PMA_ABSOLUTE_URI: https://i13c203.p.ssafy.io/phpmyadmin/
+    ports:
+      - "127.0.0.1:8082:80"  # 🔒 로컬호스트에서만 접근 가능
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - app-network
 
 volumes:
   mysql-data:
