@@ -1,39 +1,73 @@
 <template>
-  <div class="book-editor-page">
+  <div class="groupbook-editor-page">
     <CustomAlert ref="customAlertRef" />
 
-    <input type="file" ref="storyImageInput" @change="handleStoryImageUpload" accept="image/*" style="display: none;">
+    <input type="file" ref="episodeImageInput" @change="handleEpisodeImageUpload" accept="image/*" style="display: none;">
+    
+    <!-- 발행 섹션 -->
+    <section v-if="creationStep === 'publishing'" class="publish-section">
+      <div class="publish-header">
+        <h2 class="section-title">그룹책 발행하기</h2>
+      </div>
+      <p class="section-subtitle">마지막으로 그룹책의 정보를 확인하고 발행해주세요.</p>
+      <div class="publish-form">
+        <div class="form-group">
+          <label for="final-group-book-title">제목 최종 수정</label>
+          <input id="final-group-book-title" type="text" v-model="currentGroupBook.title" 
+            class="form-control title-input-highlight" placeholder="그룹책 제목을 입력해주세요">
+        </div>
+        <div class="form-group">
+          <label for="final-group-book-summary">그룹책 소개</label>
+          <textarea id="final-group-book-summary" v-model="currentGroupBook.summary" 
+            class="form-control" rows="5" placeholder="그룹책 소개를 입력해주세요"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="group-book-tags">태그 (최대 5개)</label>
+          <div class="tag-container">
+            <div class="tag-list">
+              <span v-for="(tag, index) in groupBookTags" :key="index" class="tag-item">
+                {{ tag }}
+                <button @click="removeTag(index)" class="btn-remove-tag">×</button>
+              </span>
+            </div>
+            <input id="group-book-tags" type="text" v-model="tagInput" @keydown.enter.prevent="addTag"
+              placeholder="태그 입력 후 Enter" class="form-control" :disabled="groupBookTags.length >= 5">
+          </div>
+          <small class="form-text">그룹책을 찾기 쉽게 도와주는 키워드를 입력해주세요.</small>
+        </div>
+        <div class="form-actions">
+          <button @click="closePublishModal" class="btn btn-primary btn-lg">
+            <i class="bi bi-arrow-left"></i> 뒤로가기
+          </button>
+          <button @click="confirmPublish" class="btn btn-primary btn-lg">
+            그룹책 발행하기 <i class="bi bi-check-circle"></i>
+          </button>
+        </div>
+      </div>
+    </section>
+    
     <section v-if="creationStep === 'setup'" class="setup-section">
-      <h2 class="section-title">새로운 책 만들기</h2>
-      <p class="section-subtitle">당신의 이야기를 시작하기 위한 기본 정보를 입력해주세요.</p>
+      <h2 class="section-title">새로운 그룹책 만들기</h2>
+      <p class="section-subtitle">그룹의 추억을 함께 기록하기 위한 기본 정보를 입력해주세요.</p>
 
       <div class="setup-form">
         <div class="form-group">
           <label for="book-title">책 제목</label>
-          <input id="book-title" type="text" v-model="currentBook.title" placeholder="매력적인 책 제목을 지어주세요."
+          <input id="book-title" type="text" v-model="currentGroupBook.title" placeholder="그룹의 추억을 담을 제목을 지어주세요."
             class="form-control">
         </div>
         <div class="form-group">
-          <label for="book-summary">줄거리 / 책 소개</label>
-          <textarea id="book-summary" v-model="currentBook.summary" placeholder="독자들의 흥미를 유발할만한 간단한 소개글을 작성해보세요."
+          <label for="book-summary">책 소개</label>
+          <textarea id="book-summary" v-model="currentGroupBook.summary" placeholder="이 그룹책에 어떤 추억들을 기록할지 간단히 소개해보세요."
             class="form-control" rows="4"></textarea>
         </div>
         <div class="form-group">
-          <label>그룹 종류 선택</label>
+          <label>그룹 타입 선택</label>
           <div class="type-selection">
-            <button v-for="groupType in groupTypes" :key="groupType.id" @click="currentBook.groupType = groupType.id"
-              :class="{ active: currentBook.groupType === groupType.id }">
+            <button v-for="groupType in groupTypes" :key="groupType.id" @click="currentGroupBook.groupType = groupType.id"
+              :class="{ active: currentGroupBook.groupType === groupType.id }">
               <i :class="groupType.icon"></i>
               <span>{{ groupType.name }}</span>
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>장르 선택</label>
-          <div class="genre-toggle">
-            <button v-for="category in categories" :key="category.id" @click="selectCategory(category.id)"
-              :class="{ active: selectedCategoryId === category.id }">
-              {{ category.name }}
             </button>
           </div>
         </div>
@@ -47,55 +81,55 @@
 
     <section v-else-if="creationStep === 'editing'" class="workspace-section">
       <div class="workspace-header">
-        <span class="editor-title-label">책 제목 </span>
-        <input type="text" v-model="currentBook.title" class="book-title-input title-input-highlight">
+        <span class="editor-title-label"> 책 제목 </span>
+        <input type="text" v-model="currentGroupBook.title" class="book-title-input title-input-highlight">
+        <div class="template-indicator">
+          <span class="current-template">{{ getTemplateKoreanName(currentTemplate) }}</span>
+        </div>
       </div>
 
       <div class="workspace-main">
-
         <div class="left-sidebar-content">
-
           <div class="story-list-container">
             <div class="story-list-header">
               <h3 class="story-list-title">목차</h3>
-              <button @click="addStory" class="btn-add-story" title="이야기 추가"><i class="bi bi-plus-lg"></i></button>
+              <button @click="addEpisode" class="btn-add-episode" title="이야기 추가"><i class="bi bi-plus-lg"></i></button>
             </div>
             <ul class="story-list">
-              <li v-for="(story, index) in paginatedStories" :key="story.id ?? ('tmp-' + index)"
-                @click="selectStory((storiesCurrentPage - 1) * storiesPerPage + index)"
-                :class="{ active: ((storiesCurrentPage - 1) * storiesPerPage + index) === currentStoryIndex }">
-                <span>{{ story.title }}</span>
-                <button @click.stop="deleteStory(story, (storiesCurrentPage - 1) * storiesPerPage + index)"
-                  class="btn-delete-story">×</button>
+              <li v-for="(episode, index) in paginatedEpisodes" :key="episode.id ?? ('tmp-' + index)"
+                @click="selectEpisode((episodesCurrentPage - 1) * episodesPerPage + index)"
+                :class="{ active: ((episodesCurrentPage - 1) * episodesPerPage + index) === currentEpisodeIndex }">
+                <span>{{ episode.title }}</span>
+                <!-- <span class="template-badge" :class="episode.template?.toLowerCase()">{{ getTemplateKoreanName(episode.template) }}</span> -->
+                <button @click.stop="deleteEpisode(episode, (episodesCurrentPage - 1) * episodesPerPage + index)"
+                  class="btn-delete-episode">×</button>
               </li>
             </ul>
-            <div v-if="totalStoryPages > 1" class="story-list-pagination">
-              <button @click="prevStoryPage" :disabled="storiesCurrentPage === 1" class="btn-pagination">&lt;</button>
-              <span>{{ storiesCurrentPage }} / {{ totalStoryPages }}</span>
-              <button @click="nextStoryPage" :disabled="storiesCurrentPage === totalStoryPages"
+            <div v-if="totalEpisodePages > 1" class="story-list-pagination">
+              <button @click="prevEpisodePage" :disabled="episodesCurrentPage === 1" class="btn-pagination">&lt;</button>
+              <span>{{ episodesCurrentPage }} / {{ totalEpisodePages }}</span>
+              <button @click="nextEpisodePage" :disabled="episodesCurrentPage === totalEpisodePages"
                 class="btn-pagination">&gt;</button>
             </div>
           </div>
 
           <div class="story-image-preview-container">
-            <div v-if="currentStory?.imageUrl" class="image-preview-box">
-
-              <button @click="removeStoryImage" class="btn-remove-image" title="이미지 삭제">×</button>
-
-              <img :src="currentStory.imageUrl" alt="이야기 이미지 미리보기">
+            <div v-if="currentEpisode?.imageUrl" class="image-preview-box">
+              <button @click="removeEpisodeImage" class="btn-remove-image" title="사진 삭제">×</button>
+              <img :src="currentEpisode.imageUrl" alt="이야기 사진 미리보기">
             </div>
             <div v-else class="image-preview-placeholder">
               <i class="bi bi-card-image"></i>
-              <span>이야기에 첨부된 이미지가 없습니다.</span>
+              <span>이야기에 첨부된 사진이 없습니다.</span>
             </div>
           </div>
         </div>
 
-        <div class="editor-area" v-if="currentStory">
+        <div class="editor-area" v-if="currentEpisode">
           <div class="editor-main">
             <div class="editor-title-wrapper">
               <span class="editor-title-label">이야기 제목</span>
-              <input type="text" v-model="currentStory.title" placeholder="이야기 제목"
+              <input type="text" v-model="currentEpisode.title" placeholder="이야기 제목"
                 class="story-title-input title-input-highlight">
             </div>
             <div class="ai-question-area">
@@ -103,47 +137,55 @@
               <p v-else><i class="bi bi-robot"></i>AI 인터뷰 시작을 누르고 질문을 받아보세요.</p>
             </div>
             <div class="story-content-wrapper">
-              <textarea v-model="currentStory.content" class="story-content-editor"
-                placeholder="이곳에 이야기를 적거나 음성 녹음 시작을 누르고 말해 보세요." maxlength="5000"></textarea>
+              <textarea v-model="currentEpisode.content" class="story-content-editor"
+                placeholder="이곳에 답변을 적어보세요. AI가 질문에 따라 내용을 정리해드립니다." maxlength="5000"></textarea>
               <div class="char-counter">
-                {{ currentStory.content.length }} / 5000
+                {{ currentEpisode.content.length }} / 5000
               </div>
             </div>
-            <div v-if="isRecording" class="audio-visualizer-container">
-              <canvas ref="visualizerCanvas"></canvas>
-            </div>
-            <div v-if="correctedContent" class="correction-panel">
-              <h4>AI 교정 제안</h4>
-              <p>{{ correctedContent }}</p>
+            <div v-if="isTemplateCompleted" class="correction-panel">
               <div class="correction-actions">
-                <button @click="applyCorrection" class="btn btn-primary">편집 내용으로 교체</button>
-                <button @click="cancelCorrection" class="btn btn-primary">교정 취소</button>
+                <i class="bi bi-check-circle-fill text-success"></i>
+                <h4>" {{ getTemplateKoreanName(currentTemplate) }} " 주제 완료!</h4>
+              </div>
+              <p class="correction-actions">이 주제의 모든 질문이 완료되었습니다. 이야기를 저장하고 다음 단계로 진행해보세요.</p>
+              <div v-if="showNextEpisodeGuide" class="next-episode-guide">
+                <p class="guide-text">다음 주제로 진행할 준비가 되었습니다!</p>
+                <button @click="createNextEpisode" class="btn btn-primary">
+                  <i class="bi bi-plus-circle"></i> 새 이야기 생성
+                </button>
               </div>
             </div>
           </div>
-          <div class="editor-sidebar" :ref="el => { sidebarButtons = (el as any)?.children }">
-            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> <span>AI 인터뷰
-                시작</span></button>
-            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i
-                class="bi bi-soundwave"></i><span>음성 답변 시작</span></button>
-            <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
-                class="bi bi-stop-circle-fill"></i> <span>음성 답변 완료</span></button>
-            <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged"
-              class="btn-sidebar"><i class="bi bi-check-circle"></i> <span>질문 답변완료</span></button>
-            <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
-                class="bi bi-skip-end-circle"></i> <span>질문 건너뛰기</span></button>
-            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> <span>AI 자동 교정</span></button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> <span>이야기 저장</span></button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-universal-access"></i> <span>배호빈
-                버튼</span></button>
-            <button @click="triggerImageUpload" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진
-                첨부</span></button>
+          <div class="editor-sidebar">
+            <button @click="startAiInterview" class="btn-sidebar">
+              <i class="bi bi-mic"></i> 
+              <span>AI 인터뷰 시작</span>
+            </button>
+            <button @click="submitAnswer" :disabled="!isInterviewStarted || !isAnswerReady" class="btn-sidebar">
+              <i class="bi bi-check-circle"></i> 
+              <span>답변 제출</span>
+            </button>
+            <button @click="requestNextQuestion" :disabled="!isInterviewStarted" class="btn-sidebar">
+              <i class="bi bi-skip-end-circle"></i> 
+              <span>다음 질문 요청</span>
+            </button>
+            <button @click="saveEpisode" class="btn-sidebar">
+              <i class="bi bi-save"></i> 
+              <span>이야기 저장</span>
+            </button>
+            <button @click="triggerImageUpload" class="btn-sidebar">
+              <i class="bi bi-image"></i> 
+              <span>사진 첨부</span>
+            </button>
             <div class="sidebar-action-group">
-              <button @click="saveDraft" class="btn-sidebar btn-outline-sidebar">
-                <i class="bi bi-cloud-arrow-down"></i> <span>임시 저장 (나가기)</span>
+              <button @click="endSession" class="btn-sidebar btn-primary-sidebar">
+                <i class="bi bi-door-open"></i> 
+                <span> 나가기 </span>
               </button>
-              <button @click="moveToPublishingStep" class="btn-sidebar btn-primary-sidebar">
-                <i class="bi bi-send-check"></i> <span>발행하기</span>
+              <button @click="publishGroupBook" class="btn-sidebar btn-primary-sidebar">
+                <i class="bi bi-send"></i> 
+                <span>발행하기</span>
               </button>
             </div>
           </div>
@@ -152,733 +194,391 @@
           <i class="bi bi-journal-plus"></i>
           <p>왼쪽에서 이야기를 선택하거나<br>새 이야기를 추가해주세요.</p>
         </div>
-
-      </div>
-    </section>
-
-    <section v-else-if="creationStep === 'publishing'" class="publish-section">
-      <div class="publish-header">
-        <h2 class="section-title">책 발행하기</h2>
-      </div>
-      <p class="section-subtitle">마지막으로 책의 정보를 확인하고, 멋진 표지를 선택해주세요.</p>
-
-      <div class="publish-form">
-        <div class="form-group">
-          <label for="final-book-title">제목 최종 수정</label>
-          <input id="final-book-title" type="text" v-model="currentBook.title"
-            class="form-control title-input-highlight">
-        </div>
-        <div class="form-group">
-          <label for="final-book-summary">줄거리 / 책 소개</label>
-          <textarea id="final-book-summary" v-model="currentBook.summary" class="form-control" rows="5"></textarea>
-        </div>
-        <div class="form-group">
-          <label>카테고리 선택</label>
-          <div class="genre-toggle">
-            <button v-for="category in categories" :key="category.id" @click="selectCategory(category.id)"
-              :class="{ active: selectedCategoryId === category.id }">
-              {{ category.name }}
-            </button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="book-tags">태그</label>
-          <div class="tag-container">
-            <div class="tag-list">
-              <span v-for="(tag, index) in tags" :key="index" class="tag-item">
-                {{ tag }}
-                <button @click="removeTag(index)" class="btn-remove-tag">×</button>
-              </span>
-            </div>
-            <input id="book-tags" type="text" v-model="tagInput" @keydown.enter.prevent="addTag"
-              placeholder="태그 입력 후 Enter" class="form-control" :disabled="tags.length >= 5">
-          </div>
-        </div>
-        <div class="form-group">
-          <label>표지 이미지 선택</label>
-          <div class="cover-selection">
-            <div v-for="(cover, index) in coverOptions" :key="index" class="cover-option"
-              :class="{ active: selectedCover === cover }" @click="selectedCover = cover">
-              <img :src="cover" alt="Book Cover">
-            </div>
-          </div>
-        </div>
-        <div class="form-group">
-          <label for="cover-upload">또는, 직접 표지 첨부</label>
-          <input id="cover-upload" type="file" @change="handleCoverUpload" class="form-control">
-        </div>
-        <div class="form-actions">
-          <button @click="creationStep = 'editing'" class="btn btn-primary btn-lg">
-            <i class="bi bi-arrow-left"></i> 뒤로가기
-          </button>
-          <button @click="finalizePublicationAsCopy" class="btn btn-primary btn-lg">
-            복사본으로 발행 <i class="bi bi-files"></i>
-          </button>
-          <button @click="finalizePublication" class="btn btn-primary btn-lg">
-            책 발행하기 <i class="bi bi-check-circle"></i>
-          </button>
-        </div>
       </div>
     </section>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount, onUpdated } from 'vue';
+import { ref, onMounted, computed, watch, nextTick, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute, onBeforeRouteLeave } from 'vue-router';
-import apiClient from '@/api'; // API 클라이언트 임포트
-import { groupService } from '@/services/groupService';
 import { useAuthStore } from '@/stores/auth';
-import CustomAlert from '@/components/common/CustomAlert.vue'; // [추가] CustomAlert 컴포넌트 가져오기
+import CustomAlert from '@/components/common/CustomAlert.vue';
+import { groupBookService } from '@/services/groupBookService';
 
 // --- 인터페이스 정의 ---
-interface Story { id?: number; title: string; content: string; activeSessionId?: string | null; imageUrl?: string; imageId?: number; }
-interface Book { id: string; title: string; summary: string; type: string; authorId: string; isPublished: boolean; stories: Story[]; createdAt: Date; updatedAt: Date; tags?: string[]; completed?: boolean; }
-interface ApiEpisode { episodeId: number; title: string; content: string; activeSessionId?: string | null; imageUrl?: string; imageId?: number; }
+interface Episode { 
+  id?: number; 
+  title: string; 
+  content: string; 
+  template?: string;
+  imageUrl?: string; 
+  imageId?: number; 
+}
 
-type QuestionType = 'MAIN' | 'FOLLOWUP' | 'CHAPTER_COMPLETE' | string;
-
+interface GroupBook { 
+  id?: number; 
+  groupId: number;
+  title: string; 
+  summary: string; 
+  groupType: string;
+  episodes: Episode[]; 
+  createdAt?: Date; 
+  updatedAt?: Date; 
+}
 
 interface QuestionEventData {
   text: string;
-  questionType?: QuestionType;
+  currentChapter?: string;
+  currentStage?: string;
   isLastQuestion?: boolean;
-}
-
-interface PartialTranscriptEventData {
-  messageId: number;     // 서버 계약에 맞게 number/string 여부 확인하세요
-  text: string;
-}
-
-interface EpisodeEventData {
-  episodeId: number;
-  title: string;
-  content: string;
+  isTemplateCompleted?: boolean;
 }
 
 // --- 정적 데이터 ---
-const groupTypes = [{ id: 'family', name: '가족', icon: 'bi bi-house-heart' }, { id: 'friends', name: '친구', icon: 'bi bi-people' }, { id: 'couple', name: '연인', icon: 'bi bi-heart' }];
-const categories = [
-  { id: 1, name: '자서전' }, { id: 2, name: '일기' }, { id: 3, name: '소설/시' },
-  { id: 4, name: '에세이' }, { id: 5, name: '자기계발' }, { id: 6, name: '역사' },
-  { id: 7, name: '경제/경영' }, { id: 8, name: '사회/정치' }, { id: 9, name: '청소년' },
-  { id: 10, name: '어린이/동화' }, { id: 11, name: '문화/예술' }, { id: 12, name: '종교' },
-  { id: 13, name: '여행' }, { id: 14, name: '스포츠' }
+const groupTypes = [
+  { id: 'FAMILY', name: '가족', icon: 'bi bi-house-heart' },
+  { id: 'FRIENDS', name: '친구들', icon: 'bi bi-people' },
+  { id: 'COUPLE', name: '커플', icon: 'bi bi-heart' },
+  { id: 'TEAM', name: '팀', icon: 'bi bi-briefcase' },
+  { id: 'OTHER', name: '기타', icon: 'bi bi-collection' }
 ];
-const coverOptions = ['https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_1.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_2.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_3.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_4.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_5.jpg',];
 
-// --- 라우터 및 라우트 ---
+// --- 라우터 및 상태 ---
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
-let connectTimer: number | null = null;
-// [추가] CustomAlert 컴포넌트의 참조를 저장할 ref 생성
 const customAlertRef = ref<InstanceType<typeof CustomAlert> | null>(null);
+
 // --- 컴포넌트 상태 ---
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
-const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null });
-const selectedCategoryId = ref<number | null>(null);
-const currentStoryIndex = ref(-1);
+const currentGroupBook = ref<Partial<GroupBook>>({ 
+  title: '', 
+  summary: '', 
+  groupType: 'FAMILY',
+  episodes: []
+});
+
+const currentEpisodeIndex = ref(-1);
 const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');
 const isInterviewStarted = ref(false);
-const isRecording = ref(false);
-const isContentChanged = ref(false);
-const correctedContent = ref<string | null>(null);
-const tagInput = ref(''); // 현재 입력 중인 태그
-const tags = ref<string[]>([]); // 등록된 태그 목록
 const isSavedOrPublished = ref(false);
-const episodeJustApplied = ref(false);
-//상태 추가
+const currentTemplate = ref('INTRO');
+
+// 템플릿 완료 관련 상태
+const isTemplateCompleted = ref(false);
+const allAnswersText = ref('');
+const showNextEpisodeGuide = ref(false);
+
+// 임시 답변 저장
+const tempAnswers = ref<string[]>([]);
+
+// SSE 관련 상태
 const currentSessionId = ref<string | null>(null);
-//메시지 아이디 저장
-const currentAnswerMessageId = ref<number | null>(null);
-// SSE EventSource 객체를 저장할 변수
 let eventSource: EventSource | null = null;
-// SSE 연결 상태 추적
 const isConnecting = ref(false);
 const isConnected = ref(false);
 
-const selectedCover = ref(coverOptions[0]);
-const uploadedCoverFile = ref<File | null>(null);
-const sidebarButtons = ref<HTMLButtonElement[]>([]);
+const episodeImageInput = ref<HTMLInputElement | null>(null);
 
-const isCorrecting = ref(false);
+// --- 발행 관련 상태 ---
+const groupBookTags = ref<string[]>([]);
+const tagInput = ref('');
 
-const storyImageInput = ref<HTMLInputElement | null>(null);
-
-// --- [추가] 목차 페이지네이션 상태 ---
-const storiesCurrentPage = ref(1);
-const storiesPerPage = 5; // 페이지 당 5개의 이야기를 표시
-// --- 오디오 녹음 상태 ---
-const visualizerCanvas = ref<HTMLCanvasElement | null>(null);
-let audioContext: AudioContext | null = null;
-let analyser: AnalyserNode | null = null;
-let animationFrameId: number | null = null;
-let mediaStream: MediaStream | null = null;
-
-let audioChunks: Blob[] = [];
-let mediaRecorder: MediaRecorder | null = null;
+// --- 페이지네이션 상태 ---
+const episodesCurrentPage = ref(1);
+const episodesPerPage = 5;
 
 // --- 계산된 속성 ---
-const currentStory = computed(() => {
-  if (currentBook.value.stories && currentStoryIndex.value > -1 && currentBook.value.stories[currentStoryIndex.value]) {
-    return currentBook.value.stories[currentStoryIndex.value];
+const currentEpisode = computed(() => {
+  if (currentGroupBook.value.episodes && currentEpisodeIndex.value > -1 && currentGroupBook.value.episodes[currentEpisodeIndex.value]) {
+    return currentGroupBook.value.episodes[currentEpisodeIndex.value];
   }
   return null;
 });
 
+const totalEpisodePages = computed(() => {
+  const totalEpisodes = currentGroupBook.value.episodes?.length || 0;
+  if (totalEpisodes === 0) return 1;
+  return Math.ceil(totalEpisodes / episodesPerPage);
+});
+
+const paginatedEpisodes = computed(() => {
+  const episodes = currentGroupBook.value.episodes || [];
+  const start = (episodesCurrentPage.value - 1) * episodesPerPage;
+  const end = start + episodesPerPage;
+  return episodes.slice(start, end);
+});
+
+const isAnswerReady = computed(() => {
+  return currentEpisode.value?.content?.trim().length > 0;
+});
 
 // --- 함수 ---
-
-// 단계 1: 설정
-function selectCategory(categoryId: number) {
-  selectedCategoryId.value = categoryId;
-  currentBook.value.categoryId = categoryId;
+function getTemplateKoreanName(template?: string): string {
+  const templateNames: Record<string, string> = {
+    'INTRO': '소개',
+    'STORY': '이야기',
+    'REFLECTION': '회상',
+    'FUTURE': '미래'
+  };
+  return templateNames[template || 'INTRO'] || '소개';
 }
 
 async function moveToEditingStep() {
-  if (!currentBook.value.title) {
+  if (!currentGroupBook.value.title) {
     customAlertRef.value?.showAlert({
       title: '입력 필요',
-      message: '책 제목을 입력해주세요.'
-    });
-    return;
-  }
-  if (!selectedCategoryId.value) {
-    customAlertRef.value?.showAlert({
-      title: '선택 필요',
-      message: '장르를 선택해 주세요.'
+      message: '그룹북 제목을 입력해주세요.'
     });
     return;
   }
 
-  const groupId = route.params.groupId as string;
-  if (!groupId) {
+  const groupId = parseInt((route.query.groupId || route.params.groupId) as string);
+  if (!groupId || isNaN(groupId)) {
     customAlertRef.value?.showAlert({
       title: '오류 발생',
-      message: '그룹 ID를 찾을 수 없습니다.'
+      message: '그룹 정보를 찾을 수 없습니다.'
     });
     return;
   }
 
-  const bookData = {
-    title: currentBook.value.title,
-    summary: currentBook.value.summary || '',
-    categoryId: selectedCategoryId.value,
+  const groupBookData = {
+    title: currentGroupBook.value.title?.trim(),
+    summary: currentGroupBook.value.summary?.trim() || undefined,
+    groupType: currentGroupBook.value.groupType
   };
 
   try {
-    const response = await groupService.createGroupBook(groupId, bookData);
-    const newBook = response.data;
-    currentBook.value.id = newBook.groupBookId;
-    currentBook.value.title = newBook.title;
-    currentBook.value.summary = newBook.summary;
-    currentBook.value.stories = newBook.episodes || [];
-
-    creationStep.value = 'editing';
-    // PDF 동작 흐름에 따라, 사용자가 '+' 버튼을 눌러야 첫 에피소드가 생성됩니다.
-  } catch (error) {
-    console.error('그룹 책 생성 오류:', error);
-    customAlertRef.value?.showAlert({
-      title: '오류 발생',
-      message: '그룹 책 생성에 실패했습니다.'
-    });
-  }
-}
-
-// 단계 2: 편집
-async function startRecording() {
-  if (!isInterviewStarted.value || !currentSessionId.value) {
-    customAlertRef.value?.showAlert({
-      title: '인터뷰 시작 필요',
-      message: '먼저 AI 인터뷰 시작을 눌러주세요.'
-    });
-    return;
-  }
-  if (isRecording.value) return;
-
-  try {
-    mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    isRecording.value = true;
-    audioChunks = [];
-
-    // --- 오디오 시각화 설정 (복원된 코드) ---
-    if (!audioContext) {
-      audioContext = new AudioContext();
-    }
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-
-    if (!audioContext) {
-      customAlertRef.value?.showAlert({
-        title: '오류 발생',
-        message: '오디오 컨텍스트를 생성할 수 없습니다.'
-      });
-      isRecording.value = false;
-      return;
-    }
-
-    analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(mediaStream);
-    source.connect(analyser);
-    analyser.fftSize = 256;
-    // --- 오디오 시각화 설정 끝 ---
-
-    mediaRecorder = new MediaRecorder(mediaStream);
-
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        audioChunks.push(event.data);
-      }
-    };
-
-    mediaRecorder.onstop = async () => {
-      const audioBlob = new Blob(audioChunks, { type: 'audio/webm;codecs=opus' });
-
-      if (audioBlob.size < 1024) { // 너무 짧은 녹음은 보내지 않음
-        console.log('녹음된 오디오가 너무 짧아 전송하지 않습니다.');
-        customAlertRef.value?.showAlert({
-          title: '입력 오류',
-          message: '3초 이상 답변해주세요.'
-        });
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append('sessionId', currentSessionId.value!);
-      formData.append('chunkIndex', String(0));
-      formData.append('audio', audioBlob, 'audio.webm');
-
-      try {
-        console.log('음성 답변 서버로 전송 시작...');
-        await apiClient.post('/api/v1/stt/chunk', formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-        console.log('음성 답변 전송 성공.');
-        isContentChanged.value = true;
-      } catch (error) {
-        console.error('음성 답변 전송 실패:', error);
-        customAlertRef.value?.showAlert({
-          title: '오류 발생',
-          message: '음성 답변 처리에 실패했습니다.'
-        });
-      }
-    };
-
-    mediaRecorder.start();
-
-    await nextTick();
-
-    visualize(); // 시각화 함수 다시 호출
-
-  } catch (err) {
-    console.error('마이크 접근 오류:', err);
-    customAlertRef.value?.showAlert({
-      title: '오류 발생',
-      message: '마이크에 접근할 수 없습니다. 권한을 확인해주세요.'
-    });
-    isRecording.value = false;
-  }
-}
-
-function stopRecording() {
-  if (!isRecording.value || !mediaRecorder) return;
-
-  mediaRecorder.stop();
-
-  isRecording.value = false;
-  mediaStream?.getTracks().forEach(track => track.stop());
-  mediaStream = null;
-
-  // 시각화 애니메이션 중지 (복원된 코드)
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId);
-    animationFrameId = null;
-  }
-}
-
-function visualize() {
-  if (!analyser || !visualizerCanvas.value) return;
-  const canvas = visualizerCanvas.value;
-  const canvasCtx = canvas.getContext('2d');
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-
-  const draw = () => {
-    if (!analyser || !canvasCtx || !isRecording.value) return;
-    animationFrameId = requestAnimationFrame(draw);
-    analyser.getByteFrequencyData(dataArray);
-
-    let sum = 0;
-    for (const value of dataArray) {
-      sum += value;
-    }
-    const avg = sum / bufferLength;
-
-    canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-    const barWidth = Math.min(canvas.width, (avg / 100) * canvas.width);
-    canvasCtx.fillStyle = '#8B4513';
-    canvasCtx.fillRect(0, 0, barWidth, canvas.height);
-  };
-  draw();
-}
-
-// 그룹 책 정보를 불러와 편집 상태로 설정하는 함수
-async function loadGroupBookForEditing(groupId: string, bookId: string) {
-  try {
-    const response = await groupService.getGroupBookDetails(groupId, bookId);
-    const bookData = response.data;
-    currentBook.value = {
-      id: bookData.groupBookId,
-      title: bookData.title,
-      summary: bookData.summary,
-      stories: bookData.episodes?.map((e: ApiEpisode) => ({
-        id: e.episodeId,
-        title: e.title,
-        content: e.content,
-        activeSessionId: e.activeSessionId,
-        imageUrl: e.imageUrl,
-        imageId: e.imageId
-      })) || [],
-      tags: bookData.tags || [],
-      categoryId: bookData.categoryId,
-      type: bookData.bookType.toLowerCase(), // bookType을 API 응답에 따라 설정
-      completed: bookData.completed,
-    };
-    tags.value = bookData.tags || [];
-    selectedCategoryId.value = bookData.categoryId;
-    creationStep.value = 'editing';
-
-    if (currentBook.value.stories && currentBook.value.stories.length > 0) {
-      await selectStory(0);
+    const response = await groupBookService.createGroupBook(groupId, groupBookData);
+    if (response) {
+      currentGroupBook.value.id = response.groupBookId;
+      currentGroupBook.value.groupId = groupId;
+      currentGroupBook.value.episodes = response.episodes || [];
+      creationStep.value = 'editing';
     }
   } catch (error) {
-    console.error('그룹 책 정보를 불러오는데 실패했습니다:', error);
+    console.error('그룹북 생성 오류:', error);
+    console.error('에러 데이터:', error.response?.data);
+    console.error('전송한 데이터:', groupBookData);
+    console.error('validation details:', error.response?.data?.details);
+    
+    const errorMessage = error.response?.data?.details?.[0] || error.response?.data?.message || '그룹북 생성에 실패했습니다.';
     customAlertRef.value?.showAlert({
       title: '오류 발생',
-      message: '그룹 책 정보를 불러오는데 실패했습니다. 이전 페이지로 돌아갑니다.'
+      message: errorMessage
+    });
+  }
+}
+
+async function loadGroupBookForEditing(groupId: number, groupBookId: number) {
+  try {
+    const groupBookData = await groupBookService.getGroupBook(groupId, groupBookId);
+    if (groupBookData) {
+      currentGroupBook.value = {
+        id: groupBookData.groupBookId,
+        groupId: groupId,
+        title: groupBookData.title,
+        summary: groupBookData.summary,
+        groupType: groupBookData.groupType,
+        episodes: groupBookData.episodes?.map((e: any) => ({
+          id: e.id,
+          title: e.title,
+          content: e.editedContent || '',
+          template: e.template,
+          imageUrl: e.imageUrl,
+          imageId: e.imageId
+        })) || []
+      };
+      creationStep.value = 'editing';
+
+      if (currentGroupBook.value.episodes && currentGroupBook.value.episodes.length > 0) {
+        await selectEpisode(0);
+      }
+    }
+  } catch (error) {
+    console.error('그룹북 정보를 불러오는데 실패했습니다:', error);
+    customAlertRef.value?.showAlert({
+      title: '오류 발생',
+      message: '그룹북 정보를 불러오는데 실패했습니다.'
     });
     router.back();
   }
 }
 
-function loadOrCreateBook(groupId: string, bookId: string | null) {
-  if (groupId && bookId) {
-    loadGroupBookForEditing(groupId, bookId);
-  } else {
-    creationStep.value = 'setup';
+async function addEpisode() {
+  if (!currentGroupBook.value?.id || !currentGroupBook.value?.groupId) return;
+
+  try {
+    const episodeData = {
+      title: `${(currentGroupBook.value.episodes?.length || 0) + 1}번째 이야기`,
+      summary: '',
+      orderNo: (currentGroupBook.value.episodes?.length || 0) + 1
+    };
+
+    const response = await groupBookService.createEpisode(
+      currentGroupBook.value.groupId, 
+      currentGroupBook.value.id, 
+      episodeData
+    );
+    
+    if (response) {
+      console.log('에피소드 생성 응답:', response);
+      console.log('응답 구조:', Object.keys(response));
+      console.log('groupEpisodeId:', response.groupEpisodeId);
+      console.log('id 필드:', response.id);
+      
+      const newEpisode: Episode = {
+        id: response.groupEpisodeId || response.id,
+        title: response.title,
+        content: '',
+        template: response.template
+      };
+      
+      currentGroupBook.value.episodes = [...(currentGroupBook.value.episodes || []), newEpisode];
+      currentEpisodeIndex.value = (currentGroupBook.value.episodes?.length || 1) - 1;
+      
+      console.log('현재 에피소드 인덱스:', currentEpisodeIndex.value);
+      console.log('현재 에피소드:', currentEpisode.value);
+    }
+  } catch (error) {
+    console.error('에피소드 추가 오류:', error);
+    customAlertRef.value?.showAlert({
+      title: '추가 오류',
+      message: '새로운 에피소드를 추가하는데 실패했습니다.'
+    });
   }
 }
 
-// 이야기(에피소드) 삭제 함수
-async function deleteStory(story: Story, index: number) {
-  if (!confirm(`'${story.title}' 이야기를 삭제하시겠습니까?`)) return;
+async function selectEpisode(index: number) {
+  // 기존 SSE 연결 정리
+  await cleanupSseConnection();
 
-  const groupId = route.params.groupId as string;
-  if (!groupId || !currentBook.value?.id || !story.id) {
-    customAlertRef.value?.showAlert({
-      title: '삭제 오류',
-      message: '삭제할 이야기의 정보가 올바르지 않습니다.'
-    });
-    return;
+  currentEpisodeIndex.value = index;
+  const episode = currentGroupBook.value.episodes?.[index];
+  
+  if (episode && !episode.imageUrl && episode.id) {
+    await fetchEpisodeImages(episode.id);
   }
 
+  // 상태 초기화
+  currentSessionId.value = null;
+  isInterviewStarted.value = false;
+  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
+  currentTemplate.value = episode?.template || 'INTRO';
+  
+  // 임시 답변 초기화
+  tempAnswers.value = [];
+}
+
+async function fetchEpisodeImages(episodeId: number) {
+  if (!currentGroupBook.value?.id || !currentGroupBook.value?.groupId) return;
+  
   try {
-    // groupService를 사용하여 에피소드 삭제 API 호출
-    await groupService.deleteEpisode(groupId, currentBook.value.id, story.id);
+    const images = await groupBookService.getEpisodeImages(
+      currentGroupBook.value.groupId, 
+      currentGroupBook.value.id, 
+      episodeId
+    );
+    
+    if (images && images.length > 0) {
+      const episode = currentGroupBook.value.episodes?.find(e => e.id === episodeId);
+      if (episode) {
+        episode.imageUrl = images[0].imageUrl;
+        episode.imageId = images[0].imageId;
+      }
+    }
+  } catch (error) {
+    console.error(`에피소드 이미지 정보를 불러오는데 실패했습니다.`, error);
+  }
+}
 
-    // 1. 배열에서 이야기를 삭제합니다.
-    currentBook.value.stories?.splice(index, 1);
+async function deleteEpisode(episode: Episode, index: number) {
+  if (!confirm(`'${episode.title}' 에피소드를 삭제하시겠습니까?`)) return;
+  if (!currentGroupBook.value?.groupId || !currentGroupBook.value?.id || !episode.id) return;
 
-    // 2. 페이지네이션 보정 로직
-    if (storiesCurrentPage.value > 1 && paginatedStories.value.length === 0) {
-      storiesCurrentPage.value--;
+  try {
+    await groupBookService.deleteEpisode(
+      currentGroupBook.value.groupId,
+      currentGroupBook.value.id,
+      episode.id
+    );
+
+    currentGroupBook.value.episodes?.splice(index, 1);
+
+    if (episodesCurrentPage.value > 1 && paginatedEpisodes.value.length === 0) {
+      episodesCurrentPage.value--;
     }
 
-    // 3. 선택된 이야기 인덱스를 조정합니다.
-    if (currentStoryIndex.value === index) {
-      currentStoryIndex.value = -1;
-    } else if (currentStoryIndex.value > index) {
-      currentStoryIndex.value--;
+    if (currentEpisodeIndex.value === index) {
+      currentEpisodeIndex.value = -1;
+    } else if (currentEpisodeIndex.value > index) {
+      currentEpisodeIndex.value--;
     }
 
     customAlertRef.value?.showAlert({
       title: '삭제 완료',
-      message: '이야기가 삭제되었습니다.'
+      message: '에피소드가 삭제되었습니다.'
     });
   } catch (error) {
-    console.error('이야기 삭제 오류:', error);
+    console.error('에피소드 삭제 오류:', error);
     customAlertRef.value?.showAlert({
       title: '삭제 오류',
-      message: '이야기 삭제에 실패했습니다.'
+      message: '에피소드 삭제에 실패했습니다.'
     });
   }
 }
 
-async function fetchEpisodeImages(episodeId: number) {
-  const groupId = route.params.groupId as string;
-  if (!groupId || !currentBook.value?.id) return;
-  try {
-    // groupService에 별도 메소드가 없으므로 apiClient 직접 사용
-    const response = await apiClient.get(`/api/v1/groups/${groupId}/books/${currentBook.value.id}/episodes/${episodeId}/images`);
-    if (response.data.data && response.data.data.length > 0) {
-      const story = currentBook.value.stories?.find(s => s.id === episodeId);
-      if (story) {
-        story.imageUrl = response.data.data[0].imageUrl;
-        story.imageId = response.data.data[0].imageId;
-      }
-    }
-  } catch (error) {
-    console.error(`${episodeId}번 이야기의 이미지 정보를 불러오는데 실패했습니다.`, error);
-  }
-}
-
-// 이야기(에피소드) 추가 및 AI 인터뷰 준비 함수
-async function addStory() {
-  const groupId = route.params.groupId as string;
-  if (!groupId || !currentBook.value?.id) {
-    customAlertRef.value?.showAlert({
-      title: '추가 오류',
-      message: '이야기를 추가할 책 정보가 올바르지 않습니다.'
-    });
-    return;
-  }
-
-  try {
-    // 1. 에피소드 생성 API 호출
-    const episodeResponse = await groupService.addEpisode(groupId, currentBook.value.id, { title: '새로운 이야기' });
-    const newEpisode = episodeResponse.data;
-    const newStory: Story = {
-      id: newEpisode.id,
-      title: newEpisode.title || `${(currentBook.value.stories?.length || 0) + 1}번째 이야기`,
-      content: newEpisode.content || '',
-      activeSessionId: null // 초기에는 세션 ID 없음
-    };
-
-    // 2. 생성된 이야기를 목록에 추가하고 선택
-    currentBook.value.stories = [...(currentBook.value.stories || []), newStory];
-    const newStoryIndex = (currentBook.value.stories?.length || 1) - 1;
-    await selectStory(newStoryIndex); // 새 스토리를 선택하여 활성화
-    aiQuestion.value = 'AI 인터뷰 시작을 눌러주세요.'; // 안내 메시지 변경
-  } catch (error) {
-    console.error('이야기 추가 또는 인터뷰 준비 오류:', error);
-    customAlertRef.value?.showAlert({
-      title: '오류',
-      message: '새로운 이야기를 준비하는 데 실패했습니다.'
-    });
-  }
-}
-
-
-async function selectStory(index: number) {
-  console.log(`🎯 selectStory 호출: index=${index}`);
-  console.log('📚 현재 stories:', currentBook.value.stories?.map(s => ({ id: s.id, title: s.title })));
-
-  const groupId = route.params.groupId as string;
-  const bookId = currentBook.value.id;
-  const story = currentBook.value.stories?.[index];
-
-  if (eventSource && currentSessionId.value && groupId && bookId && story?.id) {
-    console.log(`다른 스토리 선택으로 SSE 연결(${currentSessionId.value})을 종료합니다.`);
-    try {
-      await groupService.closeSseStream(groupId, bookId, story.id, currentSessionId.value);
-    } catch (e) {
-      console.error('SSE 연결 종료 API 호출 실패', e);
-    }
-    eventSource.close();
-    isConnected.value = false;
-    isConnecting.value = false;
-  }
-
-  currentStoryIndex.value = index;
-  isContentChanged.value = false;
-
-  if (story && !story.imageUrl) {
-    await fetchEpisodeImages(story.id!);
-  }
-
-  console.log('✅ 선택된 스토리:', {
-    id: story?.id,
-    title: story?.title,
-    hasActiveSession: !!story?.activeSessionId,
-    contentLength: story?.content?.length || 0
-  });
-
-  if (eventSource) {
-    eventSource.close();
-    isConnected.value = false;
-    isConnecting.value = false;
-    await new Promise(resolve => setTimeout(resolve, 100));
-  }
-
-  // 세션 연결 로직은 startAiInterview로 이동
-  currentSessionId.value = story?.activeSessionId || null;
-  isInterviewStarted.value = false; // 항상 false로 초기화. 시작은 버튼으로만.
-  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
-  currentAnswerMessageId.value = null;
-  console.log('🆕 스토리 선택 완료. 인터뷰 시작 대기 중.');
-
-  await nextTick();
-  console.log('🎯 selectStory 완료 후 최종 상태:', {
-    currentStoryIndex: currentStoryIndex.value,
-    currentStoryExists: !!currentStory.value,
-    currentStoryId: currentStory.value?.id,
-    isInterviewStarted: isInterviewStarted.value,
-    currentSessionId: currentSessionId.value
-  });
-}
-
-async function saveStory() {
-  if (isInterviewStarted.value === true) {
-    if (!currentAnswerMessageId.value) {
-      customAlertRef.value?.showAlert({
-        title: '수정 오류',
-        message: '수정할 답변 정보가 없습니다. 답변이 완료된 후 다시 시도해주세요.'
-      });
-      return;
-    }
-
-    console.log(`메시지 수정 요청: ID=${currentAnswerMessageId.value}`);
-
-    try {
-      const updateRequest = {
-        messageId: currentAnswerMessageId.value,
-        content: currentStory.value?.content.trim() || ''
-      };
-      await apiClient.put('/api/v1/conversation/message', updateRequest);
-      customAlertRef.value?.showAlert({
-        title: '수정 완료',
-        message: '수정된 답변이 저장되었습니다.'
-      });
-
-    } catch (error) {
-      console.error('메시지 수정 실패:', error);
-      customAlertRef.value?.showAlert({
-        title: '수정 오류',
-        message: '답변 저장에 실패했습니다.'
-      });
-    }
-
-  } else {
-    const groupId = route.params.groupId as string;
-    if (!groupId || !currentBook.value?.id || !currentStory.value?.id) {
-      customAlertRef.value?.showAlert({
-        title: '저장 오류',
-        message: '저장할 에피소드 정보가 올바르지 않습니다.'
-      });
-      return;
-    }
-
-    console.log(`에피소드 수정 요청: ID=${currentStory.value.id}`);
-
-    try {
-      const episodeUpdateRequest = {
-        title: currentStory.value.title,
-        content: currentStory.value.content
-      };
-      // groupService를 사용하여 에피소드 수정 API 호출
-      await groupService.updateEpisode(
-        groupId,
-        currentBook.value.id,
-        currentStory.value.id,
-        episodeUpdateRequest
-      );
-      customAlertRef.value?.showAlert({
-        title: '저장 완료',
-        message: '에피소드가 성공적으로 저장되었습니다.'
-      });
-      isContentChanged.value = false;
-
-    } catch (error) {
-      console.error('에피소드 저장(수정) 실패:', error);
-      customAlertRef.value?.showAlert({
-        title: '저장 오류',
-        message: '에피소드 저장에 실패했습니다.'
-      });
-    }
-  }
-}
-
-
-// AI 인터뷰 시작 함수 (UI 표시 전환)
 async function startAiInterview() {
-  const story = currentStory.value;
-  if (!story) {
-    customAlertRef.value?.showAlert({ title: '선택 오류', message: '먼저 인터뷰를 진행할 이야기를 선택하거나 추가해주세요.' });
+  console.log('AI 인터뷰 시작 시도');
+  console.log('currentGroupBook:', currentGroupBook.value);
+  console.log('currentEpisode:', currentEpisode.value);
+  console.log('검증 조건:', {
+    groupId: currentGroupBook.value?.groupId,
+    bookId: currentGroupBook.value?.id,
+    episodeId: currentEpisode.value?.id
+  });
+  
+  if (!currentGroupBook.value?.groupId || !currentGroupBook.value?.id || !currentEpisode.value?.id) {
+    customAlertRef.value?.showAlert({
+      title: '정보 오류',
+      message: '그룹북 또는 에피소드 정보가 올바르지 않습니다.'
+    });
     return;
   }
 
-  if (isInterviewStarted.value) {
-    console.log('이미 AI 인터뷰가 진행 중입니다.');
+  if (isConnecting.value || isConnected.value || isInterviewStarted.value) {
+    console.log('이미 AI 인터뷰가 진행 중이거나 연결 중입니다.');
     return;
   }
 
   try {
-    const groupId = route.params.groupId as string;
-    const bookId = currentBook.value?.id;
+    const sessionId = await groupBookService.startConversation(
+      currentGroupBook.value.groupId,
+      currentGroupBook.value.id,
+      currentEpisode.value.id
+    );
 
-    if (!groupId || !bookId || !story.id) {
-      customAlertRef.value?.showAlert({ title: '오류', message: '인터뷰를 시작할 정보가 부족합니다.' });
-      return;
-    }
-
-    // 세션이 없으면 새로 시작
-    if (!story.activeSessionId) {
-      console.log('새로운 대화 세션을 시작합니다.');
-      const sessionResponse = await groupService.startConversation(groupId, bookId, story.id);
-      currentSessionId.value = sessionResponse.data.sessionId;
-      story.activeSessionId = currentSessionId.value;
-    } else {
-      console.log(`기존 대화 세션(${story.activeSessionId})에 연결합니다.`);
-      currentSessionId.value = story.activeSessionId;
-    }
-
-    // SSE 스트림 연결
-    await connectToSseStream();
-
+    currentSessionId.value = sessionId;
     isInterviewStarted.value = true;
-    aiQuestion.value = '첫 질문을 기다리고 있습니다...';
-
+    aiQuestion.value = 'AI 인터뷰 세션에 연결 중... 첫 질문을 기다립니다.';
+    
+    await connectToSseStream();
   } catch (error) {
-    console.error('AI 인터뷰 시작 오류:', error);
-    customAlertRef.value?.showAlert({ title: '오류', message: 'AI 인터뷰를 시작하는 데 실패했습니다.' });
-    isInterviewStarted.value = false; // 실패 시 상태 롤백
+    console.error('세션 시작 실패:', error);
+    customAlertRef.value?.showAlert({
+      title: '세션 오류',
+      message: 'AI 인터뷰 세션 시작에 실패했습니다.'
+    });
+    isInterviewStarted.value = false;
+    currentSessionId.value = null;
   }
 }
 
-async function safeCloseEventSource() {
-  if (connectTimer) { clearTimeout(connectTimer); connectTimer = null; }
-  if (!eventSource) return;
-  try { eventSource.close(); } catch { }
-  eventSource = null;
-  isConnected.value = false;
-  isConnecting.value = false;
-  await new Promise(res => setTimeout(res, 300));
-}
-
-async function cleanupBeforeLeave() {
-  console.log('페이지 이탈 전 상태 정리 시작...');
-  await safeCloseEventSource();
-  currentSessionId.value = null;
-  currentAnswerMessageId.value = null;
-  isInterviewStarted.value = false;
-  isContentChanged.value = false;
-  firstChunkForThisAnswer = true;
-  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
-  console.log('페이지 이탈 전 상태 정리 완료');
-}
-
-let firstChunkForThisAnswer = true;
-
-// SSE 스트림에 연결하는 함수
 async function connectToSseStream() {
-  const groupId = route.params.groupId as string;
-  const bookId = currentBook.value?.id;
-  const episodeId = currentStory.value?.id;
-
-  if (!groupId || !bookId || !episodeId || !currentSessionId.value) {
-    console.warn('SSE 연결에 필요한 정보가 부족합니다.');
+  if (!currentSessionId.value || !currentGroupBook.value?.groupId || 
+      !currentGroupBook.value?.id || !currentEpisode.value?.id) {
+    console.warn('세션 정보가 없어 SSE 연결을 할 수 없습니다.');
     return;
   }
 
@@ -888,149 +588,107 @@ async function connectToSseStream() {
   }
 
   isConnecting.value = true;
-  await safeCloseEventSource();
-
-  if (eventSource) {
-    eventSource.close();
-    isConnected.value = false;
-    await new Promise(resolve => setTimeout(resolve, 300));
-  }
-
+  
   try {
-    const baseURL = apiClient.defaults?.baseURL || '';
-    const token = authStore.accessToken;
-    const url = `${baseURL}/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}/${currentSessionId.value}/stream?token=${token}`;
-    eventSource = new EventSource(url);
+    const sseEmitter = await groupBookService.establishConversationStream(
+      currentGroupBook.value.groupId,
+      currentGroupBook.value.id,
+      currentEpisode.value.id,
+      currentSessionId.value
+    );
 
+    eventSource = sseEmitter;
+    
     eventSource.onopen = () => {
       console.log('SSE 연결 성공');
       isConnecting.value = false;
       isConnected.value = true;
     };
 
-    eventSource.addEventListener('question', (ev: MessageEvent<string>) => {
-      const q = safeJson<QuestionEventData>(ev.data);
-      if (!q) return;
-
-      aiQuestion.value = q.text ?? '';
-
-      if (q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion) {
-        isInterviewStarted.value = false;
-        isContentChanged.value = false;
-        if (currentStory.value) currentStory.value.activeSessionId = null;
-        return;
-      }
-
-      if (episodeJustApplied.value) {
-        episodeJustApplied.value = false;
-        return;
-      }
-
-      if (q.questionType === 'MAIN' || q.questionType === 'FOLLOWUP' || !q.questionType) {
-        firstChunkForThisAnswer = true;
-        isContentChanged.value = false;
-      }
+    eventSource.addEventListener('connected', (event: MessageEvent) => {
+      console.log('SSE 연결 확인:', event.data);
     });
 
-
-    function safeJson<T>(data: string): T | null {
+    eventSource.addEventListener('question', (event: MessageEvent) => {
       try {
-        return JSON.parse(data) as T;
-      } catch {
-        return null;
-      }
-    }
-    eventSource.addEventListener('partialTranscript', async (ev: MessageEvent<string>) => {
-      console.log('🎤 SSE partialTranscript 이벤트 수신:', ev.data);
-      const t = safeJson<PartialTranscriptEventData>(ev.data);
-      if (!t) {
-        console.error('❌ partialTranscript JSON 파싱 실패:', ev.data);
-        return;
-      }
-      if (currentStory.value) {
-        if (firstChunkForThisAnswer) {
-          currentStory.value.content = '';
-          firstChunkForThisAnswer = false;
+        const questionData = JSON.parse(event.data) as QuestionEventData;
+        aiQuestion.value = questionData.text || '';
+        
+        if (questionData.currentChapter) {
+          currentTemplate.value = questionData.currentChapter;
         }
-        currentStory.value.content += (t.text || '') + ' ';
-        await nextTick();
-        if (currentBook.value?.stories && currentStoryIndex.value >= 0) {
-          const currentStoryRef = currentBook.value.stories[currentStoryIndex.value];
-          if (currentStoryRef) {
-            currentBook.value.stories.splice(currentStoryIndex.value, 1, { ...currentStoryRef });
-          }
-        }
-      }
-      if (typeof t.messageId !== 'undefined' && t.messageId !== null) {
-        currentAnswerMessageId.value = t.messageId as number;
-      }
-      isContentChanged.value = true;
-    });
 
-    eventSource.addEventListener('episode', async (ev: MessageEvent<string>) => {
-      episodeJustApplied.value = true;
-      const e = safeJson<EpisodeEventData>(ev.data);
-      if (!e || !currentBook.value?.stories) return;
-      const i = currentBook.value.stories.findIndex(s => s.id === e.episodeId);
-      if (i > -1) {
-        const updated = { ...currentBook.value.stories[i], title: e.title, content: e.content };
-        currentBook.value.stories.splice(i, 1, updated);
-        await nextTick();
-        if (currentStoryIndex.value === -1) currentStoryIndex.value = i;
-      } else {
-        const newStory = { id: e.episodeId, title: e.title, content: e.content };
-        currentBook.value.stories.push(newStory);
-        currentStoryIndex.value = currentBook.value.stories.length - 1;
+        if (questionData.isLastQuestion) {
+          isInterviewStarted.value = false;
+        }
+
+        // 템플릿 완료 처리
+        if (questionData.isTemplateCompleted) {
+          handleTemplateCompleted();
+        }
+      } catch (e) {
+        aiQuestion.value = event.data;
       }
     });
 
-    eventSource.onerror = (error) => {
+    eventSource.addEventListener('answer-saved', (event: MessageEvent) => {
+      customAlertRef.value?.showAlert({
+        title: '저장 완료',
+        message: '답변이 AI에 의해 교정되어 저장되었습니다.'
+      });
+      
+      if (currentEpisode.value) {
+        currentEpisode.value.content = '';
+      }
+    });
+
+    eventSource.onerror = async (error) => {
       console.error('SSE 에러:', error);
-      isConnecting.value = false;
-      isConnected.value = false;
-      aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다. 페이지를 새로고침 해주세요.';
-      eventSource?.close();
+      aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다.';
+      await cleanupSseConnection();
     };
 
   } catch (error) {
     console.error('SSE 연결 실패:', error);
-    isConnecting.value = false;
-    isConnected.value = false;
-    aiQuestion.value = 'AI 인터뷰 서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.';
+    aiQuestion.value = 'AI 인터뷰 서버 연결에 실패했습니다.';
+    await cleanupSseConnection();
   }
 }
 
-async function submitAnswerAndGetFollowUp() {
-  const groupId = route.params.groupId as string;
-  const bookId = currentBook.value?.id;
-  const episodeId = currentStory.value?.id;
-
-  if (!isInterviewStarted.value || !currentSessionId.value || !groupId || !bookId || !episodeId) {
+async function submitAnswer() {
+  if (!isInterviewStarted.value || !currentEpisode.value?.content.trim()) {
     customAlertRef.value?.showAlert({
-      title: '요청 오류',
-      message: '다음 질문을 요청하기 위한 정보가 부족합니다.'
+      title: '답변 오류',
+      message: '답변 내용을 입력해주세요.'
     });
     return;
   }
 
-  try {
-    // 1. 답변 제출
-    if (currentStory.value?.content) {
-      const answerRequest = {
-        answer: currentStory.value.content,
-      };
-      await apiClient.post(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}/conversation/answer?sessionId=${currentSessionId.value}`, answerRequest);
-      console.log('답변 제출 성공');
-    }
+  // 현재 답변을 임시 답변 목록에 추가
+  tempAnswers.value.push(currentEpisode.value.content.trim());
+  
+  // 입력창 초기화 (새로운 답변 입력을 위해)
+  currentEpisode.value.content = '';
 
-    // 2. 다음 질문 요청
-    console.log('다음 질문 요청...');
-    await apiClient.post(`/api/v1/groups/${groupId}/books/${bookId}/episodes/${episodeId}/conversation/next?sessionId=${currentSessionId.value}`);
-    if (currentStory.value) {
-      currentStory.value.content = '';
-    }
-    isContentChanged.value = false;
-    firstChunkForThisAnswer = true;
+  customAlertRef.value?.showAlert({
+    title: '답변 임시 저장',
+    message: '답변이 임시 저장되었습니다. 다음 질문을 진행하세요.'
+  });
+
+  console.log('임시 저장된 답변들:', tempAnswers.value);
+}
+
+async function requestNextQuestion() {
+  if (!isInterviewStarted.value || !currentSessionId.value) return;
+  if (!currentGroupBook.value?.groupId || !currentGroupBook.value?.id || !currentEpisode.value?.id) return;
+
+  try {
+    await groupBookService.getNextQuestion(
+      currentGroupBook.value.groupId,
+      currentGroupBook.value.id,
+      currentEpisode.value.id,
+      currentSessionId.value
+    );
   } catch (error) {
     console.error('다음 질문 요청 실패:', error);
     customAlertRef.value?.showAlert({
@@ -1040,84 +698,107 @@ async function submitAnswerAndGetFollowUp() {
   }
 }
 
-function skipQuestion() { aiQuestion.value = '질문을 건너뛰었습니다. 새로운 질문: 학창시절, 가장 좋아했던 과목과 그 이유는 무엇인가요?'; customAlertRef.value?.showAlert({ title: '건너뛰기', message: '질문을 건너뛰었습니다.' }); isContentChanged.value = false; }
-async function autoCorrect() {
-  if (!currentStory.value || !currentStory.value.content?.trim()) {
+async function saveEpisode() {
+  if (!currentEpisode.value?.id || !currentGroupBook.value?.groupId || !currentGroupBook.value?.id) {
+    console.error('저장을 위한 필수 정보가 없습니다:', {
+      episodeId: currentEpisode.value?.id,
+      groupId: currentGroupBook.value?.groupId,
+      bookId: currentGroupBook.value?.id
+    });
     customAlertRef.value?.showAlert({
-      title: '교정 오류',
-      message: '교정할 내용이 없습니다.'
+      title: '저장 오류',
+      message: '에피소드 정보가 올바르지 않습니다.'
     });
     return;
   }
-  if (!selectedCategoryId.value) {
-    customAlertRef.value?.showAlert({
-      title: '선택 오류',
-      message: 'AI 교정을 위해서는 먼저 카테고리를 선택해야 합니다.'
-    });
-    return;
-  }
-  isCorrecting.value = true;
-  correctedContent.value = null;
+
+  console.log('에피소드 저장 시도:', {
+    groupId: currentGroupBook.value.groupId,
+    bookId: currentGroupBook.value.id,
+    episodeId: currentEpisode.value.id,
+    title: currentEpisode.value.title,
+    contentLength: currentEpisode.value.content?.length || 0,
+    tempAnswersCount: tempAnswers.value.length,
+    hasSession: !!currentSessionId.value
+  });
+
   try {
-    const requestBody = {
-      textToCorrect: currentStory.value.content,
-      bookCategory: selectedCategoryId.value
+    // 모든 답변 내용을 수집 (임시 답변 + 현재 입력 내용)
+    const allContent = [];
+    if (tempAnswers.value.length > 0) {
+      allContent.push(...tempAnswers.value);
+    }
+    if (currentEpisode.value.content?.trim()) {
+      allContent.push(currentEpisode.value.content.trim());
+    }
+    
+    const finalContent = allContent.join('\n\n');
+    console.log('최종 저장할 내용:', finalContent);
+
+    // 에피소드 내용 업데이트 (임시 답변들을 모두 포함)
+    console.log('에피소드 내용 업데이트 중...');
+    
+    const updateData = {
+      title: currentEpisode.value.title,
+      editedContent: finalContent
     };
-    const response = await apiClient.post('/api/v1/ai/proofread', requestBody);
-    correctedContent.value = response.data.data.correctedText;
-  } catch (error) {
-    console.error('AI 자동 교정 실패:', error);
+    
+    console.log('업데이트 데이터:', updateData);
+    
+    const updatedEpisode = await groupBookService.updateEpisode(
+      currentGroupBook.value.groupId,
+      currentGroupBook.value.id,
+      currentEpisode.value.id,
+      updateData
+    );
+
+    console.log('에피소드 업데이트 응답:', updatedEpisode);
+
+    // 저장 성공 후 임시 답변들 초기화
+    tempAnswers.value = [];
+    console.log('임시 답변 목록 초기화 완료');
+
     customAlertRef.value?.showAlert({
-      title: '교정 오류',
-      message: 'AI 자동 교정에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      title: '저장 완료',
+      message: '에피소드가 저장되었습니다.'
     });
-  } finally {
-    isCorrecting.value = false;
+
+    // 템플릿이 완료된 상태라면 다음 에피소드 가이드 표시
+    if (isTemplateCompleted.value) {
+      showNextEpisodeGuide.value = true;
+    }
+  } catch (error) {
+    console.error('에피소드 저장 실패:', error);
+    console.error('에러 상세:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    
+    const errorMessage = error.response?.data?.message || error.message || '에피소드 저장에 실패했습니다.';
+    customAlertRef.value?.showAlert({
+      title: '저장 오류',
+      message: errorMessage
+    });
   }
 }
 
-function applyCorrection() { if (currentStory.value && correctedContent.value) { currentStory.value.content = correctedContent.value; correctedContent.value = null; } }
-function cancelCorrection() { correctedContent.value = null; }
-
 async function saveDraft() {
-  if (!currentBook.value?.id) {
-    customAlertRef.value?.showAlert({
-      title: '정보 오류',
-      message: '책 정보가 올바르지 않습니다.'
-    });
-    return;
-  }
-  if (confirm('작업을 임시 저장하고 목록으로 돌아가시겠습니까?')) {
+  if (confirm('작업을 임시 저장하고 그룹으로 돌아가시겠습니까?')) {
     try {
-      const savePromises = currentBook.value.stories?.map(story => {
-        if (story.id) {
-          return apiClient.patch(`/api/v1/books/${currentBook.value.id}/episodes/${story.id}`, {
-            title: story.title,
-            content: story.content,
-          });
-        }
-        return Promise.resolve();
-      }) || [];
-      await Promise.all(savePromises);
-
-      const bookData = new FormData();
-      bookData.append('title', currentBook.value.title || '');
-      bookData.append('summary', currentBook.value.summary || '');
-      if (selectedCategoryId.value) {
-        bookData.append('categoryId', String(selectedCategoryId.value));
+      // 현재 에피소드 저장
+      if (currentEpisode.value?.id && currentGroupBook.value?.groupId && currentGroupBook.value?.id) {
+        await saveEpisode();
       }
-
-      await apiClient.patch(`/api/v1/books/${currentBook.value.id}`, bookData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
 
       customAlertRef.value?.showAlert({
         title: '임시 저장',
         message: '임시 저장되었습니다.'
       });
+      
       isSavedOrPublished.value = true;
       await cleanupBeforeLeave();
-      router.push('/continue-writing');
+      router.back();
     } catch (error) {
       console.error('임시 저장 오류:', error);
       customAlertRef.value?.showAlert({
@@ -1128,343 +809,205 @@ async function saveDraft() {
   }
 }
 
-function moveToPublishingStep() { creationStep.value = 'publishing'; }
-
-function handleCoverUpload(event: Event) {
-  const target = event.target as HTMLInputElement;
-  if (target.files && target.files[0]) {
-    const file = target.files[0];
-    uploadedCoverFile.value = file;
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      selectedCover.value = e.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+async function publishGroupBook() {
+  if (!currentGroupBook.value?.id || !currentGroupBook.value?.groupId) {
     customAlertRef.value?.showAlert({
-      title: '표지 첨부',
-      message: '표지가 첨부되었습니다.'
+      title: '오류',
+      message: '그룹북 정보를 찾을 수 없습니다.'
     });
+    return;
   }
+
+  // 현재 에피소드 저장
+  if (currentEpisode.value?.id) {
+    try {
+      await saveEpisode();
+    } catch (error) {
+      console.error('에피소드 저장 실패:', error);
+    }
+  }
+
+  // 발행 단계로 이동
+  creationStep.value = 'publishing';
+}
+
+function closePublishModal() {
+  creationStep.value = 'editing';
+  tagInput.value = '';
 }
 
 function addTag() {
   const newTag = tagInput.value.trim();
-  if (newTag && !tags.value.includes(newTag) && tags.value.length < 5) {
-    if (/\s/.test(newTag)) {
-      customAlertRef.value?.showAlert({
-        title: '입력 오류',
-        message: '태그에는 공백을 포함할 수 없습니다.'
-      });
-      return;
-    }
-    tags.value.push(newTag);
+  if (newTag && !groupBookTags.value.includes(newTag) && groupBookTags.value.length < 5) {
+    groupBookTags.value.push(newTag);
     tagInput.value = '';
-  } else if (tags.value.length >= 5) {
+  } else if (groupBookTags.value.length >= 5) {
     customAlertRef.value?.showAlert({
-      title: '입력 오류',
-      message: '태그는 최대 5개까지 등록할 수 있습니다.'
+      title: '태그 제한',
+      message: '태그는 최대 5개까지 추가할 수 있습니다.'
     });
   }
 }
 
 function removeTag(index: number) {
-  tags.value.splice(index, 1);
+  groupBookTags.value.splice(index, 1);
 }
 
-// 그룹 책 발행(완성) 함수
-async function finalizePublication() {
-  const groupId = route.params.groupId as string;
-  if (!groupId || !currentBook.value.id || !currentBook.value.title) {
+async function confirmPublish() {
+  if (!currentGroupBook.value?.id || !currentGroupBook.value?.groupId) {
+    return;
+  }
+
+  // 제목 유효성 검사
+  if (!currentGroupBook.value.title?.trim()) {
     customAlertRef.value?.showAlert({
-      title: '정보 오류',
-      message: '책 정보가 올바르지 않습니다.'
+      title: '입력 필요',
+      message: '그룹북 제목을 입력해주세요.'
     });
     return;
   }
-  if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
 
   try {
-    // 1. 모든 이야기(에피소드) 저장
-    const savePromises = currentBook.value.stories?.map(story => {
-      if (story.id) {
-        return groupService.updateEpisode(groupId, currentBook.value.id!, story.id, {
-          title: story.title,
-          content: story.content,
-        });
-      }
-      return Promise.resolve();
-    }) || [];
-    await Promise.all(savePromises);
-
-    // 2. 책 정보 업데이트 (표지, 태그 등) - 그룹 책 수정 API 필요 (현재 미구현)
-    // 현재는 책 완성 API만 호출
-
-    // 3. 책 완성 API 호출
-    await groupService.completeGroupBook(groupId, currentBook.value.id, tags.value);
-
-    customAlertRef.value?.showAlert({
-      title: '발행 완료',
-      message: '그룹 책이 성공적으로 발행되었습니다!'
+    // 그룹북 발행 API 호출 (제목과 소개 수정은 일단 생략)
+    console.log('그룹북 발행 시도...', {
+      groupId: currentGroupBook.value.groupId,
+      bookId: currentGroupBook.value.id,
+      tags: groupBookTags.value
     });
-    isSavedOrPublished.value = true;
-    await cleanupBeforeLeave();
-    // 이동할 경로를 그룹 책 상세 페이지로 변경해야 합니다.
-    router.push(`/group-book-detail/${groupId}/${currentBook.value.id}`);
-
-  } catch (error) {
-    console.error('그룹 책 발행 오류:', error);
-    customAlertRef.value?.showAlert({
-      title: '발행 오류',
-      message: '그룹 책 발행에 실패했습니다.'
-    });
-  }
-}
-
-async function finalizePublicationAsCopy() {
-  if (!currentBook.value.id || !currentBook.value.title) {
-    customAlertRef.value?.showAlert({
-      title: '정보 오류',
-      message: '책 정보가 올바르지 않습니다.'
-    });
-    return;
-  }
-
-  if (!confirm('복사본으로 저장하시겠습니까? 현재 내용은 별개의 책으로 발행됩니다.')) return;
-
-  const episodesToCopy = currentBook.value.stories?.map(story => ({
-    episodeId: story.id,
-    title: story.title,
-    content: story.content,
-    delete: false
-  })) || [];
-
-  if (episodesToCopy.length === 0) {
-    customAlertRef.value?.showAlert({
-      title: '복사 오류',
-      message: '복사할 이야기가 하나 이상 있어야 합니다.'
-    });
-    return;
-  }
-
-  const copyRequest = {
-    title: `${currentBook.value.title} - 복사본`,
-    summary: currentBook.value.summary,
-    categoryId: selectedCategoryId.value,
-    episodes: episodesToCopy,
-    tags: tags.value,
-  };
-
-  try {
-    const response = await apiClient.post(`/api/v1/books/${currentBook.value.id}/copy`, copyRequest);
-    const newBook = response.data.data;
-
-    if (selectedCategoryId.value) {
-      const bookData = new FormData();
-      bookData.append('title', `${currentBook.value.title} - 복사본`);
-      bookData.append('summary', currentBook.value.summary || '');
-      bookData.append('categoryId', String(selectedCategoryId.value));
-
-      await apiClient.patch(`/api/v1/books/${newBook.bookId}`, bookData, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      });
-    }
-
-    await apiClient.patch(`/api/v1/books/${newBook.bookId}/complete`, { tags: tags.value });
-
-    customAlertRef.value?.showAlert({
-      title: '발행 완료',
-      message: '책이 복사본으로 성공적으로 발행되었습니다!'
-    });
-    isSavedOrPublished.value = true;
-    await cleanupBeforeLeave();
-    router.push(`/book-detail/${newBook.bookId}`);
-  } catch (error) {
-    console.error('복사본 발행 오류:', error);
-    customAlertRef.value?.showAlert({
-      title: '발행 오류',
-      message: '복사본 발행에 실패했습니다.'
-    });
-  }
-}
-
-const adjustButtonFontSize = () => {
-  nextTick(() => {
-    if (sidebarButtons.value) {
-      Array.from(sidebarButtons.value).forEach(button => {
-        if (button.scrollHeight > button.clientHeight) {
-          button.classList.add('font-small');
-        } else {
-          button.classList.remove('font-small');
-        }
-      });
-    }
-  });
-};
-
-const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-  if (creationStep.value !== 'setup' && !isSavedOrPublished.value) {
-    event.preventDefault();
-    event.returnValue = '';
-  }
-};
-
-onBeforeRouteLeave((to, from, next) => {
-  if (creationStep.value !== 'setup' && !isSavedOrPublished.value) {
-    const answer = window.confirm(
-      '저장하지 않은 변경사항이 있습니다. 정말로 페이지를 떠나시겠습니까? 현재 작업 내용은 모두 삭제됩니다.'
+    
+    await groupBookService.completeGroupBook(
+      currentGroupBook.value.groupId, 
+      currentGroupBook.value.id, 
+      { tags: groupBookTags.value }
     );
-    if (answer) {
-      next();
-    } else {
-      next(false);
-    }
-  } else {
-    next();
-  }
-});
-
-onMounted(() => {
-  const bookId = route.params.bookId as string | undefined;
-  const groupId = route.params.groupId as string | undefined;
-
-  if (groupId) {
-    loadOrCreateBook(groupId, bookId || null);
-  } else {
-    // 잘못된 접근 처리
+    
     customAlertRef.value?.showAlert({
-      title: '오류',
-      message: '잘못된 접근입니다. 그룹 ID가 필요합니다.'
+      title: '발행 완료',
+      message: '그룹북이 성공적으로 발행되었습니다!'
     });
-    router.push('/'); // 혹은 그룹 목록 페이지로 이동
+
+    isSavedOrPublished.value = true;
+    closePublishModal();
+    await cleanupBeforeLeave();
+    
+    // 그룹책 상세 페이지로 이동
+    router.push(`/group-book-detail/${currentGroupBook.value.groupId}/${currentGroupBook.value.id}`);
+  } catch (error) {
+    console.error('그룹북 발행 실패:', error);
+    customAlertRef.value?.showAlert({
+      title: '발행 실패',
+      message: '그룹북 발행 중 오류가 발생했습니다.'
+    });
   }
+}
 
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  adjustButtonFontSize();
-});
-
-onUpdated(() => {
-  adjustButtonFontSize();
-});
-
-onBeforeUnmount(() => {
-  if (connectTimer) {
-    clearTimeout(connectTimer);
-    connectTimer = null;
+async function endSession() {
+  if (confirm('세션을 종료하고 그룹으로 돌아가시겠습니까?')) {
+    isSavedOrPublished.value = true;
+    await cleanupBeforeLeave();
+    router.push(`/group/${currentGroupBook.value?.groupId}`);
   }
-  if (currentSessionId.value) {
-    const baseURL = apiClient.defaults?.baseURL || '';
-    const url = `${baseURL}/api/v1/conversation/stream/${currentSessionId.value}`;
-    const headers = { 'Authorization': `Bearer ${authStore.accessToken}` };
+}
+
+// SSE 연결 정리 함수
+async function cleanupSseConnection() {
+  console.log('SSE 연결 정리 시작...');
+  
+  // 1. 백엔드에 SSE 스트림 종료 요청
+  if (currentSessionId.value && currentGroupBook.value?.groupId && 
+      currentGroupBook.value?.id && currentEpisode.value?.id) {
     try {
-      fetch(url, {
-        method: 'DELETE',
-        headers,
-        keepalive: true,
-      });
-      console.log(`SSE 연결 종료 요청 전송: ${currentSessionId.value}`);
+      await groupBookService.closeSseStream(
+        currentGroupBook.value.groupId,
+        currentGroupBook.value.id,
+        currentEpisode.value.id,
+        currentSessionId.value
+      );
+      console.log('백엔드 SSE 스트림 종료 성공');
     } catch (e) {
-      console.error('SSE 연결 종료 요청 전송 실패', e);
+      console.error('백엔드 SSE 연결 종료 실패:', e);
     }
   }
 
+  // 2. 프론트엔드 EventSource 정리
   if (eventSource) {
-    eventSource.close();
-    isConnected.value = false;
-    isConnecting.value = false;
-    console.log('SSE 연결 종료');
+    try {
+      eventSource.close();
+      console.log('EventSource 정리 완료');
+    } catch (e) {
+      console.error('EventSource 정리 실패:', e);
+    }
+    eventSource = null;
   }
+  
+  // 3. 상태 초기화
+  isConnected.value = false;
+  isConnecting.value = false;
+  currentSessionId.value = null;
+  isInterviewStarted.value = false;
+  
+  console.log('SSE 연결 정리 완료');
+}
 
-  window.removeEventListener('beforeunload', handleBeforeUnload);
-});
+async function cleanupBeforeLeave() {
+  console.log('페이지 이탈 전 상태 정리 시작...');
+  
+  // SSE 정리
+  await cleanupSseConnection();
+  
+  // 기타 상태 정리
+  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
+  
+  console.log('페이지 이탈 전 상태 정리 완료');
+}
 
-watch(() => currentStory.value?.content, (newContent) => {
-  if (isInterviewStarted.value) {
-    isContentChanged.value = newContent !== undefined && newContent.trim().length > 0;
-    console.log('Content changed, isContentChanged set to:', isContentChanged.value);
-  }
-});
-
-watch(() => [route.params.groupId, route.params.bookId], async (newParams, oldParams) => {
-  const [newGroupId, newBookId] = newParams as (string | undefined)[];
-  const [oldGroupId, oldBookId] = oldParams as (string | undefined)[];
-
-  if (newGroupId && (newGroupId !== oldGroupId || newBookId !== oldBookId)) {
-    console.log(`Route 변경 감지: Group ${oldGroupId}/${oldBookId} -> ${newGroupId}/${newBookId}`);
-    await cleanupBeforeLeave();
-    loadOrCreateBook(newGroupId, newBookId || null);
-  }
-}, { immediate: false });
-
-// --- [추가] 목차 페이지네이션을 위한 계산된 속성 및 함수 ---
-const totalStoryPages = computed(() => {
-  const totalStories = currentBook.value.stories?.length || 0;
-  if (totalStories === 0) return 1;
-  return Math.ceil(totalStories / storiesPerPage);
-});
-
-const paginatedStories = computed(() => {
-  const stories = currentBook.value.stories || [];
-  const start = (storiesCurrentPage.value - 1) * storiesPerPage;
-  const end = start + storiesPerPage;
-  return stories.slice(start, end);
-});
-
-function prevStoryPage() {
-  if (storiesCurrentPage.value > 1) {
-    storiesCurrentPage.value--;
+// 페이지네이션 함수들
+function prevEpisodePage() {
+  if (episodesCurrentPage.value > 1) {
+    episodesCurrentPage.value--;
   }
 }
 
-function nextStoryPage() {
-  if (storiesCurrentPage.value < totalStoryPages.value) {
-    storiesCurrentPage.value++;
+function nextEpisodePage() {
+  if (episodesCurrentPage.value < totalEpisodePages.value) {
+    episodesCurrentPage.value++;
   }
 }
 
-interface Story {
-  id?: number;
-  title: string;
-  content: string;
-  activeSessionId?: string | null;
-  imageUrl?: string; // [추가] 이야기별 이미지 URL
-}
-
-// [추가] 숨겨진 파일 입력창을 클릭하는 함수
+// 이미지 관련 함수들
 function triggerImageUpload() {
-  if (!currentStory.value) {
+  if (!currentEpisode.value) {
     customAlertRef.value?.showAlert({
       title: '선택 오류',
-      message: '먼저 이미지를 추가할 이야기를 선택해주세요.'
+      message: '먼저 이미지를 추가할 에피소드를 선택해주세요.'
     });
     return;
   }
-  storyImageInput.value?.click();
+  episodeImageInput.value?.click();
 }
 
-// [추가] 파일이 선택되었을 때 처리하는 함수
-async function handleStoryImageUpload(event: Event) {
+async function handleEpisodeImageUpload(event: Event) {
   const target = event.target as HTMLInputElement;
-  const groupId = route.params.groupId as string;
-
-  if (target.files && target.files[0] && currentStory.value?.id && currentBook.value?.id && groupId) {
+  if (target.files && target.files[0] && currentEpisode.value && 
+      currentGroupBook.value?.groupId && currentGroupBook.value?.id) {
     const file = target.files[0];
 
     try {
-      const response = await groupService.uploadEpisodeImage(
-        groupId,
-        currentBook.value.id,
-        currentStory.value.id,
+      const response = await groupBookService.uploadEpisodeImage(
+        currentGroupBook.value.groupId,
+        currentGroupBook.value.id,
+        currentEpisode.value.id!,
         file
       );
 
-      if (currentStory.value) {
-        currentStory.value.imageUrl = response.data.imageUrl;
-        currentStory.value.imageId = response.data.imageId;
+      if (currentEpisode.value && response) {
+        currentEpisode.value.imageUrl = response.imageUrl;
+        currentEpisode.value.imageId = response.imageId;
       }
 
       customAlertRef.value?.showAlert({
         title: '업로드 완료',
-        message: `'${file.name}' 이미지가 성공적으로 첨부되었습니다.`
+        message: '이미지가 성공적으로 첨부되었습니다.'
       });
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
@@ -1475,22 +1018,22 @@ async function handleStoryImageUpload(event: Event) {
     }
   }
 }
-// [추가] 이야기 이미지를 삭제하는 함수
-async function removeStoryImage() {
-  const groupId = route.params.groupId as string;
-  if (currentStory.value && currentBook.value?.id && currentStory.value.id && currentStory.value.imageId && groupId) {
+
+async function removeEpisodeImage() {
+  if (currentEpisode.value?.imageId && currentGroupBook.value?.groupId && 
+      currentGroupBook.value?.id && currentEpisode.value?.id) {
     if (!confirm('정말로 이미지를 삭제하시겠습니까?')) return;
 
     try {
-      await groupService.deleteEpisodeImage(
-        groupId,
-        currentBook.value.id,
-        currentStory.value.id,
-        currentStory.value.imageId
+      await groupBookService.deleteEpisodeImage(
+        currentGroupBook.value.groupId,
+        currentGroupBook.value.id,
+        currentEpisode.value.id,
+        currentEpisode.value.imageId
       );
 
-      currentStory.value.imageUrl = undefined;
-      currentStory.value.imageId = undefined;
+      currentEpisode.value.imageUrl = undefined;
+      currentEpisode.value.imageId = undefined;
 
       customAlertRef.value?.showAlert({
         title: '삭제 완료',
@@ -1505,6 +1048,153 @@ async function removeStoryImage() {
     }
   }
 }
+
+
+
+// 템플릿 완료 처리 함수들
+function handleTemplateCompleted() {
+  console.log('템플릿 완료 감지:', currentTemplate.value);
+  
+  // 1. 템플릿 완료 상태로 변경
+  isTemplateCompleted.value = true;
+  isInterviewStarted.value = false;
+  
+  // 2. 지금까지의 답변들을 텍스트 영역에 표시
+  displayAllAnswers();
+  
+  // 3. 새 에피소드 생성 가이드 표시
+  showNextEpisodeGuide.value = true;
+}
+
+function displayAllAnswers() {
+  // 현재 에피소드의 모든 답변을 합쳐서 표시
+  // 실제로는 서버에서 받아온 편집된 내용을 사용해야 하지만,
+  // 우선 현재 입력된 내용을 사용
+  if (currentEpisode.value?.content) {
+    allAnswersText.value = currentEpisode.value.content;
+  }
+  
+  // 텍스트 영역에 요약된 답변 표시
+  if (currentEpisode.value) {
+    currentEpisode.value.content = allAnswersText.value;
+  }
+}
+
+async function createNextEpisode() {
+  if (!currentGroupBook.value?.groupId || !currentGroupBook.value?.id) {
+    customAlertRef.value?.showAlert({
+      title: '오류',
+      message: '그룹북 정보를 찾을 수 없습니다.'
+    });
+    return;
+  }
+
+  // 새 에피소드 생성 전에 현재 에피소드 자동 저장
+  if (currentEpisode.value?.id) {
+    try {
+      console.log('새 에피소드 생성 전 현재 에피소드 자동 저장...');
+      await saveEpisode();
+      console.log('현재 에피소드 자동 저장 완료');
+    } catch (error) {
+      console.error('현재 에피소드 자동 저장 실패:', error);
+      // 저장 실패해도 다음 에피소드 생성은 계속 진행
+    }
+  }
+
+  try {
+    const nextEpisode = await groupBookService.createNextTemplateEpisode(
+      currentGroupBook.value.groupId,
+      currentGroupBook.value.id,
+      currentTemplate.value
+    );
+
+    if (nextEpisode) {
+      console.log('다음 에피소드 생성 응답:', nextEpisode);
+      console.log('다음 에피소드 응답 구조:', Object.keys(nextEpisode));
+      console.log('groupEpisodeId:', nextEpisode.groupEpisodeId);
+      console.log('id 필드:', nextEpisode.id);
+      
+      // 새 에피소드를 목록에 추가
+      currentGroupBook.value.episodes = currentGroupBook.value.episodes || [];
+      currentGroupBook.value.episodes.push({
+        id: nextEpisode.groupEpisodeId || nextEpisode.id,
+        title: nextEpisode.title,
+        content: '',
+        template: nextEpisode.template,
+        imageUrl: nextEpisode.imageUrl,
+        imageId: nextEpisode.imageId
+      });
+
+      // 새 에피소드로 전환
+      currentEpisodeIndex.value = currentGroupBook.value.episodes.length - 1;
+      
+      // 상태 초기화
+      isTemplateCompleted.value = false;
+      showNextEpisodeGuide.value = false;
+      allAnswersText.value = '';
+      
+      // AI 인터뷰 상태 초기화
+      isInterviewStarted.value = false;
+      isConnecting.value = false;
+      isConnected.value = false;
+      currentSessionId.value = null;
+      aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
+      
+      // 임시 답변 초기화
+      tempAnswers.value = [];
+      
+      // 기존 SSE 연결 정리
+      await cleanupSseConnection();
+      
+      // 새 템플릿으로 업데이트
+      currentTemplate.value = nextEpisode.template || 'STORY';
+      
+      customAlertRef.value?.showAlert({
+        title: '새 에피소드 생성',
+        message: `${getTemplateKoreanName(currentTemplate.value)} 템플릿의 새 에피소드가 생성되었습니다.`
+      });
+    }
+  } catch (error) {
+    console.error('다음 에피소드 생성 실패:', error);
+    customAlertRef.value?.showAlert({
+      title: '생성 실패',
+      message: '다음 에피소드 생성 중 오류가 발생했습니다.'
+    });
+  }
+}
+
+// 라이프사이클 훅
+onMounted(() => {
+  const groupId = parseInt((route.query.groupId || route.params.groupId) as string);
+  const groupBookId = route.query.groupBookId ? parseInt(route.query.groupBookId as string) : null;
+  
+  if (groupBookId) {
+    loadGroupBookForEditing(groupId, groupBookId);
+  } else {
+    // 새 그룹북 생성 모드
+    creationStep.value = 'setup';
+    currentGroupBook.value.groupId = groupId;
+  }
+});
+
+onBeforeRouteLeave((to, from, next) => {
+  if (creationStep.value !== 'setup' && !isSavedOrPublished.value) {
+    const answer = window.confirm(
+      '저장하지 않은 변경사항이 있습니다. 정말로 페이지를 떠나시겠습니까?'
+    );
+    if (answer) {
+      cleanupBeforeLeave().then(() => next());
+    } else {
+      next(false);
+    }
+  } else {
+    next();
+  }
+});
+
+onBeforeUnmount(() => {
+  cleanupBeforeLeave();
+});
 </script>
 
 <style scoped>
