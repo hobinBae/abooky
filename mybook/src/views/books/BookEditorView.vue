@@ -23,6 +23,7 @@
           <div class="type-selection">
             <button v-for="bookType in bookTypes" :key="bookType.id" @click="currentBook.type = bookType.id"
               :class="{ active: currentBook.type === bookType.id }">
+              <div v-if="bookType.id === 'autobiography'" class="ai-sticker">AI 인터뷰</div>
               <i :class="bookType.icon"></i>
               <span>{{ bookType.name }}</span>
             </button>
@@ -32,7 +33,8 @@
           <label>장르 선택</label>
           <div class="genre-toggle">
             <button v-for="category in categories" :key="category.id" @click="selectCategory(category.id)"
-              :class="{ active: selectedCategoryId === category.id }">
+              :class="{ active: selectedCategoryId === category.id }"
+              :disabled="currentBook.type === 'autobiography' || currentBook.type === 'diary'">
               {{ category.name }}
             </button>
           </div>
@@ -104,12 +106,12 @@
               <p v-if="isInterviewStarted"><i class="bi bi-robot"></i> {{ aiQuestion }}</p>
               <p v-else><i class="bi bi-robot"></i>AI 인터뷰 시작을 누르고 질문을 받아보세요.</p>
             </div> -->
-            <div class="ai-question-area">
-              <p><i class="bi bi-robot"></i> {{ aiQuestion }}</p>
+            <div class="ai-question-area" v-if="currentBook.type === 'autobiography'">
+              <p><img src="/aaddi.png" alt="AI Icon" class="ai-icon"> {{ aiQuestion }}</p>
             </div>
             <div class="story-content-wrapper">
               <textarea v-model="currentStory.content" class="story-content-editor"
-                placeholder="이곳에 이야기를 적거나 음성 녹음 시작을 누르고 말해 보세요." maxlength="5000"></textarea>
+                :placeholder="currentBook.type === 'autobiography' ? '이곳에 이야기를 적거나 음성 녹음 시작을 누르고 말해 보세요.' : '이곳에 자유롭게 이야기를 적어보세요.'" maxlength="5000"></textarea>
               <div class="char-counter">
                 {{ currentStory.content.length }} / 5000
               </div>
@@ -127,17 +129,24 @@
             </div>
           </div>
           <div class="editor-sidebar" :ref="el => { sidebarButtons = (el as any)?.children }">
-            <button @click="startAiInterview" class="btn-sidebar"><i class="bi bi-mic"></i> <span>AI 인터뷰
-                시작</span></button>
-            <button v-if="!isRecording" @click="startRecording" class="btn-sidebar"><i
-                class="bi bi-soundwave"></i><span>음성 답변 시작</span></button>
-            <button v-else @click="stopRecording" class="btn-sidebar btn-recording"><i
-                class="bi bi-stop-circle-fill"></i> <span>음성 답변 완료</span></button>
-            <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged"
-              class="btn-sidebar"><i class="bi bi-check-circle"></i> <span>질문 답변완료</span></button>
-            <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
-                class="bi bi-skip-end-circle"></i> <span>질문 건너뛰기</span></button>
-            <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> <span>AI 자동 교정</span></button>
+            <template v-if="currentBook.type === 'autobiography'">
+              <button @click="startAiInterview" class="btn-sidebar" :disabled="isInterviewStarted" :class="{ 'btn-sidebar-expanded': !isInterviewStarted }"><i class="bi bi-mic"></i> <span>AI 인터뷰
+                  시작</span></button>
+              <button v-if="!isRecording" @click="startRecording" class="btn-sidebar" :class="{ 'btn-sidebar-expanded': isInterviewStarted && !isRecording && !isContentChanged }"><i
+                  class="bi bi-soundwave"></i><span>음성 답변 시작</span></button>
+              <button v-else @click="stopRecording" class="btn-sidebar btn-recording" :class="{ 'btn-sidebar-expanded': isRecording }"><i
+                  class="bi bi-stop-circle-fill"></i> <span>음성 답변 완료</span></button>
+              <button @click="submitAnswerAndGetFollowUp" :disabled="!isInterviewStarted || !isContentChanged || isSavingAnswer" class="btn-sidebar" :class="{ 'btn-sidebar-expanded': isInterviewStarted && isContentChanged }">
+                <i :class="isSavingAnswer ? 'bi bi-arrow-repeat spinning' : 'bi bi-check-circle'"></i>
+                <span>{{ isSavingAnswer ? '처리 중...' : '작성 완료' }}</span>
+              </button>
+              <button @click="skipQuestion" :disabled="!isInterviewStarted || isLastQuestion" class="btn-sidebar"><i
+                  class="bi bi-skip-end-circle"></i> <span>질문 건너뛰기</span></button>
+            </template>
+            <button @click="autoCorrect" :disabled="isCorrecting" class="btn-sidebar">
+              <i :class="isCorrecting ? 'bi bi-arrow-repeat spinning' : 'bi bi-magic'"></i>
+              <span>{{ isCorrecting ? '교정 중...' : 'AI 자동 교정' }}</span>
+            </button>
             <button @click="triggerImageUpload" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진
                 첨부</span></button>
             <div class="sidebar-action-group">
@@ -280,7 +289,7 @@ const customAlertRef = ref<InstanceType<typeof CustomAlert> | null>(null);
 let selectStoryGeneration = 0;
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
 const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null });
-const selectedCategoryId = ref<number | null>(null);
+const selectedCategoryId = ref<number | null>(1);
 const currentStoryIndex = ref(-1);
 const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');
 
@@ -301,6 +310,7 @@ function updateAiQuestionMessage() {
   }
 }
 const isInterviewStarted = ref(false);
+const isLastQuestion = ref(false);
 const isRecording = ref(false);
 const isContentChanged = ref(false);
 const correctedContent = ref<string | null>(null);
@@ -318,7 +328,7 @@ let eventSource: EventSource | null = null;
 const isConnecting = ref(false);
 const isConnected = ref(false);
 
-const selectedCover = ref(coverOptions[0]);
+const selectedCover = ref<string | null>(null); // 명시적으로 null로 초기화
 const uploadedCoverFile = ref<File | null>(null);
 const sidebarButtons = ref<HTMLButtonElement[]>([]);
 
@@ -386,7 +396,9 @@ async function moveToEditingStep() {
   }
   bookData.append('bookType', bookTypeValue);
 
-  bookData.append('categoryId', String(selectedCategoryId.value));
+  if (selectedCategoryId.value !== null) {
+    bookData.append('categoryId', String(selectedCategoryId.value));
+  }
 
   try {
     const response = await apiClient.post('/api/v1/books', bookData, {
@@ -578,6 +590,10 @@ async function loadBookForEditing(bookId: string) {
       type: bookData.bookType.toLowerCase(),
       completed: bookData.completed,
     };
+    // [추가] 기존 표지 이미지 설정
+    if (bookData.coverImageUrl) {
+      selectedCover.value = bookData.coverImageUrl;
+    }
     tags.value = bookData.tags || [];
     selectedCategoryId.value = bookData.categoryId;
     creationStep.value = 'editing';
@@ -758,49 +774,6 @@ async function selectStory(index: number) {
 }
 
 
-async function saveStory() {
-  if (isInterviewStarted.value === true) {
-    customAlertRef.value?.showAlert({
-      title: '안내',
-      message: 'AI 인터뷰 진행 중에는 "질문 답변완료" 버튼을 사용해주세요. 이 버튼이 답변 저장과 다음 질문 요청을 모두 처리합니다.'
-    });
-    return;
-  }
-
-  if (!currentStory.value?.id || !currentBook.value?.id) {
-    customAlertRef.value?.showAlert({
-      title: '저장 오류',
-      message: '저장할 에피소드 정보가 올바르지 않습니다.'
-    });
-    return;
-  }
-
-  console.log(`에피소드 수정 요청: ID=${currentStory.value.id}`);
-
-  try {
-    const episodeUpdateRequest = {
-      title: currentStory.value.title,
-      content: currentStory.value.content
-    };
-    await apiClient.patch(
-      `/api/v1/books/${currentBook.value.id}/episodes/${currentStory.value.id}`,
-      episodeUpdateRequest
-    );
-    customAlertRef.value?.showAlert({
-      title: '저장 완료',
-      message: '에피소드가 성공적으로 저장되었습니다.'
-    });
-    isContentChanged.value = false;
-
-  } catch (error) {
-    console.error('에피소드 저장(수정) 실패:', error);
-    customAlertRef.value?.showAlert({
-      title: '저장 오류',
-      message: '에피소드 저장에 실패했습니다.'
-    });
-  }
-}
-
 // [수정] 상태 초기화 로직을 하나의 함수로 통합하여 재사용성 및 안정성 확보
 async function resetInterviewState() {
   console.log("인터뷰 상태를 초기화합니다...");
@@ -813,6 +786,7 @@ async function resetInterviewState() {
   isConnected.value = false;
   isConnecting.value = false;
   isInterviewStarted.value = false;
+  isLastQuestion.value = false;
   isRecording.value = false;
   isContentChanged.value = false;
   currentSessionId.value = null;
@@ -842,6 +816,18 @@ async function startAiInterview() {
     });
     return;
   }
+
+  const confirmed = await customAlertRef.value?.showConfirm({
+    title: '경고',
+    message: 'AI 인터뷰가 시작되면 현재 이야기에 작성된 내용이 사라집니다. 진행하시겠습니까?',
+    confirmButtonText: '확인',
+    cancelButtonText: '취소'
+  });
+
+  if (!confirmed) {
+    return;
+  }
+
   selectStoryGeneration++;
   const currentGeneration = selectStoryGeneration;
   await resetInterviewState();
@@ -939,6 +925,7 @@ async function connectToSseStream(generation?: number) {
 
       const isCompletion = q.questionType === 'CHAPTER_COMPLETE' || q.isLastQuestion === true;
       aiQuestion.value = q.text ?? '';
+      isLastQuestion.value = q.isLastQuestion ?? false;
 
       if (isCompletion) {
         console.log('챕터/전체 완료 신호 수신. 연결 종료.');
@@ -1051,7 +1038,7 @@ async function connectToSseStream(generation?: number) {
       isConnecting.value = false;
       isConnected.value = false;
       isInterviewStarted.value = false;
-      aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다. 페이지를 새로고침 해주세요.';
+      aiQuestion.value = '인터뷰 서버와 연결이 끊겼습니다.';
       try { eventSource?.close(); } catch { }
     };
 
@@ -1139,7 +1126,7 @@ async function skipQuestion() {
 
     customAlertRef.value?.showAlert({
       title: '건너뛰기',
-      message: '이 질문을 건너뛰었습니다. 새 질문을 불러오는 중...'
+      message: '질문을 건너뛰었습니다. 새 질문을 불러옵니다.'
     });
   } catch (e) {
     console.error('질문 건너뛰기 실패:', e);
@@ -1285,6 +1272,15 @@ async function finalizePublication() {
     });
     return;
   }
+
+  if (!selectedCover.value && !uploadedCoverFile.value) {
+    customAlertRef.value?.showAlert({
+      title: '선택 필요',
+      message: '표지 이미지를 선택하거나 첨부해주세요.'
+    });
+    return;
+  }
+
   if (!confirm('이 정보로 책을 최종 발행하시겠습니까?')) return;
 
   try {
@@ -1309,7 +1305,7 @@ async function finalizePublication() {
 
     if (uploadedCoverFile.value) {
       bookUpdateData.append('file', uploadedCoverFile.value);
-    } else {
+    } else if (selectedCover.value) {
       bookUpdateData.append('coverImageUrl', selectedCover.value);
     }
 
@@ -1341,6 +1337,14 @@ async function finalizePublicationAsCopy() {
     customAlertRef.value?.showAlert({
       title: '정보 오류',
       message: '책 정보가 올바르지 않습니다.'
+    });
+    return;
+  }
+
+  if (!selectedCover.value && !uploadedCoverFile.value) {
+    customAlertRef.value?.showAlert({
+      title: '선택 필요',
+      message: '표지 이미지를 선택하거나 첨부해주세요.'
     });
     return;
   }
@@ -1458,6 +1462,10 @@ onMounted(() => {
 
   // 초기 로딩 시 AI 질문 메시지 업데이트
   setTimeout(() => updateAiQuestionMessage(), 100);
+
+  if (currentBook.value.type === 'autobiography') {
+    selectCategory(1);
+  }
 });
 
 onUpdated(() => {
@@ -1533,6 +1541,17 @@ watch(() => currentStory.value?.content, () => {
   updateAiQuestionMessage();
 }, { deep: true });
 
+watch(() => currentBook.value.type, (newType) => {
+  if (newType === 'autobiography') {
+    selectCategory(1); // 자서전
+  } else if (newType === 'diary') {
+    selectCategory(2); // 일기
+  } else if (newType === 'freeform') {
+    selectedCategoryId.value = null;
+    currentBook.value.categoryId = null;
+  }
+});
+
 // --- [추가] 목차 페이지네이션을 위한 계산된 속성 및 함수 ---
 const totalStoryPages = computed(() => {
   const totalStories = currentBook.value.stories?.length || 0;
@@ -1600,6 +1619,7 @@ async function handleStoryImageUpload(event: Event) {
 
       if (currentStory.value) {
         currentStory.value.imageUrl = response.data.data.imageUrl;
+        currentStory.value.imageId = response.data.data.imageId;
       }
 
       customAlertRef.value?.showAlert({
@@ -2241,6 +2261,13 @@ textarea.form-control {
   margin-right: 0.4rem;
 }
 
+.ai-icon {
+  width: 35px;
+  height: 35px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .story-content-wrapper {
   position: relative;
   flex-grow: 1;
@@ -2308,7 +2335,8 @@ textarea.form-control {
   transition: visibility 0s 0.2s, opacity 0.2s ease, width 0.3s ease;
 }
 
-.btn-sidebar:hover {
+.btn-sidebar:hover,
+.btn-sidebar.btn-sidebar-expanded {
   width: 150px;
   border-radius: 44px;
   justify-content: flex-start;
@@ -2318,7 +2346,8 @@ textarea.form-control {
   background-color: #f6f8f2;
 }
 
-.btn-sidebar:hover span {
+.btn-sidebar:hover span,
+.btn-sidebar.btn-sidebar-expanded span {
   visibility: visible;
   opacity: 1;
   width: auto;
@@ -2590,5 +2619,30 @@ textarea.form-control {
     display: contents;
   }
 
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.ai-sticker {
+  position: absolute;
+  top: 7px;
+  left: 1px;
+  background-color: #b06849;
+  color: rgb(255, 255, 255);
+  padding: 3px 5px;
+  border-radius: 15px;
+  border: 1px solid #a88871;
+  font-size: 0.6rem;
+  font-weight: bold;
+  transform: rotate(-17deg);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  z-index: 2;
 }
 </style>
