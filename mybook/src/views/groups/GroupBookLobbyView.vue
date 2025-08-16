@@ -390,16 +390,15 @@ const selectGroupForCreate = (group: Group) => {
 
   try {
     router.push({
-      path: '/group-book-editor',
-      query: {
-        groupId: group.groupId.toString(),
-        groupName: group.groupName
+      name: 'group-book-editor',
+      params: {
+        groupId: group.groupId.toString()
       }
     });
     closeCreateModal();
   } catch (error) {
     console.error('그룹책 에디터 이동 오류:', error);
-    window.location.href = `/group-book-editor?groupId=${group.groupId}&groupName=${encodeURIComponent(group.groupName)}`;
+    window.location.href = `/group-book-editor/${group.groupId}`;
   }
 };
 
