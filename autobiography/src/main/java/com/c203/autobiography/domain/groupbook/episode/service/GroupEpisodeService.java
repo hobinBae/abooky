@@ -40,4 +40,11 @@ public interface GroupEpisodeService {
     
     // 답변 처리 메서드
     void submitAnswer(Long memberId, Long groupId, Long groupBookId, Long episodeId, String sessionId, GroupAnswerRequest request);
+    
+    // 다음 템플릿 에피소드 생성
+    GroupEpisodeResponse createNextTemplateEpisode(Long groupId, Long groupBookId, String currentTemplate, Long memberId);
+    
+    // 답변 교정
+    GroupAnswerCorrectionResponse correctAnswer(Long groupId, Long groupBookId, Long episodeId, 
+                                              GroupAnswerCorrectionRequest request, Long memberId);
 }

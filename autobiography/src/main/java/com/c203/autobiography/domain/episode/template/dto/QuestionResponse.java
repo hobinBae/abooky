@@ -39,4 +39,7 @@ public class QuestionResponse {
     
     @Schema(description = "마지막 질문 여부")
     private Boolean isLastQuestion;
+    
+    @Schema(description = "템플릿 완료 여부 (사용자가 답변 확인 및 저장 후 다음 단계로 진행)")
+    private Boolean isTemplateCompleted;
 }

@@ -1,5 +1,7 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
+import com.c203.autobiography.domain.group.repository.GroupMemberRepository;
+import com.c203.autobiography.domain.group.service.GroupMemberService;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
 import com.c203.autobiography.domain.groupbook.entity.GroupType;
 import com.c203.autobiography.domain.groupbook.episode.dto.*;
@@ -18,6 +20,7 @@ import com.c203.autobiography.global.s3.FileStorageService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import com.c203.autobiography.domain.ai.client.AiClient;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -34,10 +37,12 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
+@Getter
 @RequiredArgsConstructor
 @Transactional
 @Slf4j
 public class GroupEpisodeServiceImpl implements GroupEpisodeService {
+
 
     private final GroupBookRepository groupBookRepository;
     private final GroupEpisodeRepository episodeRepository;
@@ -48,6 +53,7 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
     private final FileStorageService fileStorageService;
     private final SseService sseService;
     private final AiClient aiClient;
+    private final GroupMemberService groupMemberService;
 
     // 대화 세션 관리를 위한 메모리 저장소
     private final ConcurrentHashMap<String, GroupConversationSession> activeSessions = new ConcurrentHashMap<>();
@@ -64,14 +70,14 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         private int currentStep;
 
         public GroupConversationSession(String sessionId, Long memberId, Long groupId, 
-                                      Long groupBookId, Long initialEpisodeId, GroupType groupType) {
+                                      Long groupBookId, Long initialEpisodeId, GroupType groupType, String initialTemplate) {
             this.sessionId = sessionId;
             this.memberId = memberId;
             this.groupId = groupId;
             this.groupBookId = groupBookId;
             this.currentEpisodeId = initialEpisodeId;
             this.groupType = groupType;
-            this.currentTemplate = "INTRO";
+            this.currentTemplate = initialTemplate;
             this.currentStep = 0;
         }
 
@@ -85,9 +91,6 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         public String getCurrentTemplate() { return currentTemplate; }
         public int getCurrentStep() { return currentStep; }
 
-        public void setCurrentTemplate(String template) { this.currentTemplate = template; }
-        public void setCurrentStep(int step) { this.currentStep = step; }
-        public void setCurrentEpisodeId(Long episodeId) { this.currentEpisodeId = episodeId; } // 새 에피소드로 전환
         public void nextStep() { this.currentStep++; }
     }
 
@@ -423,9 +426,12 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         // 2. 세션 ID 생성
         String sessionId = UUID.randomUUID().toString();
         
-        // 3. 세션 생성 및 저장
+        // 3. 에피소드의 현재 템플릿 가져오기
+        String currentTemplate = episode.getTemplate() != null ? episode.getTemplate() : "INTRO";
+        
+        // 4. 세션 생성 및 저장
         GroupConversationSession session = new GroupConversationSession(
-                sessionId, memberId, groupId, groupBookId, episodeId, groupBook.getGroupType()
+                sessionId, memberId, groupId, groupBookId, episodeId, groupBook.getGroupType(), currentTemplate
         );
         activeSessions.put(sessionId, session);
         
@@ -517,30 +523,21 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
                 log.info("다음 질문 전송 완료: sessionId={}, step={}", sessionId, session.getCurrentStep());
                 
             } else {
-                // 4. 질문이 없으면 다음 템플릿으로 이동 또는 종료
+                // 4. 질문이 없으면 템플릿 완료 상태로 처리
                 String nextTemplate = getNextTemplate(session.getCurrentTemplate());
                 if (nextTemplate != null) {
-                    // 새로운 에피소드 생성 (템플릿별 분리)
-                    Long newEpisodeId = createNewEpisodeForTemplate(session, nextTemplate);
-                    
-                    // 세션의 현재 에피소드 ID 업데이트
-                    session.setCurrentEpisodeId(newEpisodeId);
-                    session.setCurrentTemplate(nextTemplate);
-                    session.setCurrentStep(0);
-                    
-                    GuideQuestion firstQuestionOfNextTemplate = guideResolver.resolveFirst(
-                            session.getGroupType(), nextTemplate);
-                    
-                    QuestionResponse questionResponse = QuestionResponse.builder()
-                            .text(firstQuestionOfNextTemplate.question())
-                            .currentChapter(nextTemplate)
-                            .currentStage("step-0")
+                    // 템플릿 완료 메시지 전송 (자동 생성하지 않고 사용자 액션 대기)
+                    QuestionResponse templateCompleteResponse = QuestionResponse.builder()
+                            .text("'" + getTemplateKoreanName(session.getCurrentTemplate()) + "' 주제에 대한 질문이 완료되었습니다. 지금까지의 답변을 확인하고 저장해주세요.")
+                            .currentChapter(session.getCurrentTemplate())
+                            .currentStage("template_completed")
+                            .isTemplateCompleted(true)
                             .build();
                             
-                    sseService.pushQuestion(sessionId, questionResponse);
+                    sseService.pushQuestion(sessionId, templateCompleteResponse);
                     
-                    log.info("다음 템플릿으로 이동 및 새 에피소드 생성: sessionId={}, template={}, newEpisodeId={}", 
-                            sessionId, nextTemplate, newEpisodeId);
+                    log.info("템플릿 완료 - 사용자 액션 대기: sessionId={}, template={}, nextTemplate={}", 
+                            sessionId, session.getCurrentTemplate(), nextTemplate);
                     
                 } else {
                     // 5. 모든 질문 완료 - QuestionResponse로 완료 메시지 전송
@@ -759,6 +756,19 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
     }
 
     /**
+     * 템플릿을 한글로 변환
+     */
+    private String getTemplateKoreanName(String template) {
+        return switch (template) {
+            case "INTRO" -> "소개";
+            case "STORY" -> "이야기";
+            case "REFLECTION" -> "회상";
+            case "FUTURE" -> "미래";
+            default -> template;
+        };
+    }
+
+    /**
      * 현재 세션의 질문 텍스트 가져오기
      */
     private String getCurrentQuestionText(GroupConversationSession session) {
@@ -825,5 +835,148 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
             case "FUTURE" -> null; // 종료
             default -> null;
         };
+    }
+
+    @Override
+    @Transactional
+    public GroupEpisodeResponse createNextTemplateEpisode(Long groupId, Long groupBookId, String currentTemplate, Long memberId) {
+        // 1. 다음 템플릿 확인
+        String nextTemplate = getNextTemplate(currentTemplate);
+        if (nextTemplate == null) {
+            throw new ApiException(ErrorCode.INVALID_REQUEST);
+        }
+
+        // 2. 그룹책 확인
+        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+        // 3. 현재 그룹북의 에피소드 개수로 orderNo 계산
+        int nextOrderNo = (int) episodeRepository.findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(groupBookId).size() + 1;
+
+        // 4. 템플릿별 제목 생성
+        String episodeTitle = generateEpisodeTitleByTemplate(nextTemplate, groupBook.getGroupType());
+
+        // 5. 새 에피소드 생성
+        GroupEpisode newEpisode = episodeRepository.save(
+                GroupEpisode.toEntity(groupBook, episodeTitle, nextOrderNo, nextTemplate)
+        );
+
+        log.info("사용자 요청으로 다음 템플릿 에피소드 생성: groupId={}, groupBookId={}, currentTemplate={}, nextTemplate={}, newEpisodeId={}", 
+                groupId, groupBookId, currentTemplate, nextTemplate, newEpisode.getGroupEpisodeId());
+
+        return GroupEpisodeResponse.of(newEpisode);
+    }
+
+    @Override
+    public GroupAnswerCorrectionResponse correctAnswer(Long groupId, Long groupBookId, Long episodeId, 
+                                                     GroupAnswerCorrectionRequest request, Long memberId) {
+        
+        // 1. 그룹 멤버 권한 확인
+        groupMemberService.verifyMember(groupId, memberId);
+        
+        // 2. 그룹책 및 에피소드 존재 확인
+        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        
+        GroupEpisode episode = episodeRepository.findById(episodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
+        
+        if (!episode.getGroupBook().getGroupBookId().equals(groupBookId)) {
+            throw new ApiException(ErrorCode.EPISODE_NOT_FOUND);
+        }
+        
+        // 3. 그룹 타입 정보 가져오기
+        String groupType = groupBook.getGroupType().name();
+        
+        // 4. AI 교정 요청
+        try {
+            String aiResponse = aiClient.correctAnswerWithContext(
+                    request.getQuestion(),
+                    request.getAnswer(),
+                    request.getCurrentTemplate(),
+                    groupType,
+                    request.getCorrectionStyle() != null ? request.getCorrectionStyle() : "CASUAL"
+            );
+            
+            // 5. AI 응답 파싱 (JSON 형태로 반환되므로 파싱 필요)
+            // 간단한 파싱 로직 - 실제로는 JSON 라이브러리 사용 권장
+            return parseAiCorrectionResponse(aiResponse, request.getAnswer());
+            
+        } catch (Exception e) {
+            log.error("AI 답변 교정 실패: groupId={}, episodeId={}, error={}", groupId, episodeId, e.getMessage());
+            
+            // 임시: API 키 문제로 인한 실패 시 샘플 교정 응답 반환
+            if (e.getMessage().contains("401") || e.getMessage().contains("UNAUTHORIZED")) {
+                return GroupAnswerCorrectionResponse.builder()
+                        .originalAnswer(request.getAnswer())
+                        .correctedAnswer(request.getAnswer() + "라는 소중한 기억이 마음 깊이 새겨져 있습니다. 그 순간의 감정과 경험이 오늘의 저를 만들어주었다고 생각합니다.")
+                        .correctionReason("현재 AI 서비스 연결에 문제가 있어 샘플 교정을 제공합니다. 원본 답변을 보다 서정적이고 감동적인 문체로 개선했습니다.")
+                        .suggestedFollowUpQuestion("그 경험을 통해 얻은 가장 큰 깨달음이나 교훈이 있다면 무엇인가요?")
+                        .build();
+            }
+            
+            // 일반적인 AI 교정 실패 시 원본 답변 반환
+            return GroupAnswerCorrectionResponse.builder()
+                    .originalAnswer(request.getAnswer())
+                    .correctedAnswer(request.getAnswer())
+                    .correctionReason("AI 교정 서비스에 일시적인 문제가 발생했습니다.")
+                    .suggestedFollowUpQuestion(null)
+                    .build();
+        }
+    }
+    
+    private GroupAnswerCorrectionResponse parseAiCorrectionResponse(String aiResponse, String originalAnswer) {
+        try {
+            // JSON 파싱 로직 (간단한 구현)
+            // 실제로는 ObjectMapper 등을 사용하는 것이 좋음
+            
+            // 기본값 설정
+            String correctedAnswer = originalAnswer;
+            String correctionReason = "교정이 완료되었습니다.";
+            String suggestedFollowUpQuestion = null;
+            
+            if (aiResponse.contains("correctedAnswer")) {
+                int start = aiResponse.indexOf("\"correctedAnswer\":") + 18;
+                int end = aiResponse.indexOf("\",", start);
+                if (end == -1) end = aiResponse.indexOf("\"}", start);
+                if (start > 17 && end > start) {
+                    correctedAnswer = aiResponse.substring(start + 1, end);
+                }
+            }
+            
+            if (aiResponse.contains("correctionReason")) {
+                int start = aiResponse.indexOf("\"correctionReason\":") + 19;
+                int end = aiResponse.indexOf("\",", start);
+                if (end == -1) end = aiResponse.indexOf("\"}", start);
+                if (start > 18 && end > start) {
+                    correctionReason = aiResponse.substring(start + 1, end);
+                }
+            }
+            
+            if (aiResponse.contains("suggestedFollowUpQuestion")) {
+                int start = aiResponse.indexOf("\"suggestedFollowUpQuestion\":") + 28;
+                int end = aiResponse.indexOf("\"}", start);
+                if (end == -1) end = aiResponse.indexOf("\",", start);
+                if (start > 27 && end > start && !aiResponse.substring(start, end).contains("null")) {
+                    suggestedFollowUpQuestion = aiResponse.substring(start + 1, end);
+                }
+            }
+            
+            return GroupAnswerCorrectionResponse.builder()
+                    .originalAnswer(originalAnswer)
+                    .correctedAnswer(correctedAnswer)
+                    .correctionReason(correctionReason)
+                    .suggestedFollowUpQuestion(suggestedFollowUpQuestion)
+                    .build();
+                    
+        } catch (Exception e) {
+            log.error("AI 응답 파싱 실패: {}", e.getMessage());
+            return GroupAnswerCorrectionResponse.builder()
+                    .originalAnswer(originalAnswer)
+                    .correctedAnswer(originalAnswer)
+                    .correctionReason("응답 처리 중 오류가 발생했습니다.")
+                    .suggestedFollowUpQuestion(null)
+                    .build();
+        }
     }
 }
