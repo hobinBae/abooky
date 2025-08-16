@@ -77,12 +77,12 @@
                   class="participant-video">
                 </video>
                 <div v-if="!participant.videoTrack" class="participant-video-placeholder">
-                  {{ participant.identity.charAt(0).toUpperCase() }}
+                  {{ getParticipantDisplayName(participant.identity).charAt(0).toUpperCase() }}
                 </div>
                 <div class="participant-info">
                   <div class="participant-name">
                     <i class="bi me-1" :class="participant.isMicrophoneEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                    {{ participant.identity }}
+                    {{ getParticipantDisplayName(participant.identity) }}
                     <span v-if="participant.isScreenSharing" class="screen-sharing-badge">
                       <i class="bi bi-share-fill"></i>
                     </span>
@@ -145,12 +145,12 @@
                       class="thumbnail-video">
                     </video>
                     <div v-if="!participant.videoTrack" class="thumbnail-video-placeholder">
-                      {{ participant.identity.charAt(0).toUpperCase() }}
+                      {{ getParticipantDisplayName(participant.identity).charAt(0).toUpperCase() }}
                     </div>
                     <div class="thumbnail-info">
                       <div class="thumbnail-name">
                         <i class="bi me-1" :class="participant.isMicrophoneEnabled ? 'bi-mic-fill' : 'bi-mic-mute-fill'"></i>
-                        {{ participant.identity }}
+                        {{ getParticipantDisplayName(participant.identity) }}
                       </div>
                     </div>
                   </div>
@@ -326,6 +326,9 @@ let livekitRoom: LK.Room | null = null;
 const remoteParticipants = ref<RemoteParticipant[]>([]);
 const participantVideoRefs = ref<Map<string, HTMLVideoElement>>(new Map());
 
+// 참여자 닉네임 매핑 (identity -> nickname)
+const participantNicknames = ref<Map<string, string>>(new Map());
+
 // 채팅 상태
 const newMessage = ref('');
 const chatMessages = ref<ChatMessage[]>([]);
@@ -370,7 +373,7 @@ const screenSharingParticipant = computed(() => {
     return '나';
   }
   const sharingParticipant = remoteParticipants.value.find(p => p.isScreenSharing);
-  return sharingParticipant ? sharingParticipant.identity : '';
+  return sharingParticipant ? getParticipantDisplayName(sharingParticipant.identity) : '';
 });
 
 // --- Helper Functions ---
@@ -399,6 +402,11 @@ function setParticipantVideoRef(el: HTMLVideoElement | null, identity: string) {
   if (el && el instanceof HTMLVideoElement) {
     participantVideoRefs.value.set(identity, el);
   }
+}
+
+// 참여자 표시 이름 가져오기 함수
+function getParticipantDisplayName(identity: string): string {
+  return participantNicknames.value.get(identity) || identity;
 }
 
 // 화면공유 진단 함수
@@ -893,6 +901,11 @@ async function joinRoom() {
       });
     }
 
+    // 내 자신의 닉네임도 저장 (로컬 참여자)
+    if (livekitRoom.localParticipant && livekitRoom.localParticipant.identity) {
+      participantNicknames.value.set(livekitRoom.localParticipant.identity, userNickname.value);
+    }
+
     // UI 전환
     hasJoined.value = true;
     // 모달이 닫히므로 body 스크롤 복원
@@ -905,6 +918,9 @@ async function joinRoom() {
     // 로컬 미디어 발행
     setTimeout(async () => {
       await publishLocalMedia();
+      
+      // 닉네임 정보 브로드캐스트
+      await broadcastNickname();
     }, 500);
 
   } catch (error: any) {
@@ -941,6 +957,11 @@ function setupRoomEventListeners() {
   livekitRoom!.on(RoomEvent.ParticipantConnected, (participant: any) => {
     console.log('🔗 참여자 입장:', participant.identity);
     addRemoteParticipant(participant);
+    
+    // 새 참여자를 위해 내 닉네임 정보 브로드캐스트
+    setTimeout(() => {
+      broadcastNickname();
+    }, 1000);
   });
 
   // 참여자 연결 해제 이벤트
@@ -1291,6 +1312,22 @@ function connectLocalCameraTrack(track: any) {
     updateParticipantConnectionQuality(participant.identity, quality);
   });
 
+  // 트랙 음소거 이벤트
+  livekitRoom!.on(RoomEvent.TrackMuted, (publication: any, participant: any) => {
+    console.log('🔇 트랙 음소거:', participant.identity, publication.kind, publication.source);
+    if (publication.kind === 'audio') {
+      updateParticipantMicrophoneState(participant.identity, false);
+    }
+  });
+
+  // 트랙 음소거 해제 이벤트
+  livekitRoom!.on(RoomEvent.TrackUnmuted, (publication: any, participant: any) => {
+    console.log('🔊 트랙 음소거 해제:', participant.identity, publication.kind, publication.source);
+    if (publication.kind === 'audio') {
+      updateParticipantMicrophoneState(participant.identity, true);
+    }
+  });
+
   // 연결 상태 변경 이벤트
   livekitRoom!.on(RoomEvent.ConnectionStateChanged, (state: any) => {
     console.log('🔄 연결 상태 변경:', state);
@@ -1305,6 +1342,11 @@ function connectLocalCameraTrack(track: any) {
       const messageData = JSON.parse(messageStr);
 
       if (messageData.type === 'chat') {
+        // 닉네임 정보가 있으면 저장
+        if (messageData.senderNickname && participant.identity) {
+          participantNicknames.value.set(participant.identity, messageData.senderNickname);
+        }
+
         const chatMessage: ChatMessage = {
           id: messageData.id,
           sender: messageData.senderNickname || participant.identity,
@@ -1315,6 +1357,12 @@ function connectLocalCameraTrack(track: any) {
 
         chatMessages.value.push(chatMessage);
         scrollToBottom();
+      } else if (messageData.type === 'nickname_info') {
+        // 닉네임 정보 메시지 처리
+        if (messageData.identity && messageData.nickname) {
+          participantNicknames.value.set(messageData.identity, messageData.nickname);
+          console.log('닉네임 정보 수신:', messageData.identity, '->', messageData.nickname);
+        }
       }
     } catch (error: unknown) {
       console.error('데이터 메시지 파싱 실패:', error);
@@ -1360,18 +1408,56 @@ async function publishLocalMedia() {
   }
 }
 
+// 닉네임 정보 브로드캐스트 함수
+async function broadcastNickname() {
+  if (!livekitRoom) return;
+
+  try {
+    const nicknameMessage = {
+      type: 'nickname_info',
+      identity: livekitRoom.localParticipant.identity,
+      nickname: userNickname.value,
+      timestamp: Date.now()
+    };
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(JSON.stringify(nicknameMessage));
+    
+    await livekitRoom.localParticipant.publishData(data, {
+      reliable: true
+    });
+
+    console.log('닉네임 정보 브로드캐스트 완료:', userNickname.value);
+
+  } catch (error: unknown) {
+    console.error('닉네임 브로드캐스트 실패:', error);
+  }
+}
+
 function addRemoteParticipant(participant: any) {
+  // 실제 오디오 트랙 상태 확인
+  let actualMicrophoneState = participant.isMicrophoneEnabled;
+  if (participant.audioTracks && participant.audioTracks.size > 0) {
+    const audioTrack = Array.from(participant.audioTracks.values())[0];
+    if (audioTrack && (audioTrack as any).isMuted !== undefined) {
+      actualMicrophoneState = !(audioTrack as any).isMuted;
+    }
+  }
+
   const newParticipant: RemoteParticipant = {
     identity: participant.identity,
-    isMicrophoneEnabled: participant.isMicrophoneEnabled,
+    isMicrophoneEnabled: actualMicrophoneState,
     isCameraEnabled: participant.isCameraEnabled,
     connectionQuality: undefined,
     isScreenSharing: false,
     screenShareTrack: undefined
   };
 
+  // 참여자 입장 시 즉시 닉네임 정보 저장 (identity가 곧 닉네임)
+  participantNicknames.value.set(participant.identity, participant.identity);
+
   remoteParticipants.value.push(newParticipant);
-  console.log('하위 참여자 추가:', participant.identity);
+  console.log('하위 참여자 추가:', participant.identity, '마이크 상태:', actualMicrophoneState);
 
   // 기존 트랙들 처리
   if (participant.videoTracks && participant.videoTracks.size > 0) {
@@ -1462,9 +1548,14 @@ function handleTrackSubscribed(track: any, participant: any, publication?: any) 
 
   } else if (track.kind === 'audio') {
     participantData.audioTrack = track;
+    
+    // 오디오 트랙의 현재 muted 상태를 확인하여 마이크 상태 업데이트
+    const isMicrophoneEnabled = !(track as any).isMuted;
+    participantData.isMicrophoneEnabled = isMicrophoneEnabled;
+    
     if (track.attach) {
       track.attach();
-      console.log('✅ 오디오 트랙 연결 성공:', participant.identity);
+      console.log('✅ 오디오 트랙 연결 성공:', participant.identity, '마이크 상태:', isMicrophoneEnabled);
     }
   }
 }
@@ -1610,6 +1701,14 @@ function updateParticipantConnectionQuality(identity: string, quality: number) {
   const participant = remoteParticipants.value.find(p => p.identity === identity);
   if (participant) {
     participant.connectionQuality = quality;
+  }
+}
+
+function updateParticipantMicrophoneState(identity: string, isEnabled: boolean) {
+  const participant = remoteParticipants.value.find(p => p.identity === identity);
+  if (participant) {
+    participant.isMicrophoneEnabled = isEnabled;
+    console.log(`참여자 ${identity} 마이크 상태 업데이트:`, isEnabled ? '활성화' : '음소거');
   }
 }
 
