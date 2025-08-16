@@ -151,6 +151,36 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+  # Redis 캐시 서비스 추가
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis-server
+    command: 
+      - redis-server
+      - --appendonly 
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory 
+      - 128mb
+      - --maxmemory-policy 
+      - allkeys-lru
+      - --replica-read-only
+      - "no"
+      - --save
+      - ""   
+    ports:
+      - "127.0.0.1:6379:6379"  # 🔒 로컬호스트에서만 접근 가능
+    volumes:
+      - redis_data:/data
+    restart: always
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   mysql-data:
