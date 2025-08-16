@@ -84,7 +84,8 @@ class GroupBookService {
 
   private getMultipartHeaders() {
     return {
-      // Content-Type을 명시하지 않음 - 브라우저가 자동으로 multipart/form-data를 설정
+      // FormData 사용 시 Content-Type을 undefined로 설정하여 브라우저가 자동으로 boundary와 함께 설정하도록 함
+      'Content-Type': undefined
     };
   }
 
@@ -155,17 +156,21 @@ class GroupBookService {
   /**
    * 그룹북 수정
    */
-  async updateGroupBook(groupId: number, groupBookId: number, data: Partial<GroupBookCreateRequest>): Promise<GroupBook | null> {
+  async updateGroupBook(groupId: number, groupBookId: number, data: Partial<GroupBookCreateRequest> | FormData): Promise<GroupBook | null> {
     try {
+      // FormData인지 일반 객체인지 확인하여 헤더를 다르게 설정
+      const isFormData = data instanceof FormData;
+      const headers = isFormData ? this.getMultipartHeaders() : this.getHeaders();
+      
       console.log('그룹북 수정 API 호출:', {
         url: `/api/v1/groups/${groupId}/books/${groupBookId}`,
         method: 'PATCH',
-        data: data,
-        headers: this.getHeaders()
+        dataType: isFormData ? 'FormData' : 'JSON',
+        headers: headers
       });
 
       const response = await apiClient.patch(`/api/v1/groups/${groupId}/books/${groupBookId}`, data, {
-        headers: this.getHeaders()
+        headers: headers
       });
       
       console.log('그룹북 수정 API 응답:', response.data);
@@ -317,6 +322,27 @@ class GroupBookService {
     }
   }
 
+  /**
+   * 에피소드 이미지 조회
+   */
+  async getEpisodeImage(groupId: number, groupBookId: number, episodeId: number): Promise<GroupEpisodeImage | null> {
+    try {
+      const response = await apiClient.get(`/api/v1/groups/${groupId}/books/${groupBookId}/episodes/${episodeId}/images`, {
+        headers: this.getHeaders()
+      });
+      
+      if (response.data.success) {
+        const images = response.data.data;
+        // 이미지 리스트에서 첫 번째 이미지만 반환 (한 장만 업로드 가능하므로)
+        return images && images.length > 0 ? images[0] : null;
+      } else {
+        throw new Error(response.data.message || '에피소드 이미지 조회 실패');
+      }
+    } catch (error) {
+      console.error('에피소드 이미지 조회 실패:', error);
+      return null;
+    }
+  }
   // === 대화 세션 관련 API ===
 
   /**
@@ -418,6 +444,15 @@ class GroupBookService {
    */
   async uploadEpisodeImage(groupId: number, groupBookId: number, episodeId: number, file: File, description?: string, orderNo?: number): Promise<GroupEpisodeImage | null> {
     try {
+      console.log('에피소드 이미지 업로드 API 호출 시작:', {
+        url: `/api/v1/groups/${groupId}/books/${groupBookId}/episodes/${episodeId}/images`,
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        description,
+        orderNo
+      });
+
       const formData = new FormData();
       formData.append('file', file);
       if (description) formData.append('description', description);
@@ -431,6 +466,8 @@ class GroupBookService {
         }
       );
       
+      console.log('에피소드 이미지 업로드 API 응답:', response.data);
+      
       if (response.data.success) {
         return response.data.data;
       } else {
@@ -438,6 +475,12 @@ class GroupBookService {
       }
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
+      console.error('에러 상세:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText
+      });
       throw error;
     }
   }

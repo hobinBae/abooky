@@ -22,7 +22,7 @@
             class="form-control" rows="5" placeholder="그룹책 소개를 입력해주세요"></textarea>
         </div>
         <div class="form-group">
-          <label for="group-book-tags">태그 (최대 5개)</label>
+          <label for="group-book-tags">태그</label>
           <div class="tag-container">
             <div class="tag-list">
               <span v-for="(tag, index) in groupBookTags" :key="index" class="tag-item">
@@ -33,7 +33,19 @@
             <input id="group-book-tags" type="text" v-model="tagInput" @keydown.enter.prevent="addTag"
               placeholder="태그 입력 후 Enter" class="form-control" :disabled="groupBookTags.length >= 5">
           </div>
-          <small class="form-text">그룹책을 찾기 쉽게 도와주는 키워드를 입력해주세요.</small>
+        </div>
+        <div class="form-group">
+          <label>표지 이미지 선택</label>
+          <div class="cover-selection">
+            <div v-for="(cover, index) in coverOptions" :key="index" class="cover-option"
+              :class="{ active: selectedCover === cover }" @click="selectedCover = cover">
+              <img :src="cover" alt="Book Cover">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="cover-upload">또는, 직접 표지 첨부</label>
+          <input id="cover-upload" type="file" @change="handleCoverUpload" class="form-control">
         </div>
         <div class="form-actions">
           <button @click="closePublishModal" class="btn btn-primary btn-lg">
@@ -83,9 +95,6 @@
       <div class="workspace-header">
         <span class="editor-title-label"> 책 제목 </span>
         <input type="text" v-model="currentGroupBook.title" class="book-title-input title-input-highlight">
-        <div class="template-indicator">
-          <span class="current-template">{{ getTemplateKoreanName(currentTemplate) }}</span>
-        </div>
       </div>
 
       <div class="workspace-main">
@@ -244,6 +253,9 @@ const groupTypes = [
   { id: 'OTHER', name: '기타', icon: 'bi bi-collection' }
 ];
 
+const coverOptions = ['https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_1.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_2.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_3.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_4.jpg', 'https://ssafytrip.s3.ap-northeast-2.amazonaws.com/book/default_5.jpg',];
+
+
 // --- 라우터 및 상태 ---
 const router = useRouter();
 const route = useRoute();
@@ -279,6 +291,8 @@ let eventSource: EventSource | null = null;
 const isConnecting = ref(false);
 const isConnected = ref(false);
 
+const selectedCover = ref(coverOptions[0]);
+const uploadedCoverFile = ref<File | null>(null);
 const episodeImageInput = ref<HTMLInputElement | null>(null);
 
 // --- 발행 관련 상태 ---
@@ -809,6 +823,23 @@ async function saveDraft() {
   }
 }
 
+function handleCoverUpload(event: Event) {
+  const target = event.target as HTMLInputElement;
+  if (target.files && target.files[0]) {
+    const file = target.files[0];
+    uploadedCoverFile.value = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      selectedCover.value = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+    customAlertRef.value?.showAlert({
+      title: '표지 첨부',
+      message: '표지가 첨부되었습니다.'
+    });
+  }
+}
+
 async function publishGroupBook() {
   if (!currentGroupBook.value?.id || !currentGroupBook.value?.groupId) {
     customAlertRef.value?.showAlert({
@@ -868,7 +899,40 @@ async function confirmPublish() {
   }
 
   try {
-    // 그룹북 발행 API 호출 (제목과 소개 수정은 일단 생략)
+    // 그룹북 기본 정보 업데이트 (표지 이미지 포함)
+    try {
+      const formData = new FormData();
+      formData.append('title', currentGroupBook.value.title);
+      formData.append('summary', currentGroupBook.value.summary || '');
+      
+      // 표지 이미지가 있는 경우에만 추가
+      if (uploadedCoverFile.value) {
+        formData.append('file', uploadedCoverFile.value);
+      }
+
+      console.log('그룹북 업데이트 요청:', {
+        title: currentGroupBook.value.title,
+        summary: currentGroupBook.value.summary,
+        hasFile: !!uploadedCoverFile.value
+      });
+
+      await groupBookService.updateGroupBook(
+        currentGroupBook.value.groupId,
+        currentGroupBook.value.id,
+        formData
+      );
+      
+      console.log('그룹북 정보 업데이트 완료');
+    } catch (updateError) {
+      console.error('그룹북 정보 업데이트 실패:', updateError);
+      customAlertRef.value?.showAlert({
+        title: '업데이트 실패',
+        message: '그룹북 정보 업데이트 중 오류가 발생했습니다.'
+      });
+      return;
+    }
+
+    // 그룹북 발행 API 호출
     console.log('그룹북 발행 시도...', {
       groupId: currentGroupBook.value.groupId,
       bookId: currentGroupBook.value.id,
@@ -992,6 +1056,15 @@ async function handleEpisodeImageUpload(event: Event) {
       currentGroupBook.value?.groupId && currentGroupBook.value?.id) {
     const file = target.files[0];
 
+    console.log('에피소드 이미지 업로드 시작:', {
+      fileName: file.name,
+      fileSize: file.size,
+      fileType: file.type,
+      episodeId: currentEpisode.value.id,
+      groupId: currentGroupBook.value.groupId,
+      bookId: currentGroupBook.value.id
+    });
+
     try {
       const response = await groupBookService.uploadEpisodeImage(
         currentGroupBook.value.groupId,
@@ -1000,22 +1073,56 @@ async function handleEpisodeImageUpload(event: Event) {
         file
       );
 
+      console.log('에피소드 이미지 업로드 응답:', response);
+
       if (currentEpisode.value && response) {
         currentEpisode.value.imageUrl = response.imageUrl;
         currentEpisode.value.imageId = response.imageId;
+        
+        // 그룹북의 에피소드 목록에서도 해당 에피소드의 이미지 정보 업데이트
+        if (currentGroupBook.value?.episodes) {
+          const episodeIndex = currentGroupBook.value.episodes.findIndex(e => e.id === currentEpisode.value?.id);
+          if (episodeIndex !== -1) {
+            currentGroupBook.value.episodes[episodeIndex].imageUrl = response.imageUrl;
+            currentGroupBook.value.episodes[episodeIndex].imageId = response.imageId;
+          }
+        }
+        
+        console.log('에피소드 이미지 상태 업데이트 완료:', {
+          imageUrl: response.imageUrl,
+          imageId: response.imageId
+        });
       }
 
       customAlertRef.value?.showAlert({
         title: '업로드 완료',
         message: '이미지가 성공적으로 첨부되었습니다.'
       });
+      
+      // 파일 입력 초기화 (같은 파일을 다시 업로드할 수 있도록)
+      if (episodeImageInput.value) {
+        episodeImageInput.value.value = '';
+      }
     } catch (error) {
       console.error('이미지 업로드 실패:', error);
+      console.error('에러 상세:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       customAlertRef.value?.showAlert({
         title: '업로드 실패',
-        message: '이미지 업로드 중 오류가 발생했습니다.'
+        message: `이미지 업로드 중 오류가 발생했습니다: ${error.response?.data?.message || error.message}`
       });
     }
+  } else {
+    console.warn('에피소드 이미지 업로드 조건 불충족:', {
+      hasFile: !!(target.files && target.files[0]),
+      hasCurrentEpisode: !!currentEpisode.value,
+      hasCurrentEpisodeId: !!currentEpisode.value?.id,
+      hasGroupId: !!currentGroupBook.value?.groupId,
+      hasBookId: !!currentGroupBook.value?.id
+    });
   }
 }
 

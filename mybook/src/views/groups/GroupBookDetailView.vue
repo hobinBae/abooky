@@ -73,6 +73,10 @@
             </header>
             <div class="content-body" v-html="formattedContent(truncatedContent)"></div>
 
+            <div v-if="currentEpisode.imageUrl" class="episode-image-container">
+              <img :src="currentEpisode.imageUrl" alt="에피소드 이미지" class="episode-image" />
+            </div>
+
             <div class="episode-navigation">
               <button v-if="hasPreviousEpisode" @click="goToPreviousEpisode" class="btn-nav prev">
                 <i class="bi bi-arrow-left-circle"></i> 이전 이야기
@@ -87,7 +91,7 @@
           <section v-else class="other-episodes-section">
             <h3>목차</h3>
             <ul v-if="book.episodes" class="other-episodes-list">
-              <li v-for="(episode, index) in book.episodes" :key="episode.groupEpisodeId" @click="selectEpisode(index)"
+              <li v-for="(episode, index) in book.episodes" :key="episode.id" @click="selectEpisode(index)"
                 :class="{ active: index === currentEpisodeIndex }">
                 <div class="episode-list-item-title">
                   <span class="episode-number">{{ index + 1 }}.</span>
@@ -151,13 +155,19 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
 import { useAuthStore } from '@/stores/auth';
+import { groupBookService } from '@/services/groupBookService';
 
 // --- Interfaces ---
 interface Episode {
-  groupEpisodeId: number; // episodeId -> groupEpisodeId
+  id: number; // 백엔드에서 id로 오는 에피소드 ID
+  groupBookId: number;
   title: string;
   editedContent?: string; // content -> editedContent (optional)
   rawNotes?: string;
+  orderNo: number;
+  status: string;
+  imageUrl?: string;
+  imageId?: number;
 }
 interface Book {
   groupBookId: number;
@@ -252,6 +262,8 @@ async function fetchBookData() {
   try {
     const response = await apiClient.get(`/api/v1/groups/${groupId.value}/books/${bookId.value}`);
     const bookData = response.data.data;
+    
+    
     // episodes가 null 또는 undefined일 경우 빈 배열로 초기화
     bookData.episodes = bookData.episodes || [];
     book.value = bookData;
@@ -294,7 +306,7 @@ async function fetchComments(page = 0) {
 function editBook() {
   if (book.value) {
     router.push({
-      name: 'GroupBookEditor', // 라우트 이름을 GroupBookEditor로 변경해야 할 수 있습니다. 라우터 설정을 확인해주세요.
+      name: 'group-book-editor', // 라우트 이름을 GroupBookEditor로 변경해야 할 수 있습니다. 라우터 설정을 확인해주세요.
       params: { groupId: groupId.value, bookId: book.value.groupBookId },
       query: { start_editing: 'true' }
     });
@@ -308,7 +320,7 @@ async function deleteBook() {
     try {
       await apiClient.delete(`/api/v1/groups/${groupId.value}/books/${book.value.groupBookId}`);
       alert('책이 삭제되었습니다.');
-      router.push(`/groups/${groupId.value}/lobby`); // 그룹 로비로 이동
+      router.push(`/my-library`); // 그룹 로비로 이동
     } catch (error) {
       console.error('책 삭제에 실패했습니다:', error);
       alert('삭제 처리 중 오류가 발생했습니다.');
@@ -316,7 +328,46 @@ async function deleteBook() {
   }
 }
 
-function selectEpisode(index: number) { if (book.value && index >= 0 && index < book.value.episodes.length) { currentEpisodeIndex.value = index; document.querySelector('.right-panel-scroller')?.scrollTo(0, 0); } }
+async function fetchEpisodeImage(episodeId: number) {
+  if (!book.value) return;
+  
+  
+  try {
+    const groupId = parseInt(route.params.groupId as string);
+    const groupBookId = book.value.groupBookId;
+    
+    if (!episodeId || episodeId === undefined) {
+      console.error('episodeId가 유효하지 않습니다:', episodeId);
+      return;
+    }
+    
+    const imageData = await groupBookService.getEpisodeImage(groupId, groupBookId, episodeId);
+    
+    if (imageData) {
+      const episode = book.value.episodes.find(e => e.id === episodeId);
+      if (episode) {
+        episode.imageUrl = imageData.imageUrl;
+        episode.imageId = imageData.imageId;
+      }
+    }
+  } catch (error) {
+    console.error(`에피소드 ${episodeId}의 이미지 정보를 불러오는데 실패했습니다:`, error);
+  }
+}
+
+async function selectEpisode(index: number) {
+  if (book.value && index >= 0 && index < book.value.episodes.length) {
+    currentEpisodeIndex.value = index;
+    const episode = book.value.episodes[index];
+    
+    // 이미지가 없으면 로딩
+    if (episode && !episode.imageUrl) {
+      await fetchEpisodeImage(episode.id);
+    }
+    
+    document.querySelector('.right-panel-scroller')?.scrollTo(0, 0);
+  }
+}
 function toggleCommentsVisibility() { areCommentsVisible.value = !areCommentsVisible.value; }
 async function addComment() {
   if (!newComment.value.trim() || !book.value) return;
@@ -495,6 +546,23 @@ hr { border: 0; border-top: 1px solid #eee; margin: 40px 0; }
 .episode-header h2 { font-family: 'Noto Serif KR', serif; font-size: 32px; font-weight: 700; margin-bottom: 4px; }
 .episode-header p { font-size: 15px; color: #999; }
 .content-body { font-family: 'Noto Serif KR', serif; font-size: 16px; line-height: 2.0; color: #333; padding-bottom: 60px; text-align: justify; }
+
+/* 에피소드 이미지 스타일 */
+.episode-image-container {
+  width: 100%;
+  aspect-ratio: 12 / 10;
+  border-radius: 6px;
+  overflow: hidden;
+  margin: 1.5rem 0;
+  border: 1px solid var(--border-color);
+  background-color: #f8f9fa;
+}
+
+.episode-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 
 .episode-navigation {
   display: flex;
