@@ -138,9 +138,6 @@
             <button @click="skipQuestion" :disabled="!isInterviewStarted" class="btn-sidebar"><i
                 class="bi bi-skip-end-circle"></i> <span>질문 건너뛰기</span></button>
             <button @click="autoCorrect" class="btn-sidebar"><i class="bi bi-magic"></i> <span>AI 자동 교정</span></button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-save"></i> <span>이야기 저장</span></button>
-            <button @click="saveStory" class="btn-sidebar"><i class="bi bi-universal-access"></i> <span>배호빈
-                버튼</span></button>
             <button @click="triggerImageUpload" class="btn-sidebar"><i class="bi bi-image"></i> <span>이야기 사진
                 첨부</span></button>
             <div class="sidebar-action-group">
@@ -280,11 +277,13 @@ let connectTimer: number | null = null;
 // [추가] CustomAlert 컴포넌트의 참조를 저장할 ref 생성
 const customAlertRef = ref<InstanceType<typeof CustomAlert> | null>(null);
 // --- 컴포넌트 상태 ---
+let selectStoryGeneration = 0;
 const creationStep = ref<'setup' | 'editing' | 'publishing'>('setup');
 const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: '', summary: '', type: 'autobiography', stories: [], tags: [], categoryId: null });
 const selectedCategoryId = ref<number | null>(null);
 const currentStoryIndex = ref(-1);
 const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');
+
 
 // 현재 스토리 상태에 따라 AI 질문 메시지를 업데이트하는 함수
 function updateAiQuestionMessage() {
@@ -695,35 +694,67 @@ async function addStory() {
 }
 
 
+// book-editor.vue
+
 async function selectStory(index: number) {
-  // ★ 다른 스토리를 선택하기 전에, 현재 진행 중인 인터뷰 상태를 완전히 정리합니다.
-  await resetInterviewState();
+  selectStoryGeneration++;
+  const currentGeneration = selectStoryGeneration;
+  // 1. 앞으로 닫아야 할 이전 세션 ID를 변수에 미리 저장해둡니다.
+  const previousSessionId = currentSessionId.value;
 
+  // 2. UI에 즉시 반영되어야 할 상태들을 먼저 동기적으로 변경합니다.
   currentStoryIndex.value = index;
-  // isContentChanged.value = false; // resetInterviewState에 포함됨
+  isContentChanged.value = false;
+  isInterviewStarted.value = false;
+  currentSessionId.value = null; // 중요: 새 스토리를 선택했으므로 현재 세션 ID는 일단 null로 리셋
+  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
+  currentAnswerMessageId.value = null;
 
-  const story = currentBook.value.stories?.[index];
-  if (story && !story.imageUrl) {
-    await fetchEpisodeImages(story.id!);
+  // 3. 이전 SSE 연결이 있었다면, "fire-and-forget" 방식으로 서버에 종료 요청을 보냅니다.
+  //    await를 사용하지 않아 UI가 멈추는 것을 방지합니다.
+  if (eventSource) {
+    eventSource.close();
+    eventSource = null;
+    isConnected.value = false;
+    isConnecting.value = false;
+  }
+  if (previousSessionId) {
+    console.log(`백그라운드에서 이전 세션(${previousSessionId}) 종료를 요청합니다.`);
+    // 에러가 나도 전체 흐름에 영향을 주지 않도록 catch 처리
+    apiClient.delete(`/api/v1/conversation/stream/${previousSessionId}`)
+      .catch(e => console.error('이전 세션 종료 API 호출 실패 (무시함)', e));
   }
 
-  // Vue의 반응성을 보장하기 위해 강제로 업데이트
-  await nextTick();
-
-  // 재연결 로직은 activeSessionId 기반이므로 그대로 유지해도 좋습니다.
-  // 다만 이 로직은 현재 구현에서는 사용되지 않을 수 있습니다.
+  // 4. 새로 선택한 스토리를 가져옵니다.
+  const story = currentBook.value.stories?.[index];
   if (story && story.activeSessionId) {
-    console.log(`기존 세션(${story.activeSessionId})에 재연결합니다.`);
+    // [재연결 시나리오]
+    console.log(`[Gen ${currentGeneration}] 기존 세션(${story.activeSessionId})에 재연결합니다.`);
     currentSessionId.value = story.activeSessionId;
     isInterviewStarted.value = true;
-    await connectToSseStream();
+
+    // ★ 3. 현재 작업의 순서표 번호를 connectToSseStream에 전달
+    await connectToSseStream(currentGeneration);
+  } else {
+    console.error(`선택한 인덱스(${index})에 해당하는 스토리가 없습니다.`);
+    return;
   }
 
-  // 콘솔 로그로 현재 선택된 스토리 확인
-  console.log(`스토리 선택됨 - 인덱스: ${index}, 제목: ${story?.title}, 내용 길이: ${story?.content?.length || 0}`);
+  // (선택사항) 이미지 로딩 로직
+  // if (story && !story.imageUrl) { await fetchEpisodeImages(story.id!); }
+  // await nextTick();
 
-  // AI 질문 메시지 업데이트
-  updateAiQuestionMessage();
+  // 5. 만약 새로 선택한 스토리에 이어할 세션이 있다면, 재연결 절차를 시작합니다.
+  if (story.activeSessionId) {
+    console.log(`기존 세션(${story.activeSessionId})에 재연결을 시작합니다.`);
+    // '열쇠'를 현재 세션 ID로 설정
+    currentSessionId.value = story.activeSessionId;
+    // 인터뷰 모드로 즉시 전환
+    isInterviewStarted.value = true;
+
+    // 이전에 사용했던 setTimeout 딜레이를 제거하고 직접 호출
+    await connectToSseStream();
+  }
 }
 
 
@@ -801,10 +832,7 @@ async function resetInterviewState() {
 
 async function startAiInterview() {
   if (!currentBook.value?.id) {
-    customAlertRef.value?.showAlert({
-      title: '정보 오류',
-      message: '책 정보가 올바르지 않습니다.'
-    });
+    alert('이야기를 선택해주세요.');
     return;
   }
   if (!currentStory.value?.id) {
@@ -814,6 +842,8 @@ async function startAiInterview() {
     });
     return;
   }
+  selectStoryGeneration++;
+  const currentGeneration = selectStoryGeneration;
   await resetInterviewState();
 
   if (isConnecting.value || isConnected.value || isInterviewStarted.value) {
@@ -834,7 +864,7 @@ async function startAiInterview() {
     isInterviewStarted.value = true;
     isContentChanged.value = false;
     aiQuestion.value = 'AI 인터뷰 세션에 연결 중... 첫 질문을 기다립니다.';
-    await connectToSseStream();
+    await connectToSseStream(currentGeneration);
   } catch (e) {
     console.error('세션 시작 실패:', e);
     customAlertRef.value?.showAlert({
@@ -873,7 +903,7 @@ async function cleanupBeforeLeave() {
 
 let firstChunkForThisAnswer = true;
 
-async function connectToSseStream() {
+async function connectToSseStream(generation?: number) {
   if (!currentSessionId.value) {
     console.warn('세션 ID가 없어 SSE 연결을 할 수 없습니다.');
     return;
@@ -899,6 +929,11 @@ async function connectToSseStream() {
 
     // === QUESTION ===
     eventSource.addEventListener('question', (ev: MessageEvent<string>) => {
+      if (generation !== selectStoryGeneration) {
+        console.log(`[Gen ${generation}] 낡은 question 이벤트를 무시합니다.`);
+        return;
+      }
+
       const q = safeJson<QuestionEventData>(ev.data);
       if (!q) return;
 
@@ -935,6 +970,10 @@ async function connectToSseStream() {
 
     // === PARTIAL TRANSCRIPT ===
     eventSource.addEventListener('partialTranscript', async (ev: MessageEvent<string>) => {
+      if (generation !== selectStoryGeneration) {
+        console.log(`[Gen ${generation}] 낡은 partialTranscript 이벤트를 무시합니다.`);
+        return;
+      }
       console.log('🎤 SSE partialTranscript 이벤트 수신:', ev.data);
       const t = safeJson<PartialTranscriptEventData>(ev.data);
       if (!t) {
@@ -964,6 +1003,10 @@ async function connectToSseStream() {
 
     // === EPISODE (완성본 수신) ===
     eventSource.addEventListener('episode', async (ev: MessageEvent<string>) => {
+      if (generation !== selectStoryGeneration) {
+        console.log(`[Gen ${generation}] 낡은 episode 이벤트를 무시합니다.`);
+        return;
+      }
       console.log('생성된 에피소드 데이터를 수신했습니다:', ev.data);
 
       const e = safeJson<EpisodeResponseData>(ev.data);
