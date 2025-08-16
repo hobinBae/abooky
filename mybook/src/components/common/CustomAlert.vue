@@ -12,7 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, defineEmits } from 'vue';
+
+const emit = defineEmits(['alert-closed']);
 
 const props = defineProps({
   confirmButtonText: {
@@ -58,6 +60,8 @@ const handleConfirm = () => {
   isVisible.value = false;
   if (isConfirm.value && resolvePromise) {
     resolvePromise(true);
+  } else {
+    emit('alert-closed');
   }
   resolvePromise = null;
 };
@@ -67,6 +71,7 @@ const handleCancel = () => {
   if (isConfirm.value && resolvePromise) {
     resolvePromise(false);
   }
+  emit('alert-closed');
   resolvePromise = null;
 };
 

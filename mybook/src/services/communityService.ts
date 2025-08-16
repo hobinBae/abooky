@@ -199,5 +199,10 @@ export const communityService = {
   // 개인 책을 커뮤니티로 내보내기
   exportBookToCommunity(bookId: number): Promise<CommunityBookCreateResponse> {
     return apiClient.post(`${BOOK_BASE_URL}/${bookId}/export/community`).then(res => res.data.data);
+  },
+
+  // 북마크한 커뮤니티 책 목록 조회
+  getBookmarkedCommunityBooks(pageable: Pageable): Promise<CommunityBookListResponse> {
+    return apiClient.get(`${BASE_URL}/bookmarks`, { params: pageable }).then(res => res.data.data);
   }
 };
