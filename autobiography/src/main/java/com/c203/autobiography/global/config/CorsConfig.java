@@ -15,7 +15,7 @@ public class CorsConfig {
     CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
-                "http://localhost:3000",           // 개발 환경
+                "http://localhost:3000",           // React 개발 환경
                 "https://i13c203.p.ssafy.io"       // 프로덕션 환경
         ));
         config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS", "PATCH"));

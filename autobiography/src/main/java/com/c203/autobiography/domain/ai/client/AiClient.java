@@ -29,6 +29,7 @@ public interface AiClient {
      */
     String analyzeAnsweredQuestions(String userAnswer, String remainingQuestions);
 
+
     /**
      * 사용자 답변을 읽기 쉬운 문장으로 편집합니다.(그룹책 에피소드 생성용)
      * @param rawAnswer

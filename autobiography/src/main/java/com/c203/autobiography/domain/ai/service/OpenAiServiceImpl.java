@@ -24,8 +24,13 @@ public class OpenAiServiceImpl implements OpenAiService {
 
     @Override
     public ChatCompletionResponse createChatCompletion(ChatCompletionRequest request) {
-        log.info(props.getApiUrl());
-        log.info(props.getApiKey());
+        log.info("OpenAI API URL: {}", props.getApiUrl());
+        String apiKey = props.getApiKey();
+        if (apiKey != null && apiKey.length() > 10) {
+            log.info("API Key: {}...{}", apiKey.substring(0, 8), apiKey.substring(apiKey.length() - 4));
+        } else {
+            log.warn("API Key is null or too short: {}", apiKey != null ? "present but short" : "null");
+        }
         return webClient.post()
                 .bodyValue(request)
                 .retrieve()
