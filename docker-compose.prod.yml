@@ -98,7 +98,7 @@ services:
     container_name: livekit-server
     restart: unless-stopped
     volumes:
-      - ./autobiography/livekit-prod.yaml:/etc/livekit.yaml:ro
+      - ./livekit-prod.yaml:/etc/livekit.yaml:ro
     command: --config /etc/livekit.yaml
     ports:
       - "127.0.0.1:7880:7880"  # 🔒 Nginx 프록시를 통해서만 접근
