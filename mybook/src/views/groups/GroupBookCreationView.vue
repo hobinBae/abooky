@@ -1312,6 +1312,22 @@ function connectLocalCameraTrack(track: any) {
     updateParticipantConnectionQuality(participant.identity, quality);
   });
 
+  // 트랙 음소거 이벤트
+  livekitRoom!.on(RoomEvent.TrackMuted, (publication: any, participant: any) => {
+    console.log('🔇 트랙 음소거:', participant.identity, publication.kind, publication.source);
+    if (publication.kind === 'audio') {
+      updateParticipantMicrophoneState(participant.identity, false);
+    }
+  });
+
+  // 트랙 음소거 해제 이벤트
+  livekitRoom!.on(RoomEvent.TrackUnmuted, (publication: any, participant: any) => {
+    console.log('🔊 트랙 음소거 해제:', participant.identity, publication.kind, publication.source);
+    if (publication.kind === 'audio') {
+      updateParticipantMicrophoneState(participant.identity, true);
+    }
+  });
+
   // 연결 상태 변경 이벤트
   livekitRoom!.on(RoomEvent.ConnectionStateChanged, (state: any) => {
     console.log('🔄 연결 상태 변경:', state);
@@ -1419,9 +1435,18 @@ async function broadcastNickname() {
 }
 
 function addRemoteParticipant(participant: any) {
+  // 실제 오디오 트랙 상태 확인
+  let actualMicrophoneState = participant.isMicrophoneEnabled;
+  if (participant.audioTracks && participant.audioTracks.size > 0) {
+    const audioTrack = Array.from(participant.audioTracks.values())[0];
+    if (audioTrack && (audioTrack as any).isMuted !== undefined) {
+      actualMicrophoneState = !(audioTrack as any).isMuted;
+    }
+  }
+
   const newParticipant: RemoteParticipant = {
     identity: participant.identity,
-    isMicrophoneEnabled: participant.isMicrophoneEnabled,
+    isMicrophoneEnabled: actualMicrophoneState,
     isCameraEnabled: participant.isCameraEnabled,
     connectionQuality: undefined,
     isScreenSharing: false,
@@ -1432,7 +1457,7 @@ function addRemoteParticipant(participant: any) {
   participantNicknames.value.set(participant.identity, participant.identity);
 
   remoteParticipants.value.push(newParticipant);
-  console.log('하위 참여자 추가:', participant.identity);
+  console.log('하위 참여자 추가:', participant.identity, '마이크 상태:', actualMicrophoneState);
 
   // 기존 트랙들 처리
   if (participant.videoTracks && participant.videoTracks.size > 0) {
@@ -1523,9 +1548,14 @@ function handleTrackSubscribed(track: any, participant: any, publication?: any) 
 
   } else if (track.kind === 'audio') {
     participantData.audioTrack = track;
+    
+    // 오디오 트랙의 현재 muted 상태를 확인하여 마이크 상태 업데이트
+    const isMicrophoneEnabled = !(track as any).isMuted;
+    participantData.isMicrophoneEnabled = isMicrophoneEnabled;
+    
     if (track.attach) {
       track.attach();
-      console.log('✅ 오디오 트랙 연결 성공:', participant.identity);
+      console.log('✅ 오디오 트랙 연결 성공:', participant.identity, '마이크 상태:', isMicrophoneEnabled);
     }
   }
 }
@@ -1671,6 +1701,14 @@ function updateParticipantConnectionQuality(identity: string, quality: number) {
   const participant = remoteParticipants.value.find(p => p.identity === identity);
   if (participant) {
     participant.connectionQuality = quality;
+  }
+}
+
+function updateParticipantMicrophoneState(identity: string, isEnabled: boolean) {
+  const participant = remoteParticipants.value.find(p => p.identity === identity);
+  if (participant) {
+    participant.isMicrophoneEnabled = isEnabled;
+    console.log(`참여자 ${identity} 마이크 상태 업데이트:`, isEnabled ? '활성화' : '음소거');
   }
 }
 
