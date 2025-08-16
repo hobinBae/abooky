@@ -106,9 +106,12 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
                 ? (int) (episodeRepository.findByGroupBook_GroupBookIdOrderByOrderNoAscCreatedAtAsc(groupBookId).size() + 1)
                 : req.getOrderNo();
 
-        // 4. 간단한 에피소드 생성 (template는 기본값 INTRO 사용)
+        // 4. 간단한 에피소드 생성 (template는 요청값 또는 기본값 INTRO 사용)
+        String template = (req.getTemplate() != null && !req.getTemplate().isBlank()) 
+                ? req.getTemplate() 
+                : "INTRO";
         GroupEpisode ep = episodeRepository.save(
-            GroupEpisode.toEntity(gb, req.getTitle(), orderNo, "INTRO")
+            GroupEpisode.toEntity(gb, req.getTitle(), orderNo, template)
         );
 
         // 5. 간단한 응답 반환

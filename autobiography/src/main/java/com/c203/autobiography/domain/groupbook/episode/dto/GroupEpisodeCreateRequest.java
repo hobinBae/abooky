@@ -17,5 +17,7 @@ public class GroupEpisodeCreateRequest {
     private String summary;          // 에피소드 요약 (선택)
 
     private Integer orderNo;         // 순서 (선택, 없으면 자동 설정)
+    
+    private String template;         // 템플릿 (선택, 없으면 INTRO)
 
 }
