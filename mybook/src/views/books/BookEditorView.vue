@@ -285,6 +285,22 @@ const currentBook = ref<Partial<Book & { categoryId: number | null }>>({ title: 
 const selectedCategoryId = ref<number | null>(null);
 const currentStoryIndex = ref(-1);
 const aiQuestion = ref('AI 인터뷰 시작을 누르고 질문을 받아보세요.');
+
+// 현재 스토리 상태에 따라 AI 질문 메시지를 업데이트하는 함수
+function updateAiQuestionMessage() {
+  if (isInterviewStarted.value) {
+    // 인터뷰가 진행 중이면 그대로 유지
+    return;
+  }
+
+  if (currentStory.value?.content?.trim()) {
+    // 에피소드에 내용이 있으면 편집 유도 메시지
+    aiQuestion.value = '이미 작성된 에피소드입니다. 내용을 수정하거나 새로운 이야기를 추가해보세요.';
+  } else {
+    // 에피소드가 비어있으면 인터뷰 시작 유도 메시지
+    aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
+  }
+}
 const isInterviewStarted = ref(false);
 const isRecording = ref(false);
 const isContentChanged = ref(false);
@@ -705,6 +721,9 @@ async function selectStory(index: number) {
 
   // 콘솔 로그로 현재 선택된 스토리 확인
   console.log(`스토리 선택됨 - 인덱스: ${index}, 제목: ${story?.title}, 내용 길이: ${story?.content?.length || 0}`);
+
+  // AI 질문 메시지 업데이트
+  updateAiQuestionMessage();
 }
 
 
@@ -768,12 +787,14 @@ async function resetInterviewState() {
   currentSessionId.value = null;
   currentAnswerMessageId.value = null;
   firstChunkForThisAnswer = true;
-  aiQuestion.value = 'AI 인터뷰 시작을 누르고 질문을 받아보세요.';
 
   // Story 객체의 activeSessionId도 초기화
   if (currentStory.value) {
     currentStory.value.activeSessionId = null;
   }
+
+  // AI 질문 메시지 업데이트 (인터뷰 종료 후 상태에 맞게)
+  updateAiQuestionMessage();
 }
 
 
@@ -976,6 +997,9 @@ async function connectToSseStream() {
       await nextTick();
 
       console.log('에피소드 업데이트 완료:', updated);
+
+      // AI 질문 메시지 업데이트 (에피소드 생성 후)
+      updateAiQuestionMessage();
     });
 
     // === ERROR ===
@@ -1388,6 +1412,9 @@ onMounted(() => {
   }
   window.addEventListener('beforeunload', handleBeforeUnload);
   adjustButtonFontSize();
+
+  // 초기 로딩 시 AI 질문 메시지 업데이트
+  setTimeout(() => updateAiQuestionMessage(), 100);
 });
 
 onUpdated(() => {
@@ -1457,6 +1484,11 @@ watch(() => currentStory.value, (newStory, oldStory) => {
 watch(() => currentStoryIndex.value, (newIndex, oldIndex) => {
   console.log(`currentStoryIndex 변경: ${oldIndex} -> ${newIndex}`);
 });
+
+// 현재 스토리의 내용 변경을 감지하여 AI 질문 메시지 업데이트
+watch(() => currentStory.value?.content, () => {
+  updateAiQuestionMessage();
+}, { deep: true });
 
 // --- [추가] 목차 페이지네이션을 위한 계산된 속성 및 함수 ---
 const totalStoryPages = computed(() => {
