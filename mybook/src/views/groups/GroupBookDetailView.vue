@@ -319,7 +319,7 @@ async function deleteBook() {
     try {
       await apiClient.delete(`/api/v1/groups/${groupId.value}/books/${book.value.groupBookId}`);
       alert('책이 삭제되었습니다.');
-      router.push(`/my-library`); // 그룹 로비로 이동
+      router.push(`/my-library`); // 내 서재로 이동
     } catch (error) {
       console.error('책 삭제에 실패했습니다:', error);
       alert('삭제 처리 중 오류가 발생했습니다.');

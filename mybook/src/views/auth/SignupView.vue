@@ -76,7 +76,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import apiClient from '@/api';
-import { useAuthStore } from '@/stores/auth';
 import { AxiosError } from 'axios';
 import CustomAlert from '@/components/common/CustomAlert.vue';
 
@@ -122,9 +121,6 @@ onUnmounted(() => {
   clearInterval(slideInterval);
 });
 
-
-// --- Store ---
-const authStore = useAuthStore();
 
 // --- Router ---
 const router = useRouter();
@@ -173,14 +169,9 @@ async function handleSignup() {
       },
     });
 
-    await authStore.login({
-      email: form.value.email,
-      password: form.value.password,
-    });
-
     if (customAlert.value) {
       customAlert.value.showAlert({
-        message: '회원가입에 성공했습니다! 메인 페이지로 이동합니다.',
+        message: '회원가입에 성공했습니다! 로그인 페이지로 이동합니다.',
         title: '회원가입 완료'
       });
     }
@@ -198,7 +189,7 @@ async function handleSignup() {
   }
 }
 function handleAlertClosed() {
-  router.push('/');
+  router.push('/login');
 }
 </script>
 

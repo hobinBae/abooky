@@ -8,30 +8,34 @@
     </div>
     <p class="section-subtitle">계속해서 이야기 작성 할 책을 선택하세요.</p>
     <section class="load-book-section">
-      <div v-if="inProgressBooks.length > 0" class="book-list">
-        <div v-for="book in paginatedBooks" :key="book.bookId" class="book-list-item">
-          <div class="book-details" @click="editBook(book.bookId)">
-            <span class="book-title">{{ book.title }}</span>
-            <span class="book-last-saved">마지막 저장: {{ new Date(book.updatedAt).toLocaleString() }}</span>
+      <div class="content-wrapper">
+        <div v-if="inProgressBooks.length > 0" class="book-list">
+          <div v-for="book in paginatedBooks" :key="book.bookId" class="book-list-item">
+            <div class="book-details" @click="editBook(book.bookId)">
+              <span class="book-title">{{ book.title }}</span>
+              <span class="book-last-saved">마지막 저장: {{ new Date(book.updatedAt).toLocaleString() }}</span>
+            </div>
+            <button @click="confirmDelete(book.bookId)" class="delete-btn">
+              <i class="bi bi-x-lg"></i>
+            </button>
           </div>
-          <button @click="confirmDelete(book.bookId)" class="delete-btn">
-            <i class="bi bi-x-lg"></i>
+        </div>
+        <p v-if="inProgressBooks.length === 0" class="no-books-message">작성 중인 책이 없습니다. '새 책 만들기'로 시작해보세요!</p>
+      </div>
+      <div class="footer-wrapper">
+        <div v-if="totalPages > 1" class="pagination-controls">
+          <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+          <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" class="pagination-btn">
+            <i class="bi bi-chevron-right"></i>
           </button>
         </div>
-      </div>
-      <div v-if="totalPages > 1" class="pagination-controls">
-        <button @click="goToPage(currentPage - 1)" :disabled="currentPage === 1" class="pagination-btn">
-          <i class="bi bi-chevron-left"></i>
-        </button>
-        <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-        <button @click="goToPage(currentPage + 1)" :disabled="currentPage === totalPages" class="pagination-btn">
-          <i class="bi bi-chevron-right"></i>
+        <button @click="goBack" class="btn btn-outline mt-4">
+          <i class="bi bi-arrow-left"></i> 뒤로가기
         </button>
       </div>
-      <p v-else class="no-books-message">작성 중인 책이 없습니다. '새 책 만들기'로 시작해보세요!</p>
-      <button @click="goBack" class="btn btn-outline mt-4">
-        <i class="bi bi-arrow-left"></i> 뒤로가기
-      </button>
     </section>
     <CustomAlert ref="customAlert" />
   </div>
@@ -75,8 +79,10 @@ const totalPages = computed(() => {
 async function fetchInProgressBooks() {
   try {
     const response = await apiClient.get('/api/v1/books');
-    // API에서 받아온 전체 책 목록 중 완료되지 않은 책만 필터링
-    inProgressBooks.value = response.data.data.filter((book: Book) => !book.completed);
+    // API에서 받아온 전체 책 목록 중 완료되지 않은 책만 필터링하고 최신순으로 정렬
+    inProgressBooks.value = response.data.data
+      .filter((book: Book) => !book.completed)
+      .sort((a: Book, b: Book) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
   } catch (error) {
     console.error("작성 중인 책 목록을 불러오는데 실패했습니다:", error);
   }
@@ -206,28 +212,29 @@ onMounted(() => {
 
 .load-book-section {
   max-width: 820px;
-  /* Match auth-wrapper max-width */
   width: 80%;
-  /* Ensure it takes 80% width */
   min-height: 460px;
-  /* Match auth-wrapper min-height */
   background-color: #fff;
-  /* Match auth-wrapper background */
   border-radius: 13px;
-  /* Match auth-wrapper border-radius */
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
-  /* Subtle shadow */
   border: 2px solid #6F7D48;
-  /* Match auth-wrapper border */
   padding: 1.5rem;
-  /* Adjusted padding */
   display: flex;
-  /* Use flexbox for internal layout */
+  flex-direction: column;
+  justify-content: space-between;
+  margin: 0 auto;
+}
+
+.content-wrapper {
+  width: 100%;
+}
+
+.footer-wrapper {
+  width: 100%;
+  display: flex;
   flex-direction: column;
   align-items: center;
-  /* Center content within the section */
-  margin: 0 auto;
-  /* Center the section itself */
+  gap: 1rem;
 }
 
 .book-list {
@@ -326,8 +333,9 @@ onMounted(() => {
   background-color: #fdf8e7;
   /* Light background for message */
   border-radius: 8px;
-  margin-top: 2rem;
   border: 1px dashed var(--border-color);
+  text-align: center;
+  width: 100%;
 }
 
 .btn-outline {

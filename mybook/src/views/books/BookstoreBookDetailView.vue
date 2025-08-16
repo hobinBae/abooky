@@ -55,9 +55,16 @@
             <i class="bi bi-heart"></i>
             <span>{{ book.likeCount }}</span>
           </button>
+          <button @click="toggleBookmark" class="btn-stat">
+            <i :class="book.isBookmarked ? 'bi bi-bookmark-fill' : 'bi bi-bookmark'"></i>
+          </button>
           <span class="stat-item">
             <i class="bi bi-eye-fill"></i>
             <span>{{ book.viewCount }}</span>
+          </span>
+          <span class="stat-item" :title="`평균 평점: ${book.averageRating.toFixed(1)}`">
+            <i class="bi bi-star-fill"></i>
+            <span>{{ book.averageRating.toFixed(1) }}</span>
           </span>
         </div>
 
@@ -144,20 +151,19 @@
                 </div>
               </div>
 
-              <div class="pagination-controls" v-if="totalPages > 1">
-                <button @click="currentPage--" :disabled="currentPage === 0" class="btn-page">
+              <div class="pagination-container" v-if="totalPages > 1">
+                <button @click="currentPage--" :disabled="currentPage === 0" class="page-btn">
                   <i class="bi bi-chevron-left"></i>
                 </button>
-                <button
-                  v-for="pageNumber in totalPages"
-                  :key="pageNumber"
-                  @click="currentPage = pageNumber - 1"
-                  class="btn-page"
-                  :class="{ active: currentPage === pageNumber - 1 }"
-                >
-                  {{ pageNumber }}
-                </button>
-                <button @click="currentPage++" :disabled="currentPage >= totalPages - 1" class="btn-page">
+                <template v-for="pageNumber in totalPages" :key="pageNumber">
+                  <button
+                    @click="currentPage = pageNumber - 1"
+                    :class="['page-btn', { active: currentPage === pageNumber - 1 }]"
+                  >
+                    {{ pageNumber }}
+                  </button>
+                </template>
+                <button @click="currentPage++" :disabled="currentPage >= totalPages - 1" class="page-btn">
                   <i class="bi bi-chevron-right"></i>
                 </button>
               </div>
@@ -208,6 +214,7 @@ const hoverRating = ref(0);
 const areCommentsVisible = ref(false);
 const editingCommentId = ref<number | null>(null);
 const editingCommentText = ref('');
+const bookmarkedBookIds = ref(new Set<number>());
 
 const totalPages = computed(() => Math.ceil(allComments.value.length / pageSize));
 const paginatedComments = computed(() => {
@@ -234,6 +241,7 @@ const hasNextEpisode = computed(() => book.value && currentEpisodeIndex.value !=
 const hasPreviousEpisode = computed(() => currentEpisodeIndex.value !== null && currentEpisodeIndex.value > 0);
 const formattedContent = (content: string) => content.replace(/\n/g, '<br />');
 
+
 function openBook() {
   initialCoverMode.value = false;
   setTimeout(() => { bookIsOpened.value = true; }, 10);
@@ -250,9 +258,23 @@ function selectEpisode(index: number) {
 function toggleCommentsVisibility() { areCommentsVisible.value = !areCommentsVisible.value; }
 function flipCover() { isCoverFlipped.value = !isCoverFlipped.value; }
 
+async function fetchBookmarkedStatus() {
+  try {
+    const response = await communityService.getBookmarkedCommunityBooks({ page: 0, size: 1000 }); // Fetch all bookmarks
+    const ids = response.content.map(b => b.communityBookId);
+    bookmarkedBookIds.value = new Set(ids);
+  } catch (error) {
+    console.error('북마크 목록을 불러오는데 실패했습니다:', error);
+  }
+}
+
 async function fetchBookData() {
   try {
     book.value = await communityService.getCommunityBookDetail(bookId.value);
+    if (book.value) {
+      // 프론트엔드에서 북마크 상태를 확인하여 설정
+      book.value.isBookmarked = bookmarkedBookIds.value.has(book.value.communityBookId);
+    }
   } catch (error) {
     console.error('책 정보를 불러오는데 실패했습니다:', error);
     book.value = null;
@@ -339,6 +361,21 @@ async function toggleLike() {
     }
 }
 
+async function toggleBookmark() {
+  if (!book.value) return;
+
+  const originalBookmarkedState = book.value.isBookmarked;
+  book.value.isBookmarked = !book.value.isBookmarked;
+
+  try {
+    await communityService.toggleBookmark(book.value.communityBookId);
+  } catch (error) {
+    console.error('북마크 처리에 실패했습니다:', error);
+    book.value.isBookmarked = originalBookmarkedState;
+    alert('북마크 처리에 실패했습니다. 다시 시도해주세요.');
+  }
+}
+
 async function deleteComment(commentId: number) {
   if (!book.value) return;
   if (confirm('정말로 댓글을 삭제하시겠습니까?')) {
@@ -402,18 +439,24 @@ onMounted(async () => {
   if (authStore.accessToken && !authStore.user) {
     await authStore.fetchUserInfo();
   }
-  await fetchBookData();
+  // 북마크 목록과 책 상세 정보를 병렬로 가져옵니다.
+  await Promise.all([fetchBookmarkedStatus(), fetchBookData()]);
+
   if (book.value) {
     fetchAllComments();
   }
   setTimeout(() => { openBook(); }, 1000);
 });
 
-watch(bookId, () => {
-  fetchBookData();
+watch(bookId, async () => {
+  // 책 ID가 변경될 때 북마크와 책 정보를 다시 가져옵니다.
+  await Promise.all([fetchBookmarkedStatus(), fetchBookData()]);
+
   allComments.value = [];
   currentPage.value = 0;
-  fetchAllComments();
+  if (book.value) {
+    fetchAllComments();
+  }
   currentEpisodeIndex.value = null;
   isCoverFlipped.value = false;
 });
@@ -554,39 +597,43 @@ hr { border: 0; border-top: 1px solid #eee; margin: 32px 0; }
 .btn-delete { color: #fa5252; }
 .comment-edit-form textarea { min-height: 80px; }
 
-.pagination-controls {
+.pagination-container {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 0.5rem;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
+  gap: 0.4rem;
 }
 
-.btn-page {
+.page-btn {
   background-color: #fff;
   border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 0.3rem 0.6rem;
-  font-size: 0.8rem;
+  color: #555;
+  padding: 0.4rem;
+  border-radius: 40px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.btn-page:hover:not(:disabled) {
-  background-color: #f8f8f8;
-  border-color: #ccc;
+.page-btn:hover:not(:disabled) {
+  background-color: #f5f5f5;
+  border-color: #aeaeae;
 }
 
-.btn-page:disabled {
-  cursor: not-allowed;
+.page-btn.active {
+  background-color: #6F7D48;
+  color: white;
+  border-color: #5b673b;
+}
+
+.page-btn:disabled {
   opacity: 0.5;
-}
-
-.btn-page.active {
-  background-color: #333;
-  color: #fff;
-  border-color: #333;
-  font-weight: bold;
+  cursor: not-allowed;
 }
 
 .star-rating {
@@ -595,7 +642,7 @@ hr { border: 0; border-top: 1px solid #eee; margin: 32px 0; }
   align-self: center;
   gap: 0.3rem;
   font-size: 1.5rem;
-  color: #ffc107;
+  color: #666;
   cursor: pointer;
   margin-bottom: 10px;
 }
