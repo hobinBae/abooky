@@ -51,7 +51,7 @@
           </div>
         </div>
 
-        <div class="book-stats">
+        <!-- <div class="book-stats">
           <button @click="toggleLike" class="btn-stat" :class="{ liked: isLiked }">
             <i class="bi" :class="isLiked ? 'bi-heart-fill' : 'bi-heart'"></i>
             <span>{{ likeCount }}</span>
@@ -60,7 +60,7 @@
             <i class="bi bi-eye-fill"></i>
             <span>{{ book.viewCount }}</span>
           </span>
-        </div>
+        </div> -->
 
         <div class="author-controls" v-if="isAuthor">
           <button @click="editBook" class="btn btn-edit">
@@ -433,7 +433,7 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .btn-edit { background: none; border: 1px solid #ddd; color: #333; font-size: 11px; padding: 8px 13px; border-radius: 10px; cursor: pointer; transition: all 0.2s; margin-top: 13px; flex-shrink: 0; }
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 6px; }
-.author-controls { display: flex; gap: 6px; width: 100%; padding: 0 8px; box-sizing: border-box; }
+.author-controls { display: flex; gap: 6px; width: 100%; padding: 0 8px; padding-top: 13px; box-sizing: border-box; }
 .author-controls .btn-edit { flex: 1; }
 .btn-unpublish { background-color: #6c757d; color: white; border-color: #6c757d; }
 .btn-unpublish:hover { background-color: #5a6268; border-color: #545b62; }

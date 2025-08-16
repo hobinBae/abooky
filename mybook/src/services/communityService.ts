@@ -66,7 +66,7 @@ export interface CommunityBookListResponse {
 }
 
 export interface CommunityBookComment {
-    commentId: number;
+    communityBookCommentId: number;
     memberId: number;
     nickname: string;
     profileImageUrl: string;
@@ -80,7 +80,7 @@ export interface CommunityBookCommentCreateRequest {
     content: string;
 }
 
-export interface CommunityBookCommentCreateResponse extends CommunityBookComment {}
+export type CommunityBookCommentCreateResponse = CommunityBookComment;
 
 export interface CommunityBookCommentListResponse {
     content: CommunityBookComment[];
