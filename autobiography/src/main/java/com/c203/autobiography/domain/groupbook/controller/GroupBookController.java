@@ -1,8 +1,6 @@
 package com.c203.autobiography.domain.groupbook.controller;
 
 import com.c203.autobiography.domain.groupbook.dto.*;
-import com.c203.autobiography.domain.groupbook.episode.dto.GroupAnswerCorrectionRequest;
-import com.c203.autobiography.domain.groupbook.episode.dto.GroupAnswerCorrectionResponse;
 import com.c203.autobiography.domain.groupbook.episode.dto.GroupEpisodeResponse;
 import com.c203.autobiography.domain.groupbook.episode.service.GroupEpisodeService;
 import com.c203.autobiography.domain.groupbook.service.GroupBookService;
@@ -178,24 +176,6 @@ public class GroupBookController {
         );
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "다음 템플릿 에피소드 생성 성공", response, httpRequest.getRequestURI()));
-    }
-
-    @Operation(summary = "답변 교정", description = "질문과 답변을 바탕으로 AI가 답변을 교정합니다.")
-    @PostMapping("/{groupBookId}/episodes/{episodeId}/correct-answer")
-    public ResponseEntity<ApiResponse<GroupAnswerCorrectionResponse>> correctAnswer(
-            @AuthenticationPrincipal CustomUserDetails userDetails,
-            @PathVariable Long groupId,
-            @PathVariable Long groupBookId,
-            @PathVariable Long episodeId,
-            @Valid @RequestBody GroupAnswerCorrectionRequest request,
-            HttpServletRequest httpRequest
-    ) {
-        Long memberId = userDetails.getMemberId();
-        GroupAnswerCorrectionResponse response = episodeService.correctAnswer(
-                groupId, groupBookId, episodeId, request, memberId
-        );
-        return ResponseEntity.status(HttpStatus.OK)
-                .body(ApiResponse.of(HttpStatus.OK, "답변 교정 성공", response, httpRequest.getRequestURI()));
     }
 
 

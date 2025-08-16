@@ -43,8 +43,4 @@ public interface GroupEpisodeService {
     
     // 다음 템플릿 에피소드 생성
     GroupEpisodeResponse createNextTemplateEpisode(Long groupId, Long groupBookId, String currentTemplate, Long memberId);
-    
-    // 답변 교정
-    GroupAnswerCorrectionResponse correctAnswer(Long groupId, Long groupBookId, Long episodeId, 
-                                              GroupAnswerCorrectionRequest request, Long memberId);
 }

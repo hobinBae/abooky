@@ -1,7 +1,6 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
 import com.c203.autobiography.domain.group.repository.GroupMemberRepository;
-import com.c203.autobiography.domain.group.service.GroupMemberService;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
 import com.c203.autobiography.domain.groupbook.entity.GroupType;
 import com.c203.autobiography.domain.groupbook.episode.dto.*;
@@ -53,7 +52,6 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
     private final FileStorageService fileStorageService;
     private final SseService sseService;
     private final AiClient aiClient;
-    private final GroupMemberService groupMemberService;
 
     // 대화 세션 관리를 위한 메모리 저장소
     private final ConcurrentHashMap<String, GroupConversationSession> activeSessions = new ConcurrentHashMap<>();
@@ -867,116 +865,4 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         return GroupEpisodeResponse.of(newEpisode);
     }
 
-    @Override
-    public GroupAnswerCorrectionResponse correctAnswer(Long groupId, Long groupBookId, Long episodeId, 
-                                                     GroupAnswerCorrectionRequest request, Long memberId) {
-        
-        // 1. 그룹 멤버 권한 확인
-        groupMemberService.verifyMember(groupId, memberId);
-        
-        // 2. 그룹책 및 에피소드 존재 확인
-        GroupBook groupBook = groupBookRepository.findByGroupBookIdAndDeletedAtIsNull(groupBookId)
-                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
-        
-        GroupEpisode episode = episodeRepository.findById(episodeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
-        
-        if (!episode.getGroupBook().getGroupBookId().equals(groupBookId)) {
-            throw new ApiException(ErrorCode.EPISODE_NOT_FOUND);
-        }
-        
-        // 3. 그룹 타입 정보 가져오기
-        String groupType = groupBook.getGroupType().name();
-        
-        // 4. AI 교정 요청
-        try {
-            String aiResponse = aiClient.correctAnswerWithContext(
-                    request.getQuestion(),
-                    request.getAnswer(),
-                    request.getCurrentTemplate(),
-                    groupType,
-                    request.getCorrectionStyle() != null ? request.getCorrectionStyle() : "CASUAL"
-            );
-            
-            // 5. AI 응답 파싱 (JSON 형태로 반환되므로 파싱 필요)
-            // 간단한 파싱 로직 - 실제로는 JSON 라이브러리 사용 권장
-            return parseAiCorrectionResponse(aiResponse, request.getAnswer());
-            
-        } catch (Exception e) {
-            log.error("AI 답변 교정 실패: groupId={}, episodeId={}, error={}", groupId, episodeId, e.getMessage());
-            
-            // 임시: API 키 문제로 인한 실패 시 샘플 교정 응답 반환
-            if (e.getMessage().contains("401") || e.getMessage().contains("UNAUTHORIZED")) {
-                return GroupAnswerCorrectionResponse.builder()
-                        .originalAnswer(request.getAnswer())
-                        .correctedAnswer(request.getAnswer() + "라는 소중한 기억이 마음 깊이 새겨져 있습니다. 그 순간의 감정과 경험이 오늘의 저를 만들어주었다고 생각합니다.")
-                        .correctionReason("현재 AI 서비스 연결에 문제가 있어 샘플 교정을 제공합니다. 원본 답변을 보다 서정적이고 감동적인 문체로 개선했습니다.")
-                        .suggestedFollowUpQuestion("그 경험을 통해 얻은 가장 큰 깨달음이나 교훈이 있다면 무엇인가요?")
-                        .build();
-            }
-            
-            // 일반적인 AI 교정 실패 시 원본 답변 반환
-            return GroupAnswerCorrectionResponse.builder()
-                    .originalAnswer(request.getAnswer())
-                    .correctedAnswer(request.getAnswer())
-                    .correctionReason("AI 교정 서비스에 일시적인 문제가 발생했습니다.")
-                    .suggestedFollowUpQuestion(null)
-                    .build();
-        }
-    }
-    
-    private GroupAnswerCorrectionResponse parseAiCorrectionResponse(String aiResponse, String originalAnswer) {
-        try {
-            // JSON 파싱 로직 (간단한 구현)
-            // 실제로는 ObjectMapper 등을 사용하는 것이 좋음
-            
-            // 기본값 설정
-            String correctedAnswer = originalAnswer;
-            String correctionReason = "교정이 완료되었습니다.";
-            String suggestedFollowUpQuestion = null;
-            
-            if (aiResponse.contains("correctedAnswer")) {
-                int start = aiResponse.indexOf("\"correctedAnswer\":") + 18;
-                int end = aiResponse.indexOf("\",", start);
-                if (end == -1) end = aiResponse.indexOf("\"}", start);
-                if (start > 17 && end > start) {
-                    correctedAnswer = aiResponse.substring(start + 1, end);
-                }
-            }
-            
-            if (aiResponse.contains("correctionReason")) {
-                int start = aiResponse.indexOf("\"correctionReason\":") + 19;
-                int end = aiResponse.indexOf("\",", start);
-                if (end == -1) end = aiResponse.indexOf("\"}", start);
-                if (start > 18 && end > start) {
-                    correctionReason = aiResponse.substring(start + 1, end);
-                }
-            }
-            
-            if (aiResponse.contains("suggestedFollowUpQuestion")) {
-                int start = aiResponse.indexOf("\"suggestedFollowUpQuestion\":") + 28;
-                int end = aiResponse.indexOf("\"}", start);
-                if (end == -1) end = aiResponse.indexOf("\",", start);
-                if (start > 27 && end > start && !aiResponse.substring(start, end).contains("null")) {
-                    suggestedFollowUpQuestion = aiResponse.substring(start + 1, end);
-                }
-            }
-            
-            return GroupAnswerCorrectionResponse.builder()
-                    .originalAnswer(originalAnswer)
-                    .correctedAnswer(correctedAnswer)
-                    .correctionReason(correctionReason)
-                    .suggestedFollowUpQuestion(suggestedFollowUpQuestion)
-                    .build();
-                    
-        } catch (Exception e) {
-            log.error("AI 응답 파싱 실패: {}", e.getMessage());
-            return GroupAnswerCorrectionResponse.builder()
-                    .originalAnswer(originalAnswer)
-                    .correctedAnswer(originalAnswer)
-                    .correctionReason("응답 처리 중 오류가 발생했습니다.")
-                    .suggestedFollowUpQuestion(null)
-                    .build();
-        }
-    }
 }

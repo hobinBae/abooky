@@ -29,16 +29,6 @@ public interface AiClient {
      */
     String analyzeAnsweredQuestions(String userAnswer, String remainingQuestions);
 
-    /**
-     * 질문과 답변을 바탕으로 답변을 교정합니다.
-     * @param question 원본 질문
-     * @param answer 사용자의 답변
-     * @param template 현재 템플릿 (INTRO, STORY, REFLECTION, FUTURE)
-     * @param groupType 그룹 타입 (FAMILY, FRIENDS, COUPLE, TEAM, OTHER)
-     * @param correctionStyle 교정 스타일 (FORMAL, CASUAL, LITERARY, CONCISE)
-     * @return 교정된 답변과 개선 사항을 포함한 JSON 응답
-     */
-    String correctAnswerWithContext(String question, String answer, String template, String groupType, String correctionStyle);
 
     /**
      * 사용자 답변을 읽기 쉬운 문장으로 편집합니다.(그룹책 에피소드 생성용)
