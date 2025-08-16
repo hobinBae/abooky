@@ -1,4 +1,3 @@
-
 version: '3.8'
 
 services:
@@ -48,16 +47,19 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY}
 
-      LIVEKIT_API_KEY : ${LIVEKIT_API_KEY}
+      # LiveKit 설정 (HTTPS 환경용) - 중요: WSS 프로토콜 사용
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
-      LIVEKIT_WS_URL : ${LIVEKIT_WS_URL}
-      LIVEKIT_SERVER_URL : ${LIVEKIT_SERVER_URL}
+      LIVEKIT_WS_URL: ${LIVEKIT_WS_URL}
+      LIVEKIT_SERVER_URL: ${LIVEKIT_SERVER_URL}
     ports:
       - "127.0.0.1:8081:8081"  # 🔒 로컬호스트에서만 접근 가능
     depends_on:
       mysql:
         condition: service_healthy
       redis:
+        condition: service_started
+      livekit:
         condition: service_started
     restart: unless-stopped
     networks:
@@ -73,10 +75,14 @@ services:
   frontend:
     image: autobiography-frontend:${FRONTEND_IMAGE_TAG:-latest}
     container_name: autobiography-frontend
+    environment:
+      # 프론트엔드에서 사용할 LiveKit 설정
+      - VITE_LIVEKIT_WS_URL=${LIVEKIT_WS_URL}
+      - VITE_LIVEKIT_SERVER_URL=${LIVEKIT_SERVER_URL}
     ports:
-      - "3000:80"  # 🌐 외부 접근 허용 (프론트엔드는 공개)
+      - "127.0.0.1:3000:80"  # 🔒 Nginx 프록시를 통해서만 접근
     depends_on:
-      - backend  # condition 제거로 단순화
+      - backend
     restart: unless-stopped
     networks:
       - app-network
@@ -85,6 +91,35 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # LiveKit 서버 추가
+  livekit:
+    image: livekit/livekit-server:latest
+    container_name: livekit-server
+    restart: unless-stopped
+    volumes:
+      - ./autobiography/livekit-prod.yaml:/etc/livekit.yaml:ro
+    command: --config /etc/livekit.yaml
+    ports:
+      - "127.0.0.1:7880:7880"  # 🔒 Nginx 프록시를 통해서만 접근
+      - "127.0.0.1:7881:7881"  # TCP 포트
+      - "3478:3478/udp"        # 🌐 STUN/TURN UDP (공개 필요)
+      - "5349:5349"            # 🌐 TURN over TLS (공개 필요)
+      - "50000-60000:50000-60000/udp"  # 🌐 RTP/RTCP 포트 범위 (공개 필요)
+    environment:
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7880/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # MySQL 데이터베이스 - 로컬호스트에서만 접근
   mysql:
@@ -116,65 +151,3 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-
-  # Redis 캐시 - 로컬호스트에서만 접근
-  redis:
-    image: redis:7.2-alpine
-    container_name: redis-server
-    command: 
-      - redis-server
-      - --appendonly 
-      - "yes"
-      - --appendfsync
-      - everysec
-      - --maxmemory 
-      - 128mb
-      - --maxmemory-policy 
-      - allkeys-lru
-      - --replica-read-only
-      - "no"
-      - --save
-      - ""   
-    ports:
-      - "127.0.0.1:6379:6379"  # 🔒 로컬호스트에서만 접근 가능
-    volumes:
-      - redis_data:/data
-    restart: always
-    networks:
-      - app-network
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-
-  # 데이터베이스 관리 도구 (개발/관리용) - 로컬호스트에서만 접근
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: autobiography-phpmyadmin
-    environment:
-      PMA_HOST: mysql
-      PMA_USER: ssafy
-      PMA_PASSWORD: 959697989900
-      PMA_ABSOLUTE_URI: http://localhost:8082/
-    ports:
-      - "127.0.0.1:8082:80"  # 🔒 로컬호스트에서만 접근 가능
-    depends_on:
-      mysql:
-        condition: service_healthy
-    restart: unless-stopped
-    networks:
-      - app-network
-
-volumes:
-  mysql-data:
-    driver: local
-  redis_data:
-    driver: local
-
-networks:
-  app-network:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.25.0.0/16
