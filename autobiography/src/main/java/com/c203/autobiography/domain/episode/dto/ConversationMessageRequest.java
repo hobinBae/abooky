@@ -2,6 +2,7 @@ package com.c203.autobiography.domain.episode.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,8 +18,8 @@ public class ConversationMessageRequest {
     @Schema(description = "세션 ID (UUID)", example = "session-uuid-1234")
     private String sessionId;
 
-    @NotBlank
-    @Schema(description = "메시지 타입 (QUESTION, ANSWER, EPISODE)", example = "PARTIAL")
+    @NotNull
+    @Schema(description = "메시지 타입 (QUESTION, ANSWER, EPISODE)", example = "ANSWER")
     private MessageType messageType;
 
     @Schema(description = "청크 인덱스 (PARTIAL 메시지 시)", example = "0")
