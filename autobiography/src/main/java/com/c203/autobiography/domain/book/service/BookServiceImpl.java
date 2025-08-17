@@ -364,9 +364,10 @@ public class BookServiceImpl implements BookService {
                     .episodeOrder(Optional.ofNullable(dto.getEpisodeOrder()).orElse(origEp.getEpisodeOrder()))
                     .audioUrl(Optional.ofNullable(dto.getAudioUrl()).orElse(origEp.getAudioUrl()))
                     .build();
-            episodeRepository.save(newEp);
+            Episode savedEpisode = episodeRepository.save(newEp);
 
-            // (선택) 태그/이미지도 복제하려면 이곳에서 처리
+            // 원본 에피소드의 이미지들을 새 에피소드로 복사
+            copyEpisodeImages(origEp, savedEpisode);
         }
         // 6) 응답 반환
         return BookCopyResponse.builder()
@@ -775,6 +776,30 @@ public class BookServiceImpl implements BookService {
                 
                 groupEpisodeImageRepository.saveAll(groupEpisodeImages);
             }
+        }
+    }
+
+    /**
+     * Episode 간 이미지 복사 (개인책 복사본 발행용)
+     */
+    private void copyEpisodeImages(Episode originalEpisode, Episode newEpisode) {
+        // 원본 에피소드의 이미지들을 조회
+        List<com.c203.autobiography.domain.episode.entity.EpisodeImage> originalImages = 
+            episodeImageRepository.findByEpisode_EpisodeIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(originalEpisode.getEpisodeId());
+        
+        if (!originalImages.isEmpty()) {
+            // 새 에피소드용 이미지로 변환하여 저장
+            List<com.c203.autobiography.domain.episode.entity.EpisodeImage> newImages = originalImages.stream()
+                .map(originalImage -> com.c203.autobiography.domain.episode.entity.EpisodeImage.create(
+                    newEpisode,
+                    originalImage.getId().getImageId(),
+                    originalImage.getImageUrl(),
+                    originalImage.getOrderNo(),
+                    originalImage.getDescription()
+                ))
+                .collect(Collectors.toList());
+            
+            episodeImageRepository.saveAll(newImages);
         }
     }
 }
