@@ -1,14 +1,17 @@
 package com.c203.autobiography.domain.member.service;
 
+import com.c203.autobiography.domain.book.repository.BookRepository;
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
 import com.c203.autobiography.domain.member.dto.MemberResponse;
 import com.c203.autobiography.domain.member.dto.MemberUpdateRequest;
+import com.c203.autobiography.domain.member.dto.RepresentBookResponse;
 import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.domain.member.service.MemberService;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.s3.FileStorageService;
+import java.util.Objects;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +28,8 @@ public class MemberServiceImpl implements MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorageService;
+    private final BookRepository bookRepository;
+
     private static final String DEFAULT_IMAGE_URL = "https://ssafytrip.s3.ap-northeast-2.amazonaws.com/userProfile/default.png";
     @Transactional
     @Override
@@ -104,6 +109,41 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
         return MemberResponse.from(member);
     }
+
+    @Override
+    @Transactional
+    public RepresentBookResponse setRepresentativeBook(Long memberId, Long bookId, boolean isRepresentative) {
+        // 1) 멤버 잠금 로드 (경합 방지)
+        Member member = memberRepository.findByIdForUpdate(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        if (isRepresentative) {
+            // 2) 소유권/존재 검증
+            boolean owned = bookRepository.existsByBookIdAndMember_MemberIdAndDeletedAtIsNull(bookId, memberId);
+            if (!owned) {
+                // 책이 없거나 내 소유가 아니면 거부
+                throw new ApiException(ErrorCode.FORBIDDEN); // 필요 시 BOOK_NOT_OWNED 등 세분화
+            }
+
+            // (선택) 완성된 책만 허용하려면 여기에서 completed 체크 추가
+
+            // 3) 대표책 설정 (기존 대표는 자동 교체)
+            member.updateRepresentBookId(bookId);
+
+        } else {
+            // 4) 해제: 현재 대표가 이 bookId일 때만 null
+            if (Objects.equals(member.getRepresentBookId(), bookId)) {
+                member.updateRepresentBookId(null);
+            }
+            // 아니라면 no-op (원한다면 예외로 바꿔도 됨)
+        }
+
+        return RepresentBookResponse.builder()
+                .memberId(member.getMemberId())
+                .representBookId(member.getRepresentBookId()) // null이면 해제 상태
+                .build();
+    }
+
 
 
 }
