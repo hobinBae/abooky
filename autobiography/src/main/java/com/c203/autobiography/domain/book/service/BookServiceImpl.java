@@ -13,6 +13,7 @@ import com.c203.autobiography.domain.communityBook.repository.CommunityBookTagRe
 import com.c203.autobiography.domain.episode.dto.SessionStatus;
 import com.c203.autobiography.domain.episode.entity.ConversationSession;
 import com.c203.autobiography.domain.episode.repository.ConversationSessionRepository;
+import com.c203.autobiography.domain.episode.repository.EpisodeImageRepository;
 import com.c203.autobiography.domain.group.entity.Group;
 import com.c203.autobiography.domain.group.repository.GroupRepository;
 import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateResponse;
@@ -77,6 +78,7 @@ public class BookServiceImpl implements BookService {
     private final BookTagRepository bookTagRepository;
     private final GroupRepository groupRepository;
     private final GroupBookRepository groupBookRepository;
+    private final EpisodeImageRepository episodeImageRepository;
     private final GroupEpisodeRepository groupEpisodeRepository;
     private final ConversationSessionRepository conversationSessionRepository;
 
@@ -586,6 +588,14 @@ public class BookServiceImpl implements BookService {
      * Episode 엔티티를 CommunityBookEpisode로 복사
      */
     private CommunityBookEpisode createCommunityBookEpisode(Episode episode, CommunityBook communityBook) {
+        // 에피소드의 이미지 URL 가져오기 (하나만 업로드 가능)
+        String imageUrl = episodeImageRepository
+                .findByEpisode_EpisodeIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(episode.getEpisodeId())
+                .stream()
+                .findFirst()
+                .map(episodeImage -> episodeImage.getImageUrl())
+                .orElse(null);
+
         return CommunityBookEpisode.builder()
                 .communityBook(communityBook)
                 .title(episode.getTitle())
@@ -593,6 +603,7 @@ public class BookServiceImpl implements BookService {
                 .episodeOrder(episode.getEpisodeOrder())
                 .content(episode.getContent())
                 .audioUrl(episode.getAudioUrl())
+                .imageUrl(imageUrl)
                 .build();
     }
 
