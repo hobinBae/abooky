@@ -20,7 +20,9 @@ import com.c203.autobiography.domain.groupbook.dto.GroupBookCreateResponse;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
 import com.c203.autobiography.domain.groupbook.entity.GroupType;
 import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisode;
+import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeImage;
 import com.c203.autobiography.domain.groupbook.episode.entity.GroupEpisodeStatus;
+import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeImageRepository;
 import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeRepository;
 import com.c203.autobiography.domain.groupbook.repository.GroupBookRepository;
 import com.c203.autobiography.domain.episode.dto.EpisodeCopyRequest;
@@ -80,6 +82,7 @@ public class BookServiceImpl implements BookService {
     private final GroupBookRepository groupBookRepository;
     private final EpisodeImageRepository episodeImageRepository;
     private final GroupEpisodeRepository groupEpisodeRepository;
+    private final GroupEpisodeImageRepository groupEpisodeImageRepository;
     private final ConversationSessionRepository conversationSessionRepository;
 
     @Override
@@ -719,8 +722,12 @@ public class BookServiceImpl implements BookService {
                             .build())
                     .collect(Collectors.toList());
 
-            groupEpisodeRepository.saveAll(groupEpisodes);
-            return groupEpisodes.size();
+            List<GroupEpisode> savedGroupEpisodes = groupEpisodeRepository.saveAll(groupEpisodes);
+            
+            // Episode 이미지들을 GroupEpisode 이미지로 복사
+            copyEpisodeImagesToGroupImages(episodes, savedGroupEpisodes);
+            
+            return savedGroupEpisodes.size();
         } catch (Exception e) {
             log.error("Failed to copy episodes to group book: {}", groupBook.getGroupBookId(), e);
             return 0;
@@ -739,6 +746,35 @@ public class BookServiceImpl implements BookService {
         } catch (Exception e) {
             log.error("Failed to copy tags for group book: {}", groupBook.getGroupBookId(), e);
             return 0;
+        }
+    }
+
+    /**
+     * Episode 이미지들을 GroupEpisode 이미지로 복사
+     */
+    private void copyEpisodeImagesToGroupImages(List<Episode> episodes, List<GroupEpisode> groupEpisodes) {
+        for (int i = 0; i < episodes.size() && i < groupEpisodes.size(); i++) {
+            Episode episode = episodes.get(i);
+            GroupEpisode groupEpisode = groupEpisodes.get(i);
+            
+            // 각 에피소드의 이미지들을 조회
+            List<com.c203.autobiography.domain.episode.entity.EpisodeImage> episodeImages = 
+                episodeImageRepository.findByEpisode_EpisodeIdAndDeletedAtIsNullOrderByOrderNoAscCreatedAtAsc(episode.getEpisodeId());
+            
+            if (!episodeImages.isEmpty()) {
+                // GroupEpisodeImage로 변환하여 저장
+                List<GroupEpisodeImage> groupEpisodeImages = episodeImages.stream()
+                    .map(episodeImage -> GroupEpisodeImage.create(
+                        groupEpisode,
+                        episodeImage.getId().getImageId(),
+                        episodeImage.getImageUrl(),
+                        episodeImage.getOrderNo(),
+                        episodeImage.getDescription()
+                    ))
+                    .collect(Collectors.toList());
+                
+                groupEpisodeImageRepository.saveAll(groupEpisodeImages);
+            }
         }
     }
 }
