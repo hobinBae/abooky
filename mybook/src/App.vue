@@ -1,0 +1,96 @@
+<template>
+  <Navbar
+    v-if="isNavbarVisible"
+    :is-intro-active="isIntroActive"
+    :is-home="isIntro"
+    @go-home="handleGoHome"
+  />
+  <main class="main-content">
+    <router-view v-slot="{ Component }">
+      <keep-alive include="IntroView">
+        <component
+          :is="Component"
+          @intro-finished="onIntroFinished"
+          @yard-ready="onYardReady"
+          :ref="(el: any) => { if (el) introViewRef = el }"
+        />
+      </keep-alive>
+    </router-view>
+  </main>
+  <Footer v-if="!isIntro" />
+</template>
+
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter, RouterView } from 'vue-router'
+import Navbar from './components/Navbar.vue'
+import Footer from './components/Footer.vue'
+import type IntroView from './views/general/IntroView.vue'
+
+const route = useRoute()
+const router = useRouter()
+
+const introViewRef = ref<InstanceType<typeof IntroView> | null>(null)
+
+// 현재 경로가 인트로('/')인지 여부
+const isIntro = computed(() => route.path === '/')
+
+// '들어가기'를 눌렀는지 여부를 저장하는 상태
+const hasIntroBeenFinished = ref(false)
+const isYardReadyInIntro = ref(false)
+
+// 네비게이션 바 표시 여부 계산
+const isNavbarVisible = computed(() => {
+  return !isIntro.value || isYardReadyInIntro.value
+})
+
+// 인트로 애니메이션이 활성 상태인지 여부를 계산
+const isIntroActive = computed(() => {
+  // isIntro는 현재 경로가 '/'인지 여부
+  // hasIntroBeenFinished는 '들어가기'를 눌렀는지 여부
+  return isIntro.value && !hasIntroBeenFinished.value
+})
+
+// IntroView에서 '들어가기'를 클릭하면 호출될 함수
+const onIntroFinished = () => {
+  hasIntroBeenFinished.value = true
+}
+
+// IntroView에서 마당 애니메이션이 끝나면 호출될 함수
+const onYardReady = () => {
+  isYardReadyInIntro.value = true
+}
+
+const handleGoHome = () => {
+  // 1. 홈으로 라우팅
+  router.push('/')
+
+  // 2. IntroView의 returnToYard 함수 호출
+  if (introViewRef.value && typeof introViewRef.value.returnToYard === 'function') {
+    introViewRef.value.returnToYard()
+  }
+}
+
+onMounted(() => {
+  // 앱 초기화 로직은 main.ts로 이동되었습니다.
+})
+</script>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
+
+#app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+body {
+  font-family: 'Montserrat', sans-serif;
+  transition: padding-top 0.3s ease; /* 부드러운 전환 효과 추가 */
+}
+
+.main-content {
+  flex: 1;
+}
+</style>
