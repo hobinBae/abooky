@@ -47,6 +47,14 @@
 # CMake
 cmake-build-*/
 
+# Node / Vite
+**/node_modules/
+**/.vite/
+**/dist/
+**/.cache/
+**/coverage/
+
+
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
 
@@ -259,3 +267,53 @@ gradle-app.setting
 *.hprof
 
 # End of https://www.toptal.com/developers/gitignore/api/macos,windows,intellij,vuejs,java,gradle,visualstudiocode,jsonnet
+
+# ---------- Node/Vite 추가 캐시/산출물 ----------
+**/.vite/                 # Vite 캐시(하위 모듈 포함)
+**/dist/                  # 프런트 빌드 산출물
+**/.cache/
+**/coverage/
+**/.eslintcache
+**/.stylelintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Env 파일(예시는 허용)
+.env
+.env.*.local
+*.env
+!.env.example
+!**/.env.example
+
+# ---------- IntelliJ/Gradle 산출물(하위 모듈까지) ----------
+**/out/                   # IntelliJ out (서브모듈 포함)
+**/.gradle/               # Gradle 캐시(서브모듈 포함)
+# Gradle wrapper는 반드시 유지
+!**/gradle/wrapper/gradle-wrapper.jar
+!**/gradle/wrapper/gradle-wrapper.properties
+
+# ---------- Spring Boot 민감 설정(예시는 허용) ----------
+# 필요 시 유지할 기본 파일은 화이트리스트로 두세요.
+**/src/main/resources/*.properties
+**/src/main/resources/*.yml
+!**/src/main/resources/application.yml
+!**/src/main/resources/application-example.yml
+!**/src/main/resources/*.example.yml
+!**/src/main/resources/*.example.properties
+
+# ---------- 로그/임시 ----------
+**/logs/
+**/tmp/
+**/temp/
+nohup.out
+
+# ---------- Docker/Compose 로컬 오버라이드/시크릿 ----------
+docker-compose.override.yml
+docker-compose.*.local.yml
+*.local.yml
+*.local.yaml
+*secret*.yml
+*secret*.yaml
