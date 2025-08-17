@@ -119,7 +119,7 @@ public class GroupBook {
      * 태그 추가
      *
      */
-    @OneToMany(mappedBy="groupBook")
+    @OneToMany(mappedBy="groupBook", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GroupBookTag> tags = new ArrayList<>();
 
 
