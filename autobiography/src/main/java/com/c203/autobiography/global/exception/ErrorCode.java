@@ -34,7 +34,7 @@ public enum ErrorCode {
     GROUP_NOT_FOUND("GROUP_NOT_FOUND", HttpStatus.NOT_FOUND, "그룹을 찾을 수 없습니다."),
     GROUP_ACCESS_DENIED("GROUP_ACCESS_DENIED", HttpStatus.UNAUTHORIZED, "그룹 접근 권한이 없습니다."),
     GROUP_LEADER_ROLE_CANNOT_BE_CHANGED("GROUP_LEADER_ROLE_CANNOT_BE_CHANGED", HttpStatus.FORBIDDEN, "그룹 리더의 역할은 변경할 수 없습니다."),
-
+    CANNOT_SKIP_LAST_QUESTION("CANNOT_SKIP_LAST_QUESTION", HttpStatus.BAD_REQUEST, "다음 질문이 없습니다."),
     GROUP_MEMBER_ALREADY_EXISTS("GROUP_MEMBER_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 존재하는 그룹원입니다."),
     INVITE_ALREADY_EXISTS("INVITE_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 대기 중인 초대가 있습니다."),
 
