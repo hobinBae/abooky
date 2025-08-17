@@ -125,7 +125,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { communityService, type CommunityBook, type SearchParams } from '@/services/communityService';
+import { communityService, type CommunityBook } from '@/services/communityService';
 
 // --- Router ---
 const router = useRouter();
@@ -134,7 +134,7 @@ const router = useRouter();
 const allBooks = ref<CommunityBook[]>([]);
 const topBooks = ref<CommunityBook[]>([]);
 const searchTerm = ref('');
-const currentSortOption = ref('recent'); // API 기본값
+const currentSortOption = ref('recent');
 const genres = [
     { id: 1, name: '자서전' }, { id: 2, name: '일기' }, { id: 3, name: '소설/시' },
     { id: 4, name: '에세이' }, { id: 5, name: '자기계발' }, { id: 6, name: '역사' },
@@ -144,8 +144,7 @@ const genres = [
 ];
 const activeGenreId = ref<number | null>(null);
 const currentPage = ref(1);
-const totalPages = ref(0);
-const itemsPerPage = 10;
+const itemsPerPage = 7;
 const isLoading = ref(false);
 const error = ref<string | null>(null);
 let autoSlideInterval: number;
@@ -167,33 +166,13 @@ const fetchBooks = async () => {
   isLoading.value = true;
   error.value = null;
   try {
-    const params: SearchParams = {
-      page: currentPage.value - 1,
-      size: itemsPerPage,
-      sortBy: currentSortOption.value,
-    };
-
-    if (searchTerm.value) {
-        if (searchTerm.value.startsWith('#')) {
-            params.tags = [searchTerm.value.substring(1)];
-        } else {
-            params.title = searchTerm.value;
-        }
-    }
-
-    if (activeGenreId.value) {
-      params.categoryId = activeGenreId.value;
-    }
-
-    const response = await communityService.searchCommunityBooks(params);
+    // 모든 책 데이터를 가져오기 위해 size를 큰 값으로 설정
+    const response = await communityService.searchCommunityBooks({ page: 0, size: 1000, sortBy: 'recent' });
     allBooks.value = response.content;
-    totalPages.value = response.totalPages;
 
-    // 인기순으로 topBooks 업데이트 (최초 한 번만)
-    if (topBooks.value.length === 0 && response.content.length > 0) {
-        const topResponse = await communityService.searchCommunityBooks({ page: 0, size: 10, sortBy: 'likes' });
-        topBooks.value = topResponse.content;
-    }
+    // 인기순으로 topBooks 업데이트
+    const topResponse = await communityService.searchCommunityBooks({ page: 0, size: 10, sortBy: 'liked' });
+    topBooks.value = topResponse.content;
 
   } catch (e) {
     console.error('Failed to fetch books:', e);
@@ -204,7 +183,53 @@ const fetchBooks = async () => {
 };
 
 // --- Computed Properties ---
-const paginatedBooks = computed(() => allBooks.value);
+const filteredBooks = computed(() => {
+  let books = [...allBooks.value];
+
+  // 장르 필터링
+  if (activeGenreId.value) {
+    const activeGenre = genres.find(g => g.id === activeGenreId.value);
+    if (activeGenre) {
+      books = books.filter(book => book.categoryName === activeGenre.name);
+    }
+  }
+
+  // 검색어 필터링
+  if (searchTerm.value) {
+    const term = searchTerm.value.toLowerCase();
+    books = books.filter(book => {
+      const titleMatch = book.title.toLowerCase().includes(term);
+      const authorMatch = book.authorNickname.toLowerCase().includes(term);
+      const genreMatch = book.categoryName?.toLowerCase().includes(term);
+      const tagMatch = book.tags.some(tag => `#${tag.tagName}`.toLowerCase().includes(term));
+      return titleMatch || authorMatch || genreMatch || tagMatch;
+    });
+  }
+
+  // 정렬
+  switch (currentSortOption.value) {
+    case 'liked':
+      books.sort((a, b) => b.likeCount - a.likeCount);
+      break;
+    case 'popular':
+      books.sort((a, b) => b.viewCount - a.viewCount);
+      break;
+    case 'recent':
+    default:
+      books.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      break;
+  }
+
+  return books;
+});
+
+const totalPages = computed(() => Math.ceil(filteredBooks.value.length / itemsPerPage));
+
+const paginatedBooks = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return filteredBooks.value.slice(start, end);
+});
 
 const pagination = computed(() => {
   const pages = [];
@@ -235,14 +260,8 @@ const carouselStyle = computed(() => ({
 
 // --- Watchers for Reactivity ---
 watch([searchTerm, currentSortOption, activeGenreId], () => {
-  if (currentPage.value !== 1) {
-    currentPage.value = 1;
-  } else {
-    fetchBooks();
-  }
-}, { deep: true });
-
-watch(currentPage, fetchBooks);
+  currentPage.value = 1;
+});
 
 
 // --- Navigation ---

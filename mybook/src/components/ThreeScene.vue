@@ -5,8 +5,8 @@
 <script setup lang="ts">
 /**
  * Three.js 기반 인트로 3D 뷰
- * - 마우스 패럴랙스: 카메라가 마우스에 따라 부드럽게 미소 이동
- * - OrbitControls 사용자 입력 완전 차단: 드래그/휠/터치로는 절대 카메라가 움직이지 않음
+ * - 마우스 패럴랙스: 시선(Yaw/Pitch)만 회전 → 사람이 고개를 돌려 보는 느낌
+ * - OrbitControls 사용자 입력 완전 차단
  * - 핫스팟 클릭 시 카메라 이동 및 상위 컴포넌트로 이벤트 emit
  * - HDRI 배경, 조명, 셰이더 예열 포함
  */
@@ -25,12 +25,12 @@ import { gsap } from 'gsap'
 const emit = defineEmits(['loaded', 'hotspot', 'background-loaded', 'yard-animation-finished'])
 
 /* ---------------------------------- 프롭스 ---------------------------------- */
+// 강도 조절 포인트:
+// - parallaxAngle: 마우스 -1~1 → 최대 회전각(라디안 계수). 0.015~0.035 권장.
 const props = defineProps({
-  // 마우스 패럴랙스 강도. 값이 클수록 마우스에 더 크게 반응
-  parallaxFactor: {
-    type: Number,
-    default: 0.3
-  }
+  parallaxFactor: { type: Number, default: 0.3 }, // (호환용, 현재 사용하지 않음)
+  parallaxAngle:  { type: Number, default: 0.06 }, // ✅ XY 회전 강도
+  parallaxFactorZ:{ type: Number, default: 0.012 } // (호환용, 현재 사용하지 않음)
 })
 
 /* ----------------------------- 외부에서 호출 가능 ---------------------------- */
@@ -47,19 +47,20 @@ let controls: OrbitControls
 const hotspots: THREE.Object3D[] = []
 let hoveredHotspot: THREE.Object3D | null = null
 
-// 패럴랙스 기준 위치 및 활성화 플래그
+// 패럴랙스 기준 (카메라/타겟)
 const baseCameraPosition = new THREE.Vector3()
-let parallaxEnabled = true
+const baseTargetPosition = new THREE.Vector3()
+let parallaxEnabled = false
 
 // 애니메이션 루프 제어
 let animationFrameId = 0
 const isAnimating = ref(false)
 
-// 빈번한 이벤트에서의 할당을 줄이기 위한 재사용 객체
+// 재사용 객체
 const globalRaycaster = new THREE.Raycaster()
 const globalMouse = new THREE.Vector2()
 
-// 입력 차단 가드 리스너들을 해제하기 위해 보관
+// 입력 차단 가드
 const blockedEventTypes = ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'touchstart', 'touchmove', 'touchend', 'contextmenu'] as const
 let swallowHandler: (e: Event) => void
 
@@ -78,28 +79,20 @@ onDeactivated(() => {
 })
 
 onUnmounted(() => {
-  // 전역/DOM 리스너 정리
   window.removeEventListener('resize', onWindowResize)
   container.value?.removeEventListener('click', onCanvasClick)
   container.value?.removeEventListener('mousemove', onMouseMove)
 
-  // 입력 차단 가드 해제
   if (renderer?.domElement && swallowHandler) {
     blockedEventTypes.forEach(t =>
       renderer.domElement.removeEventListener(t, swallowHandler, { capture: true } as any)
     )
   }
 
-  // 렌더 루프 정지
   stopAnimation()
 
-  // 잔여 트윈 제거
-  if (camera) {
-    gsap.killTweensOf(camera.position)
-  }
-  if (controls) {
-    gsap.killTweensOf((controls as any).target)
-  }
+  if (camera) gsap.killTweensOf(camera.position)
+  if (controls) gsap.killTweensOf((controls as any).target)
 })
 
 /* ---------------------------------- 초기화 ---------------------------------- */
@@ -114,7 +107,7 @@ function initScene() {
 
   /* 렌더러 */
   renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' })
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))            // 과한 해상도 제한
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   renderer.setSize(window.innerWidth, window.innerHeight)
   renderer.outputColorSpace = THREE.SRGBColorSpace
   renderer.shadowMap.enabled = true
@@ -122,7 +115,7 @@ function initScene() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping
   renderer.toneMappingExposure = 1.2
 
-  // DOM 연결 및 이벤트
+  // DOM & 이벤트
   container.value?.appendChild(renderer.domElement)
   container.value?.addEventListener('click', onCanvasClick)
   container.value?.addEventListener('mousemove', onMouseMove)
@@ -132,8 +125,9 @@ function initScene() {
   controls = new OrbitControls(camera, renderer.domElement)
   controls.target.set(0.3, 35, 25)
   controls.update()
+  baseTargetPosition.copy(controls.target) // ✅ 시선 기준 저장
 
-  // 사용자 입력을 통한 모든 조작을 완전 차단
+  // 사용자 입력 완전 차단
   lockOrbitControls()
 
   /* 조명, 환경맵, 모델 */
@@ -141,34 +135,21 @@ function initScene() {
   setupLights()
   loadHDR()
 
-  // ✅ 사진 한 장 추가: 배경/조명 세팅 직후에 배치
   addPhoto()
-  // loadModel() // 필요 시 외부에서 호출
+  // loadModel() // 필요 시 외부에서
 }
 
 /* ------------------------------ OrbitControls 봉인 ------------------------------ */
-/**
- * OrbitControls에 의한 사용자 입력(드래그/휠/터치)로 카메라가 미세하게라도 움직이지 않도록 완전 차단한다.
- * 1) controls.enabled=false 로 내부 입력 처리 루프 비활성화
- * 2) 회전/줌/패닝/댐핑 off
- * 3) mouseButtons/touches 매핑을 null로 비워 입력 바인딩 제거
- * 4) 캡처 단계에서 포인터/휠/터치/컨텍스트메뉴 이벤트를 swallow 하여 OrbitControls가 이벤트를 수신하지 못하게 함
- */
 function lockOrbitControls() {
-  // 1) 내부 입력 처리 루프 비활성화
   controls.enabled = false
-
-  // 2) 회전/줌/패닝/댐핑 비활성화 (보조)
   controls.enableRotate = false
   controls.enableZoom = false
   controls.enablePan = false
   controls.enableDamping = false
 
-  // 3) 입력 매핑 해제
   ;(controls as any).mouseButtons = { LEFT: null, MIDDLE: null, RIGHT: null }
   ;(controls as any).touches = { ONE: null, TWO: null }
 
-  // 4) 캡처 단계에서 이벤트 삼키기
   swallowHandler = (e: Event) => {
     e.preventDefault()
     e.stopPropagation()
@@ -177,14 +158,10 @@ function lockOrbitControls() {
   blockedEventTypes.forEach(type => {
     renderer.domElement.addEventListener(type, swallowHandler, { capture: true })
   })
-
-  // 주의: 애니메이션 중 controls.enabled = true 로 되돌리는 코드가 있다면 제거할 것.
-  // 현재 구조는 GSAP으로 camera.position / controls.target을 직접 트윈하므로 문제 없음.
 }
 
 /* ---------------------------------- 조명 ---------------------------------- */
 function setupLights() {
-  // 주광: 그림자 품질은 성능에 맞춰 조정 가능
   const dirLight = new THREE.DirectionalLight(0xffffff, 1.5)
   dirLight.position.set(30, 30, 10)
   dirLight.castShadow = true
@@ -198,7 +175,6 @@ function setupLights() {
   dirLight.shadow.camera.bottom = -100
   scene.add(dirLight)
 
-  // 포인트 라이트들: 따뜻한 실내광 느낌
   const point1 = new THREE.PointLight(0xf0ab43, 10, 15)
   point1.position.set(-12, 3, -6.6)
   scene.add(point1)
@@ -207,40 +183,29 @@ function setupLights() {
   point1a.position.set(-12, 3, 2)
   scene.add(point1a)
 
-  // PointLight 2 (문)
-  const point2 = new THREE.PointLight(0xf0ab43, 30, 30);
-  point2.position.set(7.3, 5, 25);
-  scene.add(point2);
-  // scene.add(new THREE.PointLightHelper(point2));
+  const point2 = new THREE.PointLight(0xf0ab43, 30, 30)
+  point2.position.set(7.3, 5, 25)
+  scene.add(point2)
 
-  // PointLight 3
-  const point3 = new THREE.PointLight(0xf0ab43, 8, 100);
-  point3.position.set(-8, 2.5, -4.3);
-  scene.add(point3);
-  // scene.add(new THREE.PointLightHelper(point3));
+  const point3 = new THREE.PointLight(0xf0ab43, 8, 100)
+  point3.position.set(-8, 2.5, -4.3)
+  scene.add(point3)
 
-  // PointLight 4
-  const point4 = new THREE.PointLight(0xf0ab43, 8, 100);
-  point4.position.set(-5, 2.5, -4.3);
-  scene.add(point4);
-  // scene.add(new THREE.PointLightHelper(point4));
+  const point4 = new THREE.PointLight(0xf0ab43, 8, 100)
+  point4.position.set(-5, 2.5, -4.3)
+  scene.add(point4)
 
-  // PointLight 5
-  const point5 = new THREE.PointLight(0xf0ab43, 5, 30);
-  point5.position.set(1.55, 2.25, -4.3);
-  scene.add(point5);
-  // scene.add(new THREE.PointLightHelper(point5));
+  const point5 = new THREE.PointLight(0xf0ab43, 5, 30)
+  point5.position.set(1.55, 2.25, -4.3)
+  scene.add(point5)
 
-  // PointLight 6
-  const point6 = new THREE.PointLight(0xf0ab43, 5, 30);
-  point6.position.set(4.8, 2.25, -4.3);
-  scene.add(point6);
-  // scene.add(new THREE.PointLightHelper(point6));
+  const point6 = new THREE.PointLight(0xf0ab43, 5, 30)
+  point6.position.set(4.8, 2.25, -4.3)
+  scene.add(point6)
 
   const point7 = new THREE.PointLight(0xf0ab43, 10, 15)
   point7.position.set(8.5, 3, -0.33191)
   scene.add(point7)
-
 }
 
 /* --------------------------------- HDR 로드 -------------------------------- */
@@ -254,60 +219,29 @@ function loadHDR() {
 }
 
 /* ----------------------------- 사진 한 장 추가 ----------------------------- */
-/**
- * PNG 한 장을 Plane 메시로 추가한다.
- * - sRGB 색공간 적용으로 정확한 색 재현
- * - 로드 완료 후 실제 이미지 비율대로 높이를 보정
- * - 양면 렌더링 불필요하므로 FrontSide로 성능 최적화
- */
 function addPhoto() {
-  const BASE_WIDTH = 8 // 기준 가로 길이 (필요 시 숫자만 조정)
+  const BASE_WIDTH = 8
+  const texture = new THREE.TextureLoader().load('/3D/bookstore.png', onLoad, undefined, onError)
+  if ('colorSpace' in texture) { ;(texture as any).colorSpace = THREE.SRGBColorSpace }
 
-  // 텍스처 로드
-  const texture = new THREE.TextureLoader().load(
-    '/3D/bookstore.png',
-    onLoad,
-    undefined,
-    onError
-  )
-
-  // three r152+ / r150- 호환 색공간 설정
-  if ('colorSpace' in texture) {
-    ;(texture as any).colorSpace = THREE.SRGBColorSpace
-  }
-
-  // 초기에는 정사각 비율로 만들고, 로드 완료 후 실제 비율로 교체
   const geometry = new THREE.PlaneGeometry(BASE_WIDTH, BASE_WIDTH)
-  const material = new THREE.MeshBasicMaterial({
-    map: texture,
-    side: THREE.FrontSide // 한 면만 필요
-  })
-
+  const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.FrontSide })
   const mesh = new THREE.Mesh(geometry, material)
-  mesh.position.set(-1.3, 2.04, -13) // 사용자가 지정한 위치
-  mesh.rotation.y = 0        // Y축으로 0도 회전
+  mesh.position.set(-1.3, 2.04, -13)
+  mesh.rotation.y = 0
   scene.add(mesh)
 
-  // 텍스처 로드 성공 시: 비율 보정 및 품질 옵션
   function onLoad(tex: THREE.Texture) {
     const img = (tex.image as HTMLImageElement | { width: number; height: number }) || null
     if (img && img.width && img.height) {
-      const aspectH = img.height / img.width // 높이/너비
+      const aspectH = img.height / img.width
       const newHeight = BASE_WIDTH * aspectH
       mesh.geometry.dispose()
       mesh.geometry = new THREE.PlaneGeometry(BASE_WIDTH, newHeight)
     }
-
-    // 비스듬한 시선에서 선명도 향상 (옵션)
-    if (renderer) {
-      tex.anisotropy = renderer.capabilities.getMaxAnisotropy()
-    }
+    if (renderer) tex.anisotropy = renderer.capabilities.getMaxAnisotropy()
   }
-
-  // 텍스처 로드 에러 핸들링
-  function onError(err: unknown) {
-    console.error('텍스처 로드 실패: /3D/bookstore.png', err)
-  }
+  function onError(err: unknown) { console.error('텍스처 로드 실패: /3D/bookstore.png', err) }
 }
 
 /* -------------------------------- 모델 로드 -------------------------------- */
@@ -324,7 +258,6 @@ function loadModel() {
     const hanok = gltf.scene
     hanok.scale.set(1.5, 1.5, 1.5)
 
-    // 재질 튜닝 및 그림자 설정
     hanok.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh
@@ -338,7 +271,7 @@ function loadModel() {
         }
 
         if (mesh.name.includes('Ground')) {
-          material.color.multiplyScalar(0.4) // 바닥 톤 다운
+          material.color.multiplyScalar(0.4)
           mesh.castShadow = false
         }
         if (mesh.name.includes('Bench')) {
@@ -348,14 +281,8 @@ function loadModel() {
     })
 
     scene.add(hanok)
-
-    // 셰이더 예열: 카메라 이동 시 초기 프레임 드랍 방지
     prewarmShaders(hanok)
-
-    // 핫스팟 구성
     createHotspots()
-
-    // 외부에 로딩 완료 알림
     emit('loaded')
   })
 }
@@ -393,20 +320,19 @@ function createHotspots() {
   hotspots.push(
     createHotspot(new THREE.Vector3(8.5, 2, 3), texture, 'create', () => {
       const tl = gsap.timeline({
-        onStart: () => {
-          parallaxEnabled = false
-        },
+        onStart: () => { parallaxEnabled = false },
         onUpdate: () => { controls.update() },
         onComplete: () => {
           parallaxEnabled = true
           baseCameraPosition.copy(camera.position)
+          baseTargetPosition.copy(controls.target) // ✅ 시선 기준 갱신
           emit('hotspot', 'create')
         }
       })
-      tl.to(camera.position, { x: 2, y: 3, z: 1, duration: 1 })
-      tl.to(controls.target, { x: 10, y: 3, z: 1, duration: 1 }, '<')
-      tl.to(camera.position, { x: 8.5, y: 2, z: 1, duration: 3 })
-      tl.to(controls.target, { x: 8.5, y: 2, z: -3, duration: 3 }, '<')
+      tl.to(camera.position, { x: 2, y: 2, z: 1, duration: 2 })
+      tl.to(controls.target, { x: 10, y: 3, z: 1, duration: 2 }, '<')
+      tl.to(camera.position, { x: 8.5, y: 2, z: 1, duration: 2 })
+      tl.to(controls.target, { x: 8.5, y: 2, z: -3, duration: 2 }, '<')
     })
   )
 
@@ -434,13 +360,12 @@ function moveCameraTo(
   onCompleteCallback?: () => void
 ) {
   const tl = gsap.timeline({
-    onStart: () => {
-      parallaxEnabled = false
-    },
+    onStart: () => { parallaxEnabled = false },
     onUpdate: () => { controls.update() },
     onComplete: () => {
       parallaxEnabled = true
       baseCameraPosition.copy(camera.position)
+      baseTargetPosition.copy(controls.target) // ✅ 시선 기준 갱신
       if (onCompleteCallback) onCompleteCallback()
     }
   })
@@ -449,21 +374,64 @@ function moveCameraTo(
 }
 
 function moveToYard() {
+  const camCurveA = new THREE.CatmullRomCurve3(
+    [ new THREE.Vector3(camera.position.x, camera.position.y, camera.position.z),
+      new THREE.Vector3(7.3, 2.5, 30.0) ],
+    false, 'catmullrom', 0.2
+  )
+
+  const camCurveB = new THREE.CatmullRomCurve3(
+    [ new THREE.Vector3(7.3, 2.5, 30.0),
+      new THREE.Vector3(7.3, 2.5, 16.0),
+      new THREE.Vector3(5.5, 2.5, 14.0) ],
+    false, 'catmullrom', 0.2
+  )
+
+  const targetCurveA = new THREE.CatmullRomCurve3(
+    [ new THREE.Vector3(controls.target.x, controls.target.y, controls.target.z),
+      new THREE.Vector3(7.3, 2.5, 16.0) ],
+    false, 'catmullrom', 0.2
+  )
+
+  const targetCurveB = new THREE.CatmullRomCurve3(
+    [ new THREE.Vector3(7.3, 2.5, 18.0),
+      new THREE.Vector3(7.3, 2.5, 14.0),
+      new THREE.Vector3(1.0, 2.5, 3.579) ],
+    false, 'catmullrom', 0.2
+  )
+
+  const state: any = { phase: 'A', tA: 0, tB: 0, _prevDamping: controls.enableDamping }
+
+  const updateAlongCurve = () => {
+    if (state.phase === 'A') {
+      const camPos = camCurveA.getPointAt(state.tA)
+      const tgtPos = targetCurveA.getPointAt(state.tA)
+      camera.position.copy(camPos)
+      controls.target.copy(tgtPos)
+    } else {
+      const camPos = camCurveB.getPointAt(state.tB)
+      const tgtPos = targetCurveB.getPointAt(state.tB)
+      camera.position.copy(camPos)
+      controls.target.copy(tgtPos)
+    }
+    controls.update()
+  }
+
   const tl = gsap.timeline({
-    onStart: () => {
-      parallaxEnabled = false
-    },
-    onUpdate: () => { controls.update() },
+    onStart: () => { parallaxEnabled = false; controls.enableDamping = false },
+    onUpdate: updateAlongCurve,
     onComplete: () => {
       parallaxEnabled = true
+      controls.enableDamping = state._prevDamping ?? true
       baseCameraPosition.copy(camera.position)
+      baseTargetPosition.copy(controls.target) // ✅ 시선 기준 갱신
       emit('yard-animation-finished')
     }
   })
-  tl.to(camera.position, { x: 7.3, y: 3.5, z: 30, duration: 4 })
-  tl.to(controls.target, { x: 7.3, y: 3.5, z: 0, duration: 4 }, '<')
-  tl.to(camera.position, { x: 5.5, y: 2.5, z: 14, duration: 2 })
-  tl.to(controls.target, { x: 1, y: 3, z: 3.579, duration: 2 }, '<')
+
+  tl.to(state, { tA: 1, duration: 2, ease: 'none' })
+  tl.add(() => { state.phase = 'B' })
+  tl.to(state, { tB: 1, duration: 2, ease: 'none' })
 }
 
 /* ------------------------------ 렌더 루프/리사이즈 ------------------------------ */
@@ -494,10 +462,6 @@ function onWindowResize() {
 }
 
 /* ------------------------------- 입력/히트테스트 ------------------------------- */
-/**
- * 캔버스 클릭 시 핫스팟 교차 판정 후 onClick 실행
- * Raycaster/Vector2는 전역 인스턴스를 재사용하여 성능 및 GC 최소화
- */
 function onCanvasClick(event: MouseEvent) {
   if (!container.value) return
   const rect = container.value.getBoundingClientRect()
@@ -519,8 +483,7 @@ function onCanvasClick(event: MouseEvent) {
 }
 
 /**
- * 마우스 이동에 따른 패럴랙스 및 핫스팟 호버 스케일 처리
- * OrbitControls 입력은 차단되어도 Raycaster 기반의 커스텀 상호작용은 그대로 동작
+ * 마우스 이동: 시선 회전 패럴랙스(Yaw/Pitch)
  */
 function onMouseMove(event: MouseEvent) {
   if (!container.value) return
@@ -531,21 +494,35 @@ function onMouseMove(event: MouseEvent) {
     -((event.clientY - rect.top) / rect.height) * 2 + 1
   )
 
-  // 패럴랙스: 기준점에서 소폭 이동
+  // ✅ 패럴랙스: 카메라는 고정, 타겟만 회전(고개 돌리기)
   if (parallaxEnabled) {
-    const targetX = baseCameraPosition.x + globalMouse.x * props.parallaxFactor
-    const targetY = baseCameraPosition.y - globalMouse.y * props.parallaxFactor
+    const yaw   =  -globalMouse.x * props.parallaxAngle   // 좌/우
+    const pitch =  globalMouse.y * props.parallaxAngle   // 위/아래 (원하면 부호 반전)
 
-    gsap.to(camera.position, {
-      x: targetX,
-      y: targetY,
-      duration: 0.5,
+    const dir   = new THREE.Vector3().subVectors(baseTargetPosition, baseCameraPosition)
+    const up    = new THREE.Vector3(0, 1, 0)
+    const right = new THREE.Vector3().crossVectors(dir, up).normalize()
+
+    // Yaw → Pitch 순으로 소각 회전
+    dir.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(up,    yaw))
+    dir.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(right, pitch))
+
+    const newTarget = new THREE.Vector3().addVectors(baseCameraPosition, dir)
+
+    gsap.to(controls.target, {
+      x: newTarget.x,
+      y: newTarget.y,
+      z: newTarget.z,
+      duration: 0.4,
       ease: 'power1.out',
-      overwrite: 'auto'
+      overwrite: 'auto',
+      onUpdate: () => {
+        controls.update()
+      }
     })
   }
 
-  // 핫스팟 호버 판정
+  // 핫스팟 호버 스케일
   globalRaycaster.setFromCamera(globalMouse, camera)
   const intersects = globalRaycaster.intersectObjects(hotspots, true)
 
@@ -566,7 +543,5 @@ function onMouseMove(event: MouseEvent) {
 </script>
 
 <style scoped>
-canvas {
-  display: block;
-}
+canvas { display: block; }
 </style>

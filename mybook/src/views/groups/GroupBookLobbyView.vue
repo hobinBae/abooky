@@ -12,12 +12,12 @@
           <div class="choice-card" @click="openGroupModal">
             <div class="card-icon"><i class="bi bi-door-open"></i></div>
             <h3 class="card-title">그룹책 방 입장하기</h3>
-            <p class="card-description">내가 속한 그룹에서 새로운 책을 만들거나<br>활성화된 방에 참여하세요.</p>
+            <p class="card-description">내가 속한 그룹에서 새로운 책을 만들거나 활성화된 방에 참여하세요.</p>
           </div>
           <div class="choice-card" @click="openCreateModal">
             <div class="card-icon"><i class="bi bi-people"></i></div>
             <h3 class="card-title">그룹책 만들기</h3>
-            <p class="card-description">새로운 그룹을 생성하고<br>멤버들과 책을 만들어보세요.</p>
+            <p class="card-description">새로운 그룹을 생성하고 멤버들과 책을 만들어보세요.</p>
           </div>
         </div>
       </section>
@@ -29,6 +29,7 @@
       :is-visible="showGroupModal"
       title="내가 속한 그룹 선택"
       @close="closeGroupModal"
+      :use-backdrop-blur="true"
     >
       <div v-if="loading" style="padding: 2rem; text-align: center;">
         <LoadingSpinner message="그룹 목록을 불러오는 중..." />
@@ -63,6 +64,7 @@
       :is-visible="showJoinModal"
       title="내가 속한 그룹 선택"
       @close="closeJoinModal"
+      :use-backdrop-blur="true"
     >
       <div v-if="loadingSessions" style="padding: 2rem; text-align: center;">
         <LoadingSpinner message="활성화된 그룹책 방을 확인하는 중..." />
@@ -95,6 +97,7 @@
       :is-visible="showCreateModal"
       title="그룹책을 만들 그룹 선택"
       @close="closeCreateModal"
+      :use-backdrop-blur="true"
     >
       <div v-if="loading" style="padding: 2rem; text-align: center;">
         <LoadingSpinner message="그룹 목록을 불러오는 중..." />
@@ -387,16 +390,15 @@ const selectGroupForCreate = (group: Group) => {
 
   try {
     router.push({
-      path: '/group-book-editor',
-      query: {
-        groupId: group.groupId.toString(),
-        groupName: group.groupName
+      name: 'group-book-editor',
+      params: {
+        groupId: group.groupId.toString()
       }
     });
     closeCreateModal();
   } catch (error) {
     console.error('그룹책 에디터 이동 오류:', error);
-    window.location.href = `/group-book-editor?groupId=${group.groupId}&groupName=${encodeURIComponent(group.groupName)}`;
+    window.location.href = `/group-book-editor/${group.groupId}`;
   }
 };
 
@@ -409,12 +411,14 @@ const isGroupActive = (groupId: number) => {
   return allActiveGroupBookSessions.value.some(session => session.groupId === groupId);
 };
 
-// showJoinModal 변경 감지
-watch(showJoinModal, (newValue, oldValue) => {
-  console.log(`🔍 showJoinModal 변경 감지: ${oldValue} → ${newValue}`);
-  const stack = new Error().stack;
-  console.log('변경된 곳의 호출 스택:', stack);
-}, { immediate: true });
+// 모달 상태 변경 감지하여 body 스크롤 제어
+watch([showGroupModal, showJoinModal, showCreateModal], ([groupVisible, joinVisible, createVisible]) => {
+  if (groupVisible || joinVisible || createVisible) {
+    document.body.style.overflow = 'hidden';
+  } else {
+    document.body.style.overflow = '';
+  }
+});
 
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
@@ -437,8 +441,13 @@ onMounted(() => {
   --shadow-color: rgba(0, 0, 0, 0.06);
 }
 
+.group-list {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
 .create-book-page {
-  padding: 2em 2rem 2rem 2rem;
+  padding: 1.6em 1.6rem 3.2rem 1.6rem;
   background-color: var(--background-color);
   color: var(--primary-text-color);
   min-height: calc(100vh - 56px);
@@ -447,62 +456,62 @@ onMounted(() => {
 
 .section-title {
   font-family: 'SCDream3', serif;
-  font-size: 4rem;
+  font-size: 3.2rem;
   font-weight: 700;
   color: var(--primary-text-color);
   margin-bottom: 0rem;
-  margin-left: 3rem;
+  margin-left: 2.4rem;
   margin-right: auto;
 }
 
 .section-subtitle1 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(116, 125, 76, 0.9);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: -0.5rem;
+  margin-bottom: -0.4rem;
 }
 
 .section-subtitle2 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(141, 153, 109, 0.7);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: -0.5rem;
+  margin-bottom: -0.4rem;
 
 }
 
 .section-subtitle3 {
   font-family: 'SCDream4', serif;
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: rgba(147, 161, 89, 0.4);
-  margin-left: 3.5rem;
+  margin-left: 2.8rem;
   margin-right: auto;
-  margin-bottom: 5rem;
+  margin-bottom: 4rem;
 }
 
 .initial-choice-section {
-  max-width: 1200px;
+  max-width: 960px;
   margin: 0 auto;
 }
 
 .choice-section {
-   max-width: 1200px;
+   max-width: 960px;
 }
 
 .choice-cards {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 420px)); /* 2개의 열, 각 열의 최대 너비 420px */
-  gap: 3.5rem; /* 카드 사이 간격 조정 */
+  grid-template-columns: repeat(2, minmax(0, 336px)); /* 2개의 열, 각 열의 최대 너비 336px */
+  gap: 2.8rem; /* 카드 사이 간격 조정 */
   justify-content: center; /* 카드들을 중앙에 정렬 */
 }
 
 .choice-card {
   background: var(--surface-color);
-  border-radius: 50px;
-  padding: 2.5rem;
+  border-radius: 40px;
+  padding: 2rem;
   border: 3px solid #657143;
   box-shadow: 0 4px 15px var(--shadow-color);
   cursor: pointer;
@@ -539,17 +548,17 @@ onMounted(() => {
 }
 
 .card-icon {
-  font-size: 3rem;
+  font-size: 2.4rem;
   color: var(--accent-color);
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
   line-height: 1;
 }
 
 .card-title {
   font-family: 'EBSHunminjeongeumSaeronL', serif;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   font-weight: 600;
-  margin-bottom: 0.9rem;
+  margin-bottom: 0.7rem;
 }
 
 .card-description {
@@ -561,112 +570,83 @@ onMounted(() => {
 /* --- 반응형 디자인 --- */
 @media (max-width: 1200px) {
   .section-title {
-    font-size: 3.5rem;
-    margin-left: 2rem;
+    font-size: 2.8rem;
+    margin-left: 1.6rem;
   }
 
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
-    font-size: 2.5rem;
-    margin-left: 2.5rem;
+    font-size: 2rem;
+    margin-left: 2rem;
   }
 
   .choice-cards {
-    grid-template-columns: repeat(3, minmax(0, 300px));
-    gap: 2rem;
+    grid-template-columns: repeat(2, minmax(0, 240px));
+    gap: 1.6rem;
   }
 }
 
 @media (max-width: 992px) {
   .create-book-page {
-    padding: 1.5rem 1.5rem 1.5rem 1.5rem;
+    padding: 1.2rem;
   }
 
   .section-title {
-    font-size: 3rem;
-    margin-left: 1.5rem;
+    font-size: 2.4rem;
+    margin-left: 1.2rem;
   }
 
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
-    font-size: 2rem;
-    margin-left: 2rem;
-    margin-bottom: -0.3rem;
+    font-size: 1.6rem;
+    margin-left: 1.6rem;
+    margin-bottom: -0.2rem;
   }
 
   .section-subtitle3 {
-    margin-bottom: 3rem;
+    margin-bottom: 2.4rem;
   }
 
   .choice-cards {
-    grid-template-columns: repeat(2, minmax(0, 280px));
-    gap: 1.5rem;
+    grid-template-columns: repeat(2, minmax(0, 224px));
+    gap: 1.2rem;
   }
 
   .choice-card {
-    padding: 2rem;
+    padding: 1.6rem;
   }
 }
 
 @media (max-width: 768px) {
   .create-book-page {
-    padding: 1rem;
+    padding: 0.8rem;
   }
 
-  .section-title {
-    font-size: 2.5rem;
-    margin-left: 1rem;
-    text-align: center;
-  }
-
-  .section-subtitle1,
-  .section-subtitle2,
-  .section-subtitle3 {
-    font-size: 1.5rem;
-    margin-left: 1rem;
-    text-align: center;
-  }
-
-  .choice-cards {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    max-width: 400px;
-    margin: 0 auto;
-  }
-
-  .choice-card {
-    padding: 1.5rem;
-  }
-
-  .card-icon {
-    font-size: 2.5rem;
-  }
-
-  .card-title {
-    font-size: 1.5rem;
-  }
-
-  .card-description {
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 480px) {
   .section-title {
     font-size: 2rem;
+    margin-left: 0.8rem;
+    text-align: center;
   }
 
   .section-subtitle1,
   .section-subtitle2,
   .section-subtitle3 {
     font-size: 1.2rem;
+    margin-left: 0.8rem;
+    text-align: center;
+  }
+
+  .choice-cards {
+    grid-template-columns: 1fr;
+    gap: 1.2rem;
+    max-width: 320px;
+    margin: 0 auto;
   }
 
   .choice-card {
-    padding: 1rem;
-    border-radius: 25px;
+    padding: 1.2rem;
   }
 
   .card-icon {
@@ -674,11 +654,40 @@ onMounted(() => {
   }
 
   .card-title {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
   }
 
   .card-description {
-    font-size: 0.85rem;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title {
+    font-size: 1.6rem;
+  }
+
+  .section-subtitle1,
+  .section-subtitle2,
+  .section-subtitle3 {
+    font-size: 1rem;
+  }
+
+  .choice-card {
+    padding: 0.8rem;
+    border-radius: 20px;
+  }
+
+  .card-icon {
+    font-size: 1.6rem;
+  }
+
+  .card-title {
+    font-size: 1rem;
+  }
+
+  .card-description {
+    font-size: 0.7rem;
   }
 }
 </style>

@@ -8,10 +8,11 @@
         <router-link to="/create-book">책 집필</router-link>
         <router-link to="/my-library">내 서재</router-link>
       </div>
+      
       <div class="social-links">
-        <a href="#" target="_blank" aria-label="KakaoTalk Channel"><i class="bi bi-chat-fill"></i> 공식 카카오톡 채널</a>
-        <a href="#" target="_blank" aria-label="Instagram"><i class="bi bi-instagram"></i> 공식 인스타그램</a>
-        <a href="#" target="_blank" aria-label="Facebook"><i class="bi bi-facebook"></i> 공식 페이스북</a>
+        <span>공식 카카오톡 채널</span>
+        <span>공식 인스타그램</span>
+        <span>공식 페이스북</span>
       </div>
       <span class="c203">Made By 5 TO 0</span>
       <span class="c203">5-CJW | 6-LCE | 7-JUH | 8-JHB | 9-KAY | 0-BHB</span>

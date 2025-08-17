@@ -148,10 +148,11 @@ const hotspotTitleChars = computed(() => {
 });
 
 const hotspotCameraPositions: { [key: string]: any } = {
-  store: { x: -5.5, y: 2.5, z: 3.5, targetX: -1, targetY: 2, targetZ: 3.579 },
-  create: { x: 0, y: 2.5, z: 3.5, targetX: 0, targetY: 2, targetZ: 3.579 },
-  library: { x: 5.5, y: 2.5, z: 3.5, targetX: 1, targetY: 2, targetZ: 3.579 },
-  center: { x: 5.5, y: 2.5, z: 14, targetX: 1, targetY: 3, targetZ: 3.579 }
+  store: { x: -1.5, y: 2, z: -7, targetX: -1.5, targetY: 2, targetZ: -10.5 },
+  create: { x: 8.5, y: 2, z: 1, targetX: 8.5, targetY: 2, targetZ: -3 },
+  library: { x: -9.5, y: 3, z: 0, targetX: -11, targetY: 3, targetZ: 0 },
+  center: { x: 5.5, y: 2.5, z: 14, targetX: 1, targetY: 2.5, targetZ: 3.579 },
+  mid: { x: -1.5, y: 2, z: 1.5, targetX: -1.5, targetY: 2, targetZ: 0 }
 };
 
 watch(activeHotspot, (newVal) => {
@@ -249,31 +250,31 @@ const returnToYard = () => {
   }
 }
 
+const goViaMidTo = (nextHotspotName: string) => {
+  if (!threeSceneRef.value?.moveCameraTo) return
+  // 네비 중엔 UI를 “마당 상태”로 전환하기 위해 activeHotspot을 잠시 비움
+  activeHotspot.value = null
+
+  const { x, y, z, targetX, targetY, targetZ } = hotspotCameraPositions.mid
+  threeSceneRef.value.moveCameraTo(x, y, z, targetX, targetY, targetZ, () => {
+    // 중간지점 도착 후, 다음 핫스팟 클릭 트리거
+    const hotspotObject = threeSceneRef.value?.getHotspotByName(nextHotspotName)
+    hotspotObject?.userData?.onClick?.()
+  })
+}
+
 const navigate = (direction: 'left' | 'right') => {
-  if (!activeHotspot.value || !threeSceneRef.value) return;
+  if (!activeHotspot.value || !threeSceneRef.value) return
 
-  const currentIndex = hotspots.indexOf(activeHotspot.value);
-  let nextIndex;
+  const currentIndex = hotspots.indexOf(activeHotspot.value)
+  const nextIndex = direction === 'right'
+    ? (currentIndex + 1) % hotspots.length
+    : (currentIndex - 1 + hotspots.length) % hotspots.length
 
-  if (direction === 'right') {
-    nextIndex = (currentIndex + 1) % hotspots.length;
-  } else {
-    nextIndex = (currentIndex - 1 + hotspots.length) % hotspots.length;
-  }
+  const nextHotspotName = hotspots[nextIndex]
 
-  const nextHotspotName = hotspots[nextIndex];
-
-  // 1. 마당으로 돌아옵니다.
-  returnToYard();
-
-  // 2. 마당으로 돌아오는 애니메이션 시간(2초) 후,
-  //    마치 사용자가 다음 hotspot을 클릭한 것처럼 동작을 트리거합니다.
-  setTimeout(() => {
-    const hotspotObject = threeSceneRef.value?.getHotspotByName(nextHotspotName);
-    if (hotspotObject && hotspotObject.userData.onClick) {
-      hotspotObject.userData.onClick();
-    }
-  }, 2100); // 애니메이션 시간(2초) + 약간의 여유
+  // ✅ 마당 대신 “중간 지점”을 거쳐서 다음 핫스팟으로
+  goViaMidTo(nextHotspotName)
 }
 
 const navigateLeft = () => navigate('left');
