@@ -216,6 +216,19 @@ public class ConversationServiceImpl implements ConversationService {
         ConversationSession session = sessionRepo.findById(sessionId)
                 .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
 
+        // 2) 다음 메인 템플릿으로 전진 (없다면 챕터 종료 처리)
+        ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
+                session.getCurrentChapterOrder(),
+                session.getCurrentTemplateOrder() + 1
+        ).orElse(null);
+
+
+        // 2) 다음 템플릿이 없다면, 현재가 마지막 질문이므로 예외를 발생시킵니다.
+        if (nextTemplate == null) {
+            throw new ApiException(ErrorCode.CANNOT_SKIP_LAST_QUESTION);
+        }
+
+
         // 1) 화면에 떠 있던 '마지막 QUESTION'은 DB에서 제거
         messageRepo.findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
                 .ifPresent(messageRepo::delete);
@@ -224,43 +237,30 @@ public class ConversationServiceImpl implements ConversationService {
         dynamicFollowUpQueues.remove(sessionId);
         updateFollowUpIndex(session, 0); // 내부에서 fresh 로딩해 저장
 
-        // 2) 다음 메인 템플릿으로 전진 (없다면 챕터 종료 처리)
-        ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
-                session.getCurrentChapterOrder(),
-                session.getCurrentTemplateOrder() + 1
-        ).orElse(null);
-
-        if (nextTemplate == null) {
-            // 챕터 종료 → 에피소드 생성 + CHAPTER_COMPLETE 푸시 (내부에서 pushEpisode/pushQuestion 수행)
-            NextQuestionDto completion = handleChapterTransition(member, book, episode, session);
-            // handleChapterTransition은 다음 질문을 안 보내는 설계이므로 null을 반환해도 정상
-            return completion; // 일반적으로 null
-        }
-
-        // 템플릿 전진
-        NextQuestionDto dto = moveToNextTemplate(session, nextTemplate); // 팔로업 인덱스 0으로 초기화 포함
+        //다음 메인 템플릿으로 상태를 전진
+        NextQuestionDto nextQuestionDto = moveToNextTemplate(session, nextTemplate);
 
         // 3) 새 질문을 DB에 '저장' + SSE 푸시 (여기서 저장되는 건 '건너뛰기 후의 질문'뿐)
         createMessage(
                 ConversationMessageRequest.builder()
                         .sessionId(sessionId)
                         .messageType(MessageType.QUESTION)
-                        .content(dto.getQuestionText())
+                        .content(nextQuestionDto.getQuestionText())
                         .build()
         );
 
         QuestionResponse response = QuestionResponse.builder()
-                .text(dto.getQuestionText())
-                .questionType(dto.getQuestionType())
-                .currentChapterName(dto.getCurrentChapterName())
-                .currentStageName(dto.getCurrentStageName())
-                .chapterProgress(dto.getChapterProgress())
-                .overallProgress(dto.getOverallProgress())
-                .isLastQuestion(dto.isLastQuestion())
+                .text(nextQuestionDto.getQuestionText())
+                .questionType(nextQuestionDto.getQuestionType())
+                .currentChapterName(nextQuestionDto.getCurrentChapterName())
+                .currentStageName(nextQuestionDto.getCurrentStageName())
+                .chapterProgress(nextQuestionDto.getChapterProgress())
+                .overallProgress(nextQuestionDto.getOverallProgress())
+                .isLastQuestion(nextQuestionDto.isLastQuestion())
                 .build();
         sseService.pushQuestion(sessionId, response);
 
-        return dto;
+        return nextQuestionDto;
     }
 
     @Async

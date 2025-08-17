@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
@@ -32,7 +33,10 @@ public class GroupEpisodeGuideState {
     private String userAnswer;
 
     @Lob
-    private String editedParagraph; // AI 편집 결과
+    private String editedParagraph; // AI 편집 결과 (기존 필드, 호환성 유지)
+    
+    @Lob
+    private String editedAnswer; // AI 교정된 답변
 
     @Column(name = "is_final")
     private Boolean isFinal;

@@ -34,14 +34,16 @@ public enum ErrorCode {
     GROUP_NOT_FOUND("GROUP_NOT_FOUND", HttpStatus.NOT_FOUND, "그룹을 찾을 수 없습니다."),
     GROUP_ACCESS_DENIED("GROUP_ACCESS_DENIED", HttpStatus.UNAUTHORIZED, "그룹 접근 권한이 없습니다."),
     GROUP_LEADER_ROLE_CANNOT_BE_CHANGED("GROUP_LEADER_ROLE_CANNOT_BE_CHANGED", HttpStatus.FORBIDDEN, "그룹 리더의 역할은 변경할 수 없습니다."),
-
+    CANNOT_SKIP_LAST_QUESTION("CANNOT_SKIP_LAST_QUESTION", HttpStatus.BAD_REQUEST, "다음 질문이 없습니다."),
     GROUP_MEMBER_ALREADY_EXISTS("GROUP_MEMBER_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 존재하는 그룹원입니다."),
     INVITE_ALREADY_EXISTS("INVITE_ALREADY_EXISTS", HttpStatus.CONFLICT, "이미 대기 중인 초대가 있습니다."),
 
     // GroupBook 관련 에러
     GROUP_BOOK_NOT_FOUND("GROUP_BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "그룹 책을 찾을 수 없습니다."),
     GROUP_BOOK_ALREADY_DELETED("GROUP_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 그룹 책입니다."),
-    
+    SESSION_NOT_FOUND("SESSION_NOT_FOUND", HttpStatus.NOT_FOUND, "대화 세션을 찾을 수 없습니다."),
+    INVALID_REQUEST("INVALID_REQUEST",HttpStatus.BAD_REQUEST, "다음 질문이 없습니다."),
+
     // CommunityBook 관련 에러
     COMMUNITY_BOOK_NOT_FOUND("COMMUNITY_BOOK_NOT_FOUND", HttpStatus.NOT_FOUND, "커뮤니티 책을 찾을 수 없습니다."),
     COMMUNITY_BOOK_ALREADY_DELETED("COMMUNITY_BOOK_ALREADY_DELETED", HttpStatus.GONE,"이미 삭제된 커뮤니티 책입니다."),
@@ -56,6 +58,7 @@ public enum ErrorCode {
     
     // 이미지 관련 에러
     IMAGE_NOT_FOUND("IMAGE_NOT_FOUND", HttpStatus.NOT_FOUND, "이미지를 찾을 수 없습니다.");
+
     //
     // 필요한 에러 코드 계속 추가
 
