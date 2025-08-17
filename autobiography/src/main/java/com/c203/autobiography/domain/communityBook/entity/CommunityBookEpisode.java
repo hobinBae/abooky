@@ -53,6 +53,10 @@ public class CommunityBookEpisode {
     @Column(name = "audio_url", length = 255)
     private String audioUrl;
 
+    @Size(max = 500)
+    @Column(name = "image_url", length = 500)
+    private String imageUrl;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

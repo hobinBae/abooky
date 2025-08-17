@@ -175,6 +175,9 @@ public class GroupBookServiceImpl implements GroupBookService {
                 fileStorageService.delete(currentImageUrl);
             }
             newImageUrl = fileStorageService.store(file, "groupBook");
+        } else if (request.getCoverImageUrl() != null && !request.getCoverImageUrl().isBlank()) {
+            // 파일 업로드는 없지만 요청에 이미지 URL이 있는 경우는 기본이미지를 선택했기 때문에
+            newImageUrl = groupBook.getCoverImageUrl(); // 기본이미지를 coverImage로 저장
         }
         groupBook.updateGroupBook(request.getTitle(), newImageUrl, request.getSummary(), category);
         return GroupBookResponse.of(groupBook);
