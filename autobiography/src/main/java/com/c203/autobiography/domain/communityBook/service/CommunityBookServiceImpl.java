@@ -605,4 +605,35 @@ public class CommunityBookServiceImpl implements CommunityBookService {
                         .build())
                 .build();
     }
+
+    @Override
+    public CommunityBookListResponse getLikedCommunityBooks(Long memberId, Pageable pageable) {
+        // 1. 탈퇴한 회원인 경우
+        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+
+        // 2. 좋아요한 커뮤니티 책들을 페이징 조회
+        Page<CommunityBook> likedBooksPage = communityBookLikeRepository
+                .findLikedCommunityBooksByMemberId(memberId, pageable);
+
+        // 3. DTO 변환
+        List<CommunityBookSummaryResponse> books = likedBooksPage.getContent().stream()
+                .map(book -> {
+                    // 태그 목록 조회
+                    List<CommunityBookTagResponse> tags = communityBookTagRepository
+                            .findTagInfoByCommunityBookId(book.getCommunityBookId());
+
+                    return CommunityBookSummaryResponse.of(book, tags);
+                })
+                .collect(Collectors.toList());
+        return CommunityBookListResponse.builder()
+                .content(books)
+                .pageable(CommunityBookListResponse.PageableInfo.builder()
+                        .page(likedBooksPage.getNumber())
+                        .size(likedBooksPage.getSize())
+                        .totalElements(likedBooksPage.getTotalElements())
+                        .totalPages(likedBooksPage.getTotalPages())
+                        .build())
+                .build();
+    }
 }
