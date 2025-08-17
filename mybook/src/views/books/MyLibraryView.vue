@@ -29,6 +29,7 @@
           대표 책을 선택해주세요.
         </div>
       </div>
+
       <button @click="openRepBookModal" class="btn btn-primary select-rep-btn">
         <i class="bi bi-pencil-square"></i> 대표 책 선택
       </button>
