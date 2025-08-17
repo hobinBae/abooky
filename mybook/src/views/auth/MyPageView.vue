@@ -20,8 +20,8 @@
       <!-- Left Section: User Profile -->
       <div class="auth-image-section my-page-profile-sidebar">
         <section v-if="user" class="profile-section">
-          <img 
-            :src="getValidProfileImageUrl(user.profileImageUrl)" 
+          <img
+            :src="getValidProfileImageUrl(user.profileImageUrl)"
             alt="Profile Image"
             class="profile-pic"
             @error="handleImageError"
@@ -45,25 +45,26 @@
       <!-- Right Section: User Activity -->
       <div class="auth-container my-page-container">
         <section class="content-section">
-          <h3 class="section-title">좋아요 누른 책</h3>
-          <div v-if="paginatedLikedBooks.length > 0" class="book-list-grid">
-            <router-link v-for="book in paginatedLikedBooks" :key="book.id" :to="`/book-detail/${book.id}`"
-              class="book-item-card"
-              :style="{ backgroundImage: `url(${book.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
-              <div class="book-card-overlay">
-                <h4 class="book-card-title">{{ book.title }}</h4>
-                <p class="book-card-author">{{ book.authorName }}</p>
+          <h3 class="section-title">북마크한 책</h3>
+          <div v-if="paginatedBookmarkedBooks.length > 0" class="book-list-grid">
+            <router-link v-for="book in paginatedBookmarkedBooks" :key="book.communityBookId" :to="`/bookstore/book/${book.communityBookId}`" class="book-cover-link">
+              <div class="book-cover-image"
+                :style="{ backgroundImage: `url(${book.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'})` }">
+                <div class="list-title-box">
+                  <p class="list-title-box-title">{{ book.title }}</p>
+                  <p class="list-title-box-author">{{ book.authorNickname }}</p>
+                </div>
               </div>
             </router-link>
           </div>
-          <p v-else class="no-content-message">아직 좋아요를 누른 책이 없습니다.</p>
-          <div v-if="totalLikedBooksPages > 1" class="pagination-controls">
-            <button @click="prevLikedBookPage" :disabled="likedBooksCurrentPage === 1" class="pagination-btn">&lt;</button>
-            <span v-for="page in totalLikedBooksPages" :key="page" @click="goToLikedBookPage(page)"
-              :class="['page-number', { active: likedBooksCurrentPage === page }]">
+          <p v-else class="no-content-message">아직 북마크한 책이 없습니다.</p>
+          <div v-if="totalBookmarkedBooksPages > 1" class="pagination-controls">
+            <button @click="prevBookmarkedBookPage" :disabled="bookmarkedBooksCurrentPage === 1" class="pagination-btn"><</button>
+            <span v-for="page in totalBookmarkedBooksPages" :key="page" @click="goToBookmarkedBookPage(page)"
+              :class="['page-number', { active: bookmarkedBooksCurrentPage === page }]">
               {{ page }}
             </span>
-            <button @click="nextLikedBookPage" :disabled="likedBooksCurrentPage === totalLikedBooksPages" class="pagination-btn">&gt;</button>
+            <button @click="nextBookmarkedBookPage" :disabled="bookmarkedBooksCurrentPage === totalBookmarkedBooksPages" class="pagination-btn">></button>
           </div>
         </section>
 
@@ -90,7 +91,7 @@
             <button @click="nextPage" :disabled="currentPage === totalPages" class="pagination-btn">&gt;</button>
           </div>
         </section>
-        
+
         <div class="account-actions">
           <button @click="openDeleteModal" class="btn-auth-danger">회원 탈퇴</button>
         </div>
@@ -104,6 +105,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import apiClient from '@/api';
+import { communityService, type CommunityBook } from '@/services/communityService';
 import BaseModal from '@/components/common/BaseModal.vue';
 import CustomAlert from '@/components/common/CustomAlert.vue';
 
@@ -134,23 +136,23 @@ const isDeleteModalVisible = ref(false);
 const customAlert = ref<InstanceType<typeof CustomAlert> | null>(null);
 const isDeletionSuccess = ref(false);
 
-// --- 좋아요 누른 책과 댓글 상태 (API 연동 보류) ---
-const likedBooks = ref<Book[]>([]);
+// --- 북마크한 책과 댓글 상태 ---
+const bookmarkedBooks = ref<CommunityBook[]>([]);
 const myComments = ref<Comment[]>([]);
 const allBooks = ref<Book[]>([]); // getBookTitle 헬퍼 함수용
 
-// 좋아요 누른 책 페이지네이션
-const likedBooksCurrentPage = ref(1);
-const likedBooksPerPage = 4; // 한 줄에 4개씩 표시
-const paginatedLikedBooks = computed(() => {
-  const start = (likedBooksCurrentPage.value - 1) * likedBooksPerPage;
-  const end = start + likedBooksPerPage;
-  return likedBooks.value.slice(start, end);
+// 북마크한 책 페이지네이션
+const bookmarkedBooksCurrentPage = ref(1);
+const bookmarkedBooksPerPage = 4; // 한 줄에 4개씩 표시
+const paginatedBookmarkedBooks = computed(() => {
+  const start = (bookmarkedBooksCurrentPage.value - 1) * bookmarkedBooksPerPage;
+  const end = start + bookmarkedBooksPerPage;
+  return bookmarkedBooks.value.slice(start, end);
 });
-const totalLikedBooksPages = computed(() => Math.ceil(likedBooks.value.length / likedBooksPerPage));
-const goToLikedBookPage = (page: number) => { likedBooksCurrentPage.value = page; };
-const prevLikedBookPage = () => { if (likedBooksCurrentPage.value > 1) likedBooksCurrentPage.value--; };
-const nextLikedBookPage = () => { if (likedBooksCurrentPage.value < totalLikedBooksPages.value) likedBooksCurrentPage.value++; };
+const totalBookmarkedBooksPages = computed(() => Math.ceil(bookmarkedBooks.value.length / bookmarkedBooksPerPage));
+const goToBookmarkedBookPage = (page: number) => { bookmarkedBooksCurrentPage.value = page; };
+const prevBookmarkedBookPage = () => { if (bookmarkedBooksCurrentPage.value > 1) bookmarkedBooksCurrentPage.value--; };
+const nextBookmarkedBookPage = () => { if (bookmarkedBooksCurrentPage.value < totalBookmarkedBooksPages.value) bookmarkedBooksCurrentPage.value++; };
 
 // 댓글 페이지네이션
 const currentPage = ref(1);
@@ -230,11 +232,17 @@ const onAlertClose = async () => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
   if (!authStore.user) {
-    authStore.fetchUserInfo();
+    await authStore.fetchUserInfo();
   }
-  // TODO: API가 준비되면 더미 데이터 대신 실제 데이터를 호출합니다.
+  try {
+    const response = await communityService.getBookmarkedCommunityBooks({ page: 0, size: 100 });
+    bookmarkedBooks.value = response.content;
+  } catch (error) {
+    console.error('북마크한 책 목록을 불러오는데 실패했습니다:', error);
+  }
+  // TODO: 댓글 API 연동
 });
 </script>
 
@@ -361,51 +369,69 @@ onMounted(() => {
 /* --- 책 리스트 --- */
 .book-list-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
   gap: 1.2rem;
 }
 
-.book-item-card {
-  aspect-ratio: 2 / 3;
-  border-radius: 6px;
+.book-cover-link {
+  text-decoration: none;
+}
+
+.book-cover-image {
+  width: 96px;
+  height: 144px;
+  object-fit: cover;
+  border-radius: 3px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background-size: cover;
   background-position: center;
-  text-decoration: none;
-  color: white;
   position: relative;
-  overflow: hidden;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.book-item-card:hover {
+.book-cover-image:hover {
   transform: scale(1.05);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
-.book-card-overlay {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 0.8rem;
-  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-  opacity: 0;
+.list-title-box {
+  width: 80%;
+  height: 70%;
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 8px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  color: #333;
+  border-radius: 2px;
+  opacity: 1;
   transition: opacity 0.3s ease;
 }
 
-.book-item-card:hover .book-card-overlay {
-  opacity: 1;
-}
-
-.book-card-title {
-  font-size: 0.8rem;
+.list-title-box-title {
+  font-family: 'Noto Serif KR', serif;
+  font-size: 10px;
   font-weight: 600;
-  margin: 0 0 0.2rem 0;
-  line-height: 1.3;
+  line-height: 1.4;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
-.book-card-author {
-  font-size: 0.65rem;
-  opacity: 0.8;
+.list-title-box-author {
+  font-size: 8px;
+  font-weight: 500;
+  margin: 0;
+  color: #555;
 }
 
 /* --- 댓글 리스트 --- */

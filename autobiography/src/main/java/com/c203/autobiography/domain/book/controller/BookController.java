@@ -21,6 +21,7 @@ import okhttp3.Response;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -109,7 +110,7 @@ public class BookController {
                     description = "정렬 기준. 예: sort=likeCount,desc;viewCount,asc",
                     example = "likeCount,desc"
             )
-            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC)
+            @PageableDefault(size = 10, sort = "createdAt", direction = Direction.DESC)
             Pageable pageable,
             HttpServletRequest httpRequest
 
@@ -287,9 +288,10 @@ public class BookController {
                 ));
     }
 
-//    @PostMapping("/generate-from-session/{sessionId}")
-//    public ResponseEntity<Void> generateEpisodeForTest(@PathVariable String sessionId) throws JsonProcessingException {
-//        episodeService.createEpisodeBySessionId(sessionId);
-//        return ResponseEntity.ok(Void);
-//    }
+    @PostMapping("/generate-from-session/{sessionId}")
+    public ResponseEntity<Void> generateEpisodeForTest(@PathVariable String sessionId) throws JsonProcessingException {
+        episodeService.createEpisodeBySessionId(sessionId);
+        Void Void = null;
+        return ResponseEntity.ok(Void);
+    }
 }

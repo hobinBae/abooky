@@ -51,17 +51,6 @@
           </div>
         </div>
 
-        <div class="book-stats">
-          <button @click="toggleLike" class="btn-stat" :class="{ liked: isLiked }">
-            <i class="bi" :class="isLiked ? 'bi-heart-fill' : 'bi-heart'"></i>
-            <span>{{ likeCount }}</span>
-          </button>
-          <span class="stat-item">
-            <i class="bi bi-eye-fill"></i>
-            <span>{{ book.viewCount }}</span>
-          </span>
-        </div>
-
         <div class="author-controls" v-if="isAuthor">
           <button @click="editBook" class="btn btn-edit">
             <i class="bi bi-pencil-square"></i> 책 편집하기
@@ -169,6 +158,7 @@
     <div v-else class="loading-message">
       <p>책 정보를 불러오는 중입니다...</p>
     </div>
+    <CustomAlert ref="customAlert" />
   </div>
 </template>
 
@@ -178,6 +168,7 @@ import { useRoute, useRouter } from 'vue-router';
 import apiClient from '@/api';
 import { useAuthStore } from '@/stores/auth';
 import { communityService } from '@/services/communityService';
+import CustomAlert from '@/components/common/CustomAlert.vue';
 
 // --- Interfaces ---
 interface Episode {
@@ -219,13 +210,13 @@ const book = ref<Book | null>(null);
 const comments = ref<Comment[]>([]);
 const currentEpisodeIndex = ref<number | null>(null);
 const newComment = ref('');
-const isLiked = ref(false);
 const likeCount = ref(0);
 const currentUserId = ref('dummyUser1'); // TODO: 실제 사용자 ID로 교체
 const areCommentsVisible = ref(false);
 const editingCommentId = ref<string | null>(null);
 const editingCommentText = ref('');
 const isPublished = ref(false); // 출판 상태를 독립적으로 관리
+const customAlert = ref<InstanceType<typeof CustomAlert> | null>(null);
 const coverImageUrl = computed(() => { return book.value?.coverImageUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=1974'; });
 const formattedPublicationDate = computed(() => {
   if (!book.value?.createdAt) return '';
@@ -266,6 +257,7 @@ async function fetchBookData() {
     const bookData = response.data.data;
     book.value = {
       ...bookData,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       episodes: bookData.episodes?.map((e: any) => ({
         ...e,
         imageUrl: e.imageUrl,
@@ -281,14 +273,19 @@ async function fetchBookData() {
   }
 }
 function fetchComments() { comments.value = DUMMY_COMMENTS.filter(c => c.bookId === bookId.value).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()); }
-function toggleLike() { isLiked.value = !isLiked.value; likeCount.value += isLiked.value ? 1 : -1; }
-function editBook() {
-  if (book.value) {
-    router.push({
-      name: 'BookEditor',
-      params: { bookId: book.value.bookId },
-      query: { start_editing: 'true' }
+async function editBook() {
+  if (book.value && customAlert.value) {
+    const result = await customAlert.value.showConfirm({
+      title: '책 편집',
+      message: '책을 편집하시겠습니까?'
     });
+    if (result) {
+      router.push({
+        name: 'BookEditor',
+        params: { bookId: book.value.bookId },
+        query: { start_editing: 'true' }
+      });
+    }
   }
 }
 
@@ -433,7 +430,7 @@ watch(bookId, () => { fetchBookData(); fetchComments(); currentEpisodeIndex.valu
 .btn-edit { background: none; border: 1px solid #ddd; color: #333; font-size: 11px; padding: 8px 13px; border-radius: 10px; cursor: pointer; transition: all 0.2s; margin-top: 13px; flex-shrink: 0; }
 .btn-edit:hover { transform: scale(1.03); }
 .btn-edit i { margin-right: 6px; }
-.author-controls { display: flex; gap: 6px; width: 100%; padding: 0 8px; box-sizing: border-box; }
+.author-controls { display: flex; gap: 6px; width: 100%; padding: 0 8px; padding-top: 13px; box-sizing: border-box; }
 .author-controls .btn-edit { flex: 1; }
 .btn-unpublish { background-color: #6c757d; color: white; border-color: #6c757d; }
 .btn-unpublish:hover { background-color: #5a6268; border-color: #545b62; }

@@ -96,6 +96,11 @@ public class Member {
         this.password = encodedPassword;
     }
 
+    public void updateRepresentBookId(Long bookId) {
+        this.representBookId = bookId;
+    }
+
+
     public void softDelete(){
         this.deletedAt = LocalDateTime.now();
     }

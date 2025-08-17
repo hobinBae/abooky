@@ -15,8 +15,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "GroupEpisode")
 @RestController
@@ -103,7 +105,7 @@ public class GroupEpisodeController {
             @PathVariable Long groupBookId,
             @PathVariable Long episodeId,
             @AuthenticationPrincipal CustomUserDetails userDetails,
-            @Valid @ModelAttribute GroupEpisodeUpdateRequest req,
+            @Valid @RequestBody GroupEpisodeUpdateRequest req,
             HttpServletRequest httpRequest
     ) {
         GroupEpisodeResponse response = groupEpisodeService.update(
@@ -193,6 +195,83 @@ public class GroupEpisodeController {
         return ResponseEntity.status(HttpStatus.NO_CONTENT).body(
                 ApiResponse.of(HttpStatus.NO_CONTENT, "이미지 삭제 성공", null, httpRequest.getRequestURI())
         );
+    }
+
+    // ========== 대화 세션 관리 API (개인 book과 동일한 구조) ==========
+
+    @Operation(summary = "대화 세션 시작", description = "새로운 AI 대화 세션을 시작합니다.")
+    @PostMapping("/{episodeId}/sessions")
+    public ResponseEntity<ApiResponse<Map<String, String>>> startConversation(
+            @PathVariable Long groupId,
+            @PathVariable Long groupBookId,
+            @PathVariable Long episodeId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        String sessionId = groupEpisodeService.startNewConversation(memberId, groupId, groupBookId, episodeId);
+        Map<String, String> response = Map.of("sessionId", sessionId);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "새로운 대화 세션이 생성되었습니다.", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "SSE 스트림 연결", description = "대화 세션에 대한 실시간 스트림을 연결합니다.")
+    @GetMapping(value = "/{episodeId}/{sessionId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter stream(
+            @PathVariable Long groupId,
+            @PathVariable Long groupBookId,
+            @PathVariable Long episodeId,
+            @PathVariable String sessionId
+    ) {
+        // 인증 없이 접근 가능 (SecurityConfig에서 permitAll 설정)
+        return groupEpisodeService.establishConversationStream(sessionId, groupId, groupBookId, episodeId);
+    }
+
+    @Operation(summary = "AI 질문 받기", description = "다음 AI 질문을 요청합니다.")
+    @PostMapping("/{episodeId}/conversation/next")
+    public ResponseEntity<ApiResponse<Void>> nextQuestion(
+            @PathVariable Long groupId,
+            @PathVariable Long groupBookId,
+            @PathVariable Long episodeId,
+            @RequestParam String sessionId,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        groupEpisodeService.getNextQuestion(memberId, groupId, groupBookId, episodeId, sessionId);
+        return ResponseEntity.ok()
+                .body(ApiResponse.of(HttpStatus.OK, "다음 질문 요청 완료", null, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "SSE 연결 종료", description = "SSE 스트림 연결을 종료합니다.")
+    @DeleteMapping("/{episodeId}/stream/{sessionId}")
+    public ResponseEntity<ApiResponse<Void>> closeSseStream(
+            @PathVariable Long groupId,
+            @PathVariable Long groupBookId,
+            @PathVariable Long episodeId,
+            @PathVariable String sessionId,
+            HttpServletRequest httpRequest
+    ) {
+        groupEpisodeService.closeSseStream(sessionId);
+        return ResponseEntity.ok()
+                .body(ApiResponse.of(HttpStatus.OK, "SSE 연결 종료 완료", null, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "사용자 답변 제출", description = "질문에 대한 사용자의 답변을 제출합니다.")
+    @PostMapping("/{episodeId}/conversation/answer")
+    public ResponseEntity<ApiResponse<Void>> submitAnswer(
+            @PathVariable Long groupId,
+            @PathVariable Long groupBookId,
+            @PathVariable Long episodeId,
+            @RequestParam String sessionId,
+            @Valid @RequestBody GroupAnswerRequest request,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        groupEpisodeService.submitAnswer(memberId, groupId, groupBookId, episodeId, sessionId, request);
+        return ResponseEntity.ok()
+                .body(ApiResponse.of(HttpStatus.OK, "답변 제출 완료", null, httpRequest.getRequestURI()));
     }
 
 }

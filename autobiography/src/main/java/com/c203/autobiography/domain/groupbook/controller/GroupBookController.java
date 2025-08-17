@@ -1,6 +1,7 @@
 package com.c203.autobiography.domain.groupbook.controller;
 
 import com.c203.autobiography.domain.groupbook.dto.*;
+import com.c203.autobiography.domain.groupbook.episode.dto.GroupEpisodeResponse;
 import com.c203.autobiography.domain.groupbook.episode.service.GroupEpisodeService;
 import com.c203.autobiography.domain.groupbook.service.GroupBookService;
 import com.c203.autobiography.global.dto.ApiResponse;
@@ -32,17 +33,16 @@ public class GroupBookController {
     private final GroupBookService groupBookService;
     private final GroupEpisodeService episodeService;
 
-    @Operation(summary = "그룹 책 생성", description = "그룹 책 정보 등록합니다.")
+    @Operation(summary = "그룹 책 생성", description = "그룹 책 정보만 등록합니다. (에피소드는 별도 생성)")
     @PostMapping
-    public ResponseEntity<ApiResponse<GroupBookResponse>> createBook(
+    public ResponseEntity<ApiResponse<GroupBookCreateResponse>> createBook(
             @AuthenticationPrincipal CustomUserDetails userDetail,
             @PathVariable Long groupId,
-            @Valid @ModelAttribute GroupBookCreateRequest request,
-            @RequestPart(value = "file", required = false) MultipartFile file,
+            @Valid @RequestBody GroupBookCreateRequest request,
             HttpServletRequest httpRequest
             ) {
         Long memberId = userDetail.getMemberId();
-        GroupBookResponse response = groupBookService.createBook(groupId, memberId, request, file);
+        GroupBookCreateResponse response = groupBookService.createBookSimple(groupId, memberId, request, null);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.of(HttpStatus.CREATED, "그룹책 생성 성공", response, httpRequest.getRequestURI()));
     }
@@ -159,6 +159,23 @@ public class GroupBookController {
         GroupBookCommentDeleteResponse response= groupBookService.deleteGroupBookComment(groupBookId, groupBookCommentId, memberId);
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "그룹 책 댓글 삭제 성공", response, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "다음 템플릿 에피소드 생성", description = "현재 템플릿 완료 후 다음 템플릿의 새로운 에피소드를 생성합니다.")
+    @PostMapping("/{groupBookId}/episodes/next-template")
+    public ResponseEntity<ApiResponse<GroupEpisodeResponse>> createNextTemplateEpisode(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @PathVariable Long groupId,
+            @PathVariable Long groupBookId,
+            @RequestParam String currentTemplate,
+            HttpServletRequest httpRequest
+    ) {
+        Long memberId = userDetails.getMemberId();
+        GroupEpisodeResponse response = episodeService.createNextTemplateEpisode(
+                groupId, groupBookId, currentTemplate, memberId
+        );
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.of(HttpStatus.CREATED, "다음 템플릿 에피소드 생성 성공", response, httpRequest.getRequestURI()));
     }
 
 

@@ -12,7 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref,defineEmits } from 'vue';
+
+const emit = defineEmits(['alert-closed']);
 
 const props = defineProps({
   confirmButtonText: {
@@ -29,12 +31,16 @@ const isVisible = ref(false);
 const isConfirm = ref(false); // To distinguish between alert and confirm
 const currentTitle = ref('알림');
 const currentMessage = ref('');
+const confirmButtonText = ref(props.confirmButtonText);
+const cancelButtonText = ref(props.cancelButtonText);
 
 let resolvePromise: ((value: boolean) => void) | null = null;
 
 interface ShowAlertOptions {
   title?: string;
   message: string;
+  confirmButtonText?: string;
+  cancelButtonText?: string;
 }
 
 const showAlert = (options: ShowAlertOptions) => {
@@ -47,6 +53,8 @@ const showAlert = (options: ShowAlertOptions) => {
 const showConfirm = (options: ShowAlertOptions): Promise<boolean> => {
   currentTitle.value = options.title || '확인';
   currentMessage.value = options.message;
+  confirmButtonText.value = options.confirmButtonText || '확인';
+  cancelButtonText.value = options.cancelButtonText || '취소';
   isConfirm.value = true;
   isVisible.value = true;
   return new Promise<boolean>((resolve) => {
@@ -58,6 +66,8 @@ const handleConfirm = () => {
   isVisible.value = false;
   if (isConfirm.value && resolvePromise) {
     resolvePromise(true);
+  } else {
+    emit('alert-closed');
   }
   resolvePromise = null;
 };
@@ -67,6 +77,7 @@ const handleCancel = () => {
   if (isConfirm.value && resolvePromise) {
     resolvePromise(false);
   }
+  emit ('alert-closed');
   resolvePromise = null;
 };
 

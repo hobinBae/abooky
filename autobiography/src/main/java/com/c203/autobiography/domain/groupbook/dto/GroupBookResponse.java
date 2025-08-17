@@ -56,6 +56,7 @@ public class GroupBookResponse {
     public static GroupBookResponse of(GroupBook book, List<GroupEpisodeResponse> episodes, List<String> tags) {
         return GroupBookResponse.builder()
                 .groupBookId(book.getGroupBookId())
+                .groupId(book.getGroup().getGroupId())  // 누락된 groupId 추가
                 .memberId(book.getMember().getMemberId())
                 .name(book.getMember().getName())
                 .email(book.getMember().getEmail())
@@ -87,6 +88,7 @@ public class GroupBookResponse {
     ) {
         return GroupBookResponse.builder()
                 .groupBookId(book.getGroupBookId())
+                .groupId(book.getGroup().getGroupId())  // 누락된 groupId 추가
                 .memberId(book.getMember().getMemberId())
                 .name(book.getMember().getName())
                 .email(book.getMember().getEmail())

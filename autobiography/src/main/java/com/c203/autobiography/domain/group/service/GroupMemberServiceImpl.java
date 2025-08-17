@@ -5,6 +5,7 @@ import com.c203.autobiography.domain.group.dto.GroupResponse;
 import com.c203.autobiography.domain.group.entity.GroupMember;
 import com.c203.autobiography.domain.group.entity.GroupRole;
 import com.c203.autobiography.domain.group.repository.GroupMemberRepository;
+import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +21,7 @@ import java.util.stream.Collectors;
 public class GroupMemberServiceImpl implements GroupMemberService {
 
     private final GroupMemberRepository groupMemberRepository;
+    private final MemberRepository memberRepository;
 
     @Override
     public void verifyMember(Long groupId, Long memberId) {
@@ -69,7 +71,12 @@ public class GroupMemberServiceImpl implements GroupMemberService {
         return groupMemberRepository.findByMemberIdAndDeletedAtIsNull(memberId).stream()
                 .map(GroupMember::getGroup)
                 .filter(group -> group.getDeletedAt() == null) // 그룹이 삭제된 경우도 제외해야함
-                .map(GroupResponse::from)
+                .map(group -> {
+                    String leaderNickname = memberRepository.findById(group.getLeaderId())
+                            .map(member -> member.getNickname())
+                            .orElse("알 수 없음");
+                    return GroupResponse.from(group, leaderNickname);
+                })
                 .collect(Collectors.toList());
     }
 

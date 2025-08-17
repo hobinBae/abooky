@@ -5,6 +5,8 @@ import com.c203.autobiography.domain.group.dto.GroupResponse;
 import com.c203.autobiography.domain.group.service.GroupApplyService;
 import com.c203.autobiography.domain.group.service.GroupMemberService;
 import com.c203.autobiography.domain.member.dto.MemberUpdateRequest;
+import com.c203.autobiography.domain.member.dto.RepresentBookRequest;
+import com.c203.autobiography.domain.member.dto.RepresentBookResponse;
 import com.c203.autobiography.domain.member.service.MemberService;
 import com.c203.autobiography.domain.member.dto.MemberCreateRequest;
 import com.c203.autobiography.domain.member.dto.MemberResponse;
@@ -102,5 +104,22 @@ public class MemberController {
         List<GroupResponse> groups = groupMemberService.listMyGroups(currentUser.getMemberId());
         return ResponseEntity.status(HttpStatus.OK)
                 .body(ApiResponse.of(HttpStatus.OK, "내가 속한 그룹 목록 조회 성공", groups, httpRequest.getRequestURI()));
+    }
+
+    @Operation(summary = "대표책 설정/해제", description = "해당 책을 대표책으로 설정하거나 해제합니다.")
+    @PatchMapping("/me/books/{bookId}/represent")
+    public ResponseEntity<ApiResponse<RepresentBookResponse>> setRepresentativeBook(
+            @AuthenticationPrincipal CustomUserDetails user,
+            @PathVariable Long bookId,
+            @RequestBody @Valid RepresentBookRequest request,
+            HttpServletRequest httpRequest
+    ) {
+        RepresentBookResponse res = memberService.setRepresentativeBook(
+                user.getMemberId(), bookId, request.getIsRepresentative());
+
+        String message = request.getIsRepresentative() ? "대표책이 설정되었습니다." : "대표책이 해제되었습니다.";
+
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, message, res, httpRequest.getRequestURI()));
     }
 }

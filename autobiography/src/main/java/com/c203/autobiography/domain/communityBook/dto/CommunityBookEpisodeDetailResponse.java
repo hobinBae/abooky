@@ -26,6 +26,7 @@ public class CommunityBookEpisodeDetailResponse {
     private String content;
     private LocalDate episodeDate;
     private Integer episodeOrder;
+    private String imageUrl;
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss'Z'", timezone = "UTC")
     private LocalDateTime createdAt;
@@ -44,6 +45,7 @@ public class CommunityBookEpisodeDetailResponse {
                 .content(episode.getContent())
                 .episodeDate(episode.getEpisodeDate())
                 .episodeOrder(episode.getEpisodeOrder())
+                .imageUrl(episode.getImageUrl())
                 .createdAt(episode.getCreatedAt())
                 .updatedAt(episode.getUpdatedAt())
                 .build();
