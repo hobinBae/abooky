@@ -45,51 +45,13 @@ public class SttController {
             @RequestParam(value = "customProperNouns", required = false) String customProperNouns,
             HttpServletRequest httpRequest
 
-    ) {
-        try {
-            log.info("🎙️ STT 청크 처리 시작: sessionId={}, chunkIndex={}, fileName={}, size={} bytes", 
-                     sessionId, chunkIndex, audio.getOriginalFilename(), audio.getSize());
+    ){
+        // 비즈니스 로직은 서비스로 위임
+        String transcribedText = sttService.processAudioChunk(sessionId, chunkIndex, audio, customProperNouns);
 
-            // 1) STT 호출 (Deepgram) - 처리 시간 측정
-            long startTime = System.currentTimeMillis();
-            SttResponse sttResp = sttService.recognize(audio, customProperNouns);
-            long processingTime = System.currentTimeMillis() - startTime;
-            
-            log.info("🗣️ STT 결과 ({}ms): '{}'", processingTime, sttResp.getText());
-            
-            // 2) 대화 메시지 저장 (PARTIAL)
-            ConversationMessageResponse conversation = conversationService.createMessage(
-                    ConversationMessageRequest.builder()
-                            .sessionId(sessionId)
-                            .messageType(MessageType.ANSWER)
-                            .chunkIndex(chunkIndex)
-                            .content(sttResp.getText())
-                            .build()
-            );
-            
-            log.info("💾 대화 메시지 저장 완료: messageId={}", conversation.getMessageId());
-            
-            // 3) SSE로 부분 인식 결과 푸시
-            TranscriptResponse partialDto = TranscriptResponse.builder()
-                    .messageId(conversation.getMessageId())
-                    .chunkIndex(chunkIndex)
-                    .text(sttResp.getText())
-                    .build();
-
-            sseService.pushPartialTranscript(sessionId, partialDto);
-            log.info("📡 SSE 전송 완료: sessionId={}", sessionId);
-
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(ApiResponse.of(HttpStatus.CREATED, "성공", null, httpRequest.getRequestURI()));
-                    
-        } catch (Exception e) {
-            log.error("❌ STT 청크 처리 실패: sessionId={}, chunkIndex={}, error={}", 
-                     sessionId, chunkIndex, e.getMessage(), e);
-            
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.of(HttpStatus.INTERNAL_SERVER_ERROR, 
-                         "STT 처리 실패: " + e.getMessage(), null, httpRequest.getRequestURI()));
-        }
+        // 결과 텍스트를 응답 Body에도 담아줌 (SSE를 놓쳤을 경우 대비 or 디버깅용)
+        return ResponseEntity.status(HttpStatus.OK)
+                .body(ApiResponse.of(HttpStatus.OK, "음성 인식 성공", null, httpRequest.getRequestURI()));
     }
 
 }
