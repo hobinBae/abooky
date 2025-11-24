@@ -5,7 +5,5 @@ import com.c203.autobiography.domain.stt.dto.SttResponse;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface SttService {
-    SttResponse recognize(MultipartFile audio);
-    SttResponse recognize(MultipartFile audio, String customProperNouns);
     void processAudioChunk(String sessionId, int chunkIndex, MultipartFile audio, String customProperNouns);
 }

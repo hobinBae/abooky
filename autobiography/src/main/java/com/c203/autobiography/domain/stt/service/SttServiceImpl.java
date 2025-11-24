@@ -16,15 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 public class SttServiceImpl implements SttService {
     private final SttClient sttClient;
     private final SseService sseService;
-    @Override
-    public SttResponse recognize(MultipartFile audio) {
-        return sttClient.recognize(audio);
-    }
-
-    @Override
-    public SttResponse recognize(MultipartFile audio, String customProperNouns) {
-        return sttClient.recognize(audio, customProperNouns);
-    }
 
     @Override
     public void processAudioChunk(String sessionId, int chunkIndex, MultipartFile audio, String customProperNouns) {
