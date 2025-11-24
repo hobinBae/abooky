@@ -1,7 +1,7 @@
 package com.c203.autobiography.domain.episode.service;
 
 
-import com.c203.autobiography.domain.ai.client.AiClient;
+import com.c203.autobiography.domain.ai.client.AiClientFactory;
 import com.c203.autobiography.domain.ai.dto.ChatCompletionResponse;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.repository.BookRepository;
@@ -46,7 +46,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final ConversationMessageRepository conversationMessageRepository;
     private final EpisodeRepository episodeRepository;
     private final EpisodeImageRepository episodeImageRepository;
-    private final AiClient aiClient;
+    private final AiClientFactory aiClient;
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
     private final ConversationSessionRepository conversationSessionRepository;
@@ -224,7 +224,7 @@ public class EpisodeServiceImpl implements EpisodeService {
             throw new ApiException(ErrorCode.INVALID_INPUT_VALUE);
         }
 
-        String rawApiResponse = aiClient.generateEpisode(chapterId, dialog.toString(), true);
+        String rawApiResponse = aiClient.episode().generateEpisode(chapterId, dialog.toString(), true);
 
         String innerJsonContent = extractAssistantText(rawApiResponse); // 헬퍼 메소드 사용
         if (innerJsonContent == null) {

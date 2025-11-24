@@ -1,6 +1,6 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
-import com.c203.autobiography.domain.ai.client.AiClient;
+import com.c203.autobiography.domain.ai.client.AiClientFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,7 +14,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EditorServiceImpl implements EditorService {
 
-    private final AiClient aiClient;
+    private final AiClientFactory aiClient;
 
     @Value("${app.editor.use-gpt:true}")
     private boolean useGpt;
@@ -34,7 +34,7 @@ public class EditorServiceImpl implements EditorService {
         }
 
         try {
-            String gptResult = aiClient.editText(rawAnswer, priorContext, tone);
+            String gptResult = aiClient.edit().editText(rawAnswer, priorContext, tone);
 
             if(gptResult == null || gptResult.isBlank() ||
             gptResult.length() > rawAnswer.length() * 3) {
