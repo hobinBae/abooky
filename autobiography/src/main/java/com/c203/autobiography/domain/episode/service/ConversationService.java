@@ -16,15 +16,14 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public interface ConversationService {
 
     // == 세션/메시지 기본 관리 기능 ==
-    ConversationSessionResponse createSession(ConversationSessionRequest request);
     ConversationSessionResponse updateSession(ConversationSessionUpdateRequest request);
     ConversationSessionResponse getSession(String sessionId);
-    ConversationSession getSessionEntity(String sessionId);
     ConversationMessageResponse createMessage(ConversationMessageRequest request);
     ConversationMessageResponse updateMessage(ConversationMessageUpdateRequest request);
     List<ConversationMessageResponse> getHistory(String sessionId);
     String getLastAnswer(String sessionId);
     String getLastQuestion(String sessionId);
+    void proceedToNextQuestion(Long memberId, Long bookId, Long episodeId, String sessionId);
 
     // == 대화 흐름(질문) 관리 기능 (기존 ChapterBasedQuestionService 역할) ==
     /**

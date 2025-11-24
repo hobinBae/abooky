@@ -73,6 +73,7 @@ public class ConversationController {
 
     /**
      * 지정된 세션에 대한 SSE 스트림을 "연결"하고 대화를 시작/재개합니다.
+     *
      * @param sessionId 대화 세션 ID
      * @return SseEmitter 객체
      */
@@ -105,7 +106,6 @@ public class ConversationController {
      * 세션 업데이트
      */
     @PutMapping("/session")
-
     public ResponseEntity<ConversationSessionResponse> updateSession(
             @Valid @RequestBody ConversationSessionUpdateRequest req) {
         return ResponseEntity.ok(conversationService.updateSession(req));
@@ -157,65 +157,20 @@ public class ConversationController {
             @PathVariable Long episodeId,
             @RequestParam String sessionId
     ) {
-        // 1) 서비스에서 다음 질문 꺼내기 - 챕터 기반 모드 우선 시도
-        ConversationSession session = conversationService.getSessionEntity(sessionId);
-        NextQuestionDto nextQuestionDto = null;
-        String next = null;
-        Long memberId = userDetails.getMemberId();
 
-        if (session != null && session.getCurrentChapterId() != null) {
-            // 챕터 기반 모드
-            try {
-                String lastAnswer = conversationService.getLastAnswer(sessionId);
-                nextQuestionDto = conversationService.getNextQuestion(memberId, bookId, episodeId ,sessionId, lastAnswer);
-                if (nextQuestionDto == null) {
-                    log.info("서비스에서 모든 처리를 완료하고 null을 반환했습니다. 컨트롤러는 즉시 종료합니다. SessionId: {}", sessionId);
-                    return ResponseEntity.ok().build();
-                }
-                next = nextQuestionDto.getQuestionText();
+        conversationService.proceedToNextQuestion(
+                userDetails.getMemberId(),
+                bookId,
+                episodeId,
+                sessionId
+        );
 
-            } catch (Exception e) {
-                // 오류시 레거시 모드로 fallback
-                e.printStackTrace();
-                return ResponseEntity.internalServerError().build();
-            }
-        } else {
-            log.error("챕터 기반 대화가 시작되지 않은 세션입니다. SessionId: {}", sessionId);
-            return ResponseEntity.badRequest().build();
-        }
-
-        if (next != null) {
-            // 2) DB에 QUESTION 메시지 저장
-            conversationService.createMessage(
-                    ConversationMessageRequest.builder()
-                            .sessionId(sessionId)
-                            .messageType(MessageType.QUESTION)
-                            .content(next)
-                            .build()
-            );
-
-            // 3) SSE로 클라이언트에 푸시 (챕터 정보 포함)
-            QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
-                    .text(next);
-
-            if (nextQuestionDto != null) {
-                responseBuilder
-                        .currentChapter(nextQuestionDto.getCurrentChapterName())
-                        .currentStage(nextQuestionDto.getCurrentStageName())
-                        .questionType(nextQuestionDto.getQuestionType())
-                        .overallProgress(nextQuestionDto.getOverallProgress())
-                        .chapterProgress(nextQuestionDto.getChapterProgress())
-                        .isLastQuestion(nextQuestionDto.isLastQuestion());
-            }
-
-            sseService.pushQuestion(sessionId, responseBuilder.build());
-        }
         return ResponseEntity.ok().build();
     }
 
     /**
-     * ★★★ SSE 연결 종료를 위한 새로운 API 추가 ★★★
-     * 클라이언트가 페이지를 떠나기 전에 호출하여 서버 측 리소스를 즉시 정리합니다.
+     * ★★★ SSE 연결 종료를 위한 새로운 API 추가 ★★★ 클라이언트가 페이지를 떠나기 전에 호출하여 서버 측 리소스를 즉시 정리합니다.
+     *
      * @param sessionId 종료할 대화 세션 ID
      */
     @DeleteMapping("/stream/{sessionId}")

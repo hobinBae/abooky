@@ -82,31 +82,6 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConcurrentHashMap<String, String> lastQuestionMap = new ConcurrentHashMap<>();
 
 
-    @Override
-    @Transactional
-    public ConversationSessionResponse createSession(ConversationSessionRequest request) {
-        // 여기 에러 코드 추가
-        ConversationSession existing = sessionRepo.findById(request.getSessionId()).orElse(null);
-        if (existing != null) {
-            return ConversationSessionResponse.from(existing);
-        }
-        // 기존 세션이 있으면, episodeStartMessageNo를 요청받은 값으로 "업데이트"합니다.
-        Integer startNo = request.getEpisodeStartMessageNo() != null
-                ? request.getEpisodeStartMessageNo()
-                : 1;
-        ConversationSession session = ConversationSession.builder()
-                .sessionId(request.getSessionId())
-                //여기 나중에 바꿔야함
-                .bookId(1L)
-                .episodeId(request.getEpisodeId())
-                .status(SessionStatus.OPEN)
-                .tokenCount(0L)
-                .templateIndex(0)
-                .episodeStartMessageNo(startNo)
-                .build();
-        sessionRepo.save(session);
-        return ConversationSessionResponse.from(session);
-    }
 
     @Override
     @Transactional
@@ -158,7 +133,7 @@ public class ConversationServiceImpl implements ConversationService {
     @Override
     public void establishConversationStream(String sessionId, Long bookId, SseEmitter emitter) {
         // 1. 세션 존재 여부 확인 (없으면 예외 발생)
-        ConversationSession session = getSessionEntity(sessionId);
+        getSessionEntity(sessionId);
 
         emitter.onTimeout(() -> sseService.remove(sessionId));
         emitter.onCompletion(() -> sseService.remove(sessionId));
@@ -166,40 +141,6 @@ public class ConversationServiceImpl implements ConversationService {
         sseService.register(sessionId, emitter);
 
         processSseConnectionAsync(sessionId, bookId, emitter);
-
-//        // 세션 상태를 확인하여 첫 연결인지 재연결인지 판단
-//        if (session.getCurrentChapterId() == null) {
-//            // [첫 연결 시나리오]
-//            log.info("첫 연결입니다. 대화를 초기화합니다. SessionId: {}", sessionId);
-//
-//            // 1. 대화 초기화 및 첫 질문 가져오기
-//            NextQuestionDto firstQuestion = initializeSession(sessionId, bookId);
-//
-//            // 2. 첫 질문을 DB에 저장
-//            createMessage(
-//                    ConversationMessageRequest.builder()
-//                            .sessionId(sessionId)
-//                            .messageType(MessageType.QUESTION)
-//                            .content(firstQuestion.getQuestionText())
-//                            .build()
-//            );
-//            QuestionResponse.QuestionResponseBuilder responseBuilder = QuestionResponse.builder()
-//                    .text(firstQuestion.getQuestionText());
-//            // 3. SSE 채널을 통해 "첫 질문"을 전송
-//            sseService.pushQuestion(sessionId, responseBuilder.build());
-//
-//        } else {
-//            // [재연결 시나리오]
-//            log.info("기존 대화에 재연결합니다. SessionId: {}", sessionId);
-//
-//            // 클라이언트가 대화를 이어갈 수 있도록 마지막 질문을 다시 보내줌
-//            String lastQuestion = getLastQuestion(sessionId);
-//            if (lastQuestion != null && !lastQuestion.isEmpty()) {
-//                // TODO: 마지막 질문에 대한 전체 DTO를 만들어서 보내주면 더 좋습니다.
-//                log.info("퀘스천리스판스 : {}",String.valueOf(QuestionResponse.builder().text(lastQuestion).build()));
-//                sseService.pushQuestion(sessionId, QuestionResponse.builder().text(lastQuestion).build());
-//            }
-//        }
 
     }
 
@@ -261,6 +202,54 @@ public class ConversationServiceImpl implements ConversationService {
         sseService.pushQuestion(sessionId, response);
 
         return nextQuestionDto;
+    }
+
+    @Override
+    @Transactional // ★ 핵심: 이 전체 과정이 하나의 트랜잭션으로 묶임
+    public void proceedToNextQuestion(Long memberId, Long bookId, Long episodeId, String sessionId) {
+        ConversationSession session = getSessionEntity(sessionId);
+        if (session == null || session.getCurrentChapterId() == null) {
+            throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // 적절한 예외 처리 필요
+        }
+
+        // 2. 마지막 답변 조회
+        String lastAnswer = getLastAnswer(sessionId);
+
+        // 3. 다음 질문 계산 (핵심 로직)
+        NextQuestionDto nextQuestionDto = getNextQuestion(memberId, bookId, episodeId, sessionId, lastAnswer);
+
+        // 4. 종료 조건 처리 (null이면 더 이상 할 게 없음)
+        if (nextQuestionDto == null) {
+            log.info("다음 질문이 없어 처리를 종료합니다. SessionId: {}", sessionId);
+            return;
+        }
+
+        // 5. 질문 메시지 저장 (DB)
+        createMessage(
+                ConversationMessageRequest.builder()
+                        .sessionId(sessionId)
+                        .messageType(MessageType.QUESTION)
+                        .content(nextQuestionDto.getQuestionText())
+                        .build()
+        );
+
+        // 6. SSE 전송 (클라이언트 알림)
+        pushNextQuestionToSse(sessionId, nextQuestionDto);
+    }
+
+    // SSE 응답 만드는 지저분한 로직도 private 메서드로 숨김
+    private void pushNextQuestionToSse(String sessionId, NextQuestionDto dto) {
+        QuestionResponse response = QuestionResponse.builder()
+                .text(dto.getQuestionText())
+                .currentChapter(dto.getCurrentChapterName())
+                .currentStage(dto.getCurrentStageName())
+                .questionType(dto.getQuestionType())
+                .overallProgress(dto.getOverallProgress())
+                .chapterProgress(dto.getChapterProgress())
+                .isLastQuestion(dto.isLastQuestion())
+                .build();
+
+        sseService.pushQuestion(sessionId, response);
     }
 
     @Async
@@ -373,11 +362,7 @@ public class ConversationServiceImpl implements ConversationService {
         return ConversationSessionResponse.from(session);
     }
 
-    @Override
-    public ConversationSession getSessionEntity(String sessionId) {
-        return sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
-    }
+
 
     @Override
     @Transactional
@@ -784,6 +769,11 @@ public class ConversationServiceImpl implements ConversationService {
         }
 // 한글 기준 대략 2~3자당 1토큰으로 가정
         return Math.max(1, text.length() / 3);
+    }
+
+    private ConversationSession getSessionEntity(String sessionId) {
+        return sessionRepo.findById(sessionId)
+                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
     }
 
 }
