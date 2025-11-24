@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.groupbook.episode.service;
 
+import com.c203.autobiography.domain.ai.client.AiClientFactory;
 import com.c203.autobiography.domain.group.repository.GroupMemberRepository;
 import com.c203.autobiography.domain.groupbook.entity.GroupBook;
 import com.c203.autobiography.domain.groupbook.entity.GroupType;
@@ -18,7 +19,6 @@ import com.c203.autobiography.global.exception.ErrorCode;
 import com.c203.autobiography.global.s3.FileStorageService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
-import com.c203.autobiography.domain.ai.client.AiClient;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -51,7 +51,7 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
     private final EditorService editorService;
     private final FileStorageService fileStorageService;
     private final SseService sseService;
-    private final AiClient aiClient;
+    private final AiClientFactory aiClient;
 
     // 대화 세션 관리를 위한 메모리 저장소
     private final ConcurrentHashMap<String, GroupConversationSession> activeSessions = new ConcurrentHashMap<>();
@@ -616,7 +616,7 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
                 String priorContext = episode.getEditedContent() != null ? episode.getEditedContent() : "";
                 
                 // AI로 답변 교정 (tone을 FORMAL로 고정, 필요시 요청에서 받을 수 있음)
-                correctedAnswer = aiClient.editText(originalAnswer, priorContext, "FORMAL");
+                correctedAnswer = aiClient.edit().editText(originalAnswer, priorContext, "FORMAL");
                 
                 log.info("AI 답변 교정 완료: sessionId={}, 원본 길이={}, 교정본 길이={}", 
                         sessionId, originalAnswer.length(), correctedAnswer.length());

@@ -1,6 +1,6 @@
 package com.c203.autobiography.domain.episode.service;
 
-import com.c203.autobiography.domain.ai.client.AiClient;
+import com.c203.autobiography.domain.ai.client.AiClientFactory;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.repository.BookRepository;
 import com.c203.autobiography.domain.episode.dto.ConversationMessageRequest;
@@ -65,7 +65,7 @@ public class ConversationServiceImpl implements ConversationService {
     private final ChapterRepository chapterRepo;
     private final ChapterTemplateRepository templateRepo;
     private final FollowUpQuestionRepository followUpRepo;
-    private final AiClient aiClient;
+    private final AiClientFactory aiClient;
     private final SseService sseService;
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
@@ -653,7 +653,7 @@ public class ConversationServiceImpl implements ConversationService {
                 return null; // 다음 질문 없으면 종료
             }
 
-            String combinedResponse = aiClient.generateDynamicFollowUpBySection(
+            String combinedResponse = aiClient.followUp().generateDynamicFollowUpBySection(
                     sectionKey,
                     userAnswer,
                     nextTemplate.getMainQuestion()
@@ -669,7 +669,7 @@ public class ConversationServiceImpl implements ConversationService {
             Deque<String> dynamicQueue = dynamicFollowUpQueues.get(session.getSessionId());
 
             if (dynamicQueue == null && session.getFollowUpQuestionIndex() == 0) {
-                String generatedQuestions = aiClient.generateDynamicFollowUpBySection(sectionKey, userAnswer, null);
+                String generatedQuestions = aiClient.followUp().generateDynamicFollowUpBySection(sectionKey, userAnswer, null);
                 dynamicQueue = parseAndCreateDynamicQueue(generatedQuestions);
                 dynamicFollowUpQueues.put(session.getSessionId(), dynamicQueue);
             }

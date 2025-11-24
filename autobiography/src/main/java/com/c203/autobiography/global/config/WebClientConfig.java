@@ -1,6 +1,6 @@
 package com.c203.autobiography.global.config;
 
-import com.c203.autobiography.domain.ai.client.OpenAiProperties;
+import com.c203.autobiography.domain.ai.properties.OpenAiProperties;
 import io.netty.channel.ChannelOption;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
