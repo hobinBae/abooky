@@ -151,11 +151,8 @@ public class ConversationServiceImpl implements ConversationService {
                 session.getCurrentTemplateOrder() + 1
         ).orElseThrow(() -> new ApiException(ErrorCode.CANNOT_SKIP_LAST_QUESTION));
 
-        conversationMessageService.deleteLastQuestion(sessionId);
-
         // 1) 화면에 떠 있던 '마지막 QUESTION'은 DB에서 제거
-//        messageRepo.findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
-//                .ifPresent(messageRepo::delete);
+        conversationMessageService.deleteLastQuestion(sessionId);
 
         // 팔로업 중이었다면 다 버리고, 다음 메인으로 가야 하므로 동적 큐/인덱스 초기화
         clearFollowUpState(sessionId, session);
@@ -191,6 +188,7 @@ public class ConversationServiceImpl implements ConversationService {
     @Transactional // ★ 핵심: 이 전체 과정이 하나의 트랜잭션으로 묶임
     public void proceedToNextQuestion(Long memberId, Long bookId, Long episodeId, String sessionId) {
         ConversationSession session = getSessionEntity(sessionId);
+
         if (session == null || session.getCurrentChapterId() == null) {
             throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // 적절한 예외 처리 필요
         }

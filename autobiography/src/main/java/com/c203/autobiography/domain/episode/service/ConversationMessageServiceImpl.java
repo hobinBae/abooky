@@ -19,9 +19,12 @@ public class ConversationMessageServiceImpl implements ConversationMessageServic
 
     private final ConversationMessageRepository conversationMessageRepository;
     private final ConversationSessionRepository conversationSessionRepository;
+    private final ConversationMessageService conversationMessageService;
+
     @Override
     public void deleteLastQuestion(String sessionId) {
-
+        conversationMessageRepository.findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
+                .ifPresent(conversationMessageRepository::delete);
     }
 
     @Override
