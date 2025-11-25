@@ -60,6 +60,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 public class ConversationServiceImpl implements ConversationService {
 
     private final EpisodeService episodeService;
+    private final ConversationMessageService conversationMessageService;
     private final ConversationSessionRepository sessionRepo;
     private final ConversationMessageRepository messageRepo;
     private final ChapterRepository chapterRepo;
@@ -78,7 +79,6 @@ public class ConversationServiceImpl implements ConversationService {
     // == 인메모리 상태 관리 ==
     // 세션별 질문 큐 관리 (0부터 시작)
     private final ConcurrentHashMap<String, Deque<String>> dynamicFollowUpQueues = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Deque<String>> questionQueueMap = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<String, String> lastQuestionMap = new ConcurrentHashMap<>();
 
 
@@ -87,11 +87,9 @@ public class ConversationServiceImpl implements ConversationService {
     @Transactional
     public String startNewConversation(Long memberId, Long bookId, Long episodeId) {
         // 1) 사용자/책/에피소드 검증 + 소유권 체크
-        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+        Member member = getMemberEntity(memberId);
 
-        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
-                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+        Book book = getBookEntity(bookId);
 
         if (!book.getMember().getMemberId().equals(member.getMemberId())) {
             throw new ApiException(ErrorCode.FORBIDDEN);
@@ -100,11 +98,12 @@ public class ConversationServiceImpl implements ConversationService {
         Episode episode = episodeRepository.findByEpisodeIdAndBookBookIdAndDeletedAtIsNull(episodeId, bookId)
                 .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
 
+
         String sessionId = UUID.randomUUID().toString();
         // 2. 새로운 세션 객체 생성 및 저장
         ConversationSession newSession = ConversationSession.builder()
                 .sessionId(sessionId)
-                .bookId(bookId) // TODO: 실제 bookId를 동적으로 할당해야 함
+                .bookId(bookId)
                 .episodeId(episode.getEpisodeId())
                 .status(SessionStatus.OPEN)
                 .tokenCount(0L)
@@ -112,24 +111,10 @@ public class ConversationServiceImpl implements ConversationService {
                 .episodeStartMessageNo(1)
                 .build();
         sessionRepo.save(newSession);
-
-//        // 3. 챕터 기반 대화 초기화 및 첫 질문 가져오기
-//        NextQuestionDto firstQuestion = initializeSession(sessionId); // 이전 답변에서 통합한 메서드
-//
-//        // 4. 첫 질문을 DB에 저장
-//        createMessage(
-//                ConversationMessageRequest.builder()
-//                        .sessionId(sessionId)
-//                        .messageType(MessageType.QUESTION)
-//                        .content(firstQuestion.getQuestionText())
-//                        .build()
-//        );
-
-        // 5. 컨트롤러로 전달할 응답 DTO 생성
-        //오직 생성된 sessionId만 반환
         return sessionId;
     }
 
+    // todo : sse
     @Override
     public void establishConversationStream(String sessionId, Long bookId, SseEmitter emitter) {
         // 1. 세션 존재 여부 확인 (없으면 예외 발생)
@@ -140,55 +125,52 @@ public class ConversationServiceImpl implements ConversationService {
         emitter.onError(e -> sseService.remove(sessionId));
         sseService.register(sessionId, emitter);
 
-        processSseConnectionAsync(sessionId, bookId, emitter);
+        this.processSseConnectionAsync(sessionId, bookId, emitter);
 
     }
 
     @Override
     @Transactional
     public NextQuestionDto skipCurrentQuestion(Long memberId, Long bookId, Long episodeId, String sessionId) {
-        // 0) 세션/권한 검증 (기존 getNextQuestion와 동일한 검증 절차)
-        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
-        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
-                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
-        Episode episode = episodeRepository.findByEpisodeIdAndDeletedAtIsNull(episodeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
-        ConversationSession session = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
 
-        // 2) 다음 메인 템플릿으로 전진 (없다면 챕터 종료 처리)
+        Member member = getMemberEntity(memberId);
+
+        Book book = getBookEntity(bookId);
+
+        if (!book.getMember().getMemberId().equals(member.getMemberId())) {
+            throw new ApiException(ErrorCode.FORBIDDEN);
+        }
+
+        Episode episode = getEpisodeEntity(episodeId);
+
+        ConversationSession session = getSessionEntity(sessionId);
+
+        // 2) 다음 메인 템플릿으로 전진 (없다면 스킵 불가)
         ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
                 session.getCurrentChapterOrder(),
                 session.getCurrentTemplateOrder() + 1
-        ).orElse(null);
+        ).orElseThrow(() -> new ApiException(ErrorCode.CANNOT_SKIP_LAST_QUESTION));
 
-
-        // 2) 다음 템플릿이 없다면, 현재가 마지막 질문이므로 예외를 발생시킵니다.
-        if (nextTemplate == null) {
-            throw new ApiException(ErrorCode.CANNOT_SKIP_LAST_QUESTION);
-        }
-
+        conversationMessageService.deleteLastQuestion(sessionId);
 
         // 1) 화면에 떠 있던 '마지막 QUESTION'은 DB에서 제거
-        messageRepo.findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
-                .ifPresent(messageRepo::delete);
+//        messageRepo.findFirstBySessionIdAndMessageTypeOrderByMessageNoDesc(sessionId, MessageType.QUESTION)
+//                .ifPresent(messageRepo::delete);
 
         // 팔로업 중이었다면 다 버리고, 다음 메인으로 가야 하므로 동적 큐/인덱스 초기화
-        dynamicFollowUpQueues.remove(sessionId);
-        updateFollowUpIndex(session, 0); // 내부에서 fresh 로딩해 저장
+        clearFollowUpState(sessionId, session);
 
         //다음 메인 템플릿으로 상태를 전진
         NextQuestionDto nextQuestionDto = moveToNextTemplate(session, nextTemplate);
 
-        // 3) 새 질문을 DB에 '저장' + SSE 푸시 (여기서 저장되는 건 '건너뛰기 후의 질문'뿐)
-        createMessage(
-                ConversationMessageRequest.builder()
-                        .sessionId(sessionId)
-                        .messageType(MessageType.QUESTION)
-                        .content(nextQuestionDto.getQuestionText())
-                        .build()
-        );
+        // todo : mapper로 분리
+        ConversationMessageRequest request = ConversationMessageRequest.builder()
+                .sessionId(sessionId)
+                .messageType(MessageType.QUESTION)
+                .content(nextQuestionDto.getQuestionText())
+                .build();
+
+        conversationMessageService.createMessage(request);
 
         QuestionResponse response = QuestionResponse.builder()
                 .text(nextQuestionDto.getQuestionText())
@@ -199,6 +181,7 @@ public class ConversationServiceImpl implements ConversationService {
                 .overallProgress(nextQuestionDto.getOverallProgress())
                 .isLastQuestion(nextQuestionDto.isLastQuestion())
                 .build();
+
         sseService.pushQuestion(sessionId, response);
 
         return nextQuestionDto;
@@ -224,14 +207,17 @@ public class ConversationServiceImpl implements ConversationService {
             return;
         }
 
+        // todo : mapper로 분리
+        ConversationMessageRequest request = ConversationMessageRequest.builder()
+                .sessionId(sessionId)
+                .messageType(MessageType.QUESTION)
+                .content(nextQuestionDto.getQuestionText())
+                .build();
+
         // 5. 질문 메시지 저장 (DB)
-        createMessage(
-                ConversationMessageRequest.builder()
-                        .sessionId(sessionId)
-                        .messageType(MessageType.QUESTION)
-                        .content(nextQuestionDto.getQuestionText())
-                        .build()
-        );
+
+        conversationMessageService.createMessage(request);
+
 
         // 6. SSE 전송 (클라이언트 알림)
         pushNextQuestionToSse(sessionId, nextQuestionDto);
@@ -241,7 +227,7 @@ public class ConversationServiceImpl implements ConversationService {
     private void pushNextQuestionToSse(String sessionId, NextQuestionDto dto) {
         QuestionResponse response = QuestionResponse.builder()
                 .text(dto.getQuestionText())
-                .currentChapter(dto.getCurrentChapterName())
+                .currentChapterName(dto.getCurrentChapterName())
                 .currentStage(dto.getCurrentStageName())
                 .questionType(dto.getQuestionType())
                 .overallProgress(dto.getOverallProgress())
@@ -294,15 +280,19 @@ public class ConversationServiceImpl implements ConversationService {
      */
     @Transactional
     public void initializeAndPushFirstQuestion(String sessionId, Long bookId) {
+
         log.info("첫 연결 대화 초기화 및 질문 전송. SessionId: {}", sessionId);
         NextQuestionDto firstQuestion = initializeSession(sessionId, bookId);
-        createMessage(
-                ConversationMessageRequest.builder()
-                        .sessionId(sessionId)
-                        .messageType(MessageType.QUESTION)
-                        .content(firstQuestion.getQuestionText())
-                        .build()
-        );
+
+        // todo : mapper로 분리 할 예정
+        ConversationMessageRequest request = ConversationMessageRequest.builder()
+                .sessionId(sessionId)
+                .messageType(MessageType.QUESTION)
+                .content(firstQuestion.getQuestionText())
+                .build();
+
+        conversationMessageService.createMessage(request);
+
         // ... (QuestionResponse 빌드 및 sseService.pushQuestion 호출)
         QuestionResponse response = QuestionResponse.builder()
                 .text(firstQuestion.getQuestionText())
@@ -325,90 +315,6 @@ public class ConversationServiceImpl implements ConversationService {
         }
     }
 
-
-    @Override
-    @Transactional
-    public ConversationSessionResponse updateSession(ConversationSessionUpdateRequest request) {
-        ConversationSession session = sessionRepo.findById(request.getSessionId())
-                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + request.getSessionId()));
-
-        ConversationSession updated = session.toBuilder()
-                .status(request.getStatus() != null ? request.getStatus() : session.getStatus())
-                .templateIndex(
-                        request.getTemplateIndex() != null ? request.getTemplateIndex() : session.getTemplateIndex())
-                .episodeStartMessageNo(
-                        request.getEpisodeStartMessageNo() != null
-                                ? request.getEpisodeStartMessageNo()
-                                : session.getEpisodeStartMessageNo()
-                )
-                .build();
-
-        sessionRepo.save(updated);
-
-        // 상태가 CLOSED면 레거시 큐 정리(권장)
-        if (request.getStatus() == SessionStatus.CLOSE) {
-            questionQueueMap.remove(request.getSessionId());
-            lastQuestionMap.remove(request.getSessionId());
-        }
-
-        return ConversationSessionResponse.from(updated);
-    }
-
-
-    @Override
-    public ConversationSessionResponse getSession(String sessionId) {
-        ConversationSession session = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
-        return ConversationSessionResponse.from(session);
-    }
-
-
-
-    @Override
-    @Transactional
-    public ConversationMessageResponse createMessage(ConversationMessageRequest request) {
-        int lastNo = messageRepo.findTopBySessionIdOrderByMessageNoDesc(request.getSessionId())
-                .map(ConversationMessage::getMessageNo)
-                .orElse(0);
-
-        ConversationMessage msg = ConversationMessage.builder()
-                .sessionId(request.getSessionId())
-                .messageType(request.getMessageType())
-                .chunkIndex(request.getChunkIndex())
-                .content(request.getContent())
-                .messageNo(lastNo + 1)
-                .build();
-        messageRepo.save(msg);
-
-        if (request.getMessageType() == MessageType.ANSWER) {
-            long add = estimateTokens(request.getContent());
-            sessionRepo.findById(request.getSessionId()).ifPresent(s -> {
-                ConversationSession updated = s.toBuilder()
-                        .tokenCount((s.getTokenCount() == null ? 0L : s.getTokenCount()) + add)
-                        // toBuilder가 알아서  복제
-                        .build();
-                sessionRepo.save(updated);
-            });
-        }
-        return ConversationMessageResponse.from(msg);
-    }
-
-    @Override
-    @Transactional
-    public ConversationMessageResponse updateMessage(ConversationMessageUpdateRequest request) {
-        ConversationMessage msg = messageRepo.findById(request.getMessageId())
-                .orElseThrow(() -> new IllegalArgumentException("메시지를 찾을 수 없습니다: " + request.getMessageId()));
-        msg.updateContent(request.getContent());
-        messageRepo.save(msg);
-        return ConversationMessageResponse.from(msg);
-    }
-
-    @Override
-    public List<ConversationMessageResponse> getHistory(String sessionId) {
-        return messageRepo.findBySessionIdOrderByMessageNo(sessionId).stream()
-                .map(ConversationMessageResponse::from)
-                .collect(Collectors.toList());
-    }
 
     @Override
     public String getLastAnswer(String sessionId) {
@@ -762,18 +668,35 @@ public class ConversationServiceImpl implements ConversationService {
         return (session.getCurrentChapterOrder() * 100) / allChapters.size();
     }
 
+    // 꼬리 질문 상태를 초기화하는 메서드
+    private void clearFollowUpState(String sessionId, ConversationSession session) {
+        // 1. 큐 비우기 (Map을 쓰든 Redis를 쓰든 여기서만 관리)
+        dynamicFollowUpQueues.remove(sessionId);
 
-    private long estimateTokens(String text) {
-        if (text == null) {
-            return 0;
-        }
-// 한글 기준 대략 2~3자당 1토큰으로 가정
-        return Math.max(1, text.length() / 3);
+        // 2. 인덱스 초기화
+        updateFollowUpIndex(session, 0);
     }
+
 
     private ConversationSession getSessionEntity(String sessionId) {
         return sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
+                .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
+    }
+
+    private Member getMemberEntity(Long memberId){
+        return memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
+                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
+    }
+
+    private Book getBookEntity(Long bookId){
+        return bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
+                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
+
+    }
+
+    private Episode getEpisodeEntity(Long episodeId){
+        return episodeRepository.findByEpisodeIdAndDeletedAtIsNull(episodeId)
+                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
     }
 
 }

@@ -1083,17 +1083,7 @@ async function submitAnswerAndGetFollowUp() {
   try {
     console.log('답변 저장 및 다음 질문 요청...');
 
-    // 1. 먼저 답변을 저장
-    if (currentAnswerMessageId.value) {
-      // STT로 받은 답변을 수정한 경우 → 기존 메시지 업데이트
-      console.log(`기존 메시지 업데이트: ID=${currentAnswerMessageId.value}`);
-      const updateRequest = {
-        messageId: currentAnswerMessageId.value,
-        content: currentStory.value.content.trim()
-      };
-      await apiClient.put('/api/v1/conversation/message', updateRequest);
-      console.log('기존 답변 업데이트 완료');
-    } else {
+
       // 직접 입력한 답변 → 새 메시지 생성
       console.log('새 답변 메시지 생성');
       const createRequest = {
@@ -1104,8 +1094,7 @@ async function submitAnswerAndGetFollowUp() {
       const response = await apiClient.post('/api/v1/conversation/message', createRequest);
       currentAnswerMessageId.value = response.data.messageId;
       console.log('새 답변 메시지 생성 완료:', response.data);
-    }
-
+  
     // 2. 다음 질문 요청
     await apiClient.post(`/api/v1/conversation/${currentBook.value.id}/episodes/${currentStory.value?.id}/next?sessionId=${currentSessionId.value}`);
 

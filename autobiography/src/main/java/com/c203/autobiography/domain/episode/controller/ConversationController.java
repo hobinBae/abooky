@@ -13,6 +13,7 @@ import com.c203.autobiography.domain.episode.dto.StartConversationResponse;
 import com.c203.autobiography.domain.episode.entity.ConversationMessage;
 import com.c203.autobiography.domain.episode.entity.ConversationSession;
 import com.c203.autobiography.domain.episode.repository.ConversationMessageRepository;
+import com.c203.autobiography.domain.episode.service.ConversationMessageService;
 import com.c203.autobiography.domain.episode.service.ConversationService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
@@ -50,8 +51,8 @@ import retrofit2.http.Path;
 @Validated
 public class ConversationController {
     private final ConversationService conversationService;
+    private final ConversationMessageService conversationMessageService;
     private final SseService sseService;
-    private final ConversationMessageRepository conversationMessageRepository;
 
     /**
      * 새로운 대화 시작
@@ -81,53 +82,22 @@ public class ConversationController {
     public SseEmitter stream(@PathVariable String sessionId, @PathVariable Long bookId) {
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
         try {
-            // ★★★ 2. 기존 서비스 호출 로직을 try 블록 안으로 옮깁니다. ★★★
-            // 이 때, 생성한 emitter 객체를 서비스로 전달하여 등록하도록 시그니처를 변경해야 합니다.
             conversationService.establishConversationStream(sessionId, bookId, emitter);
         } catch (Exception e) {
-            // ★★★ 3. 서비스 로직에서 예외가 발생하면 여기서 잡습니다. ★★★
             log.error("SSE 스트림 설정 중 에러 발생. sessionId={}", sessionId, e);
             try {
-                // 클라이언트에게 'error'라는 이름의 이벤트를 보냅니다.
                 emitter.send(SseEmitter.event()
                         .name("error")
                         .data("스트림 연결 중 서버 오류가 발생했습니다: " + e.getMessage()));
             } catch (IOException ex) {
                 log.warn("SSE 에러 이벤트 전송 실패. sessionId={}", sessionId, ex);
             }
-            // 에러와 함께 스트림을 완전히 종료시킵니다.
             emitter.completeWithError(e);
         }
 
         return emitter;
     }
 
-    /**
-     * 세션 업데이트
-     */
-    @PutMapping("/session")
-    public ResponseEntity<ConversationSessionResponse> updateSession(
-            @Valid @RequestBody ConversationSessionUpdateRequest req) {
-        return ResponseEntity.ok(conversationService.updateSession(req));
-    }
-
-    /**
-     * 세션 조회
-     */
-    @GetMapping("/session/{sessionId}")
-    public ResponseEntity<ConversationSessionResponse> getSession(
-            @PathVariable String sessionId) {
-        return ResponseEntity.ok(conversationService.getSession(sessionId));
-    }
-
-    /**
-     * 메시지 수정
-     */
-    @PutMapping("/message")
-    public ResponseEntity<ConversationMessageResponse> updateMessage(
-            @Valid @RequestBody ConversationMessageUpdateRequest req) {
-        return ResponseEntity.ok(conversationService.updateMessage(req));
-    }
 
     /**
      * 메시지 생성
@@ -136,18 +106,8 @@ public class ConversationController {
     public ResponseEntity<ConversationMessageResponse> createMessage(
             @Valid @RequestBody ConversationMessageRequest req
     ) {
-        ConversationMessageResponse res = conversationService.createMessage(req);
+        ConversationMessageResponse res = conversationMessageService.createMessage(req);
         return ResponseEntity.status(HttpStatus.CREATED).body(res);
-    }
-
-    /**
-     * 메시지 히스토리 조회
-     */
-    @GetMapping("/{sessionId}/history")
-    public ResponseEntity<List<ConversationMessageResponse>> getHistory(
-            @PathVariable String sessionId) {
-
-        return ResponseEntity.ok(conversationService.getHistory(sessionId));
     }
 
     @PostMapping("{bookId}/episodes/{episodeId}/next")
@@ -157,25 +117,10 @@ public class ConversationController {
             @PathVariable Long episodeId,
             @RequestParam String sessionId
     ) {
+        Long memberId = userDetails.getMemberId();
 
-        conversationService.proceedToNextQuestion(
-                userDetails.getMemberId(),
-                bookId,
-                episodeId,
-                sessionId
-        );
+        conversationService.proceedToNextQuestion(memberId, bookId, episodeId, sessionId);
 
-        return ResponseEntity.ok().build();
-    }
-
-    /**
-     * ★★★ SSE 연결 종료를 위한 새로운 API 추가 ★★★ 클라이언트가 페이지를 떠나기 전에 호출하여 서버 측 리소스를 즉시 정리합니다.
-     *
-     * @param sessionId 종료할 대화 세션 ID
-     */
-    @DeleteMapping("/stream/{sessionId}")
-    public ResponseEntity<Void> closeSseStream(@PathVariable String sessionId) {
-        sseService.closeConnection(sessionId);
         return ResponseEntity.ok().build();
     }
 
@@ -191,10 +136,18 @@ public class ConversationController {
         return ResponseEntity.ok().build();
     }
 
-    private Integer computeEpisodeStartNo(String sessionId) {
-        // 세션 시작 시점에 포함할 구간 시작점: 현재 최대 messageNo + 1 (기록이 없으면 1)
-        Integer maxNo = conversationMessageRepository.findMaxMessageNo(sessionId);
-        return (maxNo == null) ? 1 : (maxNo + 1);
+
+    /**
+     * ★★★ SSE 연결 종료를 위한 새로운 API 추가 ★★★ 클라이언트가 페이지를 떠나기 전에 호출하여 서버 측 리소스를 즉시 정리합니다.
+     *
+     * @param sessionId 종료할 대화 세션 ID
+     */
+    @DeleteMapping("/stream/{sessionId}")
+    public ResponseEntity<Void> closeSseStream(@PathVariable String sessionId) {
+        sseService.closeConnection(sessionId);
+        return ResponseEntity.ok().build();
     }
+
+
 
 }
