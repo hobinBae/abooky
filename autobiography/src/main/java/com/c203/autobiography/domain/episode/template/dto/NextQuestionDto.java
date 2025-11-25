@@ -1,5 +1,6 @@
 package com.c203.autobiography.domain.episode.template.dto;
 
+import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,4 +22,6 @@ public class NextQuestionDto {
     private int overallProgress; // 전체 진행률 (%)
     private boolean isLastQuestion; // 마지막 질문 여부
     private boolean shouldCreateEpisode; // 에피소드 생성 필요 여부
+
+    private EpisodeResponse generatedEpisode;
 } 

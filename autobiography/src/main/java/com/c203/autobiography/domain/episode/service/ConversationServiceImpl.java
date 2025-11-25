@@ -4,9 +4,7 @@ import com.c203.autobiography.domain.ai.client.AiClientFactory;
 import com.c203.autobiography.domain.book.entity.Book;
 import com.c203.autobiography.domain.book.repository.BookRepository;
 import com.c203.autobiography.domain.episode.dto.ConversationMessageRequest;
-import com.c203.autobiography.domain.episode.dto.ConversationMessageResponse;
 import com.c203.autobiography.domain.episode.dto.EpisodeResponse;
-import com.c203.autobiography.domain.episode.dto.StartConversationResponse;
 import com.c203.autobiography.domain.episode.entity.Episode;
 import com.c203.autobiography.domain.episode.repository.EpisodeRepository;
 import com.c203.autobiography.domain.episode.template.dto.FollowUpType;
@@ -18,10 +16,6 @@ import com.c203.autobiography.domain.episode.template.repository.ChapterReposito
 import com.c203.autobiography.domain.episode.template.repository.ChapterTemplateRepository;
 import com.c203.autobiography.domain.episode.template.repository.FollowUpQuestionRepository;
 import com.c203.autobiography.domain.episode.template.dto.NextQuestionDto;
-import com.c203.autobiography.domain.episode.dto.ConversationMessageUpdateRequest;
-import com.c203.autobiography.domain.episode.dto.ConversationSessionRequest;
-import com.c203.autobiography.domain.episode.dto.ConversationSessionResponse;
-import com.c203.autobiography.domain.episode.dto.ConversationSessionUpdateRequest;
 import com.c203.autobiography.domain.episode.dto.MessageType;
 import com.c203.autobiography.domain.episode.dto.SessionStatus;
 import com.c203.autobiography.domain.episode.entity.ConversationMessage;
@@ -33,23 +27,19 @@ import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
-import java.io.IOException;
 import java.util.Set;
 import java.util.UUID;
 
 import jakarta.annotation.Nullable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.stream.Collectors;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
  * ConversationService 구현체: 세션과 메시지를 관리하며, 질문 템플릿 인덱스를 자동으로 증가시킵니다.
@@ -82,7 +72,6 @@ public class ConversationServiceImpl implements ConversationService {
     private final ConcurrentHashMap<String, String> lastQuestionMap = new ConcurrentHashMap<>();
 
 
-
     @Override
     @Transactional
     public String startNewConversation(Long memberId, Long bookId, Long episodeId) {
@@ -98,7 +87,6 @@ public class ConversationServiceImpl implements ConversationService {
         Episode episode = episodeRepository.findByEpisodeIdAndBookBookIdAndDeletedAtIsNull(episodeId, bookId)
                 .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
 
-
         String sessionId = UUID.randomUUID().toString();
         // 2. 새로운 세션 객체 생성 및 저장
         ConversationSession newSession = ConversationSession.builder()
@@ -110,23 +98,10 @@ public class ConversationServiceImpl implements ConversationService {
                 .templateIndex(0)
                 .episodeStartMessageNo(1)
                 .build();
+
         sessionRepo.save(newSession);
+
         return sessionId;
-    }
-
-    // todo : sse
-    @Override
-    public void establishConversationStream(String sessionId, Long bookId, SseEmitter emitter) {
-        // 1. 세션 존재 여부 확인 (없으면 예외 발생)
-        getSessionEntity(sessionId);
-
-        emitter.onTimeout(() -> sseService.remove(sessionId));
-        emitter.onCompletion(() -> sseService.remove(sessionId));
-        emitter.onError(e -> sseService.remove(sessionId));
-        sseService.register(sessionId, emitter);
-
-        this.processSseConnectionAsync(sessionId, bookId, emitter);
-
     }
 
     @Override
@@ -185,73 +160,94 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
     @Override
-    @Transactional // ★ 핵심: 이 전체 과정이 하나의 트랜잭션으로 묶임
+    @Transactional
     public void proceedToNextQuestion(Long memberId, Long bookId, Long episodeId, String sessionId) {
         ConversationSession session = getSessionEntity(sessionId);
 
-        if (session == null || session.getCurrentChapterId() == null) {
+        getMemberEntity(memberId);
+
+        getBookEntity(bookId);
+
+        if (session.getCurrentChapterId() == null) {
             throw new ApiException(ErrorCode.INVALID_INPUT_VALUE); // 적절한 예외 처리 필요
         }
 
         // 2. 마지막 답변 조회
         String lastAnswer = getLastAnswer(sessionId);
-
         // 3. 다음 질문 계산 (핵심 로직)
-        NextQuestionDto nextQuestionDto = getNextQuestion(memberId, bookId, episodeId, sessionId, lastAnswer);
+        NextQuestionDto nextQuestion = getNextQuestion(episodeId, sessionId, lastAnswer);
 
         // 4. 종료 조건 처리 (null이면 더 이상 할 게 없음)
-        if (nextQuestionDto == null) {
+        if (nextQuestion == null) {
             log.info("다음 질문이 없어 처리를 종료합니다. SessionId: {}", sessionId);
             return;
         }
+        if (nextQuestion.getGeneratedEpisode() != null) {
+            log.info("생성된 에피소드 전송. SessionId: {}", sessionId);
+            sseService.pushEpisode(sessionId, nextQuestion.getGeneratedEpisode());
+        }
+
+        boolean isCompleteType =
+                nextQuestion.getQuestionType().equals("CHAPTER_COMPLETE") || nextQuestion.getQuestionType()
+                        .equals("COMPLETE");
+
+        if (!isCompleteType) {
+            // 5. 질문 메시지 저장 (DB)
+            ConversationMessageRequest request = ConversationMessageRequest.builder()
+                    .sessionId(sessionId)
+                    .messageType(MessageType.QUESTION)
+                    .content(nextQuestion.getQuestionText())
+                    .build();
+
+            conversationMessageService.createMessage(request);
+
+        }
 
         // todo : mapper로 분리
-        ConversationMessageRequest request = ConversationMessageRequest.builder()
-                .sessionId(sessionId)
-                .messageType(MessageType.QUESTION)
-                .content(nextQuestionDto.getQuestionText())
-                .build();
-
-        // 5. 질문 메시지 저장 (DB)
-
-        conversationMessageService.createMessage(request);
-
-
-        // 6. SSE 전송 (클라이언트 알림)
-        pushNextQuestionToSse(sessionId, nextQuestionDto);
-    }
-
-    // SSE 응답 만드는 지저분한 로직도 private 메서드로 숨김
-    private void pushNextQuestionToSse(String sessionId, NextQuestionDto dto) {
         QuestionResponse response = QuestionResponse.builder()
-                .text(dto.getQuestionText())
-                .currentChapterName(dto.getCurrentChapterName())
-                .currentStage(dto.getCurrentStageName())
-                .questionType(dto.getQuestionType())
-                .overallProgress(dto.getOverallProgress())
-                .chapterProgress(dto.getChapterProgress())
-                .isLastQuestion(dto.isLastQuestion())
+                .text(nextQuestion.getQuestionText())
+                .currentChapterName(nextQuestion.getCurrentChapterName())
+                .currentStage(nextQuestion.getCurrentStageName())
+                .questionType(nextQuestion.getQuestionType())
+                .overallProgress(nextQuestion.getOverallProgress())
+                .chapterProgress(nextQuestion.getChapterProgress())
+                .isLastQuestion(nextQuestion.isLastQuestion())
                 .build();
 
         sseService.pushQuestion(sessionId, response);
+
     }
 
-    @Async
-    public void processSseConnectionAsync(String sessionId, Long bookId, SseEmitter emitter) {
+    // todo : 이건 수정이 필요할 듯
+    private NextQuestionDto getNextQuestion(Long episodeId, String sessionId,
+                                           String userAnswer) {
+
+        Episode episode = getEpisodeEntity(episodeId);
+
+        ConversationSession session = getSessionEntity(sessionId);
+
+        ChapterTemplate currentTemplate = templateRepo.findByTemplateIdWithFollowUps(session.getCurrentTemplateId())
+                .orElseThrow(() -> new IllegalStateException("현재 템플릿을 찾을 수 없습니다."));
+
+        lastQuestionMap.put(sessionId, currentTemplate.getMainQuestion());
+
+        String followUpQuestion = processFollowUpQuestions(session, currentTemplate, userAnswer);
+        if (followUpQuestion != null) {
+            lastQuestionMap.put(sessionId, followUpQuestion);
+            return createNextQuestionDto(session, followUpQuestion, "FOLLOWUP", currentTemplate);
+        }
+
+        return moveToNextMainQuestion(episode, session);
+    }
+
+    @Override
+    public void handleSessionConnection(String sessionId, Long bookId) {
         try {
             ConversationSession session = getSessionEntity(sessionId); // 여기서는 트랜잭션 없이 단순 조회
             // 1. 세션의 상태(status)를 가장 먼저 확인합니다.
             if (session.getStatus() == SessionStatus.CLOSE) {
                 log.warn("이미 종료된 세션(SessionId: {})에 대한 SSE 연결 시도입니다. 연결을 거부하고 종료합니다.", sessionId);
-
-                // 2. 프론트엔드에 '이미 완료된 세션'임을 알리는 에러 이벤트를 보냅니다.
-                //    이를 통해 프론트엔드는 오래된 세션 ID를 사용하지 않고 새 인터뷰를 시작하도록 유도할 수 있습니다.
-                emitter.send(SseEmitter.event().name("error").data("이미 완료된 인터뷰 세션입니다. 새로운 인터뷰를 시작해주세요."));
-
-                // 3. 서버 측에서도 SSE 연결을 즉시 종료합니다.
-                emitter.complete();
-
-                // 4. 더 이상 진행하지 않고 메소드를 종료합니다.
+                sseService.sendError(sessionId, "이미 완료된 인터뷰 세션입니다.");
                 return;
             }
 
@@ -263,18 +259,15 @@ public class ConversationServiceImpl implements ConversationService {
                 pushLastQuestion(sessionId);
             }
         } catch (Exception e) {
-            log.error("SSE 비동기 처리 중 에러 발생, sessionId={}", sessionId, e);
-            try {
-                emitter.send(SseEmitter.event().name("error").data("대화 처리 중 오류 발생: " + e.getMessage()));
-            } catch (IOException ex) {
-                log.warn("SSE 에러 이벤트 전송 실패", ex);
-            }
-            emitter.completeWithError(e);
+            log.error("대화 세션 연결 처리 중 오류. sessionId={}", sessionId, e);
+            // 에러 발생 시에도 sseService를 통해 클라이언트에게 알림
+            sseService.sendError(sessionId, "서버 오류가 발생했습니다.");
+
         }
     }
 
     /**
-     * [신규] 첫 질문 생성 및 전송을 담당하는 트랜잭션 메소드
+     * 첫 질문 생성 및 전송을 담당하는 트랜잭션 메소드
      */
     @Transactional
     public void initializeAndPushFirstQuestion(String sessionId, Long bookId) {
@@ -291,18 +284,24 @@ public class ConversationServiceImpl implements ConversationService {
 
         conversationMessageService.createMessage(request);
 
-        // ... (QuestionResponse 빌드 및 sseService.pushQuestion 호출)
         QuestionResponse response = QuestionResponse.builder()
                 .text(firstQuestion.getQuestionText())
+                .currentChapter(firstQuestion.getCurrentTemplateId())
                 .currentChapterName(firstQuestion.getCurrentChapterName())
-                // ... 등등
+                .currentStageName(firstQuestion.getCurrentStageName())
+                .currentStage(firstQuestion.getCurrentStageName())
+                .questionType(firstQuestion.getQuestionType())
+                .chapterProgress(firstQuestion.getChapterProgress())
+                .overallProgress(firstQuestion.getOverallProgress())
+                .isLastQuestion(false)
                 .build();
+
         sseService.pushQuestion(sessionId, response);
         log.info("질문 전송 {}", response);
     }
 
     /**
-     * [신규] 마지막 질문 전송을 담당하는 읽기 전용 트랜잭션 메소드
+     * 대답하지 않은 마지막에 받은 질문 전송을 담당하는 읽기 전용 트랜잭션 메소드
      */
     @Transactional(readOnly = true)
     public void pushLastQuestion(String sessionId) {
@@ -371,43 +370,13 @@ public class ConversationServiceImpl implements ConversationService {
     }
 
 
-    @Override
-    public NextQuestionDto getNextQuestion(Long memberId, Long bookId, Long episodeId, String sessionId,
-                                           String userAnswer) {
-        // 1) 사용자 확인
-        Member member = memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
-                .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
 
-        // 2) 책 확인
-        Book book = bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
-                .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
-
-        Episode episode = episodeRepository.findByEpisodeIdAndDeletedAtIsNull(episodeId)
-                .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
-
-        ConversationSession session = sessionRepo.findById(sessionId)
-                .orElseThrow(() -> new IllegalArgumentException("세션을 찾을 수 없습니다: " + sessionId));
-
-        // 1. 원본 코드의 방식을 따라, fetch join이 적용된 메서드로 현재 템플릿을 조회합니다. (성능 최적화)
-        ChapterTemplate currentTemplate = templateRepo.findByTemplateIdWithFollowUps(session.getCurrentTemplateId())
-                .orElseThrow(() -> new IllegalStateException("현재 템플릿을 찾을 수 없습니다."));
-
-        lastQuestionMap.put(sessionId, currentTemplate.getMainQuestion());
-
-        String followUpQuestion = processFollowUpQuestions(session, currentTemplate, userAnswer);
-        if (followUpQuestion != null) {
-            lastQuestionMap.put(sessionId, followUpQuestion);
-            return createNextQuestionDto(session, followUpQuestion, "FOLLOWUP", currentTemplate);
-        }
-
-        return moveToNextMainQuestion(member, book, episode, session);
-    }
 
     // sse 관련 메서드
 
     // == 내부 헬퍼 메서드들 (구. ChapterBasedQuestionService) ==
 
-    private @Nullable NextQuestionDto moveToNextMainQuestion(Member member, Book book, Episode episode,
+    private @Nullable NextQuestionDto moveToNextMainQuestion(Episode episode,
                                                              ConversationSession session) {
         ChapterTemplate nextTemplate = templateRepo.findByChapterOrderAndTemplateOrder(
                 session.getCurrentChapterOrder(),
@@ -415,37 +384,35 @@ public class ConversationServiceImpl implements ConversationService {
         ).orElse(null);
 
         if (nextTemplate == null) { // 챕터 종료
-            return handleChapterTransition(member, book, episode, session);
+            return handleChapterTransition(episode, session);
         } else { // 다음 템플릿으로
             return moveToNextTemplate(session, nextTemplate);
         }
     }
 
-    private NextQuestionDto handleChapterTransition(Member member, Book book, Episode episode,
+    private NextQuestionDto handleChapterTransition(Episode episode,
                                                     ConversationSession session) {
 
         // 1. "방금 끝난" 챕터의 에피소드를 생성합니다.
+        EpisodeResponse saveEpisode = null;
         try {
-            log.info("챕터 종료! 에피소드 생성을 시작합니다. SessionId: {}", session.getSessionId());
-            EpisodeResponse savedEpisode = episodeService.createEpisodeFromCurrentWindow(episode,
+            saveEpisode = episodeService.createEpisodeFromCurrentWindow(episode,
                     session.getSessionId());
-            log.info("✅ 챕터 에피소드 생성 완료");
-            sseService.pushEpisode(session.getSessionId(), savedEpisode);
-            log.info("에피소드 생성 완료. content: {}", savedEpisode.getContent());
-        } catch (Exception ex) {
-            log.warn("챕터 에피소드 생성 실패(다음 챕터 진행은 계속): {}", ex.getMessage());
+        } catch (Exception e) {
+
+            log.warn("챕터 에피소드 생성 실패(다음 챕터 진행은 계속): {}", e.getMessage());
+
         }
 
-        log.info("인터뷰 세션을 종료 처리합니다. SessionId: {}", session.getSessionId());
         ConversationSession updatedSession = session.toBuilder()
                 .status(SessionStatus.CLOSE) // 상태를 CLOSED로 변경
                 .build();
         sessionRepo.save(updatedSession);
 
-        Chapter nextChapter = chapterRepo.findByChapterOrder(session.getCurrentChapterOrder() + 1)
+        Chapter nextChapter = chapterRepo.findByChapterOrder(updatedSession.getCurrentChapterOrder() + 1)
                 .orElse(null);
 
-        Chapter currentChapter = chapterRepo.findById(session.getCurrentChapterId())
+        Chapter currentChapter = chapterRepo.findById(updatedSession.getCurrentChapterId())
                 .orElseThrow(() -> new IllegalStateException("현재 챕터 정보를 찾을 수 없습니다: " + session.getCurrentChapterId()));
 
         // 모든 대화 종료
@@ -453,28 +420,46 @@ public class ConversationServiceImpl implements ConversationService {
             // 다음 질문 대신, 인터뷰가 한 단락 끝났음을 알리는 특별한 DTO를 반환합니다.
             String completionMessage = String.format(
                     "챕터 %d이(가) 완료되었습니다. 왼쪽 목차에 새 에피소드를 추가하고 'AI 인터뷰 시작'을 눌러 다음 챕터를 시작해주세요.",
-                    session.getCurrentChapterOrder()
+                    updatedSession.getCurrentChapterOrder()
             );
 
-            QuestionResponse chapterCompleteResponse = QuestionResponse.builder()
-                    .text(completionMessage)
+            return NextQuestionDto.builder()
+                    .questionText(completionMessage)
                     .questionType("CHAPTER_COMPLETE")
                     .isLastQuestion(true)
+                    .currentChapterId(currentChapter.getChapterId())
                     .currentChapterName(currentChapter.getChapterName())
                     .currentStageName("챕터 완료")
                     .chapterProgress(100)
                     .overallProgress(calculateOverallProgress(session))
+                    .generatedEpisode(saveEpisode)
+                    .isLastQuestion(true)
                     .build();
-            sseService.pushQuestion(session.getSessionId(), chapterCompleteResponse);
-            return null;
+
         } else {
             // 모든 챕터가 끝났을 때의 로직은 그대로 유지
-            ConversationSession finalSession = sessionRepo.findById(session.getSessionId()).get();
-            return createCompletionQuestion(finalSession);
+            return createCompletionQuestion(saveEpisode, currentChapter);
         }
 
 
     }
+
+    private NextQuestionDto createCompletionQuestion(EpisodeResponse saveEpisode, Chapter currentChapter) {
+
+        return NextQuestionDto.builder()
+                .questionText("모든 질문이 완료되었습니다. 자서전 작성을 마치시겠습니까?")
+                .questionType("COMPLETION")
+                .currentChapterId(currentChapter.getChapterId())
+                .currentChapterName(currentChapter.getChapterName())
+                .currentTemplateId(null)
+                .currentStageName("완료")
+                .chapterProgress(100)
+                .overallProgress(100)
+                .isLastQuestion(true)
+                .generatedEpisode(saveEpisode)
+                .build();
+    }
+
 
     private NextQuestionDto moveToNextTemplate(ConversationSession session, ChapterTemplate nextTemplate) {
         ConversationSession updatedSession = session.toBuilder()
@@ -488,20 +473,6 @@ public class ConversationServiceImpl implements ConversationService {
         dynamicFollowUpQueues.remove(session.getSessionId());
         return createNextQuestionDto(updatedSession, nextTemplate.getMainQuestion(), "MAIN", nextTemplate);
     }
-
-//    private ConversationSession autoCreateEpisodeSafely(ConversationSession session) {
-//        try {
-//            log.info("에피소드 자동 생성을 시작합니다. SessionId: {}", session.getSessionId());
-//            episodeService.createEpisodeFromCurrentWindow(session.getBookId(), session.getSessionId());
-//            log.info("✅ 에피소드 자동 생성 완료");
-//        } catch (Exception ex) {
-//            log.warn("에피소드 자동 생성 실패(다음 챕터 진행은 계속): {}", ex.getMessage());
-//        }
-//
-//        // ★ 중요: DB에 반영된 최신 상태의 세션을 다시 불러와서 반환
-//        return sessionRepo.findById(session.getSessionId())
-//                .orElseThrow(() -> new ApiException(ErrorCode.INVALID_INPUT_VALUE));
-//    }
 
     private String processFollowUpQuestions(ConversationSession session, ChapterTemplate template, String userAnswer) {
         if (template.getFollowUpType() == FollowUpType.STATIC) {
@@ -558,7 +529,8 @@ public class ConversationServiceImpl implements ConversationService {
             Deque<String> dynamicQueue = dynamicFollowUpQueues.get(session.getSessionId());
 
             if (dynamicQueue == null && session.getFollowUpQuestionIndex() == 0) {
-                String generatedQuestions = aiClient.followUp().generateDynamicFollowUpBySection(sectionKey, userAnswer, null);
+                String generatedQuestions = aiClient.followUp()
+                        .generateDynamicFollowUpBySection(sectionKey, userAnswer, null);
                 dynamicQueue = parseAndCreateDynamicQueue(generatedQuestions);
                 dynamicFollowUpQueues.put(session.getSessionId(), dynamicQueue);
             }
@@ -632,22 +604,6 @@ public class ConversationServiceImpl implements ConversationService {
                 .build();
     }
 
-    private NextQuestionDto createCompletionQuestion(ConversationSession session) {
-        Chapter currentChapter = chapterRepo.findById(session.getCurrentChapterId())
-                .orElseThrow(() -> new IllegalStateException("현재 챕터를 찾을 수 없습니다."));
-
-        return NextQuestionDto.builder()
-                .questionText("모든 질문이 완료되었습니다. 자서전 작성을 마치시겠습니까?")
-                .questionType("COMPLETION")
-                .currentChapterId(currentChapter.getChapterId())
-                .currentChapterName(currentChapter.getChapterName())
-                .currentTemplateId(null)
-                .currentStageName("완료")
-                .chapterProgress(100)
-                .overallProgress(100)
-                .isLastQuestion(true)
-                .build();
-    }
 
     private int calculateChapterProgress(ConversationSession session) {
         List<ChapterTemplate> templatesInChapter = templateRepo.findByChapterChapterIdOrderByTemplateOrderAsc(
@@ -681,18 +637,18 @@ public class ConversationServiceImpl implements ConversationService {
                 .orElseThrow(() -> new ApiException(ErrorCode.SESSION_NOT_FOUND));
     }
 
-    private Member getMemberEntity(Long memberId){
+    private Member getMemberEntity(Long memberId) {
         return memberRepository.findByMemberIdAndDeletedAtIsNull(memberId)
                 .orElseThrow(() -> new ApiException(ErrorCode.USER_NOT_FOUND));
     }
 
-    private Book getBookEntity(Long bookId){
+    private Book getBookEntity(Long bookId) {
         return bookRepository.findByBookIdAndDeletedAtIsNull(bookId)
                 .orElseThrow(() -> new ApiException(ErrorCode.BOOK_NOT_FOUND));
 
     }
 
-    private Episode getEpisodeEntity(Long episodeId){
+    private Episode getEpisodeEntity(Long episodeId) {
         return episodeRepository.findByEpisodeIdAndDeletedAtIsNull(episodeId)
                 .orElseThrow(() -> new ApiException(ErrorCode.EPISODE_NOT_FOUND));
     }

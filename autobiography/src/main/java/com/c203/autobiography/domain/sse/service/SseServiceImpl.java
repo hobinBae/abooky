@@ -51,6 +51,19 @@ public class SseServiceImpl implements SseService {
         }
         log.info("[SSE] Removed emitter for sessionId={}", sessionId);
     }
+    @Override
+    public void sendError(String sessionId, String errorMessage){
+        SseEmitter emitter = emitters.get(sessionId);
+
+        if(emitter != null){
+            try{
+                emitter.send(SseEmitter.event().name("error").data(errorMessage));
+            }catch(IOException e){
+                log.warn("[SSE] Error sending error event", e);
+            }
+            closeConnection(sessionId);
+        }
+    }
 
     @Override
     public void pushQuestion(String sessionId, QuestionResponse response) {

@@ -42,4 +42,6 @@ public interface SseService {
 
     void closeConnection(String sessionId);
 
+    void sendError(String sessionId, String errorMessage);
+
 }

@@ -80,19 +80,16 @@ public class ConversationController {
      */
     @GetMapping(value = "{bookId}/{sessionId}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter stream(@PathVariable String sessionId, @PathVariable Long bookId) {
+
         SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
-        try {
-            conversationService.establishConversationStream(sessionId, bookId, emitter);
-        } catch (Exception e) {
-            log.error("SSE 스트림 설정 중 에러 발생. sessionId={}", sessionId, e);
-            try {
-                emitter.send(SseEmitter.event()
-                        .name("error")
-                        .data("스트림 연결 중 서버 오류가 발생했습니다: " + e.getMessage()));
-            } catch (IOException ex) {
-                log.warn("SSE 에러 이벤트 전송 실패. sessionId={}", sessionId, ex);
-            }
-            emitter.completeWithError(e);
+
+        sseService.register(sessionId, emitter);
+
+        try{
+            conversationService.handleSessionConnection(sessionId, bookId);
+        }catch (Exception e){
+            log.error("SSE 연결 초기화 중 오류 발생: sessionId={}", sessionId, e);
+            sseService.sendError(sessionId, "연결 초기화 실패: " + e.getMessage());
         }
 
         return emitter;

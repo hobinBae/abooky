@@ -29,13 +29,10 @@ public interface ConversationService {
     /**
      * 사용자 답변을 기반으로 다음 질문을 생성하고 반환합니다.
      */
-    NextQuestionDto getNextQuestion(Long memberId, Long bookId, Long episodeId, String sessionId, String userAnswer);
-
     String startNewConversation(Long memberId, Long bookId, Long episodeId);
 
     // 기존 대화 재연결
-    void establishConversationStream(String sessionId, Long bookId, SseEmitter emitter);
-
+    void handleSessionConnection(String sessionId, Long bookId);
     NextQuestionDto skipCurrentQuestion(Long memberId, Long bookId, Long episodeId, String sessionId);
 
 }
