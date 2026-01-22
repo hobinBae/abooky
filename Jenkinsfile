@@ -38,14 +38,14 @@ pipeline {
             steps {
                 script {
                     // 기존 서비스 중지
-                    sh "docker-compose down || true"
+                    sh "docker-compose-prod down || true"
                     
                     // --no-cache 옵션으로 Dockerfile의 빌드 스테이지부터 새로 실행 보장
                     // 이 과정에서 프론트엔드 npm install 및 build가 진행됩니다.
-                    sh "docker-compose build --no-cache"
+                    sh "docker-compose-prod build --no-cache"
                     
                     // 컨테이너 백그라운드 실행
-                    sh "docker-compose up -d"
+                    sh "docker-compose-prod up -d"
                     echo "✅ 도커 컨테이너 배포 완료 (FE: Port 82, BE: Port 8081)"
                 }
             }
