@@ -13,7 +13,7 @@ pipeline {
                 // 프로퍼티스는 Git에 있으므로 .env만 가져옵니다.
                 withCredentials([file(credentialsId: "${ENV_ID}", variable: 'envFile')]) {
                     script {
-                        sh "cp ${envFile} .env"
+                        sh 'cp $envFile .env'
                         echo "✅ .env 주입 완료 (프로퍼티스는 Git 소스 사용)"
                     }
                 }
