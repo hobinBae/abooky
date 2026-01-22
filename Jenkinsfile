@@ -2,52 +2,75 @@ pipeline {
     agent any
 
     environment {
-        // 컨테이너 이름 설정 (이전 설정 유지)
+        // 컨테이너 이름 설정
         BE_CONTAINER = "be-abooky"
         FE_CONTAINER = "fe-abooky"
-        ENV_ID  = 'ABOOKY_ENV_FILE' // Credentials ID
+        
+        // Jenkins Credentials ID (.env 파일)
+        ENV_ID  = 'ABOOKY_ENV_FILE'
+        
+        // 도커 컴포즈 파일명 명시
+        DOCKER_COMPOSE_FILE = 'docker-compose-prod.yml'
     }
 
     stages {
-        stage('Step 1: 환경 변수(.env) 주입') {
-            steps {
-                withCredentials([file(credentialsId: "${ENV_ID}", variable: 'envFile')]) {
-                    script {
-                        sh 'cp $envFile .env'
-                        echo "✅ .env 주입 완료 (프로퍼티스는 Git 소스 사용)"
-                    }
-                }
-            }
-        }
-
-        stage('Step 2: Backend 빌드 (Gradle)') {
-            steps {
-                dir('autobiography') {
-                    sh 'chmod +x gradlew'
-                    // JAR 파일 생성 (테스트 제외)
-                    sh './gradlew clean build -x test'
-                    echo "✅ 백엔드 JAR 빌드 완료"
-                }
-            }
-        }
-
-        // 🎯 Step 3 (NPM 빌드) 삭제
-        // 이유: 프론트엔드 Dockerfile 내에서 node:20 이미지를 사용해 직접 빌드함
-
-stage('Step 3: 통합 배포 (Docker)') {
+        stage('Step 1: 환경 변수(.env) 및 권한 설정') {
             steps {
                 script {
-                    // 🎯 -f 옵션 뒤에 파일명을 정확히 적어주어야 합니다.
-                    // 기존 서비스 중지
-                    sh "docker-compose -f docker-compose-prod.yml down || true"
+                    // 1. 보안 주입: .env 파일을 프로젝트 루트로 복사
+                    withCredentials([file(credentialsId: "${ENV_ID}", variable: 'envFile')]) {
+                        sh 'cp $envFile .env'
+                    }
                     
-                    // 이미지 빌드 (프론트엔드 멀티 스테이지 빌드 포함)
-                    sh "docker-compose -f docker-compose-prod.yml build --no-cache"
+                    // 2. 권한 부여: 도커 내부 빌드를 위해 Gradle 래퍼 실행 권한 확인
+                    dir('autobiography') {
+                        sh 'chmod +x gradlew'
+                    }
                     
-                    // 컨테이너 실행
-                    sh "docker-compose -f docker-compose-prod.yml up -d"
+                    echo "✅ 환경 변수 주입 및 빌드 준비 완료"
+                }
+            }
+        }
+
+        /* 💡 참고: 젠킨스에서 직접 빌드(Step 2, 3)를 수행하지 않습니다.
+           백엔드와 프론트엔드 Dockerfile 내부에서 각각 Gradle과 NPM 빌드가 진행됩니다.
+        */
+
+        stage('Step 2: 통합 빌드 및 배포 (Docker)') {
+            steps {
+                script {
+                    echo "🛠️ 도커 멀티 스테이지 빌드 시작..."
+
+                    // 1. 기존 컨테이너 및 미사용 리소스 정리
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} down || true"
                     
-                    echo "✅ 도커 컨테이너 배포 완료 (FE: Port 82, BE: Port 8081)"
+                    // 2. 통합 빌드 실행 (--no-cache로 소스 코드 변경사항 즉시 반영)
+                    // 이 과정에서 백엔드(JAR 빌드)와 프론트엔드(NPM 빌드)가 동시에 진행됩니다.
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} build --no-cache"
+                    
+                    // 3. 컨테이너 백그라운드 실행
+                    sh "docker-compose -f ${DOCKER_COMPOSE_FILE} up -d"
+                    
+                    echo "✅ 아북이 서비스 배포 성공 (FE: 82, BE: 8081)"
+                }
+            }
+        }
+
+        stage('Step 3: 상태 확인 (Health Check)') {
+            steps {
+                script {
+                    echo "⏳ 서비스 안정화 대기 (30초)..."
+                    sleep 30
+
+                    // 컨테이너 실행 상태 확인
+                    def beStatus = sh(script: "docker inspect --format='{{.State.Status}}' ${BE_CONTAINER}", returnStdout: true).trim()
+                    def feStatus = sh(script: "docker inspect --format='{{.State.Status}}' ${FE_CONTAINER}", returnStdout: true).trim()
+
+                    if (beStatus == 'running' && feStatus == 'running') {
+                        echo "🎉 [SUCCESS] 모든 서비스가 정상 작동 중입니다."
+                    } else {
+                        error "🚨 [FAILURE] 서비스 상태 이상 (BE: ${beStatus}, FE: ${feStatus})"
+                    }
                 }
             }
         }
@@ -55,15 +78,15 @@ stage('Step 3: 통합 배포 (Docker)') {
 
     post {
         always {
-            // 작업 공간 정리 및 미사용 도커 이미지 삭제 (디스크 공간 확보)
-            cleanWs()
+            // 빌드 후 불필요한 이미지 정리 및 워크스페이스 청소
             sh "docker image prune -f"
+            cleanWs()
         }
         success {
-            echo "🎉 배포가 성공적으로 완료되었습니다!"
+            echo "✨ 배포 프로세스가 완료되었습니다."
         }
         failure {
-            echo "❌ 배포 중 오류가 발생했습니다. 로그를 확인하세요."
+            echo "🔥 배포 실패! 젠킨스 로그와 도커 로그(docker logs [컨테이너명])를 확인하세요."
         }
     }
 }

@@ -1,13 +1,27 @@
-# autobiography/Dockerfile
-FROM openjdk:17-jdk-slim
+# ---------- BUILD STAGE ----------
+FROM eclipse-temurin:17-jdk AS builder
+WORKDIR /workspace
 
-# 시간대 설정
+# 1) Gradle 관련 파일만 먼저 복사 (의존성 캐시용 레이어)
+COPY gradlew ./
+COPY gradle ./gradle
+COPY build.gradle* settings.gradle* ./
+
+RUN chmod +x ./gradlew
+
+# 2) 의존성만 먼저 받아서 /root/.gradle 캐시 레이어 만들기
+#   - 실패해도 전체 빌드 막지 않도록 || true
+RUN ./gradlew dependencies --no-daemon -x test || true
+
+# 3) 실제 소스 코드만 복사
+COPY src ./src
+
+# 4) 최종 jar 빌드 (clean 제거해서 캐시 최대 활용)
+RUN ./gradlew bootJar --no-daemon -x test
+
+# ---------- RUN STAGE ----------
+FROM eclipse-temurin:17-jre
+WORKDIR /app
+COPY --from=builder /workspace/build/libs/*SNAPSHOT.jar app.jar
 ENV TZ=Asia/Seoul
-RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
-
-# Step 2에서 생성된 빌드 결과물(JAR)을 컨테이너 내부로 복사
-# 파일명이 다를 수 있으니 build/libs/*.jar 로 지정합니다.
-COPY build/libs/*.jar app.jar
-
-# 실행 권한 부여 및 실행
-ENTRYPOINT ["java", "-jar", "-Dspring.profiles.active=prod", "/app.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
