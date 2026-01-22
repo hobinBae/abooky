@@ -16,7 +16,8 @@ public class OpenAiProperties {
     private String apiKey;
     // private String apiUrl =
     // "https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions";
-    private String apiUrl = "http://localhost:11434/v1/chat/completions";
+//    private String apiUrl = "http://localhost:11434/v1/chat/completions";
+    private String apiUrl = "http://192.168.0.8:11434/v1/chat/completions";
     private String model = "gemma3:4b";
     private int requestTimeoutSec = 60;
 
