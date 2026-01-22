@@ -6,6 +6,8 @@ services:
     build: ./autobiography
     container_name: be-abooky
     restart: always
+    environment:
+      - SPRING_PROFILES_ACTIVE=prod
     env_file:
       - .env # 아까 만든 환경 변수 파일 로드
     ports:
