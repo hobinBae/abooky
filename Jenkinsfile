@@ -34,18 +34,19 @@ pipeline {
         // 🎯 Step 3 (NPM 빌드) 삭제
         // 이유: 프론트엔드 Dockerfile 내에서 node:20 이미지를 사용해 직접 빌드함
 
-        stage('Step 3: 통합 배포 (Docker)') {
+stage('Step 3: 통합 배포 (Docker)') {
             steps {
                 script {
+                    // 🎯 -f 옵션 뒤에 파일명을 정확히 적어주어야 합니다.
                     // 기존 서비스 중지
-                    sh "docker-compose-prod down || true"
+                    sh "docker-compose -f docker-compose-prod.yml down || true"
                     
-                    // --no-cache 옵션으로 Dockerfile의 빌드 스테이지부터 새로 실행 보장
-                    // 이 과정에서 프론트엔드 npm install 및 build가 진행됩니다.
-                    sh "docker-compose-prod build --no-cache"
+                    // 이미지 빌드 (프론트엔드 멀티 스테이지 빌드 포함)
+                    sh "docker-compose -f docker-compose-prod.yml build --no-cache"
                     
-                    // 컨테이너 백그라운드 실행
-                    sh "docker-compose-prod up -d"
+                    // 컨테이너 실행
+                    sh "docker-compose -f docker-compose-prod.yml up -d"
+                    
                     echo "✅ 도커 컨테이너 배포 완료 (FE: Port 82, BE: Port 8081)"
                 }
             }
