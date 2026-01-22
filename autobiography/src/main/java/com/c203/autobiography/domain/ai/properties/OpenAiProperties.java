@@ -14,8 +14,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class OpenAiProperties {
 
     private String apiKey;
-    private String apiUrl = "https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions";
-    private String model = "gpt-4o";
+    // private String apiUrl =
+    // "https://gms.ssafy.io/gmsapi/api.openai.com/v1/chat/completions";
+    private String apiUrl = "http://localhost:11434/v1/chat/completions";
+    private String model = "gemma3:4b";
     private int requestTimeoutSec = 60;
 
     private Api api = new Api();
@@ -27,7 +29,6 @@ public class OpenAiProperties {
         private String model;
         private int requestTimeoutSec = 60;
     }
-
 
     // ------------------------
     // FOLLOW-UP 설정
@@ -107,6 +108,5 @@ public class OpenAiProperties {
         private String system;
         private String userTemplate;
     }
-
 
 }

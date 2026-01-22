@@ -26,7 +26,6 @@ RUN apk add --no-cache curl
 
 # 🎯 핵심: Jenkins에서 빌드한 dist 폴더 직접 복사
 COPY dist/ /usr/share/nginx/html/
-
 # nginx 설정 파일 복사 (기존 위치에서 직접)
 COPY nginx.conf /etc/nginx/nginx.conf
 
@@ -44,15 +43,16 @@ RUN chown -R nginx:nginx /usr/share/nginx/html && \
     touch /var/run/nginx.pid && \
     chown -R nginx:nginx /var/run/nginx.pid
 
-# nginx 사용자로 실행 (기존과 동일)
-USER nginx
+# # nginx 사용자로 실행 (기존과 동일)
+# USER nginx
 
 # 포트 노출 (기존과 동일)
-EXPOSE 80
+EXPOSE 82
 
 # 헬스체크 (기존과 동일한 설정)
+# 포트를 명시하지 않으면 기본 80번을 찾기 때문에 실패할 수 있습니다.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost/health || exit 1
+    CMD curl -f http://localhost:82/health || exit 1
 
 # nginx 실행 (기존과 동일)
 CMD ["nginx", "-g", "daemon off;"]

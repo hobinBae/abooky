@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  # 1. 백엔드 서비스 (Spring Boot)
+  backend:
+    build: ./autobiography
+    container_name: be-abooky
+    restart: always
+    env_file:
+      - .env # 아까 만든 환경 변수 파일 로드
+    ports:
+      - "8081:8081"
+    networks:
+      - my-proxy-net
+
+  # 2. 프론트엔드 서비스 (Vue.js + Nginx)
+  frontend:
+    build: ./mybook
+    container_name: fe-abooky
+    restart: always
+    ports:
+      - "82:82"
+    networks:
+      - my-proxy-net
+
+networks:
+  # 기존 인프라(MySQL, Redis)가 속해 있는 외부 네트워크 연결
+  my-proxy-net:
+    external: true
