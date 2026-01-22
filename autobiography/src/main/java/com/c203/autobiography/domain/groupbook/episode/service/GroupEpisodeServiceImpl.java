@@ -16,7 +16,7 @@ import com.c203.autobiography.domain.groupbook.episode.repository.GroupEpisodeIm
 import com.c203.autobiography.domain.groupbook.repository.GroupBookRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
-import com.c203.autobiography.global.s3.FileStorageService;
+//import com.c203.autobiography.global.s3.FileStorageService;
 import com.c203.autobiography.domain.sse.service.SseService;
 import com.c203.autobiography.domain.episode.template.dto.QuestionResponse;
 import lombok.Getter;
@@ -49,7 +49,7 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
     private final GroupEpisodeImageRepository imageRepository;
     private final GuideResolverService guideResolver;
     private final EditorService editorService;
-    private final FileStorageService fileStorageService;
+//    private final FileStorageService fileStorageService;
     private final SseService sseService;
     private final AiClientFactory aiClient;
 
@@ -340,7 +340,7 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         }
         
         // 3. 파일 업로드
-        String imageUrl = fileStorageService.store(file, "group-episode");
+//        String imageUrl = fileStorageService.store(file, "group-episode");
         
         // 4. 순서 번호 결정 (요청에 없으면 자동 부여)
         Integer orderNo = request.getOrderNo();
@@ -354,7 +354,7 @@ public class GroupEpisodeServiceImpl implements GroupEpisodeService {
         
         // 6. 이미지 엔티티 생성 및 저장
         GroupEpisodeImage image = GroupEpisodeImage.create(
-                episode, imageId, imageUrl, orderNo, request.getDescription());
+                episode, imageId, null, orderNo, request.getDescription());
         
         GroupEpisodeImage savedImage = imageRepository.save(image);
         

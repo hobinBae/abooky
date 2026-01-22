@@ -22,7 +22,7 @@ import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
-import com.c203.autobiography.global.s3.FileStorageService;
+//import com.c203.autobiography.global.s3.FileStorageService;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -50,7 +50,7 @@ public class EpisodeServiceImpl implements EpisodeService {
     private final MemberRepository memberRepository;
     private final BookRepository bookRepository;
     private final ConversationSessionRepository conversationSessionRepository;
-    private final FileStorageService fileStorageService;
+//    private final FileStorageService fileStorageService;
 
     /**
      * 에피소드 생성
@@ -416,7 +416,7 @@ public class EpisodeServiceImpl implements EpisodeService {
         Episode episode = validateAndGetEpisode(memberId, bookId, episodeId);
 
         // 2. 파일 업로드
-        String imageUrl = fileStorageService.store(file, "episode");
+//        String imageUrl = fileStorageService.store(file, "episode");
 
         // 3. 순서 번호 결정 (요청에 없으면 자동 부여)
         Integer orderNo = request.getOrderNo();
@@ -429,8 +429,11 @@ public class EpisodeServiceImpl implements EpisodeService {
         Long imageId = System.currentTimeMillis();
 
         // 5. 이미지 엔티티 생성 및 저장
+//        EpisodeImage image = EpisodeImage.create(
+//                episode, imageId, imageUrl, orderNo, request.getDescription());
+        // 5. 이미지 엔티티 생성 및 저장
         EpisodeImage image = EpisodeImage.create(
-                episode, imageId, imageUrl, orderNo, request.getDescription());
+                episode, imageId, null, orderNo, request.getDescription());
 
         EpisodeImage savedImage = episodeImageRepository.save(image);
 

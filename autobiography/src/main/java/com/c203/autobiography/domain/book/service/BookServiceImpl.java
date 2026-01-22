@@ -33,7 +33,7 @@ import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
-import com.c203.autobiography.global.s3.FileStorageService;
+//import com.c203.autobiography.global.s3.FileStorageService;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -62,13 +62,13 @@ import static com.c203.autobiography.domain.book.dto.BookType.FREE_FORM;
 @Transactional(readOnly = true)
 public class BookServiceImpl implements BookService {
 
-    @Value("${aws.s3.base-url}")
-    private String s3BaseUrl;
+//    @Value("${aws.s3.base-url}")
+//    private String s3BaseUrl;
 
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
     private final BookCategoryRepository bookCategoryRepository;
-    private final FileStorageService fileStorageService;
+//    private final FileStorageService fileStorageService;
     private final EpisodeRepository episodeRepository;
     private final TagRepository tagRepository;
     private final BookLikeRepository bookLikeRepository;
@@ -110,9 +110,9 @@ public class BookServiceImpl implements BookService {
         };
 
         String coverImageUrl = null;
-        if (file != null && !file.isEmpty()) {
-            coverImageUrl = fileStorageService.store(file, "book");
-        }
+//        if (file != null && !file.isEmpty()) {
+//            coverImageUrl = fileStorageService.store(file, "book");
+//        }
         Book book = request.toEntity(member, category, coverImageUrl);
 
         Book saved = bookRepository.save(book);
@@ -140,26 +140,26 @@ public class BookServiceImpl implements BookService {
 
         String currentImageUrl = book.getCoverImageUrl();
         String newImageUrl = currentImageUrl; // 기본값은 현재 이미지 URL
-        if (file != null && !file.isEmpty()) {
-
-            currentImageUrl = book.getCoverImageUrl();
-
-            if (isDeletableS3File(currentImageUrl)) {
-                fileStorageService.delete(currentImageUrl);
-            }
-
-            newImageUrl = fileStorageService.store(file, "book");
-
-        } else if (request.getCoverImageUrl() != null && !request.getCoverImageUrl().equals(currentImageUrl)) {
-            // [CASE 2] 새로운 파일 업로드는 없지만, 요청에 다른 이미지 URL(예: 다른 기본 이미지 선택)이 포함된 경우
-
-            // 기존 이미지가 S3에 업로드된 파일인 경우에만 삭제
-            if (isDeletableS3File(currentImageUrl)) {
-                fileStorageService.delete(currentImageUrl);
-            }
-            // 요청으로 받은 URL을 새 URL로 설정
-            newImageUrl = request.getCoverImageUrl();
-        }
+//        if (file != null && !file.isEmpty()) {
+//
+//            currentImageUrl = book.getCoverImageUrl();
+//
+//            if (isDeletableS3File(currentImageUrl)) {
+//                fileStorageService.delete(currentImageUrl);
+//            }
+//
+//            newImageUrl = fileStorageService.store(file, "book");
+//
+//        } else if (request.getCoverImageUrl() != null && !request.getCoverImageUrl().equals(currentImageUrl)) {
+//            // [CASE 2] 새로운 파일 업로드는 없지만, 요청에 다른 이미지 URL(예: 다른 기본 이미지 선택)이 포함된 경우
+//
+//            // 기존 이미지가 S3에 업로드된 파일인 경우에만 삭제
+//            if (isDeletableS3File(currentImageUrl)) {
+//                fileStorageService.delete(currentImageUrl);
+//            }
+//            // 요청으로 받은 URL을 새 URL로 설정
+//            newImageUrl = request.getCoverImageUrl();
+//        }
 
         book.updateBook(request.getTitle(), newImageUrl, request.getSummary(), category);
 
@@ -178,18 +178,18 @@ public class BookServiceImpl implements BookService {
         return BookResponse.of(book);
     }
 
-    private boolean isDeletableS3File(String url) {
-        if (url == null || url.isBlank()) {
-            return false;
-        }
-
-        // ★★★ 핵심 수정 사항 ★★★
-        // URL에 '/default_' 라는 문자열이 포함되어 있는지 확인하여 기본 이미지인지 판별합니다.
-        boolean isDefaultImage = url.contains("/default_");
-
-        // 삭제 가능한 파일의 조건: 우리 S3 URL로 시작하고, 기본 이미지는 아니어야 함.
-        return url.startsWith(s3BaseUrl) && !isDefaultImage;
-    }
+//    private boolean isDeletableS3File(String url) {
+//        if (url == null || url.isBlank()) {
+//            return false;
+//        }
+//
+//        // ★★★ 핵심 수정 사항 ★★★
+//        // URL에 '/default_' 라는 문자열이 포함되어 있는지 확인하여 기본 이미지인지 판별합니다.
+//        boolean isDefaultImage = url.contains("/default_");
+//
+//        // 삭제 가능한 파일의 조건: 우리 S3 URL로 시작하고, 기본 이미지는 아니어야 함.
+//        return url.startsWith(s3BaseUrl) && !isDefaultImage;
+//    }
 
     @Override
     @Transactional

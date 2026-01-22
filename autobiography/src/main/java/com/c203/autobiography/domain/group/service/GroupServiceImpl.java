@@ -12,7 +12,6 @@ import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
-import com.c203.autobiography.global.s3.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,20 +30,20 @@ public class GroupServiceImpl implements GroupService{
     private final GroupMemberRepository groupMemberRepository;
     private final MemberRepository memberRepository;
 
-    private final FileStorageService fileStorageService;
-    private static final String DEFAULT_IMAGE_URL = "https://ssafytrip.s3.ap-northeast-2.amazonaws.com/groupProfile/default.png";
+//    private final FileStorageService fileStorageService;
+//    private static final String DEFAULT_IMAGE_URL = "https://ssafytrip.s3.ap-northeast-2.amazonaws.com/groupProfile/default.png";
 
     @Transactional
     @Override
     public GroupResponse createGroup(Long leaderId, GroupCreateRequest request, MultipartFile file) {
         // 이미지 업로드
 
-        if(file != null && !file.isEmpty()) {
-            String imageUrl = fileStorageService.store(file, "groupProfiles");
-            request.setGroupImageUrl(imageUrl);
-        } else {
-            request.setGroupImageUrl(DEFAULT_IMAGE_URL);
-        }
+//        if(file != null && !file.isEmpty()) {
+////            String imageUrl = fileStorageService.store(file, "groupProfiles");
+//            request.setGroupImageUrl(imageUrl);
+//        } else {
+//            request.setGroupImageUrl(DEFAULT_IMAGE_URL);
+//        }
 
         Group group = request.toEntity(leaderId);
         Group saved = groupRepository.save(group);
@@ -90,15 +89,15 @@ public class GroupServiceImpl implements GroupService{
 
 
         // 이미지 교체 로직
-        if(file != null && !file.isEmpty()) {
-            // 기존 이미지 URL있고 디폴트 이미지가 아니라면 삭제
-            String currentImageUrl = group.getGroupImageUrl();
-            if(currentImageUrl != null && !currentImageUrl.isEmpty() && !currentImageUrl.equals(DEFAULT_IMAGE_URL)) {
-                fileStorageService.delete(currentImageUrl);
-            }
-            String newImageUrl = fileStorageService.store(file, "groupProfiles");;
-            request.setGroupImageUrl(newImageUrl);
-        }
+//        if(file != null && !file.isEmpty()) {
+//            // 기존 이미지 URL있고 디폴트 이미지가 아니라면 삭제
+//            String currentImageUrl = group.getGroupImageUrl();
+//            if(currentImageUrl != null && !currentImageUrl.isEmpty() && !currentImageUrl.equals(DEFAULT_IMAGE_URL)) {
+//                fileStorageService.delete(currentImageUrl);
+//            }
+//            String newImageUrl = fileStorageService.store(file, "groupProfiles");;
+//            request.setGroupImageUrl(newImageUrl);
+//        }
 
         group.updateInfo(request.getGroupName(), request.getDescription(), request.getThemeColor(), request.getGroupImageUrl());
         

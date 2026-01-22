@@ -21,7 +21,7 @@ import com.c203.autobiography.domain.member.entity.Member;
 import com.c203.autobiography.domain.member.repository.MemberRepository;
 import com.c203.autobiography.global.exception.ApiException;
 import com.c203.autobiography.global.exception.ErrorCode;
-import com.c203.autobiography.global.s3.FileStorageService;
+//import com.c203.autobiography.global.s3.FileStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -41,7 +41,7 @@ public class GroupBookServiceImpl implements GroupBookService {
     private final MemberRepository memberRepository;
     private final GroupMemberRepository groupMemberRepository;
     private final BookCategoryRepository bookCategoryRepository;
-    private final FileStorageService fileStorageService;
+//    private final FileStorageService fileStorageService;
     private final GroupEpisodeRepository episodeRepository;
     private final TagRepository tagRepository;
     private final GuideResolverService guideResolver;
@@ -86,9 +86,9 @@ public class GroupBookServiceImpl implements GroupBookService {
         };
 
         String coverImageUrl = null;
-        if (file != null && !file.isEmpty()) {
-            coverImageUrl = fileStorageService.store(file, "groupBook");
-        }
+//        if (file != null && !file.isEmpty()) {
+//            coverImageUrl = fileStorageService.store(file, "groupBook");
+//        }
         GroupBook book = request.toEntity(member, group, category, coverImageUrl);
 
         GroupBook saved = groupBookRepository.save(book);
@@ -136,9 +136,9 @@ public class GroupBookServiceImpl implements GroupBookService {
         };
 
         String coverImageUrl = null;
-        if (file != null && !file.isEmpty()) {
-            coverImageUrl = fileStorageService.store(file, "groupBook");
-        }
+//        if (file != null && !file.isEmpty()) {
+//            coverImageUrl = fileStorageService.store(file, "groupBook");
+//        }
         GroupBook book = request.toEntity(member, group, category, coverImageUrl);
 
         GroupBook saved = groupBookRepository.save(book);
@@ -169,16 +169,16 @@ public class GroupBookServiceImpl implements GroupBookService {
         }
 
         String newImageUrl = groupBook.getCoverImageUrl();
-        if(file!=null && !file.isEmpty()) {
-            String currentImageUrl = groupBook.getCoverImageUrl();
-            if(currentImageUrl != null && !currentImageUrl.isBlank()) {
-                fileStorageService.delete(currentImageUrl);
-            }
-            newImageUrl = fileStorageService.store(file, "groupBook");
-        } else if (request.getCoverImageUrl() != null && !request.getCoverImageUrl().isBlank()) {
-            // 파일 업로드는 없지만 요청에 이미지 URL이 있는 경우는 기본이미지를 선택했기 때문에
-            newImageUrl = groupBook.getCoverImageUrl(); // 기본이미지를 coverImage로 저장
-        }
+//        if(file!=null && !file.isEmpty()) {
+//            String currentImageUrl = groupBook.getCoverImageUrl();
+//            if(currentImageUrl != null && !currentImageUrl.isBlank()) {
+//                fileStorageService.delete(currentImageUrl);
+//            }
+//            newImageUrl = fileStorageService.store(file, "groupBook");
+//        } else if (request.getCoverImageUrl() != null && !request.getCoverImageUrl().isBlank()) {
+//            // 파일 업로드는 없지만 요청에 이미지 URL이 있는 경우는 기본이미지를 선택했기 때문에
+//            newImageUrl = groupBook.getCoverImageUrl(); // 기본이미지를 coverImage로 저장
+//        }
         groupBook.updateGroupBook(request.getTitle(), newImageUrl, request.getSummary(), category);
         return GroupBookResponse.of(groupBook);
     }
