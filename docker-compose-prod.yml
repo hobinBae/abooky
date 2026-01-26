@@ -20,7 +20,12 @@ services:
     build: ./mybook
     container_name: fe-abooky
     restart: always
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro # 인증서 파일 연결 (읽기 전용)
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
     ports:
+      - "80:80"
+      - "443:443" # HTTPS 포트 추가
       - "82:82"
     networks:
       - my-proxy-net
