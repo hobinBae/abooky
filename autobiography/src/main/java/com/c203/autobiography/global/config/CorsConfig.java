@@ -16,7 +16,7 @@ public class CorsConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
                 "http://localhost:3000", // React 개발 환경
-                "http://abooky.duckdns.org", // 프로덕션 환경
+                "http://abooky.duckdns.org:82", // 프로덕션 환경
                 "https://abooky.duckdns.org"
 
         ));
